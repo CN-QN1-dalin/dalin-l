@@ -179,6 +179,7 @@ pub fn unify(t1: &TypeOrVar, t2: &TypeOrVar, subst: &mut HashMap<String, TypeOrV
 
 // ── 类型推断器 ──
 
+#[derive(Debug)]
 pub struct TypeInferencer {
     pub env: TypeEnv,
     pub errors: Vec<TypeError>,

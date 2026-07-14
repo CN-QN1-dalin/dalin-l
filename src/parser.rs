@@ -151,12 +151,55 @@ impl Parser {
         Ok(Stmt::Let { name, value, type_annotation: type_ann, mutable: true })
     }
 
+    /// 解析效应/能力类型关键字（Dalin L 2.0）
+    /// `pure` | `io` | `async` | `spawn` | `cpu` | `gpu` | `sfa` | `net`
+    fn parse_effect_or_cap(&mut self) -> Result<String, ParseError> {
+        let tok = self.current().clone();
+        let valid = ["pure", "io", "async", "spawn", "cpu", "gpu", "sfa", "net"];
+        let text = if tok.token_type == Ident {
+            self.advance();
+            tok.value.clone()
+        } else if matches!(tok.token_type, KeywordAsync | KeywordSpawn) {
+            self.advance();
+            tok.value.clone()
+        } else {
+            // Try as Ident anyway for keywords that might be identifiers
+            let val = tok.value.clone();
+            if valid.contains(&val.as_str()) {
+                self.advance();
+                val
+            } else {
+                return Err(ParseError {
+                    message: format!("Expected effect/capability type but got {:?}", tok.value),
+                    line: tok.line,
+                    column: tok.column,
+                });
+            }
+        };
+        if valid.contains(&text.as_str()) {
+            Ok(text)
+        } else {
+            Err(ParseError {
+                message: format!("Invalid effect/capability type: {}", text),
+                line: tok.line,
+                column: tok.column,
+            })
+        }
+    }
+
     fn parse_fn(&mut self) -> Result<Stmt, ParseError> {
         let name = self.expect(Ident, "function name")?.value.clone();
         let params = self.parse_fn_params()?;
         let return_type = if self.match_token(Arrow) { Some(self.parse_type()?) } else { None };
+        // Dalin L 2.0: 三通道标注 @ effect @ capability
+        let effect = if self.match_token(At) {
+            Some(self.parse_effect_or_cap()?)
+        } else { None };
+        let capability = if self.match_token(At) {
+            Some(self.parse_effect_or_cap()?)
+        } else { None };
         let body = self.parse_block()?;
-        Ok(Stmt::Fn { name, params, return_type, body, async_: false, pub_: false })
+        Ok(Stmt::Fn { name, params, return_type, effect, capability, body, async_: false, pub_: false })
     }
 
     fn parse_async_fn(&mut self) -> Result<Stmt, ParseError> {
@@ -164,8 +207,12 @@ impl Parser {
         let name = self.expect(Ident, "function name")?.value.clone();
         let params = self.parse_fn_params()?;
         let return_type = if self.match_token(Arrow) { Some(self.parse_type()?) } else { None };
+        let effect = Some("async".to_string());
+        let capability = if self.match_token(At) {
+            Some(self.expect(Ident, "capability type")?.value)
+        } else { None };
         let body = self.parse_block()?;
-        Ok(Stmt::Fn { name, params, return_type, body, async_: true, pub_: false })
+        Ok(Stmt::Fn { name, params, return_type, effect, capability, body, async_: true, pub_: false })
     }
 
     fn parse_fn_params(&mut self) -> Result<Vec<FnParam>, ParseError> {

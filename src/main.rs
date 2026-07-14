@@ -5,6 +5,7 @@ mod ast;
 mod lexer;
 mod parser;
 mod ty;
+mod ty2;
 mod env;
 mod interpreter;
 
@@ -16,6 +17,8 @@ fn main() {
         run_repl();
     } else if args.len() > 1 && args[1] == "--test" {
         run_tests();
+    } else if args.len() > 1 && args[1] == "--v2" {
+        run_v2_demo();
     } else {
         run_demo();
     }
@@ -334,5 +337,91 @@ fn run_tests() {
     // ── Summary ──
     println!("\n{}", "=".repeat(60));
     println!("  Tests: ✅{} / {} passed | ❌{} failed", passed, passed + failed, failed);
+    println!("{}", "=".repeat(60));
+}
+
+fn run_v2_demo() {
+    println!("{}", "=".repeat(60));
+    println!("  Dalin L 2.0 — 三通道类型系统原型");
+    println!("{}", "=".repeat(60));
+
+    // 1. 效应格验证
+    println!("\n--- 效应格 (Effect Lattice) ---");
+    use ty2::Effect;
+    println!("  pure ≤ io?    {}", Effect::Pure.leq(&Effect::Io));
+    println!("  pure ≤ async? {}", Effect::Pure.leq(&Effect::Async));
+    println!("  pure ≤ spawn? {}", Effect::Pure.leq(&Effect::Spawn));
+    println!("  io ≤ async?   {}", Effect::Io.leq(&Effect::Async));
+    println!("  async ≤ pure? {}", Effect::Async.leq(&Effect::Pure));
+    println!("  io ≤ spawn?   {}", Effect::Io.leq(&Effect::Spawn));
+    println!();
+    println!("  join(pure, io)     = {:?}", Effect::join(&Effect::Pure, &Effect::Io));
+    println!("  join(io, async)    = {:?}", Effect::join(&Effect::Io, &Effect::Async));
+    println!("  join(io, spawn)    = {:?}", Effect::join(&Effect::Io, &Effect::Spawn));
+    println!("  join(async, spawn) = {:?}", Effect::join(&Effect::Async, &Effect::Spawn));
+
+    // 2. 能力格验证
+    println!("\n--- 能力格 (Capability Lattice) ---");
+    use ty2::Capability;
+    println!("  cpu ≤ gpu? {}", Capability::Cpu.leq(&Capability::Gpu));
+    println!("  cpu ≤ sfa? {}", Capability::Cpu.leq(&Capability::Sfa));
+    println!("  cpu ≤ net? {}", Capability::Cpu.leq(&Capability::Net));
+    println!("  gpu ≤ sfa? {}", Capability::Gpu.leq(&Capability::Sfa));
+    println!();
+    println!("  join(cpu, gpu) = {:?}", Capability::join(&Capability::Cpu, &Capability::Gpu));
+    println!("  join(cpu, sfa) = {:?}", Capability::join(&Capability::Cpu, &Capability::Sfa));
+    println!("  join(gpu, sfa) = {:?}", Capability::join(&Capability::Gpu, &Capability::Sfa));
+
+    // 3. 三通道推断演示
+    println!("\n--- 三通道类型推断 ---");
+    let src = r#"
+        fn pure_add(a, b) -> int @ pure @ cpu {
+            return a + b
+        }
+        async fn fetch(url) {
+            return "data"
+        }
+        let x = 42
+    "#;
+
+    let mut lex = lexer::Lexer::new(src);
+    match lex.tokenize() {
+        Ok(tokens) => {
+            let mut parser = parser::Parser::new(tokens);
+            match parser.parse() {
+                Ok(prog) => {
+                    let mut infer = ty2::ThreeChannelInferencer::new();
+                    infer.infer_program(&prog);
+                    println!("{}", infer.print_report());
+                }
+                Err(e) => println!("  ❌ Parse error: {}", e),
+            }
+        }
+        Err(e) => println!("  ❌ Lex error: {}", e),
+    }
+
+    // 4. 语法解析验证：三通道标注
+    println!("\n--- 三通道标注语法 ---");
+    let src2 = "fn process(x) -> string @ async @ sfa { return x }";
+    let mut lex2 = lexer::Lexer::new(src2);
+    match lex2.tokenize() {
+        Ok(tokens) => {
+            let mut parser = parser::Parser::new(tokens);
+            match parser.parse() {
+                Ok(prog) => {
+                    if let Some(stmt) = prog.statements.first() {
+                        if let ast::Stmt::Fn { name, effect, capability, .. } = stmt {
+                            println!("  ✅ 解析成功: fn {} @ {:?} @ {:?}", name, effect, capability);
+                        }
+                    }
+                }
+                Err(e) => println!("  ❌ {}", e),
+            }
+        }
+        Err(e) => println!("  ❌ {}", e),
+    }
+
+    println!("\n{}", "=".repeat(60));
+    println!("  三通道类型系统 v2.0 原型验证完成");
     println!("{}", "=".repeat(60));
 }

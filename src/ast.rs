@@ -179,6 +179,8 @@ pub enum Stmt {
         name: String,
         params: Vec<FnParam>,
         return_type: Option<TypeRef>,
+        effect: Option<String>,         // Dalin L 2.0: pure | io | async | spawn
+        capability: Option<String>,     // Dalin L 2.0: cpu | gpu | sfa | net
         body: Vec<Stmt>,
         async_: bool,
         pub_: bool,
