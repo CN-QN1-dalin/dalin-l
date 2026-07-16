@@ -128,6 +128,48 @@ enum Commands {
         #[arg(long)]
         reason: Option<String>,
     },
+
+    /// Package management (Cargo-like)
+    Pkg {
+        /// Subcommand: init/add/remove/list/build
+        subcommand: String,
+
+        /// Dependency name for add/remove
+        #[arg(default_value = "")]
+        name: String,
+
+        /// Version requirement for add
+        #[arg(short, long, default_value = "*")]
+        version: Option<String>,
+
+        /// Git URL for add
+        #[arg(long)]
+        git: Option<String>,
+
+        /// Optional flag for add
+        #[arg(long, default_value_t = false)]
+        optional: bool,
+
+        /// JSON output for list
+        #[arg(long, default_value_t = false)]
+        json: bool,
+
+        /// Release mode for build
+        #[arg(long, default_value_t = false)]
+        release: bool,
+
+        /// Package name for init
+        #[arg(long)]
+        name_for_init: Option<String>,
+
+        /// Library-only for init
+        #[arg(long, default_value_t = false)]
+        lib: bool,
+
+        /// Destination path for init
+        #[arg(long, default_value = ".")]
+        path: String,
+    },
 }
 
 fn main() {
@@ -154,6 +196,25 @@ fn main() {
             if let Some(t) = to { args.insert("to".to_string(), t.to_string()); }
             if let Some(r) = reason { args.insert("reason".to_string(), r); }
             cmd::evolve::run(&subcommand, &args)
+        }
+
+        Commands::Pkg { subcommand, name, version, git, optional, json: as_json, release, name_for_init, lib: lib_only, path } => {
+            let mut map = std::collections::HashMap::new();
+            map.insert("name".to_string(), name.clone());
+            if let Some(v) = version { map.insert("version".to_string(), v); }
+            if let Some(g) = git { map.insert("git".to_string(), g); }
+            if optional { map.insert("optional".to_string(), "true".to_string()); }
+            if as_json { map.insert("json".to_string(), "true".to_string()); }
+            if release { map.insert("release".to_string(), "true".to_string()); }
+            if let Some(n) = name_for_init { map.insert("name".to_string(), n); }
+            if lib_only { map.insert("lib".to_string(), "true".to_string()); }
+            map.insert("path".to_string(), path);
+
+            // For remove, we need to pass name differently
+            if subcommand == "remove" && !name.is_empty() {
+                // ok, name is passed
+            }
+            cmd::pkg::run(&subcommand, &map)
         }
     };
 

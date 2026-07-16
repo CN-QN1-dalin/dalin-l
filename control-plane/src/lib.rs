@@ -5,6 +5,7 @@
 //! - [registry]: 任务树 + 状态机（runtime task_tree 的跨节点版）+ 事件广播
 //! - [transport]: 事件总线（NATS 生产实现 + InMemory 测试实现）
 //! - [server]/[client]: gRPC 控制面服务与客户端
+//! - [k8s]: K8s Operator 控制器（DalinTask CRD → Deployment）
 //!
 //! gRPC 代码由 build.rs 从 proto/control.proto 生成（package = dalin_control）。
 
@@ -22,5 +23,6 @@ pub mod transport;
 pub mod convert;
 pub mod server;
 pub mod client;
+pub mod k8s;
 
 tonic::include_proto!("dalin_control");

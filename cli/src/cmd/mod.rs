@@ -14,3 +14,4 @@ pub mod tasks;
 pub mod agents;
 pub mod vm;
 pub mod evolve;
+pub mod pkg;
