@@ -1,0 +1,59 @@
+// language-configuration.json — VSCode 语言配置（括号匹配、注释语法、折叠等）
+{
+  "comments": {
+    "lineComment": "#",
+    "blockComment": ["/*", "*/"]
+  },
+  "brackets": [
+    ["(", ")"],
+    ["[", "]"],
+    ["{", "}"]
+  ],
+  "colorizedBracketPairs": [
+    ["(", ")"],
+    ["[", "]"],
+    ["{", "}"]
+  ],
+  "autoClosingPairs": [
+    { "open": "\"", "close": "\"" },
+    { "open": "'", "close": "'" },
+    { "open": "(", "close": ")" },
+    { "open": "[", "close": "]" },
+    { "open": "{", "close": "}" }
+  ],
+  "surroundingPairs": [
+    ["\"", "\""],
+    ["'", "'"],
+    ["(", ")"],
+    ["[", "]"],
+    ["{", "}"],
+    ["@", "@"]
+  ],
+  "folding": {
+    "markers": {
+      "start": "^\\s*//\\s*#region\\b",
+      "end": "^\\s*//\\s*#endregion\\b"
+    }
+  },
+  "wordPattern": "(-?\\d*\\.\\d\\w*)|([^\\`\\~\\!\\@\\#\\%\\^\\&\\*\\(\\)\\-\\=\\+\\[\\{\\]\\}\\|\\;\\:\\'\\\"\\,\\.\\<\\>\\/\\?\\s]+)",
+  "indentationRules": {
+    "increaseIndentPattern": "^({|\\(|\\[)([^}]*)$",
+    "decreaseIndentPattern": "^\\s*(}|\\)|\\})"
+  },
+  "onEnterRules": [
+    {
+      "beforeText": "^\\s*.*\\{[^}]*$",
+      "afterText": "^\\s*\\}",
+      "action": {
+        "indent": "indent",
+        "outdent": "outdent"
+      }
+    },
+    {
+      "beforeText": "^\\s*#.+$",
+      "action": {
+        "indent": "noIndentAction"
+      }
+    }
+  ]
+}

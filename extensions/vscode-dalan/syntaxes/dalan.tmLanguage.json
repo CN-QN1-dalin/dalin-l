@@ -1,0 +1,113 @@
+{
+  "name": "Dalin L",
+  "scopeName": "source.dalan",
+  "fileTypes": ["dal"],
+  "patterns": [
+    { "include": "#line-comment" },
+    { "include": "#block-comment" },
+    { "include": "#string-literal" },
+    { "include": "#number-literal" },
+    { "include": "#keyword" },
+    { "include": "#attribute" },
+    { "include": "#function-declaration" },
+    { "include": "#identifier" }
+  ],
+  "repository": {
+    "line-comment": {
+      "name": "comment.line.number-sign.dalan",
+      "begin": "#",
+      "end": "$"
+    },
+    "block-comment": {
+      "name": "comment.block.dalan",
+      "begin": "/\\*",
+      "end": "\\*/"
+    },
+    "string-literal": {
+      "name": "string.quoted.double.dalan",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        { "name": "constant.character.escape.dalan", "match": "\\\\." }
+      ]
+    },
+    "number-literal": {
+      "patterns": [
+        {
+          "name": "constant.numeric.integer.dalan",
+          "match": "\\b(0|[1-9][0-9]*)\\b"
+        },
+        {
+          "name": "constant.numeric.float.dalan",
+          "match": "\\b[0-9]+\\.[0-9]+\\b"
+        }
+      ]
+    },
+    "keyword": {
+      "patterns": [
+        {
+          "name": "keyword.control.dalan",
+          "match": "\\b(if|else|for|while|switch|case|break|continue|return|yield)\\b"
+        },
+        {
+          "name": "keyword.function.dalan",
+          "match": "\\b(fn|async|await)\\b"
+        },
+        {
+          "name": "keyword.variable.dalan",
+          "match": "\\b(let|mut|const|val|var)\\b"
+        },
+        {
+          "name": "keyword.type.dalan",
+          "match": "\\b(int|float|string|bool|void|option|array|map|result)\\b"
+        },
+        {
+          "name": "keyword.operator.dalan",
+          "match": "(==|!=|<=|>=|<|>|&&|\\|\\||!|=|\\+|\\-|\\*|/|%|=>|->)"
+        },
+        {
+          "name": "keyword.operator.pipe.dalan",
+          "match": "([^<>!=]|^)>[^>]"
+        }
+      ]
+    },
+    "attribute": {
+      "name": "meta.attribute.dalan punctuation.definition.attribute.dalan",
+      "begin": "@",
+      "end": "(?=[\\s,;(])",
+      "patterns": [
+        {
+          "name": "variable.parameter.annotation.dalan",
+          "match": "\\w+"
+        }
+      ]
+    },
+    "function-declaration": {
+      "name": "meta.function.dalan",
+      "begin": "\\b(fn)\\s+(\\w+)",
+      "beginCaptures": {
+        "1": { "name": "keyword.function.dalan" },
+        "2": { "name": "entity.name.function.dalan" }
+      },
+      "end": "\\{",
+      "patterns": [
+        { "include": "#string-literal" },
+        { "include": "#number-literal" },
+        { "include": "#keyword" },
+        { "include": "#attribute" },
+        {
+          "name": "variable.parameter.function.dalan",
+          "match": "\\b[a-zA-Z_]\\w*"
+        }
+      ]
+    },
+    "identifier": {
+      "patterns": [
+        {
+          "name": "variable.other.readwrite.dalan",
+          "match": "\\b[a-zA-Z_]\\w*\\b(?=[\\s]*\\()"
+        }
+      ]
+    }
+  }
+}
