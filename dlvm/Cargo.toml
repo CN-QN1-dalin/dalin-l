@@ -1,0 +1,7 @@
+[package]
+name = "dalin-dlvm"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+dalin-compiler = { path = "../compiler" }

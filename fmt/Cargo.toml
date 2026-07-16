@@ -1,0 +1,11 @@
+[package]
+name = "dalin-fmt"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "dalin-fmt"
+path = "src/main.rs"
+
+[dependencies]
+dalin-compiler = { path = "../compiler" }

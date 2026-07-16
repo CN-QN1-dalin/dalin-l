@@ -1,0 +1,56 @@
+# Dalin L 控制面 —— 本地依赖服务
+# 用途：验证 Redis / Etcd / NATS 三个真实后端（跑通被 #[ignore] 门控的集成测试）。
+#
+# 用法：
+#   docker compose up -d
+#   # 等健康检查绿了，再跑门控测试：
+#   cargo test -p control-plane -- --ignored
+#   # 收尾：
+#   docker compose down
+#
+# 端口映射（与 cpd 默认值一致）：
+#   Redis  127.0.0.1:6379   （REDIS_URL 可覆盖）
+#   Etcd   127.0.0.1:2379   （ETCD_URL 可覆盖）
+#   NATS   127.0.0.1:4222   （NATS_URLS 可覆盖）
+
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 10
+
+  etcd:
+    image: bitnami/etcd:3.5
+    environment:
+      ETCD_ENABLE_V2: "false"
+      ALLOW_NONE_AUTHENTICATION: "yes"
+      ETCD_ADVERTISE_CLIENT_URLS: http://etcd:2379
+      ETCD_LISTEN_CLIENT_URLS: http://0.0.0.0:2379
+    ports:
+      - "2379:2379"
+
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: apple
+      POSTGRES_DB: dalin_cp_test
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U apple -d dalin_cp_test"]
+      interval: 2s
+      timeout: 3s
+      retries: 10
+
+  nats:
+    image: nats:2.10
+    command: ["--jetstream"]
+    ports:
+      - "4222:4222"
+      - "8222:8222"

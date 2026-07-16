@@ -1,0 +1,18 @@
+[package]
+name = "dalin_l"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "dalib"
+path = "src/main.rs"
+
+[dependencies]
+dalin-compiler = { path = "../compiler" }
+dalin-runtime = { path = "../runtime" }
+dalin-dlvm = { path = "../dlvm" }
+clap = { version = "4", features = ["derive"] }
+chrono = "0.4"
+colored = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

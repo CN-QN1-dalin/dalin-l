@@ -1,0 +1,11 @@
+[package]
+name = "dalin-runtime"
+version.workspace = true
+edition.workspace = true
+
+[lib]
+name = "dalin_runtime"
+path = "src/lib.rs"
+
+[dependencies]
+dalin-compiler = { path = "../compiler" }

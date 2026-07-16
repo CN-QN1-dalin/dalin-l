@@ -1,0 +1,16 @@
+[package]
+name="dalin-pyo3"
+version.workspace=true
+edition.workspace=true
+
+[lib]
+name="dalin_pyo3"
+path="src/lib.rs"
+crate-type=["cdylib","lib"]
+
+[dependencies]
+dalin-compiler = { path = "../compiler" }
+dalin-runtime = { path = "../runtime" }
+pyo3 = { version = "0.23", features = ["extension-module", "abi3-py312"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

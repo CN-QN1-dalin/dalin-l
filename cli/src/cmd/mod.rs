@@ -1,0 +1,16 @@
+pub mod build;
+pub mod run;
+pub mod check;
+pub mod repl;
+pub mod init;
+pub mod tree;
+pub mod analyze;
+pub mod info;
+pub mod dashboard;
+pub mod demo;
+pub mod tests;
+pub mod v2;
+pub mod tasks;
+pub mod agents;
+pub mod vm;
+pub mod evolve;

@@ -1,0 +1,33 @@
+[package]
+name = "control-plane"
+version.workspace = true
+edition.workspace = true
+
+[lib]
+name = "control_plane"
+path = "src/lib.rs"
+
+[[bin]]
+name = "cpd"
+path = "bin/cpd.rs"
+
+[dependencies]
+dalin-compiler = { path = "../compiler" }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }
+tonic = "0.12"
+prost = "0.13"
+async-nats = "0.40"
+async-trait = "0.1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "1"
+uuid = { version = "1", features = ["v4"] }
+futures-core = "0.3"
+futures-util = "0.3"
+tokio-stream = { version = "0.1", features = ["net", "sync"] }
+redis = { version = "0.27", features = ["tokio-comp", "connection-manager", "futures-util"] }
+etcd-client = "0.14"
+tokio-postgres = "0.7"
+
+[build-dependencies]
+tonic-build = "0.12"

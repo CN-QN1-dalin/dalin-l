@@ -1,0 +1,6 @@
+[package]
+name = "dalin-stdlib"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]

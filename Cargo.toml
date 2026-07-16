@@ -1,6 +1,7 @@
-[package]
-name = "dalin_l"
-version = "0.1.0"
-edition = "2024"
+[workspace]
+resolver = "2"
+members = ["compiler", "runtime", "cli", "control-plane", "dlvm", "pyo3-bindings", "registry", "stdlib", "lsp", "fmt"]
 
-[dependencies]
+[workspace.package]
+edition = "2024"
+version = "0.2.0"

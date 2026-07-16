@@ -1,0 +1,12 @@
+[package]
+name = "dalin-ls"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "dalin-ls"
+path = "src/main.rs"
+
+[dependencies]
+dalin-compiler = { path = "../compiler" }
+serde_json = "1"

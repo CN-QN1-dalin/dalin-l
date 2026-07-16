@@ -1,0 +1,110 @@
+syntax = "proto3";
+
+package dalin_control;
+
+// ── 任务状态机 ──
+enum TaskStatus {
+  TASK_STATUS_UNSPECIFIED = 0;
+  QUEUED = 1;
+  SCHEDULED = 2;
+  RUNNING = 3;
+  SUCCEEDED = 4;
+  FAILED = 5;
+  CANCELED = 6;
+}
+
+// ── 节点能力声明 ──
+message CapabilitySet {
+  bool cpu = 1;
+  bool gpu = 2;
+  bool sfa = 3;
+  bool net = 4;
+}
+
+message EffectSet {
+  bool pure = 1;
+  bool io = 2;
+  bool async = 3;
+  bool spawn = 4;
+}
+
+message NodeSpec {
+  string id = 1;
+  string addr = 2;              // host:port 或 nats://address
+  CapabilitySet capabilities = 3;
+  EffectSet effects_supported = 4;
+  // 微架构标签（用于 Placement locality 优化）
+  string arch = 5;              // "arm64", "x86_64", "metal", "cuda"
+  string ringbuffer_key = 6;    // RingBuffer KV 共享标识（QN1 工程线）
+}
+
+message NodeBeat {
+  string id = 1;
+  float load_score = 2;         // 0..1 实时负载
+  // 心跳时更新的可选字段
+  CapabilitySet capabilities = 3;
+  EffectSet effects_supported = 4;
+}
+
+message NodeAck {
+  bool ok = 1;
+  string message = 2;
+}
+
+message Empty {}
+
+// ── 三通道类型系统的"可执行单元"契约（编译期唯一事实源）──
+// effect / capability 直接复用编译器注解字符串，控制面只读、不再重新推断。
+message TaskSpec {
+  string effect = 1;            // pure | io | async | spawn（最小权限默认 pure）
+  string capability = 2;        // cpu | gpu | sfa | net
+  string idempotency_key = 3;   // 同一签名稳定 → 幂等去重
+}
+
+// 分布式任务记录（runtime task_tree 的跨节点版）
+message Task {
+  string id = 1;
+  string name = 2;
+  string parent = 3;            // 父任务 id，根任务为空
+  TaskSpec spec = 4;
+  TaskStatus status = 5;
+  string node = 6;              // 调度到的节点 id（能力格放置结果）
+  int64 submitted_at = 7;       // unix millis
+}
+
+message SubmitTaskRequest {
+  string name = 1;
+  string parent = 2;
+  TaskSpec spec = 3;
+}
+
+message SubmitTaskResponse {
+  Task task = 1;
+}
+
+message GetTaskRequest { string id = 1; }
+message GetTaskResponse { Task task = 1; }
+
+message ListTasksRequest { string parent = 1; }
+message ListTasksResponse { repeated Task tasks = 1; }
+
+message CancelTaskRequest { string id = 1; }
+message CancelTaskResponse { bool ok = 1; }
+
+message WatchTasksRequest { string parent = 1; }
+
+// 控制面 gRPC 服务：Phase 2 调度入口
+service ControlPlane {
+  rpc SubmitTask(SubmitTaskRequest) returns (SubmitTaskResponse);
+  rpc GetTask(GetTaskRequest) returns (GetTaskResponse);
+  rpc ListTasks(ListTasksRequest) returns (ListTasksResponse);
+  rpc CancelTask(CancelTaskRequest) returns (CancelTaskResponse);
+  rpc WatchTasks(WatchTasksRequest) returns (stream Task);
+}
+
+// Agent 注册服务：节点加入 / 心跳保活 / 能力声明
+service AgentRegistry {
+  rpc RegisterNode(NodeSpec) returns (NodeAck);
+  rpc Heartbeat(NodeBeat) returns (Empty);
+  rpc ListNodes(Empty) returns (stream NodeSpec);
+}

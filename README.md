@@ -19,6 +19,11 @@
 - **Option / Result** — `Some(v) / None / Ok(v) / Err(e)`
 - **递归 + 闭包** — 函数是第一公民
 - **零依赖** — 纯 Rust 标准库实现
+- **七通道类型系统** — Effect / Capability / Governance / Latency / Confidence / QN / Cognitive Loop
+- **LLM 辅助编程** — `@llm("...")` 编译时指令，自动生成函数体骨架
+- **自进化闭环** — Phase J 错误聚类 + 策略自动生成 + 人类审批接口
+
+---
 
 ## 快速开始
 
@@ -64,22 +69,132 @@ for i in 0..5 { sum = sum + i }
 println(sum)                 // → 10
 ```
 
+---
+
 ## 架构
 
 ```
-Source ─→ Lexer ─→ Tokens ─→ Parser ─→ AST ─→ TypeInferencer ─→ Type Report
-                                          ↘ Interpreter ─→ Runtime Output
+Source ─→ Lexer ─→ Tokens ─→ Parser ─→ AST ─→ LLM Expand
+                                          │
+                                   Ty2 (七通道推断)
+                                          │
+                                 Latency Verifier
+                                          │
+                                       TaskSpec
+                                          │
+                          ┌───────────────┼───────────────┐
+                          ▼               ▼               ▼
+                    Control Plane    Runtime (DLVM)   Evolution Loop (Phase J)
 ```
+
+### 编译器模块
 
 | 模块 | 职责 |
 |------|------|
 | `token.rs` | 65+ Token 类型定义 |
-| `ast.rs` | 30+ AST 节点 (表达式/语句/模式) |
+| `ast.rs` | 30+ AST 节点 (表达式/语句/模式/宏/模块) |
 | `lexer.rs` | 词法分析器 (中文标识符 / 转义 / 注释) |
-| `parser.rs` | 递归下降语法分析器 (错误恢复 / 运算符优先级) |
+| `parser.rs` | 递归下降语法分析器 (错误恢复 / 运算符优先级 / 多通道注解) |
 | `ty.rs` | HM 类型推断引擎 (Robinson Unification) |
-| `env.rs` | 运行时作用域环境 |
-| `interpreter.rs` | 树遍历解释器 |
+| `ty2.rs` | 七通道类型推断引擎 (Effect/Capability/Governance/Latency/Confidence/QN/Cognitive Loop) |
+| `task_spec.rs` | TaskSpec 生成（编译器 → 控制面边界） |
+| `latency.rs` | 延迟约束验证器 |
+| `qn1.rs` | QN1 查询语言解析器 |
+| `llm.rs` | LLM 编译扩展引擎 |
+| `module.rs` | 模块系统 (模块树/依赖图/命名空间/冲突检测) |
+| `package.rs` | 包管理系统 (dalin.toml/SemVer/依赖解析/缓存) |
+| `macro_expand.rs` | 宏展开器 (declarative + derive) |
+| `stdlib_loader.rs` | 标准库加载器 (.dal 文件解析/AST注入/缓存管理) |
+| `error.rs` | 结构化错误类型 |
+| `runtime.rs` | 运行时绑定定义 |
+
+---
+
+## 路线图
+
+### Phase A — G — 已完成 ✓
+
+| Phase | 名称 | 状态 | 核心成果 |
+|-------|------|------|----------|
+| A | 基础语法 + HM 推断 | ✓ | Lexer, Parser, TypeInferencer |
+| B | 运行时解释器 | ✓ | Tree-traversal Interpreter |
+| C | 认知 + 治理 | ✓ | `@perceive/@reason/@decide/@act`, `@gov(level)` |
+| D | 时序契约 | ✓ | `@latency/@timeout/@throughput`, LatencyVerifier |
+| E | QN 查询语言 | ✓ | QN1 解析器 + 推理 |
+| F | 运行时并发 | ✓ | DLVM spawn/async/runtime |
+| G | 控制面 | ✓ | Capability Scheduler + API Gateway |
+| H | 模块/包系统 | ✓ | mod/use/derive, dalin.toml, SemVer |
+| I | 宏系统 | ✓ | Declarative macros + derive 属性 |
+
+### Phase I — J — 进行中
+
+| Phase | 名称 | 状态 | 当前进展 |
+|-------|------|------|----------|
+| I | 标准库建设 | 🟡 进行中 | 28 个 .dal 模块已定义 (stdlib/) |
+| J | 自进化闭环 | 🟢 设计中 | 设计文档已完成 (`docs/PHASE_J_SELF_EVOLUTION.md`) |
+
+#### Phase I: 标准库建设
+
+标准库目录 `stdlib/` 包含以下模块：
+
+| 模块 | 描述 |
+|------|------|
+| `core_types.dal` | Option, Result, Vec, String, HashMap 公开 API |
+| `prelude.dal` | 预导入集合（自动加载） |
+| `macros.dal` | assert, dbg, vec!, hashmap! 宏定义 |
+| `iterators.dal` | Iterator, Iter, Range 迭代器协议 |
+| `fn_traits.dal` | Fn/FnMut/FnOnce trait 族 |
+| `traits_common.dal` | Display, Debug, Clone, Eq, Ord 等通用 trait |
+| `math.dal` | 数学运算 + PI/E/TAU 常量 |
+| `strings.dal` | String 方法扩展 |
+| `collections.dal` | HashSet, LinkedList, BTreeMap 等集合 |
+| `io.dal` | Read/Write trait + file/std io |
+| `fs_extra.dal` | 文件系统扩展操作 |
+| `net.dal` | TCP/HTTP/HTTPS 网络通信 |
+| `json.dal` | JSON 序列化/反序列化 |
+| `serialize.dal` | 通用序列化协议 |
+| `encoding.dal` | Base64, Hex, UTF-8 编码工具 |
+| `crypto.dal` | Hash, HMAC, AES 加密原语 |
+| `regex.dal` | 正则表达式引擎 |
+| `fmt.dal` | 格式化字符串 $"" 插值 |
+| `errors.dal` | 统一错误类型和结果构建 |
+| `result_builder.dal` | Result 链式构建工具 |
+| `bit_ops.dal` | 位运算工具集 |
+| `hash_funcs.dal` | 哈希函数集合 |
+| `logging.dal` | 日志框架 |
+| `testing.dal` | 测试框架和断言宏 |
+| `uuid.dal` | UUID 生成器 |
+| `async_primitives.dal` | Future, Promise, async/await 原语 |
+| `concurrency.dal` | Mutex, RwLock, Atomic 等同步原语 |
+| `time.dal` | 时间/日期/时钟工具 |
+| `path_util.dal` | 路径解析和操作工具 |
+| `process.dal` | 进程管理接口 |
+
+标准库加载器已在编译器集成：
+```rust
+use compiler::stdlib_loader::{StdLibLoader, StdLibConfig};
+
+// 从项目根目录加载
+let loader = StdLibLoader::new(project_root)?;
+
+// 按需加载模块
+let core_ast = loader.load_module("core_types")?;
+
+// 或一次性加载全部
+let all_modules = loader.load_all()?;  // 返回 28 个模块名
+```
+
+#### Phase J: 自进化闭环
+
+设计文档：[`docs/PHASE_J_SELF_EVOLUTION.md`](docs/PHASE_J_SELF_EVOLUTION.md)
+
+核心机制：
+- **J1 模式学习引擎**：运行时错误 → 语义哈希 → DBSCAN 聚类 → 修复模板
+- **J2 策略自动生成**：从成功修复中学习新 recovery mode，动态更新 Calibrator 权重
+- **J3 进化验证框架**：AB 实验分组 + 三层回归测试 + 综合评分函数
+- **J4 人类审查接口**：`dalan evolve review` CLI + 审批决策矩阵 + atomic swap 回滚
+
+---
 
 ## 测试
 

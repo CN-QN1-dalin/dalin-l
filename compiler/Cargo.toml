@@ -1,0 +1,12 @@
+[package]
+name = "dalin-compiler"
+version.workspace = true
+edition.workspace = true
+
+[lib]
+name = "dalin_compiler"
+path = "src/lib.rs"
+
+[dependencies]
+ureq = { version = "3", features = ["json"] }
+serde_json = "1"
