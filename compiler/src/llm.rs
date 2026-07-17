@@ -119,6 +119,7 @@ impl LlmEngine {
         vec![
             Stmt::Fn {
                 name: fn_name.to_string(),
+                type_params: vec![],
                 params: vec![],
                 return_type: None,
                 effect: Some("pure".to_string()),
@@ -150,6 +151,7 @@ impl LlmEngine {
             return Some(vec![
                 Stmt::Fn {
                     name: "filter_fn".to_string(),
+                    type_params: vec![],
                     params: vec![],
                     return_type: None,
                     effect: Some("pure".to_string()),
@@ -173,6 +175,7 @@ impl LlmEngine {
             return Some(vec![
                 Stmt::Fn {
                     name: "sort_fn".to_string(),
+                    type_params: vec![],
                     params: vec![],
                     return_type: None,
                     effect: Some("pure".to_string()),
@@ -196,6 +199,7 @@ impl LlmEngine {
             return Some(vec![
                 Stmt::Fn {
                     name: "aggregate_fn".to_string(),
+                    type_params: vec![],
                     params: vec![],
                     return_type: None,
                     effect: Some("pure".to_string()),

@@ -1592,6 +1592,7 @@ mod tests {
     ) -> Stmt {
         Stmt::Fn {
             name: name.to_string(),
+            type_params: vec![],
             params: params
                 .into_iter()
                 .map(|p| FnParam {

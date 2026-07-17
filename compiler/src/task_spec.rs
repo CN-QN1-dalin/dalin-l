@@ -99,6 +99,7 @@ mod tests {
     fn fn_stmt(name: &str, effect: Option<&str>, capability: Option<&str>, async_: bool) -> Stmt {
         Stmt::Fn {
             name: name.to_string(),
+            type_params: vec![],
             params: vec![],
             return_type: None,
             effect: effect.map(|s| s.to_string()),

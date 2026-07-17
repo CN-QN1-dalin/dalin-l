@@ -1463,6 +1463,7 @@ mod tests {
         let mut prog = Program::new();
         prog.add(Stmt::Fn {
             name: "remote".to_string(),
+            type_params: vec![],
             params: vec![],
             return_type: None,
             effect: Some("async".to_string()),
@@ -1480,6 +1481,7 @@ mod tests {
         });
         prog.add(Stmt::Fn {
             name: "local".to_string(),
+            type_params: vec![],
             params: vec![],
             return_type: None,
             effect: None,
@@ -1850,6 +1852,7 @@ mod tests {
         let mut prog = Program::new();
         prog.add(Stmt::Fn {
             name: "sensor_read".to_string(),
+            type_params: vec![],
             params: vec![],
             return_type: None,
             effect: Some("io".to_string()),
@@ -1881,6 +1884,7 @@ mod tests {
         let mut prog = Program::new();
         prog.add(Stmt::Fn {
             name: "deploy_fn".to_string(),
+            type_params: vec![],
             params: vec![],
             return_type: None,
             effect: Some("spawn".to_string()),
@@ -2024,6 +2028,7 @@ mod tests {
         let mut prog = Program::new();
         prog.add(Stmt::Fn {
             name: "bad".to_string(),
+            type_params: vec![],
             params: vec![],
             return_type: None,
             effect: Some("pure".to_string()),
@@ -2058,6 +2063,7 @@ mod tests {
         let mut prog = Program::new();
         prog.add(Stmt::Fn {
             name: "bad_cl".to_string(),
+            type_params: vec![],
             params: vec![],
             return_type: None,
             effect: None,
@@ -2092,6 +2098,7 @@ mod tests {
         let mut prog = Program::new();
         prog.add(Stmt::Fn {
             name: "bad_gov".to_string(),
+            type_params: vec![],
             params: vec![],
             return_type: None,
             effect: None,
@@ -2147,6 +2154,7 @@ mod tests {
         let mut prog = Program::new();
         prog.add(Stmt::Fn {
             name: "proven_fn".to_string(),
+            type_params: vec![],
             params: vec![],
             return_type: None,
             effect: None,

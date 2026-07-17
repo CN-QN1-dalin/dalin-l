@@ -160,6 +160,7 @@ mod tests {
     fn fn_stmt(name: &str, latency: Option<&str>, body: Vec<Stmt>) -> Stmt {
         Stmt::Fn {
             name: name.to_string(),
+            type_params: vec![],
             params: vec![],
             return_type: None,
             effect: None,

@@ -122,7 +122,7 @@ impl std::fmt::Display for CompileResult {
 fn expand_llm(prog: &Program) -> Program {
     let mut stmts = Vec::new();
     for stmt in &prog.statements {
-        if let Stmt::Fn { name, params, return_type, effect, capability, llm_prompt, confidence: _, cognitive_loop, governance, latency, timeout, throughput, body: _, async_, pub_ } = stmt {
+        if let Stmt::Fn { name, params, return_type, effect, capability, llm_prompt, confidence: _, cognitive_loop, governance, latency, timeout, throughput, body: _, async_, pub_, .. } = stmt {
             if let Some(prompt) = llm_prompt.clone() {
                 // 调用 LLM 引擎生成代码
                 let r_gen = llm::LlmEngine::process_directive(&prompt, Some(name));
@@ -137,6 +137,7 @@ fn expand_llm(prog: &Program) -> Program {
                 };
                 stmts.push(Stmt::Fn {
                     name: name.clone(),
+                    type_params: vec![],
                     params: params.clone(),
                     return_type: return_type.clone(),
                     effect: effect.clone(),

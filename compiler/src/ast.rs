@@ -1,6 +1,13 @@
 /// Dalin L — AST 节点定义
 use std::fmt;
 
+/// 泛型参数声明: `T: Comparable + Debug`
+#[derive(Debug, Clone)]
+pub struct TypeParam {
+    pub name: String,
+    pub bounds: Vec<String>,
+}
+
 // ═══════════════════════════════
 //  类型表示
 // ═══════════════════════════════
@@ -176,6 +183,7 @@ pub enum Stmt {
     },
     Fn {
         name: String,
+        type_params: Vec<TypeParam>,
         params: Vec<FnParam>,
         return_type: Option<TypeRef>,
         effect: Option<String>,         // Dalin L 3.0: pure | io | async | spawn
@@ -227,6 +235,7 @@ pub enum Stmt {
     },
     TraitDef {
         name: String,
+        type_params: Vec<TypeParam>,
         methods: Vec<TraitMethod>,
     },
     ImplBlock {
@@ -286,6 +295,7 @@ pub struct FieldDef {
 #[derive(Debug, Clone)]
 pub struct TraitMethod {
     pub name: String,
+    pub type_params: Vec<TypeParam>,
     pub return_type: Option<TypeRef>,
     pub params: Vec<FnParam>,
 }

@@ -141,6 +141,7 @@ impl DeriveExpander {
         ];
         Stmt::Fn {
             name: "fmt".to_string(),
+            type_params: vec![],
             params: vec![crate::ast::FnParam {
                 name: "_fmt".to_string(),
                 type_annotation: Some(crate::ast::TypeRef::new(crate::ast::BaseType::String)),
@@ -162,7 +163,7 @@ impl DeriveExpander {
             Stmt::Return(Some(Box::new(Expr::IntLiteral(0)))),
         ];
         Stmt::Fn {
-            name: "clone".to_string(), params: vec![], return_type: None,
+            name: "clone".to_string(), type_params: vec![], params: vec![], return_type: None,
             effect: None, capability: None, llm_prompt: None, confidence: None,
             cognitive_loop: None, governance: None, latency: None, timeout: None,
             throughput: None, body, async_: false, pub_: false,
@@ -171,7 +172,7 @@ impl DeriveExpander {
 
     fn generate_copy_impl(&self, _name: &str) -> Stmt {
         Stmt::Fn {
-            name: "copy".to_string(), params: vec![], return_type: None,
+            name: "copy".to_string(), type_params: vec![], params: vec![], return_type: None,
             effect: None, capability: None, llm_prompt: None, confidence: None,
             cognitive_loop: None, governance: None, latency: None, timeout: None,
             throughput: None, body: vec![Stmt::Return(None)],
@@ -189,6 +190,7 @@ impl DeriveExpander {
         ];
         Stmt::Fn {
             name: "eq".to_string(),
+            type_params: vec![],
             params: vec![crate::ast::FnParam {
                 name: "other".to_string(),
                 type_annotation: None,
@@ -219,7 +221,7 @@ impl DeriveExpander {
         }
         body.push(Stmt::Return(Some(Box::new(Expr::IntLiteral(0)))));
         Stmt::Fn {
-            name: "default".to_string(), params: vec![], return_type: None,
+            name: "default".to_string(), type_params: vec![], params: vec![], return_type: None,
             effect: None, capability: None, llm_prompt: None, confidence: None,
             cognitive_loop: None, governance: None, latency: None, timeout: None,
             throughput: None, body, async_: false, pub_: false,
@@ -524,6 +526,7 @@ mod tests {
         let mut stmts = vec![
             Stmt::Fn {
                 name: "add".to_string(),
+                type_params: vec![],
                 params: vec![], return_type: None,
                 effect: None, capability: None, llm_prompt: None, confidence: None,
                 cognitive_loop: None, governance: None, latency: None, timeout: None,
@@ -737,6 +740,7 @@ mod tests {
             statements: vec![
                 Stmt::Fn {
                     name: "simple".to_string(),
+                    type_params: vec![],
                     params: vec![], return_type: None,
                     effect: None, capability: None, llm_prompt: None, confidence: None,
                     cognitive_loop: None, governance: None, latency: None, timeout: None,
@@ -779,6 +783,7 @@ mod tests {
         let stmts: Vec<Stmt> = vec![
             Stmt::Fn {
                 name: "no_macros".to_string(),
+                type_params: vec![],
                 params: vec![], return_type: None,
                 effect: None, capability: None, llm_prompt: None, confidence: None,
                 cognitive_loop: None, governance: None, latency: None, timeout: None,

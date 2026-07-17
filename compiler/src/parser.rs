@@ -326,21 +326,23 @@ impl Parser {
 
     fn parse_fn(&mut self) -> Result<Stmt, ParseError> {
         let name = self.expect(Ident, "function name")?.value.clone();
+        let type_params = self.parse_type_params()?;
         let params = self.parse_fn_params()?;
         let return_type = if self.match_token(Arrow) { Some(self.parse_type()?) } else { None };
         let (effect, capability, llm_prompt, cognitive_loop, governance, latency, timeout, throughput, confidence) = self.parse_channel_annotations(None)?;
         let body = self.parse_block()?;
-        Ok(Stmt::Fn { name, params, return_type, effect, capability, llm_prompt, confidence, cognitive_loop, governance, latency, timeout, throughput, body, async_: false, pub_: false })
+        Ok(Stmt::Fn { name, type_params, params, return_type, effect, capability, llm_prompt, confidence, cognitive_loop, governance, latency, timeout, throughput, body, async_: false, pub_: false })
     }
 
     fn parse_async_fn(&mut self) -> Result<Stmt, ParseError> {
         self.expect(KeywordFn, "'fn'")?;
         let name = self.expect(Ident, "function name")?.value.clone();
+        let type_params = self.parse_type_params()?;
         let params = self.parse_fn_params()?;
         let return_type = if self.match_token(Arrow) { Some(self.parse_type()?) } else { None };
         let (effect, capability, llm_prompt, cognitive_loop, governance, latency, timeout, throughput, confidence) = self.parse_channel_annotations(Some("async".to_string()))?;
         let body = self.parse_block()?;
-        Ok(Stmt::Fn { name, params, return_type, effect, capability, llm_prompt, confidence, cognitive_loop, governance, latency, timeout, throughput, body, async_: true, pub_: false })
+        Ok(Stmt::Fn { name, type_params, params, return_type, effect, capability, llm_prompt, confidence, cognitive_loop, governance, latency, timeout, throughput, body, async_: true, pub_: false })
     }
 
     fn parse_fn_params(&mut self) -> Result<Vec<FnParam>, ParseError> {
@@ -356,6 +358,39 @@ impl Parser {
             }
         }
         self.expect(RightParen, "')'")?;
+        Ok(params)
+    }
+
+    /// 解析泛型参数列表: `<T: Bound1 + Bound2, U>`
+    /// 如果当前 token 不是 `<` 则返回空 vec。
+    fn parse_type_params(&mut self) -> Result<Vec<TypeParam>, ParseError> {
+        if !self.match_token(Less) {
+            return Ok(vec![]);
+        }
+        let mut params = Vec::new();
+        loop {
+            let name = match self.current().token_type {
+                Ident => self.advance().value.clone(),
+                _ => break,
+            };
+            let bounds = if self.match_token(Colon) {
+                let mut b = Vec::new();
+                loop {
+                    let bound = match self.current().token_type {
+                        Ident => self.advance().value.clone(),
+                        _ => break,
+                    };
+                    b.push(bound);
+                    if !self.match_token(Plus) { break; }
+                }
+                b
+            } else {
+                vec![]
+            };
+            params.push(TypeParam { name, bounds });
+            if !self.match_token(Comma) { break; }
+        }
+        self.expect(Greater, "'>'")?;
         Ok(params)
     }
 
@@ -437,17 +472,19 @@ impl Parser {
 
     fn parse_trait(&mut self) -> Result<Stmt, ParseError> {
         let name = self.expect(Ident, "trait name")?.value.clone();
+        let type_params = self.parse_type_params()?;
         self.expect(LeftBrace, "'{'")?;
         let mut methods = Vec::new();
         while !self.check(RightBrace) && !self.check(Eof) {
             self.expect(KeywordFn, "'fn'")?;
             let mname = self.expect(Ident, "method name")?.value.clone();
+            let method_type_params = self.parse_type_params()?;
             let params = self.parse_fn_params()?;
             let return_type = if self.match_token(Arrow) { Some(self.parse_type()?) } else { None };
-            methods.push(TraitMethod { name: mname, return_type, params });
+            methods.push(TraitMethod { name: mname, type_params: method_type_params, return_type, params });
         }
         self.expect(RightBrace, "'}'")?;
-        Ok(Stmt::TraitDef { name, methods })
+        Ok(Stmt::TraitDef { name, type_params, methods })
     }
 
     fn parse_impl(&mut self) -> Result<Stmt, ParseError> {
