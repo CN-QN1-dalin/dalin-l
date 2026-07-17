@@ -1,0 +1,178 @@
+{
+  "name": "dalan-language",
+  "displayName": "Dalin L Language Support",
+  "description": "语法高亮、代码补全、错误诊断 — Dalin L 官方 VSCode 扩展",
+  "version": "0.2.0",
+  "publisher": "CN-QN1-dalin",
+  "author": "大林 <dalin@qn1.ai>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/CN-QN1-dalin/dalin-l"
+  },
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Snippets",
+    "Formatters"
+  ],
+  "keywords": [
+    "dalin-l",
+    "dal",
+    "language-server",
+    "ai-agent",
+    "seven-channel"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "dalan",
+        "aliases": ["Dalin L", "dalan"],
+        "extensions": [".dal"],
+        "configuration": "./language-configuration.json",
+        "icon": {
+          "light": "./media/icon-light.svg",
+          "dark": "./media/icon-dark.svg"
+        }
+      }
+    ],
+    "grammars": [
+      {
+        "language": "dalan",
+        "scopeName": "source.dalan",
+        "path": "./syntaxes/dalan.tmLanguage.json"
+      }
+    ],
+    "snippets": [
+      {
+        "language": "dalan",
+        "path": "./snippets/dalan.json"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "editor.action.triggerSuggest",
+        "key": "ctrl+space",
+        "when": "editorTextFocus && editorLangId == dalan"
+      },
+      {
+        "command": "editor.action.triggerParameterHints",
+        "key": "ctrl+shift+space",
+        "when": "editorTextFocus && editorLangId == dalan"
+      }
+    ],
+    "commands": [
+      {
+        "command": "dalan.restartLsp",
+        "title": "Dalin L: Restart Language Server",
+        "category": "Dalin L"
+      },
+      {
+        "command": "dalan.showDiagnostics",
+        "title": "Dalin L: Show All Diagnostics",
+        "category": "Dalin L"
+      },
+      {
+        "command": "dalan.compile",
+        "title": "Dalin L: Compile Current File",
+        "category": "Dalin L"
+      },
+      {
+        "command": "dalan.run",
+        "title": "Dalin L: Run Current File",
+        "category": "Dalin L"
+      },
+      {
+        "command": "dalan.initProject",
+        "title": "Dalin L: Initialize New Project",
+        "category": "Dalin L"
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        { "command": "dalan.restartLsp" },
+        { "command": "dalan.showDiagnostics" },
+        { "command": "dalan.compile" },
+        { "command": "dalan.run" },
+        { "command": "dalan.initProject" }
+      ],
+      "editor/context": [
+        {
+          "command": "dalan.compile",
+          "when": "editorLangId == dalan",
+          "group": "1_dalin"
+        },
+        {
+          "command": "dalan.run",
+          "when": "editorLangId == dalan",
+          "group": "1_dalin"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Dalin L",
+      "properties": {
+        "dalan.languageServer.path": {
+          "type": "string",
+          "default": "",
+          "description": "Path to dalin-ls binary (empty = auto-discover in PATH)"
+        },
+        "dalan.languageServer.trace.server": {
+          "type": "string",
+          "enum": ["off", "messages", "verbose"],
+          "default": "off",
+          "description": "Tracing level for language server communication"
+        },
+        "dalan.lint.severity": {
+          "type": "string",
+          "enum": ["error", "warning", "info", "none"],
+          "default": "warning",
+          "description": "Default severity for linting issues"
+        },
+        "dalan.format.onSave": {
+          "type": "boolean",
+          "default": false,
+          "description": "Format .dal files on save"
+        },
+        "dalan.showSevenChannelInfo": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show seven-channel type info in hover"
+        },
+        "dalan.autoComplete.onAtSymbol": {
+          "type": "boolean",
+          "default": true,
+          "description": "Trigger completion when typing @ for attributes"
+        }
+      }
+    }
+  },
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "onLanguage:dalan",
+    "workspaceContains:**/*.dal"
+  ],
+  "scripts": {
+    "vscode:prepublish": "npm run package",
+    "compile": "webpack",
+    "watch": "webpack --watch",
+    "package": "webpack --mode production --devtool hidden-source-map",
+    "lint": "eslint src --ext ts",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.80.0",
+    "@types/glob": "^8.1.0",
+    "eslint": "^8.50.0",
+    "ts-loader": "^9.5.0",
+    "typescript": "^5.2.2",
+    "webpack": "^5.89.0",
+    "webpack-cli": "^5.1.4",
+    "@vscode/test-electron": "^2.3.6"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^8.1.0"
+  }
+}

@@ -1,0 +1,157 @@
+# ============================================================
+# Dalin L 2.0 — K8s Deployment Manifests
+# dev overlay: single-node, minimal resources, no GPU
+# ============================================================
+
+---
+# Scheduler Deployment (control plane)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dalin-scheduler
+  namespace: dalin-system
+  labels:
+    app: dalin-scheduler
+    env: dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dalin-scheduler
+  template:
+    metadata:
+      labels:
+        app: dalin-scheduler
+        env: dev
+    spec:
+      serviceAccountName: dalin-scheduler
+      containers:
+      - name: scheduler
+        image: ghcr.io/cn-qn1-dalin/dalin-l-scheduler:latest
+        imagePullPolicy: IfNotPresent
+        command: ["/usr/local/bin/dalib", "cpd", "--mode", "scheduler"]
+        ports:
+        - containerPort: 50051
+          name: grpc
+          protocol: TCP
+        resources:
+          requests:
+            cpu: 250m
+            memory: 512Mi
+          limits:
+            cpu: 500m
+            memory: 1Gi
+        env:
+        - name: DALIN_LOG_LEVEL
+          value: "info"
+        - name: DALIN_STORAGE_BACKEND
+          value: "etcd"
+        - name: DALIN_ETCD_ENDPOINTS
+          value: "http://etcd.dalin-system:2379"
+        - name: DALIN_NATS_URL
+          value: "nats://nats.dalin-system:4222"
+        livenessProbe:
+          tcpSocket:
+            port: grpc
+          initialDelaySeconds: 10
+          periodSeconds: 15
+        readinessProbe:
+          exec:
+            command: ["/usr/local/bin/dalib", "version"]
+          initialDelaySeconds: 5
+          periodSeconds: 10
+
+---
+# Runner Deployment (worker nodes)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dalin-runner
+  namespace: dalin-system
+  labels:
+    app: dalin-runner
+    env: dev
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: dalin-runner
+  template:
+    metadata:
+      labels:
+        app: dalin-runner
+        env: dev
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - dalin-runner
+              topologyKey: kubernetes.io/hostname
+      containers:
+      - name: runner
+        image: ghcr.io/cn-qn1-dalin/dalin-l-runtime:latest
+        imagePullPolicy: IfNotPresent
+        command: ["/usr/local/bin/dalib", "cpd", "--mode", "runner"]
+        resources:
+          requests:
+            cpu: "1"
+            memory: 2Gi
+          limits:
+            cpu: "2"
+            memory: 4Gi
+        env:
+        - name: DALIN_SCHEDULER_ADDR
+          value: "http://dalin-scheduler:50051"
+        - name: DALIN_NODE_ID
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+
+---
+# HPA — 基于 CPU + 自恢复事件扩缩容
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: dalin-runner-hpa
+  namespace: dalin-system
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: dalin-runner
+  minReplicas: 1
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Pods
+    pods:
+      metric:
+        name: dalin-recovery-events
+      target:
+        type: AverageValue
+        averageValue: "5"
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 30
+      policies:
+      - type: Pods
+        value: 2
+        periodSeconds: 60
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Pods
+        value: 1
+        periodSeconds: 120
