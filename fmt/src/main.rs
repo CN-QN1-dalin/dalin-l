@@ -15,7 +15,7 @@ fn format_source(src: &str) -> Result<String, String> {
     let prog = Parser::new(tokens).parse().map_err(|e| format!("parse error: {e}"))?;
 
     let mut out = String::new();
-    let mut indent = 0u8;
+    let indent = 0u8;
 
     for stmt in &prog.statements {
         let line = format_stmt(stmt, indent);

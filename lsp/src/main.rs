@@ -9,6 +9,7 @@
 use dalin_compiler::ast::{Program, Stmt};
 use dalin_compiler::lexer;
 use dalin_compiler::parser;
+use dalin_compiler::ty2::SevenChannelInferencer;
 use serde_json::{json, Value};
 
 use std::collections::{HashMap, HashSet};
@@ -43,6 +44,7 @@ impl DocumentManager {
         self.documents.get(uri).map(|(_, c)| c.as_str())
     }
 
+    #[allow(dead_code)]
     fn get_version(&self, uri: &str) -> Option<i32> {
         self.documents.get(uri).map(|(v, _)| *v)
     }
@@ -73,9 +75,10 @@ impl LspCompiler {
             None => return vec![],
         };
 
-        let stmts = extract_statements(&content);
+    let stmts = extract_statements(&content);
+    _ = stmts; // used for positioning, tracked via program
 
-        // Step 1: Lexer
+    // Step 1: Lexer
         let mut lex = lexer::Lexer::new(&content);
         let tokens = match lex.tokenize() {
             Ok(t) => t,
@@ -116,6 +119,7 @@ impl LspCompiler {
         }
     }
 
+    #[allow(dead_code)]
     fn workspace_diagnostics(&mut self) -> Vec<Value> {
         let uris: Vec<String> = self.doc_manager.documents.keys().cloned().collect();
         let mut all_diags = Vec::new();
@@ -169,6 +173,7 @@ impl CompletionEngine {
         }
     }
 
+    #[allow(dead_code)]
     fn populate_from_ast(&mut self, prog: &Program) {
         for stmt in &prog.statements {
             match stmt {
