@@ -110,6 +110,7 @@ pub enum RuntimeError {
     LatencyViolation { declared_ms: u64, actual_ms: u64, fn_name: String },
     AssertionFailed { message: String },
     RuntimePanic(String),
+    StepBudgetExceeded { step_count: u64, max_steps: u64 },
 }
 
 impl fmt::Display for RuntimeError {
@@ -140,6 +141,9 @@ impl fmt::Display for RuntimeError {
                 write!(f, "assertion failed: {}", message)
             }
             RuntimeError::RuntimePanic(msg) => write!(f, "runtime panic: {}", msg),
+            RuntimeError::StepBudgetExceeded { step_count, max_steps } => {
+                write!(f, "step budget exceeded: {} steps (max {})", step_count, max_steps)
+            }
         }
     }
 }
@@ -494,6 +498,10 @@ pub struct Runtime {
     returned: bool,
     /// Return 语句的值
     return_value: RuntimeValue,
+    /// 当前已执行步数
+    step_count: u64,
+    /// 最大允许步数
+    max_steps: u64,
 }
 
 impl Runtime {
@@ -508,6 +516,8 @@ impl Runtime {
             current_depth: 0,
             returned: false,
             return_value: RuntimeValue::None,
+            step_count: 0,
+            max_steps: 1_000_000,
         }
     }
 
@@ -749,6 +759,13 @@ impl Runtime {
             Stmt::While { condition, body } => {
                 let mut last_val = RuntimeValue::None;
                 loop {
+                    self.step_count += 1;
+                    if self.step_count >= self.max_steps {
+                        return Err(RuntimeError::StepBudgetExceeded {
+                            step_count: self.step_count,
+                            max_steps: self.max_steps,
+                        });
+                    }
                     let cond_val = self.eval_expr(condition)?;
                     let cond_bool = Self::as_bool(&cond_val)?;
                     if !cond_bool {
@@ -787,6 +804,13 @@ impl Runtime {
                 };
                 let mut last_val = RuntimeValue::None;
                 for item in items {
+                    self.step_count += 1;
+                    if self.step_count >= self.max_steps {
+                        return Err(RuntimeError::StepBudgetExceeded {
+                            step_count: self.step_count,
+                            max_steps: self.max_steps,
+                        });
+                    }
                     self.env.push_scope();
                     self.env.define(target, item);
                     self.exec_block(body)?;
@@ -1141,6 +1165,8 @@ impl Runtime {
             (RuntimeValue::Int(a), "/", RuntimeValue::Int(b)) => {
                 if *b == 0 {
                     Err(RuntimeError::DivisionByZero)
+                } else if *a == i64::MIN && *b == -1 {
+                    Err(RuntimeError::RuntimePanic("integer overflow in division".into()))
                 } else {
                     Ok(RuntimeValue::Int(a / b))
                 }
@@ -1148,6 +1174,8 @@ impl Runtime {
             (RuntimeValue::Int(a), "%", RuntimeValue::Int(b)) => {
                 if *b == 0 {
                     Err(RuntimeError::DivisionByZero)
+                } else if *b == -1 {
+                    Err(RuntimeError::RuntimePanic("integer overflow in modulo".into()))
                 } else {
                     Ok(RuntimeValue::Int(a % b))
                 }
@@ -1234,6 +1262,7 @@ impl Runtime {
         match val {
             RuntimeValue::Bool(b) => Ok(*b),
             RuntimeValue::Int(i) => Ok(*i != 0),
+            RuntimeValue::Float(f) => Ok(*f != 0.0),
             RuntimeValue::None => Ok(false),
             RuntimeValue::String(s) => Ok(!s.is_empty()),
             _ => Err(RuntimeError::TypeError {
@@ -1350,16 +1379,14 @@ impl SelfHealingRuntime {
                 // 根据恢复策略进行处理
                 match self.recovery_mode {
                     RecoveryMode::Fallback => {
-                        // 认知循环回退：Act 失败 → Reason 重试
-                        if matches!(err, RuntimeError::CognitiveLoopViolation { .. })
-                            || matches!(err, RuntimeError::EffectViolation { .. }) {
-                            
+                        if matches!(err, RuntimeError::CognitiveLoopViolation { .. }) {
+                            // 认知循环违规：退回到 Reason 阶段（与治理级别无关）
                             let _seq = self.recovery_seq;
                             self.recovery_seq += 1;
-                            
-                            self.inner.governance.session_level = GovernanceLevel::Suggest;
+
+                            self.inner.cognitive.current_phase = CognitiveLoopPhase::Reasoning;
                             let retry_result = self.inner.call(fn_name, args);
-                            
+
                             let success = retry_result.is_ok();
                             let seq = self.recovery_seq;
                             self.recovery_seq += 1;
@@ -1370,12 +1397,39 @@ impl SelfHealingRuntime {
                                 success_after_recovery: success,
                                 timestamp_us: seq * 1000,
                             });
-                            
+
                             if success {
                                 retry_result
                             } else {
-                                // 回退失败，恢复原始 session 级别
-                                self.inner.governance.session_level = GovernanceLevel::Execute;
+                                // 回退失败，恢复原始认知阶段
+                                self.inner.cognitive.current_phase = CognitiveLoopPhase::Acting;
+                                Err(err.clone())
+                            }
+                        } else if matches!(err, RuntimeError::EffectViolation { .. }) {
+                            // 效应违规：降级治理级别重试
+                            let _seq = self.recovery_seq;
+                            self.recovery_seq += 1;
+
+                            let saved_level = self.inner.governance.session_level.clone();
+                            self.inner.governance.session_level = GovernanceLevel::Suggest;
+                            let retry_result = self.inner.call(fn_name, args);
+
+                            let success = retry_result.is_ok();
+                            let seq = self.recovery_seq;
+                            self.recovery_seq += 1;
+                            self.recovery_log.push(RecoveryEvent {
+                                fn_name: fn_name.to_string(),
+                                error: err.clone(),
+                                mode: RecoveryMode::Fallback,
+                                success_after_recovery: success,
+                                timestamp_us: seq * 1000,
+                            });
+
+                            if success {
+                                retry_result
+                            } else {
+                                // 回退失败，恢复原始 governance 级别
+                                self.inner.governance.session_level = saved_level;
                                 Err(err.clone())
                             }
                         } else {

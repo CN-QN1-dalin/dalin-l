@@ -307,8 +307,16 @@ impl Lexer {
     }
 
     pub fn tokenize(&mut self) -> Result<Vec<Token>, LexerError> {
+        const MAX_TOKENS: usize = 100_000;
         let mut tokens = Vec::new();
         loop {
+            if tokens.len() >= MAX_TOKENS {
+                return Err(LexerError {
+                    message: format!("Too many tokens (max {})", MAX_TOKENS),
+                    line: self.line,
+                    column: self.column,
+                });
+            }
             let tok = self.next_token()?;
             let is_eof = tok.token_type == Eof;
             tokens.push(tok);

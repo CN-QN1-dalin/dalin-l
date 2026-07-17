@@ -46,6 +46,9 @@ pub struct Interpreter {
     channel_registry: Arc<Mutex<HashMap<String, Arc<Mutex<mpsc::Receiver<Value>>>>>>,
     // 当前任务 id（worker 线程内用于把子任务挂到正确父节点）
     current_task_id: Option<String>,
+    // ── 步数限制 ──
+    step_count: u64,
+    max_steps: u64,
 }
 
 impl Default for Interpreter {
@@ -66,6 +69,8 @@ impl Interpreter {
             task_results: Arc::new(Mutex::new(HashMap::new())),
             channel_registry: Arc::new(Mutex::new(HashMap::new())),
             current_task_id: None,
+            step_count: 0,
+            max_steps: 1_000_000,
         };
         interp.install_builtins();
         interp
@@ -222,6 +227,10 @@ impl Interpreter {
 
     fn eval_while(&mut self, condition: &Expr, body: &[Stmt], env: &mut Environment) -> Result<Value, RuntimeError> {
         loop {
+            self.step_count += 1;
+            if self.step_count >= self.max_steps {
+                return Err(RuntimeError("Step budget exceeded".to_string()));
+            }
             let cond_val = self.eval_expr(condition, env)?;
             if !self.truthy(&cond_val) { break; }
             let result = self.eval_block(body, &mut env.child());
@@ -238,6 +247,10 @@ impl Interpreter {
         let items = self.as_iterable(&iter);
         let mut result = Value::None;
         for item in items {
+            self.step_count += 1;
+            if self.step_count >= self.max_steps {
+                return Err(RuntimeError("Step budget exceeded".to_string()));
+            }
             env.define(target, item.clone());
             result = self.eval_block(body, env)?;
         }
@@ -407,14 +420,36 @@ impl Interpreter {
             }
             "/" => {
                 match (&left_val, &right_val) {
-                    (Value::Int(a), Value::Int(b)) => Ok(Value::Int(a / b)),
-                    (Value::Float(a), Value::Float(b)) => Ok(Value::Float(a / b)),
+                    (Value::Int(a), Value::Int(b)) => {
+                        if *b == 0 {
+                            Err(RuntimeError("division by zero".into()))
+                        } else if *a == i64::MIN && *b == -1 {
+                            Err(RuntimeError("integer overflow in division".into()))
+                        } else {
+                            Ok(Value::Int(a / b))
+                        }
+                    }
+                    (Value::Float(a), Value::Float(b)) => {
+                        if *b == 0.0 {
+                            Err(RuntimeError("division by zero".into()))
+                        } else {
+                            Ok(Value::Float(a / b))
+                        }
+                    }
                     _ => Err(RuntimeError(format!("Cannot divide {:?} and {:?}", left_val, right_val))),
                 }
             }
             "%" => {
                 match (&left_val, &right_val) {
-                    (Value::Int(a), Value::Int(b)) => Ok(Value::Int(a % b)),
+                    (Value::Int(a), Value::Int(b)) => {
+                        if *b == 0 {
+                            Err(RuntimeError("modulo by zero".into()))
+                        } else if *b == -1 {
+                            Err(RuntimeError("integer overflow in modulo".into()))
+                        } else {
+                            Ok(Value::Int(a % b))
+                        }
+                    }
                     _ => Err(RuntimeError(format!("Cannot modulo {:?} and {:?}", left_val, right_val))),
                 }
             }

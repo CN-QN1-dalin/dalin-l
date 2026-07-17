@@ -195,7 +195,8 @@ impl StdLibLoader {
         self.loaded.insert(module_name.to_string());
 
         let tokens = {
-            let mut lex = Lexer::new(content.as_ref().unwrap());
+            let content_str = content.as_ref().ok_or("No content")?;
+            let mut lex = Lexer::new(content_str);
             match lex.tokenize() {
                 Ok(t) => t,
                 Err(e) => return Err(format!("{} 词法错误 [{}:{}]: {}",

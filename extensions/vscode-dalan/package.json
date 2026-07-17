@@ -152,7 +152,10 @@
   "main": "./dist/extension.js",
   "activationEvents": [
     "onLanguage:dalan",
-    "workspaceContains:**/*.dal"
+    "workspaceContains:**/*.dal",
+    "onCommand:dalan.restartLsp",
+    "onCommand:dalan.compile",
+    "onCommand:dalan.initProject"
   ],
   "scripts": {
     "vscode:prepublish": "npm run package",

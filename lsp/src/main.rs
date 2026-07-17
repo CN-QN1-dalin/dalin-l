@@ -15,7 +15,8 @@ use dalin_compiler::ty2::SevenChannelInferencer;
 use serde_json::{json, Value};
 
 use std::collections::{HashMap, HashSet};
-use std::io::{self, BufRead, Write};
+use std::io::{self, BufRead, BufReader, Read, Write};
+use std::str;
 
 // ---------------------------------------------------------------------------
 // Document Manager (in-memory text document storage)
@@ -85,7 +86,10 @@ impl LspCompiler {
         let tokens = match lex.tokenize() {
             Ok(t) => t,
             Err(e) => {
-                return vec![json_diagnostic(&format!("词法错误: {}", e), 1, 1, 0, 1, 20)];
+                let err_str = e.to_string();
+                let ln = extract_line(&err_str);
+                let msg = format!("词法错误: {}", err_str);
+                return vec![json_diagnostic(&msg, 1, ln, 0, ln, 20)];
             }
         };
 
@@ -94,7 +98,10 @@ impl LspCompiler {
         let prog = match parser.parse() {
             Ok(p) => p,
             Err(e) => {
-                return vec![json_diagnostic(&format!("语法错误: {}", e), 1, 1, 0, 1, 40)];
+                let err_str = e.to_string();
+                let ln = extract_line(&err_str);
+                let msg = format!("语法错误: {}", err_str);
+                return vec![json_diagnostic(&msg, 1, ln, 0, ln, 40)];
             }
         };
 
@@ -117,7 +124,9 @@ impl LspCompiler {
     /// Helper: collect channel errors into diagnostic JSON objects
     fn collect_errors_to_diags(&self, diags: &mut Vec<Value>, errors: &[String], prefix: &str, _code: &str) {
         for err in errors {
-            diags.push(json_diagnostic(&format!("{}: {}", prefix, err), 1, 0, 1, err.len().min(40), 0));
+            let msg = format!("{}: {}", prefix, err);
+            let line = extract_line(&msg);
+            diags.push(json_diagnostic(&msg, 1, line, 0, line, err.len().min(40)));
         }
     }
 
@@ -131,6 +140,18 @@ impl LspCompiler {
         }
         all_diags
     }
+}
+
+fn extract_line(error_msg: &str) -> usize {
+    // 尝试从 "[line:col]" 格式提取行号
+    if let Some(start) = error_msg.find('[') {
+        if let Some(end) = error_msg.find(':') {
+            if start + 1 < end {
+                return error_msg[start+1..end].parse().unwrap_or(1);
+            }
+        }
+    }
+    1
 }
 
 fn json_diagnostic(msg: &str, severity: u32, start_line: usize, start_char: usize, end_line: usize, end_char: usize) -> Value {
@@ -341,28 +362,44 @@ impl SignatureHelpProvider {
 // Main LSP Server (JSON-RPC over stdio)
 // ---------------------------------------------------------------------------
 
+/// Reads a complete LSP message from stdin, parsing the Content-Length header
+/// and reading exactly the specified number of bytes.
+fn read_lsp_message(reader: &mut BufReader<std::io::Stdin>) -> Option<String> {
+    let mut header = String::new();
+    let mut content_length: Option<usize> = None;
+
+    loop {
+        header.clear();
+        if reader.read_line(&mut header).ok()? == 0 {
+            return None; // EOF
+        }
+        let trimmed = header.trim();
+        if trimmed.is_empty() {
+            break; // 空行 = header 结束
+        }
+        if let Some(len_str) = trimmed.strip_prefix("Content-Length: ") {
+            content_length = len_str.trim().parse::<usize>().ok();
+        }
+    }
+
+    let len = content_length?;
+    let mut buf = vec![0u8; len];
+    reader.read_exact(&mut buf).ok()?;
+    Some(String::from_utf8(buf).ok()?)
+}
+
 fn main() {
     let mut compiler = LspCompiler::new();
     let completion_engine = CompletionEngine::new();
     let hover_provider = HoverProvider;
     let signature_helper = SignatureHelpProvider;
 
-    let stdin = io::stdin();
+    let mut reader = BufReader::new(io::stdin());
     let mut stdout = io::stdout();
+    let mut shutdown_received = false;
 
-    // Read lines from stdin (LSP JSON-RPC stream)
-    for line in stdin.lock().lines() {
-        let line = match line {
-            Ok(l) if l.is_empty() => continue,
-            Ok(l) => l,
-            Err(_) => break,
-        };
-
-        // Skip Content-Length headers
-        if line.starts_with("Content-Length:") {
-            continue;
-        }
-
+    // Read LSP messages from stdin using standard Content-Length framing
+    while let Some(line) = read_lsp_message(&mut reader) {
         // Parse JSON-RPC request
         if let Ok(req) = serde_json::from_str::<Value>(&line) {
             let method = req.get("method").and_then(|m| m.as_str()).unwrap_or("");
@@ -495,7 +532,7 @@ fn main() {
                     };
 
                     let hover = hover_provider.provide_hover(&content, line, character);
-                    let result_value = hover.map(|h| json!([h]));
+                    let result_value = hover.map(|h| h);
                     send_response(&mut stdout, &json!({"jsonrpc": "2.0", "id": req.get("id"), "result": result_value}));
                 }
 
@@ -515,6 +552,21 @@ fn main() {
 
                     let sig_help = signature_helper.provide_signature_help(&content);
                     send_response(&mut stdout, &json!({"jsonrpc": "2.0", "id": req.get("id"), "result": sig_help}));
+                }
+
+                // --- Shutdown / Exit ---
+                "shutdown" => {
+                    let response = json!({
+                        "jsonrpc": "2.0",
+                        "id": req["id"],
+                        "result": null
+                    });
+                    writeln!(stdout, "{}", response).ok();
+                    stdout.flush().ok();
+                    shutdown_received = true;
+                }
+                "exit" => {
+                    break; // 退出主循环
                 }
 
                 // --- Unknown methods ---

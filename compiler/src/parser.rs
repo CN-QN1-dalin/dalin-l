@@ -25,11 +25,14 @@ impl std::fmt::Display for ParseError {
 pub struct Parser {
     tokens: Vec<Token>,
     pos: usize,
+    recursion_depth: usize,
 }
+
+const MAX_RECURSION_DEPTH: usize = 128;
 
 impl Parser {
     pub fn new(tokens: Vec<Token>) -> Self {
-        Self { tokens, pos: 0 }
+        Self { tokens, pos: 0, recursion_depth: 0 }
     }
 
     fn current(&self) -> &Token {
@@ -114,6 +117,20 @@ impl Parser {
     }
 
     fn parse_statement(&mut self) -> Result<Option<Stmt>, ParseError> {
+        self.recursion_depth += 1;
+        if self.recursion_depth >= MAX_RECURSION_DEPTH {
+            return Err(ParseError {
+                message: format!("Maximum recursion depth exceeded ({})", MAX_RECURSION_DEPTH),
+                line: self.current().line,
+                column: self.current().column,
+            });
+        }
+        let result = self.parse_statement_inner();
+        self.recursion_depth -= 1;
+        result
+    }
+
+    fn parse_statement_inner(&mut self) -> Result<Option<Stmt>, ParseError> {
         match self.current().token_type {
             KeywordLet => { self.advance(); Ok(Some(self.parse_let()?)) }
             KeywordMut => { self.advance(); Ok(Some(self.parse_mut_let()?)) }
@@ -692,7 +709,17 @@ impl Parser {
     // ═══════════════════════════════
 
     fn parse_expression(&mut self) -> Result<Expr, ParseError> {
-        self.parse_pipe()
+        self.recursion_depth += 1;
+        if self.recursion_depth >= MAX_RECURSION_DEPTH {
+            return Err(ParseError {
+                message: format!("Maximum recursion depth exceeded ({})", MAX_RECURSION_DEPTH),
+                line: self.current().line,
+                column: self.current().column,
+            });
+        }
+        let result = self.parse_pipe();
+        self.recursion_depth -= 1;
+        result
     }
 
     fn parse_pipe(&mut self) -> Result<Expr, ParseError> {

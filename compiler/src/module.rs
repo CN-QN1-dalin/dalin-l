@@ -446,7 +446,7 @@ impl ModuleResolver {
 
     pub fn resolve(&mut self, module_name: &str) -> Result<&ModuleDecl, String> {
         if self.loaded_modules.contains_key(module_name) {
-            return Ok(self.loaded_modules.get(module_name).unwrap());
+            return Ok(self.loaded_modules.get(module_name).ok_or_else(|| format!("module '{}' not found in cache", module_name))?);
         }
         // Mock: create empty module declaration
         let decl = ModuleDecl {
@@ -458,7 +458,7 @@ impl ModuleResolver {
         let path = self.base_dir.join(format!("{}.dalin", module_name));
         self.loaded_modules.insert(module_name.to_string(), decl);
         self.module_paths.insert(module_name.to_string(), path);
-        Ok(self.loaded_modules.get(module_name).unwrap())
+        Ok(self.loaded_modules.get(module_name).ok_or_else(|| format!("module '{}' not found after insert", module_name))?)
     }
 
     pub fn resolve_all(&mut self, module_name: &str) -> Result<Vec<String>, String> {

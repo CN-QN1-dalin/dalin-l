@@ -43,7 +43,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        rust: [stable, "1.80"]
+        rust: [stable, "1.85"]
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -125,6 +125,16 @@ jobs:
         run: |
           echo "=== Compile time baseline ===" && \
           time cargo build --bin dalib 2>&1 | tail -3
+
+  # ── Job 8: cargo audit security check ──────────────────────
+  audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - run: cargo install cargo-audit --locked
+      - run: cargo audit
 
   # ── Summary status ────────────────────────────────────────────
   status:

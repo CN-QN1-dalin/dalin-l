@@ -36,15 +36,16 @@ mod tests {
     use crate::TaskSpec as PbTaskSpec;
 
     #[test]
-    fn compiler_spec_converts_to_proto() {
+    fn compiler_spec_converts_to_proto() -> Result<(), String> {
         let src = "fn worker() @ spawn @ cpu { return 1 }";
-        let toks = Lexer::new(src).tokenize().unwrap();
-        let prog = Parser::new(toks).parse().unwrap();
+        let toks = Lexer::new(src).tokenize().map_err(|e| format!("lex error: {}", e))?;
+        let prog = Parser::new(toks).parse().map_err(|e| format!("parse error: {}", e))?;
         let specs = from_program(&prog);
         assert!(!specs.is_empty(), "应至少为 worker 生成一个 TaskSpec");
         let pb: PbTaskSpec = (&specs[0]).into();
         assert_eq!(pb.effect, "spawn");
         assert_eq!(pb.capability, "cpu");
         assert!(!pb.idempotency_key.is_empty(), "幂等键必须稳定非空");
+        Ok(())
     }
 }

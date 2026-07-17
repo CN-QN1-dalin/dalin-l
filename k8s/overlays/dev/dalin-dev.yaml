@@ -113,6 +113,16 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
+        livenessProbe:
+          tcpSocket:
+            port: 50051
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        readinessProbe:
+          tcpSocket:
+            port: 50051
+          initialDelaySeconds: 3
+          periodSeconds: 5
 
 ---
 # HPA — 基于 CPU + 自恢复事件扩缩容

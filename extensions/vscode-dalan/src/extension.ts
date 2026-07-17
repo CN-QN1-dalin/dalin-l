@@ -3,7 +3,7 @@
 // LSP Client that connects VSCode editor ↔ dalin-ls server
 // ============================================================
 
-import * as path from 'vscode';
+import * as vscode from 'vscode';
 import {
     LanguageClient,
     LanguageClientOptions,
@@ -76,6 +76,14 @@ export function activate(context: vscode.ExtensionContext) {
             client.restart();
             vscode.window.showInformationMessage('Dalin L: Restarted language server');
         }),
+        vscode.commands.registerCommand('dalan.showDiagnostics', () => {
+            const editor = vscode.window.activeTextEditor;
+            if (!editor) {
+                vscode.window.showInformationMessage('Dalin L: No active editor');
+                return;
+            }
+            vscode.window.showInformationMessage('Dalin L: Diagnostics shown in Problems panel');
+        }),
         vscode.commands.registerCommand('dalan.compile', async () => {
             const editor = vscode.window.activeTextEditor;
             if (!editor) return;
@@ -86,8 +94,8 @@ export function activate(context: vscode.ExtensionContext) {
             
             try {
                 // Execute dalib compile via child_process
-                const { execSync } = require('child_process');
-                const result = execSync(`dalib compile "${filePath}"`, { 
+                const { execFileSync } = require('child_process');
+                const result = execFileSync('dalib', ['compile', filePath], { 
                     encoding: 'utf8',
                     timeout: 30000
                 });
@@ -118,14 +126,37 @@ export function activate(context: vscode.ExtensionContext) {
             
             const targetDir = uri[0].fsPath;
             try {
-                const { execSync } = require('child_process');
-                execSync(`dalib pkg init --name ${projectName}`, { cwd: targetDir });
+                const { execFileSync } = require('child_process');
+                execFileSync('dalib', ['pkg', 'init', '--name', projectName], { cwd: targetDir });
                 vscode.window.showInformationMessage(`Dalin L: Project initialized at ${targetDir}`);
                 
                 // Open new project
                 vscode.workspace.openWorkspaceFolder(uri[0]);
             } catch (err: any) {
                 vscode.window.showErrorMessage(`Failed to initialize project: ${err.message}`);
+            }
+        }),
+        vscode.commands.registerCommand('dalan.run', async () => {
+            const editor = vscode.window.activeTextEditor;
+            if (!editor) return;
+            
+            const filePath = editor.document.fileName;
+            const outputChannel = vscode.window.createOutputChannel('Dalin L: Run');
+            outputChannel.appendLine(`Running ${filePath}...`);
+            
+            try {
+                const { execFileSync } = require('child_process');
+                const result = execFileSync('dalib', ['run', filePath], {
+                    encoding: 'utf8',
+                    timeout: 30000
+                });
+                outputChannel.appendLine(result);
+                outputChannel.show();
+                vscode.window.showInformationMessage('Dalin L: Execution successful');
+            } catch (err: any) {
+                outputChannel.appendLine(`Error: ${err.message}`);
+                outputChannel.show();
+                vscode.window.showErrorMessage('Dalin L: Execution failed');
             }
         })
     );
