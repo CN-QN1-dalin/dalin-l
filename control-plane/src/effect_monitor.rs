@@ -53,6 +53,12 @@ pub struct EffectMonitor {
     max_children: usize,
 }
 
+impl Default for EffectMonitor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl EffectMonitor {
     /// 新建效应监视器，默认 Pure 上下文、64 子任务配额。
     pub fn new() -> Self {

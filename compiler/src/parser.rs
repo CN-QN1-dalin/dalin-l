@@ -1,6 +1,12 @@
 /// Dalin L — 递归下降语法分析器
 use crate::ast::*;
-use crate::token::{Token, TokenType, TokenType::*};
+/// Nine annotation fields returned by parse_channel_annotations.
+pub type AnnotationResult = Result<(
+    Option<String>, Option<String>, Option<String>, // effect, capability, llm_prompt
+    Option<String>, Option<String>, Option<String>, // cognitive_loop, governance, latency
+    Option<String>, Option<String>,                 // timeout, throughput
+    Option<String>,                                  // confidence
+), ParseError>;
 
 #[derive(Debug)]
 pub struct ParseError {
@@ -231,7 +237,7 @@ impl Parser {
     fn parse_channel_annotations(
         &mut self,
         preset_effect: Option<String>,
-    ) -> Result<(Option<String>, Option<String>, Option<String>, Option<String>, Option<String>, Option<String>, Option<String>, Option<String>, Option<String>), ParseError> {
+    ) -> AnnotationResult {
         let mut effect = preset_effect;
         let mut capability: Option<String> = None;
         let mut llm_prompt: Option<String> = None;
