@@ -1,5 +1,5 @@
 // ============================================================
-// Dalin L 2.0 — K8s Operator Controller (reconciliation layer)
+// Dalin L 3.0 — K8s Operator Controller (reconciliation layer)
 // Pure Rust — no kube-rs dependency, integrates cleanly when added.
 // ============================================================
 

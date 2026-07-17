@@ -1,0 +1,3 @@
+// Dalin L Standard Library — logging
+
+fn main() @ pure @ cpu { return 0 }

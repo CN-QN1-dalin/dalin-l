@@ -1,4 +1,4 @@
-/// Dalin L 2.0 — 运行时 crate
+/// Dalin L 3.0 — 运行时 crate
 ///
 /// 树遍历解释器 + Agent-Native 并发原语（spawn / channel / await），
 /// 复用 dalin-compiler 的 AST / TaskSpec。并发侧表（task_tree / task_results /

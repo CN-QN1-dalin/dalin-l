@@ -1,0 +1,12 @@
+// Dalin L 标准库 — 集合类型
+
+fn list_new() @ pure @ cpu { return [] }
+fn list_len(lst) @ pure @ cpu { return 0 }
+fn list_get(lst, idx) @ pure @ cpu { return null }
+fn list_push(lst, val) @ pure @ cpu { return lst }
+fn list_pop(lst) @ pure @ cpu { return null }
+fn list_contains(lst, val) @ pure @ cpu { return false }
+fn map_new() @ pure @ cpu { return {} }
+fn map_get(m, key) @ pure @ cpu { return null }
+fn map_set(m, key, val) @ pure @ cpu { return m }
+fn map_keys(m) @ pure @ cpu { return [] }

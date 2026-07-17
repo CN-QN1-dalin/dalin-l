@@ -1,5 +1,6 @@
 /// Dalin L — 递归下降语法分析器
 use crate::ast::*;
+use crate::token::{Token, TokenType, TokenType::*};
 /// Nine annotation fields returned by parse_channel_annotations.
 pub type AnnotationResult = Result<(
     Option<String>, Option<String>, Option<String>, // effect, capability, llm_prompt
@@ -162,7 +163,7 @@ impl Parser {
         Ok(Stmt::Let { name, value, type_annotation: type_ann, mutable: true })
     }
 
-    /// 解析效应/能力类型关键字（Dalin L 2.0）
+    /// 解析效应/能力类型关键字（Dalin L 3.0）
     /// `pure` | `io` | `async` | `spawn` | `cpu` | `gpu` | `sfa` | `net`
     fn parse_effect_or_cap(&mut self) -> Result<String, ParseError> {
         let tok = self.current().clone();

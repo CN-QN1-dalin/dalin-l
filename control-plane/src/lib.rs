@@ -1,4 +1,4 @@
-//! Dalin L 2.0 — 分布式控制面（Phase 2 脚手架）
+//! Dalin L 3.0 — 分布式控制面（Phase 2 脚手架）
 //!
 //! 复用 dalin-compiler 的 TaskSpec，把三通道类型契约落到真实调度：
 //! - [scheduler]: 能力格放置（Cpu ≤ Gpu ≤ Sfa ≤ Net）+ 负载均衡

@@ -1,4 +1,4 @@
-/// Dalin L 2.0 — Phase H: 编译时宏系统 (Macro System)
+/// Dalin L 3.0 — Phase H: 编译时宏系统 (Macro System)
 ///
 /// 支持两种宏：
 /// 1. `#[derive(Debug, Clone)]` 属性宏 — 在编译期自动生成 impl 块

@@ -1,4 +1,4 @@
-/// Dalin L 2.0 — 编译器工具链 crate
+/// Dalin L 3.0 — 编译器工具链 crate
 ///
 /// 把源码落到七通道类型系统的"可执行单元" (TaskSpec)：
 /// token → lexer → parser → [llm_expand] → (ty2 七通道推断) → task_spec。
@@ -295,5 +295,24 @@ fn f() @ latency(20ms) { return g() }";
             }
             CompileResult::Err(e) => panic!("compile failed: {}", e),
         }
+    }
+
+    #[test]
+    fn test_stdlib_loader_loads_all_modules() {
+        use crate::stdlib_loader::StdLibLoader;
+        use std::path::PathBuf;
+
+        let project_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .parent().unwrap()
+            .to_path_buf();
+        let mut loader = StdLibLoader::new(project_root)
+            .expect("StdLibLoader should initialize with project root");
+
+        let result = loader.load_all();
+        assert!(result.is_ok(), "load_all() should succeed: {:?}", result.err());
+        let modules = result.unwrap();
+        assert!(modules.len() >= 2, "Should load at least prelude and core_types, got {} modules: {:?}", modules.len(), modules);
+        assert!(modules.contains(&"prelude".to_string()), "prelude should be loaded");
+        assert!(modules.contains(&"core_types".to_string()), "core_types should be loaded");
     }
 }

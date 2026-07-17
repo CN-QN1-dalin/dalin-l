@@ -19,7 +19,7 @@ pub fn run(name: &str, lib_only: bool, git_init: bool) -> Result<(), String> {
     } else {
         r#"@main
 fn main() -> Int {
-    println("Hello, Dalin L 2.0!");
+    println("Hello, Dalin L 3.0!");
     return 0;
 }"#
     };

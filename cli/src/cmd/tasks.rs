@@ -3,7 +3,7 @@ use dalin_compiler::{lexer, parser, task_spec, ty2};
 
 pub fn run() -> Result<(), String> {
     println!("============================================================");
-    println!("  Dalin L 2.0 — TaskSpec（控制面编译期契约）");
+    println!("  Dalin L 3.0 — TaskSpec（控制面编译期契约）");
     println!("============================================================");
 
     let src = r#"

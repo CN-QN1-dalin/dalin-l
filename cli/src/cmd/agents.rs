@@ -3,7 +3,7 @@ use dalin_runtime::interpreter;
 
 pub fn run() -> Result<(), String> {
     println!("============================================================");
-    println!("  Dalin L 2.0 — Agent-Native 并发（spawn + channel）");
+    println!("  Dalin L 3.0 — Agent-Native 并发（spawn + channel）");
     println!("============================================================");
 
     let src = r#"

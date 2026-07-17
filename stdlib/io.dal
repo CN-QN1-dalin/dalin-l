@@ -1,0 +1,8 @@
+// Dalin L 标准库 — 输入输出
+
+fn print(val) @ io @ cpu { return 0 }
+fn println(val) @ io @ cpu { return 0 }
+fn read_line() @ io @ cpu @ latency(100ms) { return "" }
+fn read_file(path) @ io @ cpu @ latency(200ms) { return "" }
+fn write_file(path, content) @ io @ cpu @ latency(200ms) { return true }
+fn exists(path) @ io @ cpu { return false }

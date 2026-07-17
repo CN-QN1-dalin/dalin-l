@@ -1,4 +1,4 @@
-/// Dalin L 2.0 — dalib pkg 包管理子命令
+/// Dalin L 3.0 — dalib pkg 包管理子命令
 ///
 /// 类似 Cargo 的包管理器，但为 Dalin L 做了裁剪和定制：
 /// - dalib pkg init [name] — 初始化项目 + 生成 dalan.toml
@@ -137,7 +137,7 @@ fn cmd_init(args: &HashMap<String, String>) -> Result<(), String> {
     let main_code = if lib_only {
         "@lib\nfn add(a: Int, b: Int) -> Int { return a + b; }\n"
     } else {
-        "@main\nfn main() -> Int {\n    println(\"Hello, Dalin L 2.0!\");\n    return 0;\n}"
+        "@main\nfn main() -> Int {\n    println(\"Hello, Dalin L 3.0!\");\n    return 0;\n}"
     };
     fs::write(out_dir.join("src/main.dal"), main_code).map_err(|e| format!("Cannot write src/main.dal: {}", e))?;
     println!("  Created src/main.dal");

@@ -1,0 +1,12 @@
+// Dalin L 标准库 — 字符串操作
+
+fn len(s) @ pure @ cpu { return 0 }
+fn concat(a, b) @ pure @ cpu { return a }
+fn slice(s, start, end) @ pure @ cpu { return s }
+fn contains(s, sub) @ pure @ cpu { return false }
+fn trim(s) @ pure @ cpu { return s }
+fn to_upper(s) @ pure @ cpu { return s }
+fn to_lower(s) @ pure @ cpu { return s }
+fn split(s, delim) @ pure @ cpu { return [] }
+fn join(arr, sep) @ pure @ cpu { return "" }
+fn format(template, args) @ pure @ cpu { return "" }

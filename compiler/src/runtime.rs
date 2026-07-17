@@ -1,4 +1,4 @@
-/// Dalin L 2.0 — Phase E Runtime Execution Engine
+/// Dalin L 3.0 — Phase E Runtime Execution Engine
 ///
 /// 把编译后的 Program + TaskSpec 真正跑起来。
 /// 内置七通道运行时检查：效应、能力、置信度、认知循环、治理、时间约束。

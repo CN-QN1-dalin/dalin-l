@@ -38,9 +38,9 @@ pub fn run() -> Result<(), String> {
 
 fn html_dashboard() -> String {
     r#"<!DOCTYPE html>
-<html><head><meta charset="UTF-8"><title>Dalin L 2.0</title>
+<html><head><meta charset="UTF-8"><title>Dalin L 3.0</title>
 <style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:2rem}h1{font-size:2.5rem;text-align:center;background:linear-gradient(135deg,#667eea,#764ba2);-webkit-background-clip:text;-webkit-text-fill-color:transparent}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:1rem;max-width:1000px;margin:2rem auto}.card{background:#161616;border:1px solid #2a2a2a;border-radius:12px;padding:1.5rem}.card h3{color:#888;font-size:.8rem;text-transform:uppercase}.bar-chart{display:flex;gap:3px;height:30px;align-items:flex-end;margin-top:.5rem}.bar{width:25px;border-radius:3px 3px 0 0}</style></head>
-<body><h1>Dalin L 2.0 Dashboard</h1><p style="text-align:center;color:#666;margin-top:.5rem">Compiler Control Panel</p>
+<body><h1>Dalin L 3.0 Dashboard</h1><p style="text-align:center;color:#666;margin-top:.5rem">Compiler Control Panel</p>
 <div class="grid"><div class="card"><h3>Status</h3><p style="color:#4caf50;font-size:2rem">●</p></div>
 <div class="card"><h3>Phases</h3><p style="font-size:2rem;color:#4caf50">A-H</p></div>
 <div class="card"><h3>Build Perf</h3><div class="bar-chart"><div class="bar" style="height:60%;background:#4caf50"></div><div class="bar" style="height:80%;background:#4caf50"></div><div class="bar" style="height:90%;background:#4caf50"></div><div class="bar" style="height:70%;background:#4caf50"></div><div class="bar" style="height:95%;background:#4caf50"></div></div></div>

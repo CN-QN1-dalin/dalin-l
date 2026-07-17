@@ -5,7 +5,7 @@ pub fn banner(title: &str) -> String {
     let sep = "=".repeat(width);
     let date = Local::now().format("%Y-%m-%d %H:%M");
     format!(
-        "{}\n  Dalin L 2.0 — {} | {}\n{}",
+        "{}\n  Dalin L 3.0 — {} | {}\n{}",
         sep, title, date, sep
     )
 }

@@ -20,7 +20,7 @@ pub fn run(input: &str, watch: bool, verbose: bool) -> Result<(), String> {
             compiled_ok = true;
         }
 
-        use dalin_compiler::{lexer, parser, ty};
+        use dalin_compiler::{lexer, parser};
 
         let src = std::fs::read_to_string(input).map_err(|e| format!("Cannot read '{}': {}", input, e))?;
         

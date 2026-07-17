@@ -251,6 +251,11 @@ impl ErrorClusteringEngine {
         self.errors.push(error);
     }
 
+    /// 返回当前错误总数
+    pub fn error_count(&self) -> usize {
+        self.errors.len()
+    }
+
     /// 计算错误的语义向量（hash-based embedding）
     pub fn embed(&self, error: &ErrorRecord) -> Vec<f32> {
         embed_error(error, EMBED_DIM)

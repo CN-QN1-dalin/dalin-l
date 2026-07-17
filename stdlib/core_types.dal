@@ -1,0 +1,10 @@
+// Dalin L 标准库 — 核心类型系统
+// 提供基础类型定义和类型工具函数
+
+fn type_of(x) @ pure @ cpu { return "unknown" }
+fn is_int(x) @ pure @ cpu { return type_of(x) == "int" }
+fn is_float(x) @ pure @ cpu { return type_of(x) == "float" }
+fn is_string(x) @ pure @ cpu { return type_of(x) == "string" }
+fn is_bool(x) @ pure @ cpu { return type_of(x) == "bool" }
+fn is_fn(x) @ pure @ cpu { return type_of(x) == "fn" }
+fn can_convert(from, to) @ pure @ cpu { return from == to }

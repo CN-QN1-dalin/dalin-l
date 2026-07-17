@@ -1,0 +1,3 @@
+// Dalin L Core — result
+
+fn main() @ pure @ cpu { return 0 }

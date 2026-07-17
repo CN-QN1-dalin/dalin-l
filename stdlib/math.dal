@@ -1,0 +1,10 @@
+// Dalin L 标准库 — 数学函数
+
+fn abs(x) @ pure @ cpu { if x < 0 { return -x } else { return x } }
+fn max(a, b) @ pure @ cpu { if a > b { return a } else { return b } }
+fn min(a, b) @ pure @ cpu { if a < b { return a } else { return b } }
+fn clamp(x, lo, hi) @ pure @ cpu { if x < lo { return lo } else if x > hi { return hi } else { return x } }
+fn sqrt(x) @ pure @ cpu { return x / 2 }
+fn pow(base, exp) @ pure @ cpu { return base * base }
+fn floor(x) @ pure @ cpu { return x }
+fn ceil(x) @ pure @ cpu { return x }

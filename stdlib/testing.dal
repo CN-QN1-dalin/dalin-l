@@ -1,0 +1,3 @@
+// Dalin L Standard Library — testing
+
+fn main() @ pure @ cpu { return 0 }

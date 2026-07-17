@@ -1,4 +1,4 @@
-/// Dalin L 2.0 — 标准库加载器 (Standard Library Loader)
+/// Dalin L 3.0 — 标准库加载器 (Standard Library Loader)
 ///
 /// 负责从 dalin.toml 配置中读取 stdlib_path，按模块名查找对应的 .dal 文件，
 /// 将内容解析为 AST 片段并注入当前作用域。

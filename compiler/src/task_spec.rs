@@ -1,4 +1,4 @@
-/// Dalin L 2.0 — TaskSpec：七通道类型系统的"可执行单元"
+/// Dalin L 3.0 — TaskSpec：七通道类型系统的"可执行单元"
 ///
 /// 编译器在 TIR 阶段为每个顶层 `fn` 生成一份 `TaskSpec`，把七通道标注
 /// (值类型 / 效应 / 能力) 固化为调度契约。控制面（Capability Scheduler）

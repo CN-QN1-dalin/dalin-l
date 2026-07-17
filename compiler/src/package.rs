@@ -1,4 +1,4 @@
-/// Dalin L 2.0 — Phase H: 包管理系统 (Package Manager)
+/// Dalin L 3.0 — Phase H: 包管理系统 (Package Manager)
 ///
 /// 解析 `dalin.toml`、SemVer 版本解析与比较、依赖解析、缓存机制。
 /// 参考 Cargo 的设计，但简化为 DALin L 的最小可用子集。

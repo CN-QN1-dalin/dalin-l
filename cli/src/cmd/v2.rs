@@ -3,7 +3,7 @@ use dalin_compiler::{lexer, parser, ty2};
 
 pub fn run() -> Result<(), String> {
     println!("============================================================");
-    println!("  Dalin L 2.0 — 七通道类型系统");
+    println!("  Dalin L 3.0 — 七通道类型系统");
     println!("============================================================");
 
     println!("\n--- 效应格 (Effect Lattice) ---");

@@ -1,4 +1,4 @@
-/// Dalin L 2.0 — CLI v1.0 (Clap Subcommand Architecture)
+/// Dalin L 3.0 — CLI v1.0 (Clap Subcommand Architecture)
 /// Phase I: 深度集成 REPL / Build / Run / Check / Init / Tree / Analyze / Info / Dashboard
 
 mod cmd;
@@ -7,7 +7,7 @@ mod util;
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
-#[command(name = "dalib", about = "Dalin L 2.0 Compiler CLI", version)]
+#[command(name = "dalib", about = "Dalin L 3.0 Compiler CLI", version)]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
@@ -127,6 +127,10 @@ enum Commands {
         /// Reason for rejection
         #[arg(long)]
         reason: Option<String>,
+
+        /// JSON output format
+        #[arg(long, global = true)]
+        json: bool,
     },
 
     /// Package management (Cargo-like)
@@ -190,11 +194,12 @@ fn main() {
         Commands::Tasks {} => cmd::tasks::run(),
         Commands::Agents {} => cmd::agents::run(),
         Commands::Vm { mode } => cmd::vm::run(&mode),
-        Commands::Evolve { subcommand, id, to, reason } => {
+        Commands::Evolve { subcommand, id, to, reason, json: _json } => {
             let mut args = std::collections::HashMap::new();
             if let Some(i) = id { args.insert("id".to_string(), i.to_string()); }
             if let Some(t) = to { args.insert("to".to_string(), t.to_string()); }
             if let Some(r) = reason { args.insert("reason".to_string(), r); }
+            if cli.json || _json { args.insert("json".to_string(), "true".to_string()); }
             cmd::evolve::run(&subcommand, &args)
         }
 

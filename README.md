@@ -126,12 +126,14 @@ Source ─→ Lexer ─→ Tokens ─→ Parser ─→ AST ─→ LLM Expand
 | H | 模块/包系统 | ✓ | mod/use/derive, dalin.toml, SemVer |
 | I | 宏系统 | ✓ | Declarative macros + derive 属性 |
 
-### Phase I — J — 进行中
+### Phase I — L — 进行中 (v3.0-dev)
 
 | Phase | 名称 | 状态 | 当前进展 |
 |-------|------|------|----------|
-| I | 标准库建设 | 🟡 进行中 | 28 个 .dal 模块已定义 (stdlib/) |
-| J | 自进化闭环 | 🟢 设计中 | 设计文档已完成 (`docs/PHASE_J_SELF_EVOLUTION.md`) |
+| I | 标准库建设 | 🟡 进行中 | 28 个 .dal 模块已定义 (stdlib/)，实证测试开发中 |
+| J | 自进化闭环 | 🔴 **实现中** | **v3.0 核心目标：J1~J4 完整落地** |
+| K | Benchmark 基线 | ⚪ 待启动 | RingBuffer / SFA / ultra-infer 量化 |
+| L | 跨 Agent 协同进化 | ⚪ 规划中 | 联邦学习 + 社区模板生态 |
 
 #### Phase I: 标准库建设
 

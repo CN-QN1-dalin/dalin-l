@@ -1,4 +1,4 @@
-/// Dalin L 2.0 — Phase H: 模块系统 (Module System)
+/// Dalin L 3.0 — Phase H: 模块系统 (Module System)
 ///
 /// 支持 `mod foo;` / `mod foo { ... }` / `use foo::bar;` / `pub use` 等语法。
 /// 构建模块树、解析路径、冲突检测、拓扑排序。

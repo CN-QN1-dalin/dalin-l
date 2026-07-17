@@ -1,0 +1,8 @@
+// Dalin L 标准库预置模块
+// 自动为所有编译单元导入
+
+fn identity(x) @ pure @ cpu { return x }
+fn const_true() @ pure @ cpu { return true }
+fn const_false() @ pure @ cpu { return false }
+fn is_defined(x) @ pure @ cpu { return !(x == null) }
+fn noop() @ pure @ cpu { return 0 }

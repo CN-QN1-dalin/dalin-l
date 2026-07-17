@@ -1,4 +1,4 @@
-//! Dalin L 2.0 — Python bindings (pyo3)
+//! Dalin L 3.0 — Python bindings (pyo3)
 //!
 //! 通过 pyo3 将 Dalin L 的编译器、运行时暴露给 Python 调用，
 //! 供 DalinX V8 认知架构直接集成控制平面能力。
@@ -106,6 +106,6 @@ fn dalin_pyo3(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(run, m)?)?;
     m.add_function(wrap_pyfunction!(run_with_tree, m)?)?;
     m.add("__version__", "0.2.0")?;
-    m.add("__doc__", "Dalin L 2.0 — Python bindings for DalinX V8")?;
+    m.add("__doc__", "Dalin L 3.0 — Python bindings for DalinX V8")?;
     Ok(())
 }

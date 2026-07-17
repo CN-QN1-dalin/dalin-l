@@ -178,8 +178,8 @@ pub enum Stmt {
         name: String,
         params: Vec<FnParam>,
         return_type: Option<TypeRef>,
-        effect: Option<String>,         // Dalin L 2.0: pure | io | async | spawn
-        capability: Option<String>,     // Dalin L 2.0: cpu | gpu | sfa | net
+        effect: Option<String>,         // Dalin L 3.0: pure | io | async | spawn
+        capability: Option<String>,     // Dalin L 3.0: cpu | gpu | sfa | net
         llm_prompt: Option<String>,     // @llm("...") 编译指令
         /// 置信度 @ proven | verified | inferred | generated | uncertain
         confidence: Option<String>,

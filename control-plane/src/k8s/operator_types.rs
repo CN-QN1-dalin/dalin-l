@@ -1,5 +1,5 @@
 // ============================================================
-// Dalin L 2.0 — K8s Operator Types
+// Dalin L 3.0 — K8s Operator Types
 // Maps Dalin L 7-channel metadata → Kubernetes resource specs
 // ============================================================
 

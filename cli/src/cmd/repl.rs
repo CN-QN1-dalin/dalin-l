@@ -1,11 +1,10 @@
 use std::io::{self, Write};
-use crate::util;
 use dalin_compiler::{lexer, parser, ty};
 use dalin_runtime::interpreter;
 
 pub fn run() -> Result<(), String> {
     println!("============================================================");
-    println!("  Dalin L 2.0 — REPL Interactive Mode");
+    println!("  Dalin L 3.0 — REPL Interactive Mode");
     println!("============================================================");
     println!("\nType 'exit' to quit, 'help' for help\n");
 
@@ -22,7 +21,7 @@ pub fn run() -> Result<(), String> {
         match line.as_str() {
             "exit" | "quit" => { println!("再见！"); break; }
             "help" => {
-                println!("Dalin L 2.0 — Agent-Native Programming Language");
+                println!("Dalin L 3.0 — Agent-Native Programming Language");
                 println!("  Syntax: let fn return if else match for in while");
             }
             _ => {
