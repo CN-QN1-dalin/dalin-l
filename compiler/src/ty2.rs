@@ -876,6 +876,17 @@ impl CapabilityInferencer {
         }
     }
 
+    /// 检查表达式的推断能力是否在声明的能力上下文中有效。
+    /// 如果 expr_cap 的能力大于 context 允许的范围，则记录错误。
+    pub fn check(&mut self, context: &Capability, expr_cap: &Capability, location: &str) {
+        if !expr_cap.leq(context) {
+            self.errors.push(format!(
+                "能力违规: {} 需要 {:?}，但上下文只允许 {:?}",
+                location, expr_cap, context
+            ));
+        }
+    }
+
     /// 内置函数 → 能力映射表。
     /// sfa_encode/sfa_query → Sfa, gpu_* → Gpu, net_fetch/net_send → Net,
     /// print/println/assert → Cpu, spawn_task → Cpu
@@ -1293,7 +1304,9 @@ impl SevenChannelInferencer {
         let expr_eff = self.effect.infer_expr(expr);
         self.effect.check(declared_effect, &expr_eff, &location);
 
-        // 能力检查（CapabilityInferencer 没有 check 方法，跳过）
+        // 能力检查
+        let expr_cap = self.capability.infer_expr(expr);
+        self.capability.check(declared_capability, &expr_cap, &location);
 
         // 认知循环检查
         if let Some(declared_cl) = declared_cognitive_loop {

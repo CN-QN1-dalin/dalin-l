@@ -6,7 +6,7 @@
 
 use dalin_compiler::ast::{Expr, Program, Stmt};
 
-use crate::{BytecodeFunction, Opcode};
+use crate::{BytecodeFunction, CallTarget, Opcode};
 
 /// AST → 字节码编译器
 pub struct BytecodeCompiler {
@@ -167,9 +167,6 @@ impl BytecodeCompiler {
                 for a in args {
                     self.compile_expr(a);
                 }
-                // 调用
-                self.emit(Opcode::Call(args.len() as u16));
-
                 // 如果函数是 Ident，用 Builtin
                 if let Expr::Ident(name) = func.as_ref() {
                     let builtin_idx = match name.as_str() {
@@ -180,10 +177,14 @@ impl BytecodeCompiler {
                         _ => None,
                     };
                     if let Some(idx) = builtin_idx {
-                        // 替换 Call 为 Builtin
-                        self.code.pop(); // 移除 Call
                         self.emit(Opcode::Builtin(idx));
+                    } else {
+                        // 用户定义的函数调用：按名称查找
+                        self.emit(Opcode::Call(args.len() as u16, CallTarget::Name(name.clone())));
                     }
+                } else {
+                    // 匿名函数/表达式调用，暂用索引 0
+                    self.emit(Opcode::Call(args.len() as u16, CallTarget::Index(0)));
                 }
             }
 
@@ -234,7 +235,7 @@ impl BytecodeCompiler {
                     };
                     match builtin_idx {
                         Some(idx) => self.emit(Opcode::Builtin(idx)),
-                        None => self.emit(Opcode::Call(2)), // input + arg
+                        None => self.emit(Opcode::Call(2, CallTarget::Name(fn_name.clone()))), // input + arg
                     }
                 }
             }

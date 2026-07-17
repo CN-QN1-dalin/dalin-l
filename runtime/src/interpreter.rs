@@ -6,6 +6,9 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
 
+/// Return 哨兵常量 — 用于表示函数返回的控制流信号
+const RETURN_SENTINEL: &str = "\x00__dl_return__\x00";
+
 #[derive(Debug)]
 pub struct RuntimeError(pub String);
 
@@ -99,7 +102,7 @@ impl Interpreter {
                     None => Value::None,
                 };
                 self.return_value = Some(val);
-                Err(RuntimeError("__return__".into()))
+                Err(RuntimeError(RETURN_SENTINEL.into()))
             }
             Stmt::If { condition, then_body, else_body } => self.eval_if(condition, then_body, else_body, env),
             Stmt::While { condition, body } => self.eval_while(condition, body, env),
@@ -235,7 +238,7 @@ impl Interpreter {
             if !self.truthy(&cond_val) { break; }
             let result = self.eval_block(body, &mut env.child());
             match result {
-                Err(RuntimeError(ref msg)) if msg == "__return__" => return result,
+                Err(RuntimeError(ref msg)) if msg == RETURN_SENTINEL => return result,
                 Err(_) | Ok(_) => {}
             }
         }
@@ -251,8 +254,9 @@ impl Interpreter {
             if self.step_count >= self.max_steps {
                 return Err(RuntimeError("Step budget exceeded".to_string()));
             }
-            env.define(target, item.clone());
-            result = self.eval_block(body, env)?;
+            let mut child_env = env.child();
+            child_env.define(target, item.clone());
+            result = self.eval_block(body, &mut child_env)?;
         }
         Ok(result)
     }
@@ -531,7 +535,7 @@ impl Interpreter {
         self.return_value = None;
         let result = self.eval_block(&fnv.body, &mut call_env);
         match result {
-            Err(RuntimeError(ref msg)) if msg == "__return__" => {
+            Err(RuntimeError(ref msg)) if msg == RETURN_SENTINEL => {
                 Ok(self.return_value.take().unwrap_or(Value::None))
             }
             Ok(_) => Ok(Value::None),

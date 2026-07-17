@@ -1354,6 +1354,7 @@ pub struct SelfHealingRuntime {
     pub recovery_mode: RecoveryMode,
     pub recovery_log: Vec<RecoveryEvent>,
     recovery_seq: u64,
+    start_time: Instant,
 }
 
 impl SelfHealingRuntime {
@@ -1363,6 +1364,7 @@ impl SelfHealingRuntime {
             recovery_mode: RecoveryMode::Fallback,
             recovery_log: Vec::new(),
             recovery_seq: 0,
+            start_time: Instant::now(),
         }
     }
 
@@ -1388,14 +1390,14 @@ impl SelfHealingRuntime {
                             let retry_result = self.inner.call(fn_name, args);
 
                             let success = retry_result.is_ok();
-                            let seq = self.recovery_seq;
+                            let _seq = self.recovery_seq;
                             self.recovery_seq += 1;
                             self.recovery_log.push(RecoveryEvent {
                                 fn_name: fn_name.to_string(),
                                 error: err.clone(),
                                 mode: RecoveryMode::Fallback,
                                 success_after_recovery: success,
-                                timestamp_us: seq * 1000,
+                                timestamp_us: self.start_time.elapsed().as_micros() as u64,
                             });
 
                             if success {
@@ -1415,14 +1417,14 @@ impl SelfHealingRuntime {
                             let retry_result = self.inner.call(fn_name, args);
 
                             let success = retry_result.is_ok();
-                            let seq = self.recovery_seq;
+                            let _seq = self.recovery_seq;
                             self.recovery_seq += 1;
                             self.recovery_log.push(RecoveryEvent {
                                 fn_name: fn_name.to_string(),
                                 error: err.clone(),
                                 mode: RecoveryMode::Fallback,
                                 success_after_recovery: success,
-                                timestamp_us: seq * 1000,
+                                timestamp_us: self.start_time.elapsed().as_micros() as u64,
                             });
 
                             if success {
@@ -1438,14 +1440,14 @@ impl SelfHealingRuntime {
                     }
                     RecoveryMode::RetryWithDefault => {
                         if matches!(err, RuntimeError::DivisionByZero) {
-                            let seq = self.recovery_seq;
+                            let _seq = self.recovery_seq;
                             self.recovery_seq += 1;
                             self.recovery_log.push(RecoveryEvent {
                                 fn_name: fn_name.to_string(),
                                 error: err.clone(),
                                 mode: RecoveryMode::RetryWithDefault,
                                 success_after_recovery: true,
-                                timestamp_us: seq * 1000,
+                                timestamp_us: self.start_time.elapsed().as_micros() as u64,
                             });
                             Ok(RuntimeValue::Int(0))
                         } else {
@@ -1455,7 +1457,7 @@ impl SelfHealingRuntime {
                     RecoveryMode::DegradeGovernance => {
                         // 治理拒绝 → 降级治理级别重试
                         if matches!(err, RuntimeError::GovernanceViolation { .. }) {
-                            let seq = self.recovery_seq;
+                            let _seq = self.recovery_seq;
                             self.recovery_seq += 1;
                             
                             let new_level = match self.inner.governance.session_level {
@@ -1474,7 +1476,7 @@ impl SelfHealingRuntime {
                                 error: err.clone(),
                                 mode: RecoveryMode::DegradeGovernance,
                                 success_after_recovery: success,
-                                timestamp_us: seq * 1000,
+                                timestamp_us: self.start_time.elapsed().as_micros() as u64,
                             });
                             
                             if success {

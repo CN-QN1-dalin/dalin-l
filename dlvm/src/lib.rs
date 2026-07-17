@@ -10,11 +10,22 @@
 mod compiler;
 pub use compiler::BytecodeCompiler;
 
+use std::collections::HashMap;
+
 /// 寄存器索引（虚拟寄存器，编译时分配）
 pub type Reg = u8;
 
+/// 调用目标：地址或函数名
+#[derive(Debug, Clone, PartialEq)]
+pub enum CallTarget {
+    /// 按函数在 functions Vec 中的索引调用
+    Index(u16),
+    /// 按函数名调用
+    Name(String),
+}
+
 /// 字节码指令
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Opcode {
     // ── 常量加载 ──
     LoadInt(i64),          // 加载整数常量
@@ -45,7 +56,7 @@ pub enum Opcode {
     Halt,                  // 停止执行
 
     // ── 函数与调用 ──
-    Call(u16),             // 调用函数（参数个数已在栈上）
+    Call(u16, CallTarget),   // 调用函数（参数个数，调用目标）
     Return,                // 从函数返回
     MakeClosure(u16),      // 创建闭包（函数索引，环境大小）
 
@@ -155,6 +166,8 @@ pub struct Vm {
     call_stack: Vec<(usize, usize)>,
     /// 已加载的函数表
     functions: Vec<BytecodeFunction>,
+    /// 函数名 → 函数索引映射
+    fn_by_name: HashMap<String, usize>,
     /// 当前执行指令指针
     ip: usize,
     /// 当前函数索引
@@ -190,11 +203,16 @@ impl std::fmt::Display for VmError {
 impl Vm {
     /// 创建新的 VM 实例，加载函数表。
     pub fn new(functions: Vec<BytecodeFunction>) -> Self {
+        let mut fn_by_name = HashMap::new();
+        for (i, f) in functions.iter().enumerate() {
+            fn_by_name.insert(f.name.clone(), i);
+        }
         let entry = functions.first().map(|_| 0).unwrap_or(0);
         Self {
             stack: Vec::with_capacity(1024),
             call_stack: Vec::with_capacity(64),
             functions,
+            fn_by_name,
             ip: 0,
             current_fn: entry,
             running: false,
@@ -212,7 +230,7 @@ impl Vm {
             if self.ip >= func.code.len() {
                 break;
             }
-            let op = func.code[self.ip];
+            let op = func.code[self.ip].clone();
             self.ip += 1;
             self.execute_op(op)?;
         }
@@ -387,13 +405,23 @@ impl Vm {
                 }
             }
 
-            Opcode::Call(argc) => {
+            Opcode::Call(argc, target) => {
                 // 保存返回地址 + 栈基址
                 let base = self.stack.len().saturating_sub(argc as usize);
                 self.call_stack.push((self.ip, base));
-                // 目标函数索引在栈上（参数之上）
-                // 目前简单实现：调用函数 0（入口）
-                // TODO: 从 MakeClosure/函数名查表
+                // 根据调用目标查找函数
+                let fn_idx = match target {
+                    CallTarget::Index(idx) => idx as usize,
+                    CallTarget::Name(name) => {
+                        match self.fn_by_name.get(&name) {
+                            Some(idx) => *idx,
+                            None => return Err(VmError::FunctionNotFound(0)),
+                        }
+                    }
+                };
+                // 切换到目标函数
+                self.current_fn = fn_idx;
+                self.ip = 0;
             }
 
             Opcode::Builtin(idx) => {
