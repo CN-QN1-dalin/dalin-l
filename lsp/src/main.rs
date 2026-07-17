@@ -6,12 +6,10 @@
 //! Build: `cargo build --bin dalin-ls -p dalin-ls`
 //! Run:   `dalin-ls`
 
-use dalin_compiler::ast::{self, Program, Stmt, Expr, BaseType, TypeRef, FnParam, MatchArm};
+use dalin_compiler::ast::{Program, Stmt};
 use dalin_compiler::lexer;
 use dalin_compiler::parser;
-use dalin_compiler::ty2::{self, SevenChannelInferencer, Effect, Capability, Confidence, CognitiveLoop, GovernanceLevel, TimeConstraint};
-use dalin_compiler::error::{ChannelError as CompileError, SourceLocation};
-use serde_json::{json, Map, Value};
+use serde_json::{json, Value};
 
 use std::collections::{HashMap, HashSet};
 use std::io::{self, BufRead, Write};
@@ -112,7 +110,7 @@ impl LspCompiler {
     }
 
     /// Helper: collect channel errors into diagnostic JSON objects
-    fn collect_errors_to_diags(&self, diags: &mut Vec<Value>, errors: &[String], prefix: &str, code: &str) {
+    fn collect_errors_to_diags(&self, diags: &mut Vec<Value>, errors: &[String], prefix: &str, _code: &str) {
         for err in errors {
             diags.push(json_diagnostic(&format!("{}: {}", prefix, err), 1, 0, 1, err.len().min(40), 0));
         }
@@ -338,7 +336,7 @@ impl SignatureHelpProvider {
 
 fn main() {
     let mut compiler = LspCompiler::new();
-    let mut completion_engine = CompletionEngine::new();
+    let completion_engine = CompletionEngine::new();
     let hover_provider = HoverProvider;
     let signature_helper = SignatureHelpProvider;
 

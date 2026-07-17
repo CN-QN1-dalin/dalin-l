@@ -1,0 +1,114 @@
+name: Benchmark Gate — Performance Baseline
+
+on:
+  push:
+    branches: [ "v3.0-dev" ]
+  pull_request:
+    branches: [ "v3.0-dev" ]
+  schedule:
+    # Weekly Sunday at midnight UTC
+    - cron: '0 0 * * 0'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  compile-benchmark:
+    name: Compilation Speed
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Measure full workspace compile
+        id: compile
+        run: |
+          START=$(date +%s%N)
+          cargo build --workspace --bins 2>&1 | tail -5
+          END=$(date +%s%N)
+          ELAPSED=$(( (END - START) / 1000000 ))
+          echo "compile_time_ms=${ELAPSED}" >> "$GITHUB_OUTPUT"
+          echo "::notice::Full workspace compile: ${ELAPSED}ms"
+      - name: Benchmark release compile
+        run: |
+          cargo clean -q
+          START=$(date +%s%N)
+          cargo build --workspace --bins --release 2>&1 | tail -5
+          END=$(date +%s%N)
+          ELAPSED=$(( (END - START) / 1000000 ))
+          echo "::notice::Release compile: ${ELAPSED}ms"
+
+  parse-benchmark:
+    name: Parser Throughput
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Parse all .dal files timing
+        run: |
+          DAL_FILES=$(find stdlib -name "*.dal" 2>/dev/null | wc -l)
+          echo "Found $DAL_FILES .dal standard library modules"
+          
+          START=$(date +%s%N)
+          cargo build --bin dalib -q
+          cargo run --bin dalib -- demo > /dev/null 2>&1
+          END=$(date +%s%N)
+          
+          MS=$(( (END - START) / 1000000 ))
+          echo "::notice::Demo compile+run: ${MS}ms"
+          echo "compile_run_ms=${MS}" >> "$GITHUB_ENV"
+
+  type-check-benchmark:
+    name: Seven-Channel Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Ty2 inference benchmark
+        run: |
+          # Measure 7-channel type inference overhead
+          START=$(date +%s%N)
+          cargo test --lib test_stdlib_loader_loads_all_modules 2>&1 | tail -5
+          END=$(date +%s%N)
+          MS=$(( (END - START) / 1000000 ))
+          echo "::notice::stdlib_loader test: ${MS}ms"
+
+          START=$(date +%s%N)
+          cargo test --lib ty 2>&1 | tail -5
+          END=$(date +%s%N)
+          MS=$(( (END - START) / 1000000 ))
+          echo "::notice::ty2 inference tests: ${MS}ms"
+
+  phase-j-benchmark:
+    name: Phase J Self-Evolution
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Evolve review data pipeline benchmark
+        run: |
+          START=$(date +%s%N)
+          cargo test --lib j1:: 2>&1 | tail -5
+          cargo test --lib j2:: 2>&1 | tail -5
+          cargo test --lib j3:: 2>&1 | tail -5
+          cargo test --bin dalib evolve 2>&1 | tail -5
+          END=$(date +%s%N)
+          MS=$(( (END - START) / 1000000 ))
+          echo "::notice::Phase J tests: ${MS}ms"
+
+  report:
+    name: Benchmark Report
+    runs-on: ubuntu-latest
+    needs: [compile-benchmark, parse-benchmark, type-check-benchmark, phase-j-benchmark]
+    if: always()
+    steps:
+      - name: Print summary
+        run: |
+          echo "# Benchmark Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Metric | Result |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|--------|--------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Full Workspace Compile | see job output |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Release Compile | see job output |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Demo Compile+Run | see job output |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Ty2 Inference Tests | see job output |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Phase J Tests | see job output |" >> "$GITHUB_STEP_SUMMARY"

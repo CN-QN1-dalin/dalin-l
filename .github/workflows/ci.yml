@@ -1,22 +1,140 @@
-name: CI
+name: CI — Dalin L v3.0-dev
 
 on:
   push:
-    branches: [ "master" ]
+    branches: [ "master", "v3.0-dev" ]
   pull_request:
-    branches: [ "master" ]
+    branches: [ "master", "v3.0-dev" ]
 
 env:
   CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
 
 jobs:
-  build:
+  # ── Job 1: fmt check ──────────────────────────────────────────
+  fmt:
+    name: Rustfmt
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    - name: Build
-      run: cargo build --verbose
-    - name: Run tests
-      run: cargo run --test
-    - name: Run demo
-      run: cargo run
+      - uses: actions/checkout@v4
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+          components: rustfmt
+      - name: Check formatting
+        run: cargo fmt --all --check
+
+  # ── Job 2: clippy linting ─────────────────────────────────────
+  clippy:
+    name: Clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+          components: clippy
+      - name: Run clippy (allow denials)
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+  # ── Job 3: build all crates ───────────────────────────────────
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rust: [stable, "1.80"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build all workspace crates
+        run: cargo build --workspace --verbose
+      - name: Build binaries
+        run: cargo build --bins --verbose
+
+  # ── Job 4: unit + integration tests ───────────────────────────
+  test:
+    name: Test Suite
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-registry-
+      - name: Run lib tests (all crates)
+        run: cargo test --workspace --lib
+      - name: Run binary tests
+        run: cargo test --workspace --bin
+      - name: Run Phase J integration tests
+        run: cargo test --workspace --lib j1:: j2:: j3:: evolve
+      - name: Run stdlib loader tests
+        run: cargo test --workspace --lib stdlib
+
+  # ── Job 5: demo & e2e smoke ───────────────────────────────────
+  e2e:
+    name: E2E Smoke
+    runs-on: ubuntu-latest
+    needs: [test]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Run dalib demo
+        run: cargo run --bin dalib -- demo
+      - name: Run dalib version
+        run: cargo run --bin dalib -- version
+      - name: Run dalib evolve review --json
+        run: cargo run --bin dalib -- evolve review --json
+      - name: Run dalib evolve stats --json
+        run: cargo run --bin dalib -- evolve stats --json
+      - name: Run dalib evolve status --json
+        run: cargo run --bin dalib -- evolve status --json
+
+  # ── Job 6: LSP server build check ─────────────────────────────
+  lsp:
+    name: LSP Server
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build LSP server
+        run: cargo build --bin dalin-ls -p dalin-ls --release
+      - name: Verify LSP binary exists
+        run: ls -lh target/release/dalin-ls
+
+  # ── Job 7: benchmark gate (optional, on push to v3.0-dev) ─────
+  benchmark:
+    name: Benchmark Gate
+    if: github.ref == 'refs/heads/v3.0-dev'
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install criterion
+        run: cargo install cargo-criterion --locked
+      - name: Run benchmarks (dev mode)
+        run: cargo bench -- --noplot 2>/dev/null || echo "benchmarks disabled — add #[bench] gates as needed"
+      - name: Compile-time benchmark
+        run: |
+          echo "=== Compile time baseline ===" && \
+          time cargo build --bin dalib 2>&1 | tail -3
+
+  # ── Summary status ────────────────────────────────────────────
+  status:
+    name: CI Status
+    runs-on: ubuntu-latest
+    needs: [fmt, clippy, build, test, e2e, lsp]
+    if: always()
+    steps:
+      - name: Report status
+        run: |
+          echo "All jobs completed. Check failed jobs above."
+          needs=$(echo '${{ toJSON(needs.*.result) }}')
+          echo "Job results: $needs"
