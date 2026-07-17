@@ -16,7 +16,6 @@
 /// - Qn1Backend trait 是纯异步/同步皆可的接口
 /// - MockQn1Backend 用于无 QN1 环境下的开发/测试
 /// - 真实 QN1 后端只需实现该 trait 即可接入
-
 use crate::ast::{Expr, Stmt};
 use std::collections::HashMap;
 
@@ -58,6 +57,12 @@ pub struct GenerationContext {
     pub params: Vec<String>,
     /// 已有注解（效应、能力等）
     pub annotations: HashMap<String, String>,
+}
+
+impl Default for GenerationContext {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl GenerationContext {
@@ -207,6 +212,12 @@ impl Qn1Backend for RealQn1Backend {
 /// - 返回合理的置信度和延迟估值
 #[derive(Debug)]
 pub struct MockQn1Backend;
+
+impl Default for MockQn1Backend {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl MockQn1Backend {
     pub fn new() -> Self {

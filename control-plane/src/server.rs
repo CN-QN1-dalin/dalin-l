@@ -185,14 +185,12 @@ impl ControlPlane for ControlPlaneService {
         let id = req.into_inner().id;
         let ok = self.registry.cancel(&id).await;
         // 释放被取消任务占用的节点并发槽
-        if ok {
-            if let Some(rec) = self.registry.get(&id).await {
-                if let Some(node) = &rec.node {
+        if ok
+            && let Some(rec) = self.registry.get(&id).await
+                && let Some(node) = &rec.node {
                     let sched = self.scheduler.lock().unwrap();
                     sched.release(node);
                 }
-            }
-        }
         Ok(Response::new(CancelTaskResponse { ok }))
     }
 

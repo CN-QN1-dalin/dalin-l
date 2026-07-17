@@ -36,7 +36,7 @@ fn compile(source: &str) -> PyResult<String> {
 fn capability_leq(a: &str, b: &str) -> bool {
     let cap_a = parse_capability(a);
     let cap_b = parse_capability(b);
-    (cap_a as u8) <= (cap_b as u8)
+    cap_a <= cap_b
 }
 
 /// 将 Dalin L 能力字符串转换为内部枚举值。

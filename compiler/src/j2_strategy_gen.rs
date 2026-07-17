@@ -19,7 +19,6 @@
 /// });
 /// let rules = generator.infer_new_rules();
 /// ```
-
 use std::collections::{HashMap, HashSet};
 
 use crate::runtime::RecoveryMode;
@@ -148,6 +147,12 @@ pub struct StrategyGenerator {
     known_rules: Vec<RecoveryRule>,
     weights: ChannelWeights,
     rule_seq: u64,
+}
+
+impl Default for StrategyGenerator {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl StrategyGenerator {

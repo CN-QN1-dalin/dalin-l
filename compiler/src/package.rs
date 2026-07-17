@@ -2,7 +2,6 @@
 ///
 /// 解析 `dalin.toml`、SemVer 版本解析与比较、依赖解析、缓存机制。
 /// 参考 Cargo 的设计，但简化为 DALin L 的最小可用子集。
-
 use std::collections::HashMap;
 
 // ═══════════════════════════════
@@ -46,6 +45,7 @@ impl SemVer {
     }
 
     /// 比较两个版本: -1 (小于), 0 (等于), 1 (大于)
+    #[allow(clippy::should_implement_trait)]
     pub fn cmp(&self, other: &SemVer) -> i32 {
         if self.major != other.major {
             return (self.major as i32) - (other.major as i32);
@@ -216,7 +216,7 @@ pub fn parse_package_manifest(content: &str) -> Result<PackageManifest, String> 
 
             match (current_section.as_deref(), key) {
                 (Some("package"), "name") => manifest.name = strip_toml_string(value),
-                (Some("package"), "version") => manifest.version = SemVer::parse(&strip_toml_string(value)).map_err(|e| e)?,
+                (Some("package"), "version") => manifest.version = SemVer::parse(&strip_toml_string(value))?,
                 (Some("package"), "edition") => manifest.edition = strip_toml_string(value),
                 (Some("package"), "description") => manifest.description = Some(strip_toml_string(value)),
                 (Some("package"), "authors") => {
@@ -257,7 +257,7 @@ fn parse_toml_array(s: &str) -> Vec<String> {
     inner.split(',').map(|item| item.trim().to_string()).collect()
 }
 
-fn parse_dep_entry(key: &str, value: &str, _subsection: &Option<String>) -> DependencyEntry {
+fn parse_dep_entry(_key: &str, value: &str, _subsection: &Option<String>) -> DependencyEntry {
     let value = value.trim();
 
     // Simple form: "version = \"1.0\""
@@ -299,6 +299,12 @@ fn parse_dep_entry(key: &str, value: &str, _subsection: &Option<String>) -> Depe
 pub struct DependencyGraph {
     pub packages: HashMap<String, PackageInfo>,
     pub resolved: HashMap<String, SemVer>,
+}
+
+impl Default for DependencyGraph {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl DependencyGraph {

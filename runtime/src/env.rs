@@ -1,5 +1,4 @@
 /// Dalin L — 运行时环境
-
 use std::collections::HashMap;
 use std::fmt;
 use std::sync::mpsc::Sender;
@@ -94,6 +93,12 @@ impl fmt::Display for Value {
 pub struct Environment {
     pub vars: HashMap<String, Value>,
     pub parent: Option<Box<Environment>>,
+}
+
+impl Default for Environment {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Environment {

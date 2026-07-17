@@ -22,6 +22,7 @@ pub enum ReconcileResult {
 
 /// Translates DalinTask CRD events into Kubernetes Deployment changes.
 pub struct SchedulerController {
+    #[allow(dead_code)]
     namespace: String,
 }
 
@@ -34,7 +35,7 @@ impl SchedulerController {
     pub fn reconcile(&self, task_name: &str, spec: &DalinTaskSpec) -> Result<ReconcileResult, OpErr> {
         Self::validate_spec(spec)?;
 
-        let resources = ResourceResolver::resolve(spec)?;
+        let _resources = ResourceResolver::resolve(spec)?;
         let _node_sel = ResourceResolver::node_selector(spec);
         let replica_strat = ResourceResolver::replica_strategy(spec);
         let replicas = Self::replica_count(replica_strat, spec.replicas);

@@ -1,5 +1,4 @@
 /// Dalin L — Token 类型定义
-
 use std::fmt;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

@@ -5,8 +5,7 @@
 /// 2. `macro_rules! foo { ... }` 声明式宏 — pattern → expansion 模板替换
 ///
 /// 宏展开发生在语义分析之前执行。
-
-use crate::ast::{Program, Stmt, Expr, AttrDerive, MacroDecl};
+use crate::ast::{Program, Stmt, Expr, MacroDecl};
 use std::collections::HashMap;
 
 // ═══════════════════════════════
@@ -37,6 +36,12 @@ pub struct DeriveExpander {
     pub records: Vec<ExpansionRecord>,
 }
 
+impl Default for DeriveExpander {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DeriveExpander {
     pub fn new() -> Self {
         Self { records: Vec::new() }
@@ -46,11 +51,10 @@ impl DeriveExpander {
         // Collect struct indices with derives first
         let struct_entries: Vec<(usize, String, Vec<String>, Vec<crate::ast::FieldDef>)> = stmts.iter().enumerate()
             .filter_map(|(i, stmt)| {
-                if let Stmt::StructDef { name, derives, fields } = stmt {
-                    if !derives.is_empty() {
+                if let Stmt::StructDef { name, derives, fields } = stmt
+                    && !derives.is_empty() {
                         return Some((i, name.clone(), derives.clone(), fields.clone()));
                     }
-                }
                 None
             }).collect();
 
@@ -127,7 +131,7 @@ impl DeriveExpander {
         // Simplified: enum derive macros not yet generating extra code
     }
 
-    fn generate_debug_impl(&self, name: &str, fields: &[crate::ast::FieldDef]) -> Stmt {
+    fn generate_debug_impl(&self, name: &str, _fields: &[crate::ast::FieldDef]) -> Stmt {
         let debug_body: Vec<Stmt> = vec![
             Stmt::Expr(Box::new(Expr::Call {
                 func: Box::new(Expr::Ident("print".to_string())),
@@ -243,12 +247,19 @@ pub struct MacroRegistry {
     macros: HashMap<String, MacroDef>,
 }
 
+impl Default for MacroRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MacroRegistry {
     pub fn new() -> Self {
         Self { macros: HashMap::new() }
     }
 
     pub fn len(&self) -> usize { self.macros.len() }
+    pub fn is_empty(&self) -> bool { self.macros.is_empty() }
 
     pub fn insert(&mut self, key: String, val: MacroDef) -> Option<MacroDef> {
         self.macros.insert(key, val)
@@ -288,8 +299,16 @@ pub fn extract_macro_decls(_stmts: &[Stmt]) -> Vec<MacroDecl> {
 #[derive(Debug, Clone)]
 pub struct MacroExpander {
     derive_expander: DeriveExpander,
+    #[allow(dead_code)]
     registry: MacroRegistry,
+    #[allow(dead_code)]
     records: Vec<ExpansionRecord>,
+}
+
+impl Default for MacroExpander {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl MacroExpander {
@@ -324,6 +343,7 @@ impl MacroExpander {
         }
     }
 
+    #[allow(dead_code)]
     fn expand_derive_attrs(&self, stmts: &mut Vec<Stmt>) {
         let mut expander = DeriveExpander::new();
         expander.expand_derives(stmts);
@@ -346,6 +366,12 @@ pub struct BuiltinMacroDef {
     pub num_args: usize,
     pub is_variadic: bool,
     expand_fn: fn(&[Expr]) -> Vec<Stmt>,
+}
+
+impl Default for BuiltinMacros {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl BuiltinMacros {

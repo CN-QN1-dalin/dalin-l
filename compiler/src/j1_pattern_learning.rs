@@ -22,7 +22,6 @@
 /// });
 /// let clusters = engine.cluster(0.5, 2);
 /// ```
-
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::Path;
@@ -90,7 +89,7 @@ fn tokenize(msg: &str) -> Vec<String> {
     // 过滤掉纯数字和太短的词
     tokens
         .into_iter()
-        .filter(|t| !t.parse::<f64>().is_ok())
+        .filter(|t| t.parse::<f64>().is_err())
         .collect()
 }
 
@@ -215,6 +214,12 @@ pub struct ErrorClusteringEngine {
     errors: Vec<ErrorRecord>,
     /// 倒排索引：keyword -> error_ids
     index: HashMap<String, Vec<usize>>,
+}
+
+impl Default for ErrorClusteringEngine {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ErrorClusteringEngine {

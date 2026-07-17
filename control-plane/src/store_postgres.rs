@@ -86,14 +86,12 @@ impl TaskStore for PostgresTaskStore {
                 &[&parent_val, &idem],
             )
             .await
-        {
-            if let Some(row) = rows.into_iter().next() {
+            && let Some(row) = rows.into_iter().next() {
                 let existing_id: String = row.get("id");
                 if let Some(rec) = self.get_record(&existing_id).await {
                     return rec;
                 }
             }
-        }
 
         let id = uuid::Uuid::new_v4().to_string();
         let rec = TaskRecord {

@@ -153,6 +153,12 @@ pub struct SessionManager {
     monitors: std::sync::Mutex<std::collections::HashMap<String, Arc<EffectMonitor>>>,
 }
 
+impl Default for SessionManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SessionManager {
     pub fn new() -> Self {
         Self {

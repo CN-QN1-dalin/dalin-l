@@ -53,6 +53,12 @@ pub struct InMemoryTaskStore {
     inner: Arc<Mutex<Inner>>,
 }
 
+impl Default for InMemoryTaskStore {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl InMemoryTaskStore {
     pub fn new() -> Self {
         let (tx, _rx) = broadcast::channel(1024);
@@ -85,11 +91,10 @@ impl TaskStore for InMemoryTaskStore {
     ) -> TaskRecord {
         let mut g = self.inner.lock().await;
         let idem_key = format!("{}/{}", parent.unwrap_or(""), idempotency_key);
-        if let Some(id) = g.idem.get(&idem_key) {
-            if let Some(existing) = g.tasks.get(id) {
+        if let Some(id) = g.idem.get(&idem_key)
+            && let Some(existing) = g.tasks.get(id) {
                 return existing.clone();
             }
-        }
         let id = uuid::Uuid::new_v4().to_string();
         let rec = TaskRecord {
             id: id.clone(),

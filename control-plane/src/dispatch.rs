@@ -99,6 +99,12 @@ pub struct InMemoryDispatchBroker {
     pub history: std::sync::Mutex<Vec<DispatchTask>>,
 }
 
+impl Default for InMemoryDispatchBroker {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl InMemoryDispatchBroker {
     pub fn new() -> Self {
         Self {

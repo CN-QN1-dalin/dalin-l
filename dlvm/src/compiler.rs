@@ -20,6 +20,12 @@ pub struct BytecodeCompiler {
     fn_name: String,
 }
 
+impl Default for BytecodeCompiler {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl BytecodeCompiler {
     pub fn new() -> Self {
         Self {
@@ -203,18 +209,10 @@ impl BytecodeCompiler {
                 let end_offset = self.code.len() as i16 - jmp_end_idx as i16 - 1;
 
                 // Patch 跳转偏移（粗略）
-                if jmp_false_idx < self.code.len() {
-                    match &mut self.code[jmp_false_idx] {
-                        Opcode::JmpIfNot(offset) => *offset = false_offset,
-                        _ => {}
-                    }
-                }
-                if jmp_end_idx < self.code.len() {
-                    match &mut self.code[jmp_end_idx] {
-                        Opcode::Jmp(offset) => *offset = end_offset,
-                        _ => {}
-                    }
-                }
+                if jmp_false_idx < self.code.len()
+                    && let Opcode::JmpIfNot(offset) = &mut self.code[jmp_false_idx] { *offset = false_offset }
+                if jmp_end_idx < self.code.len()
+                    && let Opcode::Jmp(offset) = &mut self.code[jmp_end_idx] { *offset = end_offset }
             }
 
             Expr::Array(items) => {

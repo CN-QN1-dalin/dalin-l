@@ -171,6 +171,12 @@ pub struct Environment {
     functions: HashMap<String, FnDef>,
 }
 
+impl Default for Environment {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Environment {
     pub fn new() -> Self {
         Self {
@@ -268,6 +274,12 @@ pub struct CognitiveLoopMachine {
     pub phase_history: Vec<(CognitiveLoopPhase, String, u64)>, // (phase, fn_name, elapsed_us)
 }
 
+impl Default for CognitiveLoopMachine {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CognitiveLoopMachine {
     pub fn new() -> Self {
         Self {
@@ -305,15 +317,14 @@ impl CognitiveLoopMachine {
         let current_idx = phase_order.iter().position(|p| *p == self.current_phase);
         let required_idx = phase_order.iter().position(|p| *p == required_phase);
 
-        if let (Some(ci), Some(ri)) = (current_idx, required_idx) {
-            if ri > ci {
+        if let (Some(ci), Some(ri)) = (current_idx, required_idx)
+            && ri > ci {
                 return Err(RuntimeError::CognitiveLoopViolation {
                     declared: declared.clone(),
                     required: CognitiveLoop::Perceive,
                     fn_name: fn_name.to_string(),
                 });
             }
-        }
         Ok(())
     }
 }
@@ -378,6 +389,12 @@ pub struct TimeMonitor {
     pub fn_timings: Vec<(String, u64)>, // (fn_name, elapsed_ms)
 }
 
+impl Default for TimeMonitor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TimeMonitor {
     pub fn new() -> Self {
         Self {
@@ -400,24 +417,22 @@ impl TimeMonitor {
         actual_ms: u64,
     ) -> Vec<RuntimeError> {
         let mut errors = Vec::new();
-        if let Some(latency) = constraint.latency_ms {
-            if actual_ms > latency {
+        if let Some(latency) = constraint.latency_ms
+            && actual_ms > latency {
                 errors.push(RuntimeError::LatencyViolation {
                     declared_ms: latency,
                     actual_ms,
                     fn_name: fn_name.to_string(),
                 });
             }
-        }
-        if let Some(timeout) = constraint.timeout_ms {
-            if actual_ms > timeout {
+        if let Some(timeout) = constraint.timeout_ms
+            && actual_ms > timeout {
                 errors.push(RuntimeError::TimeoutExceeded {
                     constraint_ms: timeout,
                     elapsed_ms: actual_ms,
                     fn_name: fn_name.to_string(),
                 });
             }
-        }
         errors
     }
 }
@@ -1339,7 +1354,7 @@ impl SelfHealingRuntime {
                         if matches!(err, RuntimeError::CognitiveLoopViolation { .. })
                             || matches!(err, RuntimeError::EffectViolation { .. }) {
                             
-                            let seq = self.recovery_seq;
+                            let _seq = self.recovery_seq;
                             self.recovery_seq += 1;
                             
                             self.inner.governance.session_level = GovernanceLevel::Suggest;
@@ -1357,7 +1372,7 @@ impl SelfHealingRuntime {
                             });
                             
                             if success {
-                                return retry_result;
+                                retry_result
                             } else {
                                 // 回退失败，恢复原始 session 级别
                                 self.inner.governance.session_level = GovernanceLevel::Execute;
@@ -1409,7 +1424,7 @@ impl SelfHealingRuntime {
                             });
                             
                             if success {
-                                return retry_result;
+                                retry_result
                             } else {
                                 Err(err.clone())
                             }
@@ -1432,6 +1447,7 @@ impl SelfHealingRuntime {
 /// 置信度校准器 — 根据历史执行准确率动态调整 confidence
 pub struct ConfidenceCalibrator {
     calibration_table: HashMap<String, Vec<(f64, bool)>>, // (expected_confidence, success)
+    #[allow(dead_code)]
     step_size: f64,
 }
 
@@ -1445,7 +1461,7 @@ impl ConfidenceCalibrator {
 
     /// 记录执行结果
     pub fn record_outcome(&mut self, fn_name: &str, expected_confidence: f64, actual_success: bool) {
-        let entry = self.calibration_table.entry(fn_name.to_string()).or_insert_with(Vec::new);
+        let entry = self.calibration_table.entry(fn_name.to_string()).or_default();
         entry.push((expected_confidence, actual_success));
     }
 
@@ -1457,7 +1473,7 @@ impl ConfidenceCalibrator {
             }
             let successes: f64 = entries.iter().filter(|(_, s)| *s).count() as f64 / entries.len() as f64;
             // 根据实际成功率调整
-            successes.max(0.1).min(1.0)
+            successes.clamp(0.1, 1.0)
         } else {
             0.85 // 无历史数据，使用默认置信度
         }

@@ -1,5 +1,4 @@
 /// Dalin L — 递归下降语法分析器
-
 use crate::ast::*;
 use crate::token::{Token, TokenType, TokenType::*};
 
@@ -165,10 +164,7 @@ impl Parser {
                       "perceive", "reason", "decide", "act", "loop", "gov",
                       "latency", "timeout", "throughput",
                       "proven", "verified", "inferred", "generated", "uncertain"];
-        let text = if tok.token_type == Ident {
-            self.advance();
-            tok.value.clone()
-        } else if matches!(tok.token_type, KeywordAsync | KeywordSpawn) {
+        let text = if tok.token_type == Ident || matches!(tok.token_type, KeywordAsync | KeywordSpawn) {
             self.advance();
             tok.value.clone()
         } else {
@@ -539,10 +535,7 @@ impl Parser {
         self.expect(LeftBrace, "'{'")?;
         let mut stmts = Vec::new();
         while !self.check(RightBrace) && !self.check(Eof) {
-            match self.parse_statement()? {
-                Some(s) => stmts.push(s),
-                None => {}
-            }
+            if let Some(s) = self.parse_statement()? { stmts.push(s) }
         }
         self.expect(RightBrace, "'}'")?;
         Ok(stmts)
@@ -749,11 +742,11 @@ impl Parser {
 
         // Range expression: 0..10
         if tok.token_type == IntLiteral && self.peek(1).token_type == DoubleDot {
-            let start = i64::from_str_radix(&tok.value, 10).unwrap_or(0);
+            let start = tok.value.parse::<i64>().unwrap_or(0);
             self.advance();
             self.advance();
             let end_tok = self.expect(IntLiteral, "range end")?;
-            let end = i64::from_str_radix(&end_tok.value, 10).unwrap_or(0);
+            let end = end_tok.value.parse::<i64>().unwrap_or(0);
             return Ok(Expr::Range {
                 start: Box::new(Expr::IntLiteral(start)),
                 end: Box::new(Expr::IntLiteral(end)),

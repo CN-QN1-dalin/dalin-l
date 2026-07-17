@@ -2,7 +2,6 @@
 ///
 /// 支持 `mod foo;` / `mod foo { ... }` / `use foo::bar;` / `pub use` 等语法。
 /// 构建模块树、解析路径、冲突检测、拓扑排序。
-
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 
@@ -63,7 +62,7 @@ impl ModuleTree {
         }
     }
 
-    pub fn insert(&mut self, mut module: ModuleDecl) {
+    pub fn insert(&mut self, module: ModuleDecl) {
         match module.visibility {
             Visibility::Pub => {
                 self.root.items.push(ModuleItem::Module(ModuleDecl {
@@ -105,7 +104,7 @@ impl ModuleTree {
             if path.len() == 1 {
                 return ResolveResult::Resolved(full_path.clone());
             }
-            if full_path.len() >= path.len() && &full_path[..path.len()] == &path[..] {
+            if full_path.len() >= path.len() && &full_path[..path.len()] == path {
                 return ResolveResult::Resolved(full_path.clone());
             }
         }
@@ -188,6 +187,12 @@ pub struct DependencyGraph {
     pub modules: HashMap<String, Vec<String>>,
 }
 
+impl Default for DependencyGraph {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DependencyGraph {
     pub fn new() -> Self {
         Self { modules: HashMap::new() }
@@ -258,15 +263,14 @@ impl DependencyGraph {
             result.push(node.clone());
             // Remove this node: find all modules that depend on 'node' and decrease their in_degree
             for (mod_name, deps) in &self.modules {
-                if deps.contains(&node) {
-                    if let Some(deg) = in_degree.get_mut(mod_name) {
+                if deps.contains(&node)
+                    && let Some(deg) = in_degree.get_mut(mod_name) {
                         *deg -= 1;
                         if *deg == 0 {
                             queue.push(mod_name.clone());
                             queue.sort();
                         }
                     }
-                }
             }
         }
 
@@ -302,6 +306,12 @@ impl std::fmt::Display for SymbolLocation {
 #[derive(Debug, Clone)]
 pub struct Namespace {
     pub names: HashMap<String, SymbolLocation>,
+}
+
+impl Default for Namespace {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Namespace {
@@ -341,14 +351,13 @@ impl Namespace {
     pub fn check_import_conflicts(&self, imports: &[String], source_module: &str) -> Vec<String> {
         let mut conflicts = Vec::new();
         for import_name in imports {
-            if let Some(loc) = self.names.get(import_name) {
-                if loc.module != source_module {
+            if let Some(loc) = self.names.get(import_name)
+                && loc.module != source_module {
                     conflicts.push(format!(
                         "{}: 导入 '{}' 与来自 {} 的定义冲突",
                         source_module, import_name, loc.module
                     ));
                 }
-            }
         }
         conflicts
     }
@@ -402,7 +411,7 @@ pub fn parse_module_from_source(source: &str, module_name: &str) -> ModuleDecl {
             let name = extract_name(body);
             items.push(ModuleItem::Const(name));
         } else if line.starts_with("type ") {
-            let name = extract_name(&line[5..]);
+            let name = extract_name(line.strip_prefix("type ").unwrap_or_default());
             items.push(ModuleItem::TypeAlias(name));
         }
     }

@@ -2,7 +2,6 @@
 ///
 /// 类型 = (值类型) × (效应类型) × (能力类型)
 /// 七通道正交，各自独立做 unification
-
 use crate::ast::{BaseType, Stmt, TypeRef};
 use std::collections::HashMap;
 use std::fmt;
@@ -353,6 +352,12 @@ pub struct TimeConstraint {
     pub throughput: Option<u64>,
 }
 
+impl Default for TimeConstraint {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TimeConstraint {
     pub fn new() -> Self {
         Self { latency_ms: None, timeout_ms: None, throughput: None }
@@ -385,21 +390,15 @@ impl TimeConstraint {
     /// 检查时间约束是否满足要求
     /// actual 实际约束必须 ≥ required 要求（latency 更小=更好, throughput 更大=更好）
     pub fn satisfies(&self, required: &TimeConstraint) -> bool {
-        if let Some(req_lat) = required.latency_ms {
-            if let Some(act_lat) = self.latency_ms {
-                if act_lat > req_lat { return false; }
-            }
-        }
-        if let Some(req_timeout) = required.timeout_ms {
-            if let Some(act_timeout) = self.timeout_ms {
-                if act_timeout > req_timeout { return false; }
-            }
-        }
-        if let Some(req_tput) = required.throughput {
-            if let Some(act_tput) = self.throughput {
-                if act_tput < req_tput { return false; }
-            }
-        }
+        if let Some(req_lat) = required.latency_ms
+            && let Some(act_lat) = self.latency_ms
+                && act_lat > req_lat { return false; }
+        if let Some(req_timeout) = required.timeout_ms
+            && let Some(act_timeout) = self.timeout_ms
+                && act_timeout > req_timeout { return false; }
+        if let Some(req_tput) = required.throughput
+            && let Some(act_tput) = self.throughput
+                && act_tput < req_tput { return false; }
         true
     }
 }
@@ -453,6 +452,12 @@ pub fn parse_time_constraint(key: &str, value: &str) -> TimeConstraint {
 #[derive(Debug)]
 pub struct TimeConstraintInferencer {
     pub errors: Vec<String>,
+}
+
+impl Default for TimeConstraintInferencer {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl TimeConstraintInferencer {
@@ -523,6 +528,12 @@ pub fn parse_governance(s: &str) -> GovernanceLevel {
 #[derive(Debug)]
 pub struct ConfidenceInferencer {
     pub errors: Vec<String>,
+}
+
+impl Default for ConfidenceInferencer {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ConfidenceInferencer {
@@ -641,6 +652,12 @@ pub struct SevenChannelType {
     pub time_constraint: Option<TimeConstraint>,
 }
 
+impl Default for SevenChannelType {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SevenChannelType {
     pub fn new() -> Self {
         Self { value: None, effect: None, capability: None, confidence: None, cognitive_loop: None, governance: None, time_constraint: None }
@@ -689,6 +706,12 @@ pub struct EffectInferencer {
     pub errors: Vec<String>,
 }
 
+impl Default for EffectInferencer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl EffectInferencer {
     pub fn new() -> Self {
         Self { errors: Vec::new() }
@@ -698,8 +721,8 @@ impl EffectInferencer {
     /// 字面量、标识符 → pure
     /// 函数调用 → 被调用函数的效应
     /// + - * / → pure
-    /// spawn → spawn
-    /// async fn → async
+    /// - `spawn → spawn`
+    /// - `async fn → async`
     pub fn infer_expr(&mut self, expr: &crate::ast::Expr) -> Effect {
         match expr {
             crate::ast::Expr::IntLiteral(_)
@@ -724,11 +747,10 @@ impl EffectInferencer {
                     eff = Effect::join(&eff, &a_eff).unwrap_or(Effect::Async);
                 }
                 // 如果是内置函数，大部分是 pure
-                if let crate::ast::Expr::Ident(name) = func.as_ref() {
-                    if name == "println" || name == "print" {
+                if let crate::ast::Expr::Ident(name) = func.as_ref()
+                    && (name == "println" || name == "print") {
                         eff = Effect::join(&eff, &Effect::Io).unwrap_or(Effect::Io);
                     }
-                }
                 eff
             }
 
@@ -742,12 +764,9 @@ impl EffectInferencer {
                 let mut eff = Effect::Pure;
                 for arm in arms {
                     for s in &arm.body {
-                        match s {
-                            crate::ast::Stmt::Expr(e) => {
-                                eff = Effect::join(&eff, &self.infer_expr(e))
-                                    .unwrap_or(Effect::Async);
-                            }
-                            _ => {}
+                        if let crate::ast::Stmt::Expr(e) = s {
+                            eff = Effect::join(&eff, &self.infer_expr(e))
+                                .unwrap_or(Effect::Async);
                         }
                     }
                 }
@@ -779,6 +798,12 @@ pub struct CapabilityInferencer {
     pub errors: Vec<String>,
     /// 函数名 → 能力标注（由 SevenChannelInferencer 填充）
     pub fn_annotations: HashMap<String, Capability>,
+}
+
+impl Default for CapabilityInferencer {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl CapabilityInferencer {
@@ -872,6 +897,12 @@ pub struct CognitiveLoopInferencer {
     pub errors: Vec<String>,
 }
 
+impl Default for CognitiveLoopInferencer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CognitiveLoopInferencer {
     pub fn new() -> Self {
         Self { errors: Vec::new() }
@@ -946,6 +977,12 @@ impl CognitiveLoopInferencer {
 #[derive(Debug)]
 pub struct GovernanceInferencer {
     pub errors: Vec<String>,
+}
+
+impl Default for GovernanceInferencer {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl GovernanceInferencer {
@@ -1027,6 +1064,12 @@ pub struct SevenChannelInferencer {
     pub governance: GovernanceInferencer,
     pub time_constraint: TimeConstraintInferencer,
     pub results: Vec<(String, SevenChannelType)>,
+}
+
+impl Default for SevenChannelInferencer {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl SevenChannelInferencer {
@@ -1243,7 +1286,7 @@ impl SevenChannelInferencer {
         declared_governance: &Option<GovernanceLevel>,
         declared_time_constraint: &TimeConstraint,
     ) {
-        let location = format!("{fn_name}");
+        let location = fn_name.to_string();
 
         // 效应检查
         let expr_eff = self.effect.infer_expr(expr);

@@ -1,5 +1,4 @@
 /// Dalin L — 树遍历解释器
-
 use dalin_compiler::ast::*;
 use crate::env::*;
 use std::collections::HashMap;
@@ -49,6 +48,12 @@ pub struct Interpreter {
     current_task_id: Option<String>,
 }
 
+impl Default for Interpreter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Interpreter {
     pub fn new() -> Self {
         let mut interp = Self {
@@ -89,7 +94,7 @@ impl Interpreter {
                     None => Value::None,
                 };
                 self.return_value = Some(val);
-                return Err(RuntimeError("__return__".into()));
+                Err(RuntimeError("__return__".into()))
             }
             Stmt::If { condition, then_body, else_body } => self.eval_if(condition, then_body, else_body, env),
             Stmt::While { condition, body } => self.eval_while(condition, body, env),
@@ -746,31 +751,28 @@ impl Interpreter {
             "ctor" => {
                 match pat.name.as_str() {
                     "Some" => {
-                        if let Value::Option(true, Some(v)) = value {
-                            if let Some(ref binding) = pat.binding {
+                        if let Value::Option(true, Some(v)) = value
+                            && let Some(ref binding) = pat.binding {
                                 env.define(binding, *v.clone());
                                 return true;
                             }
-                        }
                         false
                     }
                     "None" => matches!(value, Value::Option(false, _)),
                     "Ok" => {
-                        if let Value::Result(true, Some(v), _) = value {
-                            if let Some(ref binding) = pat.binding {
+                        if let Value::Result(true, Some(v), _) = value
+                            && let Some(ref binding) = pat.binding {
                                 env.define(binding, *v.clone());
                                 return true;
                             }
-                        }
                         false
                     }
                     "Err" => {
-                        if let Value::Result(false, _, Some(e)) = value {
-                            if let Some(ref binding) = pat.binding {
+                        if let Value::Result(false, _, Some(e)) = value
+                            && let Some(ref binding) = pat.binding {
                                 env.define(binding, *e.clone());
                                 return true;
                             }
-                        }
                         false
                     }
                     _ => {

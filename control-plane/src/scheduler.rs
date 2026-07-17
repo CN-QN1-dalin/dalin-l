@@ -186,11 +186,10 @@ impl CapabilityScheduler {
             if !n.breaker.allow() {
                 continue; // 熔断中
             }
-            if let Some(q) = n.quota {
-                if n.load.load(Ordering::SeqCst) >= q {
+            if let Some(q) = n.quota
+                && n.load.load(Ordering::SeqCst) >= q {
                     continue; // 配额耗尽（背压）
                 }
-            }
             match best {
                 None => best = Some(n),
                 Some(b) => {

@@ -1,5 +1,4 @@
 /// Dalin L — 词法分析器
-
 use crate::token::{Token, TokenType, TokenType::*};
 use std::collections::HashMap;
 
@@ -196,7 +195,7 @@ impl Lexer {
                     line: self.line,
                     column: self.column,
                 }),
-                Some(ch) if ch == '\\' => {
+                Some('\\') => {
                     self.advance();
                     let esc = self.current().unwrap_or('\\');
                     let replacement = match esc {

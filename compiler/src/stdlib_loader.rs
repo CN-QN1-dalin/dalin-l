@@ -7,7 +7,6 @@
 ///   let loader = StdLibLoader::new("/path/to/project")?;
 ///   let injected = loader.load_all()?;          // 一次性加载全部
 ///   let core_ast = loader.load_module("core_types")?;  // 按需加载单个模块
-
 use crate::ast::*;
 use crate::lexer::Lexer;
 use crate::parser::Parser;
@@ -196,7 +195,7 @@ impl StdLibLoader {
         self.loaded.insert(module_name.to_string());
 
         let tokens = {
-            let mut lex = Lexer::new(&content.as_ref().unwrap());
+            let mut lex = Lexer::new(content.as_ref().unwrap());
             match lex.tokenize() {
                 Ok(t) => t,
                 Err(e) => return Err(format!("{} 词法错误 [{}:{}]: {}",
@@ -247,14 +246,12 @@ impl StdLibLoader {
         for entry in fs::read_dir(&self.config.stdlib_path).map_err(|e| format!("读取标准库目录失败: {}", e))? {
             let entry = entry.map_err(|e| format!("读取目录条目失败: {}", e))?;
             let path = entry.path();
-            if let Some(ext) = path.extension() {
-                if ext == "dal" {
-                    if let Some(file_name) = path.file_stem().and_then(|f| f.to_str()) {
+            if let Some(ext) = path.extension()
+                && ext == "dal"
+                    && let Some(file_name) = path.file_stem().and_then(|f| f.to_str()) {
                         self.load_module(file_name)?;
                         loaded.push(file_name.to_string());
                     }
-                }
-            }
         }
 
         loaded.sort();
@@ -310,11 +307,10 @@ impl StdLibLoader {
 
         // 也检查 program 中直接声明的 modules
         for module_decl in &prog.modules {
-            if let ModuleDecl::External(name) = module_decl {
-                if !self.cache.contains_key(name) {
+            if let ModuleDecl::External(name) = module_decl
+                && !self.cache.contains_key(name) {
                     self.load_module(name)?;
                 }
-            }
         }
 
         Ok(())
@@ -353,13 +349,12 @@ pub fn read_stdlib_path(project_root: &Path) -> Option<PathBuf> {
 
     for line in content.lines() {
         let trimmed = line.trim();
-        if trimmed.starts_with("stdlib_path") || trimmed.starts_with("stdlib") {
-            if let Some(eq_pos) = trimmed.find('=') {
+        if (trimmed.starts_with("stdlib_path") || trimmed.starts_with("stdlib"))
+            && let Some(eq_pos) = trimmed.find('=') {
                 let value = trimmed[eq_pos + 1..].trim().trim_matches('"');
                 stdlib_path = Some(PathBuf::from(value));
                 break;
             }
-        }
     }
 
     stdlib_path

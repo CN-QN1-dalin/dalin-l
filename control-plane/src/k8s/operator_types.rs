@@ -300,7 +300,9 @@ impl Default for DalinTaskSpec {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[derive(Default)]
 pub enum TaskPhase {
+    #[default]
     Pending,
     Compiling,
     Scheduled,
@@ -311,11 +313,6 @@ pub enum TaskPhase {
     Unknown,
 }
 
-impl Default for TaskPhase {
-    fn default() -> Self {
-        TaskPhase::Pending
-    }
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TaskCondition {
@@ -434,7 +431,7 @@ impl ResourceResolver {
         labels.insert("app.dalin.ai/capability".into(), format!("{:?}", spec.capability).to_lowercase());
         labels.insert("app.dalin.ai/confidence".into(), format!("{:?}", spec.confidence).to_lowercase().replace("_", "-"));
         for tag in &spec.tags {
-            labels.insert(format!("tag/{}", tag.replace('/', "-")).into(), "true".into());
+            labels.insert(format!("tag/{}", tag.replace('/', "-")), "true".into());
         }
         labels
     }

@@ -11,7 +11,6 @@
 ///   @net   f(x) → TaskSpec{ capability: Net }，调度器路由到远程网关（需 net 凭证）
 ///   @sfa   f(x) → TaskSpec{ capability: Sfa }，路由到 SFA 路由服务（QN1）
 ///   plain  f(x) → TaskSpec{ effect: Io|Pure, capability: Cpu }，本地 DLVM 执行
-
 use crate::ast::{Stmt, Program};
 use crate::ty2::{parse_capability, parse_effect, parse_governance, Capability, Effect, GovernanceLevel};
 use std::collections::hash_map::DefaultHasher;

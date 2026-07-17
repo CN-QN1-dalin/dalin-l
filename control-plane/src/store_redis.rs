@@ -76,11 +76,10 @@ impl RedisTaskStore {
                     Ok(p) => p,
                     Err(_) => continue,
                 };
-                if let Ok(we) = serde_json::from_slice::<WireEvent>(&payload) {
-                    if we.origin != node_id {
+                if let Ok(we) = serde_json::from_slice::<WireEvent>(&payload)
+                    && we.origin != node_id {
                         let _ = tx.send(we.event);
                     }
-                }
             }
         });
         Ok(())
@@ -120,11 +119,10 @@ impl TaskStore for RedisTaskStore {
         let mut conn = self.conn();
         let idem_key = format!("{}/{}", parent.unwrap_or(""), idempotency_key);
         let idem_redis = format!("{}:idem:{}", PREFIX, idem_key);
-        if let Some(existing_id) = conn.get::<_, Option<String>>(&idem_redis).await.ok().flatten() {
-            if let Some(rec) = self.get_record(&existing_id).await {
+        if let Some(existing_id) = conn.get::<_, Option<String>>(&idem_redis).await.ok().flatten()
+            && let Some(rec) = self.get_record(&existing_id).await {
                 return rec; // 幂等复用
             }
-        }
         let id = uuid::Uuid::new_v4().to_string();
         let rec = TaskRecord {
             id: id.clone(),

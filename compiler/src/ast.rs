@@ -1,5 +1,4 @@
 /// Dalin L — AST 节点定义
-
 use std::fmt;
 
 // ═══════════════════════════════
@@ -384,6 +383,12 @@ pub struct Program {
     pub macros: Vec<MacroDecl>,
     /// Phase H: #[derive(...)] 属性
     pub derive_attrs: Vec<AttrDerive>,
+}
+
+impl Default for Program {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Program {

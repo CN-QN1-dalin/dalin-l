@@ -65,9 +65,9 @@ impl NodeRegistry {
             },
         );
         let msg = if is_new {
-            format!("node registered")
+            "node registered".to_string()
         } else {
-            format!("node updated")
+            "node updated".to_string()
         };
         (is_new, msg)
     }
@@ -80,10 +80,10 @@ impl NodeRegistry {
             entry.last_heartbeat = Instant::now();
             // 可选：心跳时更新能力/效应声明
             if beat.capabilities.is_some() {
-                entry.spec.capabilities = beat.capabilities.clone();
+                entry.spec.capabilities = beat.capabilities;
             }
             if beat.effects_supported.is_some() {
-                entry.spec.effects_supported = beat.effects_supported.clone();
+                entry.spec.effects_supported = beat.effects_supported;
             }
             true
         } else {
@@ -122,16 +122,16 @@ impl NodeRegistry {
 /// 默认配额 4（避免无限堆积），配额在首次 place 时按需调整。
 fn node_spec_to_scheduler_node(spec: &NodeSpec) -> Node {
     let mut caps = std::collections::HashSet::new();
-    if spec.capabilities.as_ref().map_or(false, |c| c.cpu) {
+    if spec.capabilities.as_ref().is_some_and(|c| c.cpu) {
         caps.insert(SchCap::Cpu);
     }
-    if spec.capabilities.as_ref().map_or(false, |c| c.gpu) {
+    if spec.capabilities.as_ref().is_some_and(|c| c.gpu) {
         caps.insert(SchCap::Gpu);
     }
-    if spec.capabilities.as_ref().map_or(false, |c| c.sfa) {
+    if spec.capabilities.as_ref().is_some_and(|c| c.sfa) {
         caps.insert(SchCap::Sfa);
     }
-    if spec.capabilities.as_ref().map_or(false, |c| c.net) {
+    if spec.capabilities.as_ref().is_some_and(|c| c.net) {
         caps.insert(SchCap::Net);
     }
     Node::new(&spec.id, caps)

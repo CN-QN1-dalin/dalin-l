@@ -9,7 +9,6 @@
 ///   3. B 声明 @latency(10ms)，C 声明 @latency(30ms)
 ///   4. A 的自身开销 + B 的延迟 + C 的延迟 = 10 + 30 + 5(overhead) = 45ms ≤ 50ms ✓
 ///   5. 如果 > 50ms，编译器报错：`延迟违规: A 声明 50ms，但调用链累计 70ms`
-
 use crate::ast::{Expr, Program, Stmt};
 use std::collections::HashMap;
 
@@ -20,6 +19,12 @@ pub struct LatencyVerificationResult {
     pub errors: Vec<String>,
     /// 每个函数的推断延迟（从注解 + 调用链分析得出）
     pub fn_latencies: HashMap<String, u64>,
+}
+
+impl Default for LatencyVerificationResult {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl LatencyVerificationResult {
@@ -42,22 +47,21 @@ impl LatencyVerifier {
         // 第一步：收集所有函数的延迟声明
         let mut declared: HashMap<String, u64> = HashMap::new();
         for stmt in &prog.statements {
-            if let Stmt::Fn { name, latency, .. } = stmt {
-                if let Some(lat_str) = latency {
+            if let Stmt::Fn { name, latency, .. } = stmt
+                && let Some(lat_str) = latency {
                     // 解析 "50ms" → 50
                     if let Ok(ms) = lat_str.trim_end_matches("ms").parse::<u64>() {
                         declared.insert(name.clone(), ms);
                         result.fn_latencies.insert(name.clone(), ms);
                     }
                 }
-            }
         }
 
         // 第二步：对每个声明了 @latency 的函数，分析调用链
         for stmt in &prog.statements {
-            if let Stmt::Fn { name, latency, body, .. } = stmt {
-                if let Some(lat_str) = latency {
-                    if let Ok(limit) = lat_str.trim_end_matches("ms").parse::<u64>() {
+            if let Stmt::Fn { name, latency, body, .. } = stmt
+                && let Some(lat_str) = latency
+                    && let Ok(limit) = lat_str.trim_end_matches("ms").parse::<u64>() {
                         let chain_latency = Self::analyze_call_chain(body, &declared);
                         if chain_latency > limit {
                             result.errors.push(format!(
@@ -66,8 +70,6 @@ impl LatencyVerifier {
                             ));
                         }
                     }
-                }
-            }
         }
 
         result

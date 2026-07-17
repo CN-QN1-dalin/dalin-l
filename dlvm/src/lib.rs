@@ -2,10 +2,10 @@
 //!
 //! 替换树遍历解释器，采用栈式字节码架构。
 //! 核心组件：
-//! - [Opcode]: 指令集（27 条指令）
-//! - [BytecodeFunction]: 编译后的函数表示
-//! - [Vm]: 栈式执行引擎
-//! - [compiler]: AST → 字节码编译器
+//! - Opcode: 指令集（27 条指令）
+//! - BytecodeFunction: 编译后的函数表示
+//! - Vm: 栈式执行引擎
+//! - compiler: AST → 字节码编译器
 
 mod compiler;
 pub use compiler::BytecodeCompiler;

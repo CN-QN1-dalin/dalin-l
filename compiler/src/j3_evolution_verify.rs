@@ -24,7 +24,6 @@
 /// };
 /// // 实际执行由上层控制面调度
 /// ```
-
 use std::fmt;
 
 /// AB 实验中的组别标识
@@ -169,6 +168,12 @@ pub struct EvolutionVerificationEngine {
     experiments: Vec<ABExperimentResult>,
 }
 
+impl Default for EvolutionVerificationEngine {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl EvolutionVerificationEngine {
     pub fn new() -> Self {
         Self {
@@ -194,7 +199,7 @@ impl EvolutionVerificationEngine {
         group_a_avg: f64,
         group_b_avg: f64,
     ) -> Result<ABExperimentResult, String> {
-        if group_a_avg < 0.0 || group_a_avg > 1.0 || group_b_avg < 0.0 || group_b_avg > 1.0 {
+        if !(0.0..=1.0).contains(&group_a_avg) || !(0.0..=1.0).contains(&group_b_avg) {
             return Err("scores must be in [0.0, 1.0]".to_string());
         }
         if config.samples == 0 {

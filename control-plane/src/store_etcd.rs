@@ -63,13 +63,11 @@ impl EtcdTaskStore {
                     Err(_) => continue,
                 };
                 for ev in resp.events() {
-                    if let Some(kv) = ev.kv() {
-                        if let Ok(we) = serde_json::from_slice::<WireEvent>(kv.value()) {
-                            if we.origin != node_id {
+                    if let Some(kv) = ev.kv()
+                        && let Ok(we) = serde_json::from_slice::<WireEvent>(kv.value())
+                            && we.origin != node_id {
                                 let _ = tx.send(we.event);
                             }
-                        }
-                    }
                 }
             }
         });
@@ -110,14 +108,13 @@ impl TaskStore for EtcdTaskStore {
         let mut client = self.client.clone();
         let idem_key = format!("{}/{}", parent.unwrap_or(""), idempotency_key);
         let idem_etcd = format!("{}/idem/{}", PREFIX, idem_key);
-        if let Ok(resp) = client.get(idem_etcd.as_str(), None).await {
-            if let Some(kv) = resp.kvs().first() {
+        if let Ok(resp) = client.get(idem_etcd.as_str(), None).await
+            && let Some(kv) = resp.kvs().first() {
                 let existing_id = String::from_utf8_lossy(kv.value()).to_string();
                 if let Some(rec) = self.get_record(&existing_id).await {
                     return rec; // 幂等复用
                 }
             }
-        }
         let id = uuid::Uuid::new_v4().to_string();
         let rec = TaskRecord {
             id: id.clone(),

@@ -1,6 +1,5 @@
 /// Dalin L — HM 类型推断引擎
 /// 完整的 Robinson Unification + 函数签名推导 + 多态
-
 use crate::ast::*;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -12,6 +11,12 @@ static TYPE_VAR_COUNTER: AtomicUsize = AtomicUsize::new(0);
 #[derive(Debug, Clone)]
 pub struct TypeVar {
     pub id: String,
+}
+
+impl Default for TypeVar {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl TypeVar {
@@ -44,6 +49,12 @@ impl std::fmt::Display for TypeOrVar {
 pub struct TypeEnv {
     pub types: HashMap<String, TypeOrVar>,
     pub parent: Option<Box<TypeEnv>>,
+}
+
+impl Default for TypeEnv {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl TypeEnv {
@@ -108,12 +119,10 @@ fn occurs_check(tv: &TypeVar, typ: &TypeOrVar) -> bool {
     match typ {
         TypeOrVar::Variable(other) => tv.id == other.id,
         TypeOrVar::Concrete(t) => {
-            if let Some(arg) = &t.generic_arg {
-                if occurs_check(tv, &TypeOrVar::Concrete(*arg.clone())) { return true; }
-            }
-            if let Some(err) = &t.result_err {
-                if occurs_check(tv, &TypeOrVar::Concrete(*err.clone())) { return true; }
-            }
+            if let Some(arg) = &t.generic_arg
+                && occurs_check(tv, &TypeOrVar::Concrete(*arg.clone())) { return true; }
+            if let Some(err) = &t.result_err
+                && occurs_check(tv, &TypeOrVar::Concrete(*err.clone())) { return true; }
             false
         }
     }
@@ -169,10 +178,7 @@ pub fn unify(t1: &TypeOrVar, t2: &TypeOrVar, subst: &mut HashMap<String, TypeOrV
                     return Err(TypeError { message: format!("Type mismatch: {} vs {}", a, b) }),
                 _ => {}
             }
-            match (&a.result_err, &b.result_err) {
-                (Some(ea), Some(eb)) => unify(&TypeOrVar::Concrete(*ea.clone()), &TypeOrVar::Concrete(*eb.clone()), subst)?,
-                _ => {}
-            }
+            if let (Some(ea), Some(eb)) = (&a.result_err, &b.result_err) { unify(&TypeOrVar::Concrete(*ea.clone()), &TypeOrVar::Concrete(*eb.clone()), subst)? }
             Ok(())
         }
     }
@@ -186,6 +192,12 @@ pub struct TypeInferencer {
     pub errors: Vec<TypeError>,
     pub inferred_types: HashMap<String, TypeRef>,
     pub fn_signatures: HashMap<String, (Vec<TypeOrVar>, TypeOrVar)>,
+}
+
+impl Default for TypeInferencer {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl TypeInferencer {
