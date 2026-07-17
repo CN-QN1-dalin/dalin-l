@@ -1,3 +1,13 @@
-// Dalin L Standard Library — json
+// Dalin L 标准库 — JSON 处理
+// JSON 序列化和反序列化
 
-fn main() @ pure @ cpu { return 0 }
+fn parse(s) @ pure @ cpu { return null }
+fn stringify(val) @ pure @ cpu { return "" }
+fn pretty(val) @ pure @ cpu { return "" }
+fn is_valid(s) @ pure @ cpu { return false }
+fn get(json, key) @ pure @ cpu { return null }
+fn set(json, key, val) @ pure @ cpu { return json }
+fn has(json, key) @ pure @ cpu { return false }
+fn keys(json) @ pure @ cpu { return [] }
+fn length(json) @ pure @ cpu { return 0 }
+fn merge(a, b) @ pure @ cpu { return a }

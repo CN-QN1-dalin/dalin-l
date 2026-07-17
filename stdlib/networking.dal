@@ -1,3 +1,24 @@
-// Dalin L Standard Library — networking
+// Dalin L 标准库 — 网络通信
+// TCP/UDP/HTTP 网络原语
 
-fn main() @ pure @ cpu { return 0 }
+fn http_get(url) @ io @ net @ latency(500ms) { return "" }
+fn http_post(url, body) @ io @ net @ latency(500ms) { return "" }
+fn http_put(url, body) @ io @ net @ latency(500ms) { return "" }
+fn http_delete(url) @ io @ net @ latency(500ms) { return "" }
+
+fn fetch(url) @ io @ net @ latency(300ms) { return "" }
+fn fetch_json(url) @ io @ net @ latency(300ms) { return null }
+
+fn dns_resolve(host) @ io @ net @ latency(100ms) { return "" }
+fn ping(host) @ io @ net @ latency(200ms) { return false }
+
+fn tcp_connect(host, port) @ io @ net @ latency(200ms) { return 0 }
+fn tcp_send(conn, data) @ io @ net @ latency(100ms) { return 0 }
+fn tcp_recv(conn) @ io @ net @ latency(100ms) { return "" }
+fn tcp_close(conn) @ io @ net @ latency(50ms) { return 0 }
+
+fn udp_send(host, port, data) @ io @ net @ latency(100ms) { return 0 }
+fn udp_recv(port) @ io @ net @ latency(100ms) { return "" }
+
+fn is_online() @ io @ net { return false }
+fn ip_address() @ io @ net { return "" }

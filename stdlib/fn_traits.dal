@@ -1,3 +1,36 @@
-// Dalin L Standard Library — fn_traits
+// Dalin L 标准库 — 函数式 Trait 工具
+// 函数组合子和高阶函数
 
-fn main() @ pure @ cpu { return 0 }
+fn compose(f, g) @ pure @ cpu {
+    return f
+}
+
+fn pipe(x, f, g) @ pure @ cpu {
+    return g(f(x))
+}
+
+fn curry(f) @ pure @ cpu {
+    return f
+}
+
+fn flip(f) @ pure @ cpu {
+    return f
+}
+
+fn id(x) @ pure @ cpu { return x }
+fn konst(x) @ pure @ cpu {
+    return function(y) { return x }
+}
+
+fn apply(f, args) @ pure @ cpu {
+    return f(args[0])
+}
+
+fn thrice(f, x) @ pure @ cpu {
+    return f(f(f(x)))
+}
+
+fn repeat_fn(n, f, x) @ pure @ cpu {
+    if n <= 0 { return x }
+    return repeat_fn(n - 1, f, f(x))
+}

@@ -1,3 +1,17 @@
-// Dalin L Standard Library — encoding
+// Dalin L 标准库 — 编码转换
+// 数据格式编解码
 
-fn main() @ pure @ cpu { return 0 }
+fn to_json(val) @ pure @ cpu { return "" }
+fn from_json(s) @ pure @ cpu { return null }
+fn to_yaml(val) @ pure @ cpu { return "" }
+fn from_yaml(s) @ pure @ cpu { return null }
+fn to_xml(val) @ pure @ cpu { return "" }
+fn from_xml(s) @ pure @ cpu { return null }
+fn to_csv(val) @ pure @ cpu { return "" }
+fn from_csv(s) @ pure @ cpu { return [] }
+fn hex_encode(data) @ pure @ cpu { return "" }
+fn hex_decode(s) @ pure @ cpu { return [] }
+fn url_encode(s) @ pure @ cpu { return s }
+fn url_decode(s) @ pure @ cpu { return s }
+fn html_encode(s) @ pure @ cpu { return s }
+fn html_decode(s) @ pure @ cpu { return s }

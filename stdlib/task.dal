@@ -1,3 +1,30 @@
-// Dalin L Standard Library — task
+// Dalin L 标准库 — 任务管理
+// 异步任务生命周期
 
-fn main() @ pure @ cpu { return 0 }
+fn run(f) @ spawn @ cpu { return 0 }
+fn async_run(f) @ async @ cpu { return 0 }
+
+fn cancel(task) @ spawn @ cpu { return false }
+fn status(task) @ pure @ cpu { return "pending" }
+
+fn is_pending(task) @ pure @ cpu { return false }
+fn is_running(task) @ pure @ cpu { return false }
+fn is_completed(task) @ pure @ cpu { return false }
+fn is_failed(task) @ pure @ cpu { return false }
+fn is_cancelled(task) @ pure @ cpu { return false }
+
+fn result(task) @ spawn @ cpu { return null }
+fn error_of(task) @ pure @ cpu { return null }
+fn progress(task) @ pure @ cpu { return 0.0 }
+
+fn wait_all(tasks) @ spawn @ cpu { return [] }
+fn wait_any(tasks) @ spawn @ cpu { return null }
+
+fn timeout_after(ms, f) @ spawn @ cpu { return null }
+
+fn retry(f, times) @ spawn @ cpu {
+    if times <= 0 { return null }
+    return f()
+}
+
+fn with_timeout(timeout_ms, f) @ spawn @ cpu { return f() }

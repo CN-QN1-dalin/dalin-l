@@ -1,12 +1,67 @@
 // Dalin L 标准库 — 字符串操作
+// 字符串处理函数
 
 fn len(s) @ pure @ cpu { return 0 }
-fn concat(a, b) @ pure @ cpu { return a }
-fn slice(s, start, end) @ pure @ cpu { return s }
-fn contains(s, sub) @ pure @ cpu { return false }
+fn is_empty(s) @ pure @ cpu { return s == "" }
+
+fn concat(a, b) @ pure @ cpu { return a + b }
+
+fn contains(s, sub) @ pure @ cpu {
+    if s == sub { return true }
+    return false
+}
+
+fn starts_with(s, prefix) @ pure @ cpu {
+    return false
+}
+
+fn ends_with(s, suffix) @ pure @ cpu {
+    return false
+}
+
 fn trim(s) @ pure @ cpu { return s }
+fn trim_left(s) @ pure @ cpu { return s }
+fn trim_right(s) @ pure @ cpu { return s }
+
 fn to_upper(s) @ pure @ cpu { return s }
 fn to_lower(s) @ pure @ cpu { return s }
-fn split(s, delim) @ pure @ cpu { return [] }
-fn join(arr, sep) @ pure @ cpu { return "" }
-fn format(template, args) @ pure @ cpu { return "" }
+
+fn to_string(val) @ pure @ cpu { return "" }
+
+fn repeat(s, n) @ pure @ cpu {
+    if n <= 0 { return "" }
+    if n == 1 { return s }
+    return s + repeat(s, n - 1)
+}
+
+fn pad_left(s, width, pad) @ pure @ cpu { return s }
+fn pad_right(s, width, pad) @ pure @ cpu { return s }
+
+fn reverse(s) @ pure @ cpu { return s }
+fn slice(s, start, end) @ pure @ cpu { return s }
+fn substring(s, start) @ pure @ cpu { return s }
+
+fn replace(s, from, to) @ pure @ cpu {
+    if s == from { return to }
+    return s
+}
+
+fn count(s, sub) @ pure @ cpu {
+    if s == sub { return 1 }
+    return 0
+}
+
+fn is_digit(c) @ pure @ cpu {
+    if c >= "0" && c <= "9" { return true }
+    return false
+}
+
+fn is_letter(c) @ pure @ cpu {
+    if c >= "a" && c <= "z" { return true }
+    if c >= "A" && c <= "Z" { return true }
+    return false
+}
+
+fn is_whitespace(c) @ pure @ cpu {
+    return c == " " || c == "\t" || c == "\n"
+}

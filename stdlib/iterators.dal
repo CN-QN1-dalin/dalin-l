@@ -1,3 +1,25 @@
-// Dalin L Standard Library — iterators
+// Dalin L 标准库 — 迭代器组合子
+// 基于递归和模式匹配的函数式操作
+// 注意: 当前运行时不支持 length() 内置函数, 数组迭代需要 runtime 扩展
 
-fn main() @ pure @ cpu { return 0 }
+fn range(start, end) @ pure @ cpu {
+    if start >= end { return [] }
+    return [start] + range(start + 1, end)
+}
+
+fn first(arr) @ pure @ cpu {
+    if arr == [] { return null }
+    return arr[0]
+}
+
+fn cons(x, xs) @ pure @ cpu {
+    return [x] + xs
+}
+
+fn singleton(x) @ pure @ cpu {
+    return [x]
+}
+
+fn is_empty(arr) @ pure @ cpu {
+    return arr == []
+}

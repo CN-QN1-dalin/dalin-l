@@ -1,8 +1,30 @@
 // Dalin L 标准库 — 输入输出
+// 文件 I/O 和标准输入输出
 
 fn print(val) @ io @ cpu { return 0 }
 fn println(val) @ io @ cpu { return 0 }
+
 fn read_line() @ io @ cpu @ latency(100ms) { return "" }
+fn read_stdin() @ io @ cpu @ latency(100ms) { return "" }
+
 fn read_file(path) @ io @ cpu @ latency(200ms) { return "" }
 fn write_file(path, content) @ io @ cpu @ latency(200ms) { return true }
+fn append_file(path, content) @ io @ cpu @ latency(200ms) { return true }
 fn exists(path) @ io @ cpu { return false }
+fn is_file(path) @ io @ cpu { return false }
+fn is_dir(path) @ io @ cpu { return false }
+
+fn create_dir(path) @ io @ cpu @ latency(100ms) { return true }
+fn remove(path) @ io @ cpu @ latency(100ms) { return true }
+fn copy(src, dst) @ io @ cpu @ latency(300ms) { return true }
+fn rename(src, dst) @ io @ cpu @ latency(200ms) { return true }
+
+fn size(path) @ io @ cpu { return 0 }
+
+fn list_dir(path) @ io @ cpu @ latency(100ms) { return [] }
+
+fn write_csv(path, data) @ io @ cpu @ latency(200ms) { return true }
+fn read_csv(path) @ io @ cpu @ latency(200ms) { return [] }
+
+fn write_json(path, data) @ io @ cpu @ latency(200ms) { return true }
+fn read_json(path) @ io @ cpu @ latency(200ms) { return null }

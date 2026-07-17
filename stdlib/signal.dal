@@ -1,3 +1,18 @@
-// Dalin L Standard Library — signal
+// Dalin L 标准库 — 信号处理
+// 进程信号和系统信号
 
-fn main() @ pure @ cpu { return 0 }
+fn trap(signal, handler) @ io @ cpu { return 0 }
+fn ignore(signal) @ io @ cpu { return 0 }
+fn send(pid, signal) @ io @ cpu { return 0 }
+fn self_signal(signal) @ io @ cpu { return 0 }
+
+fn sig_int() @ pure @ cpu { return 2 }
+fn sig_term() @ pure @ cpu { return 15 }
+fn sig_kill() @ pure @ cpu { return 9 }
+fn sig_usr1() @ pure @ cpu { return 10 }
+fn sig_usr2() @ pure @ cpu { return 12 }
+fn sig_hup() @ pure @ cpu { return 1 }
+
+fn on_exit(f) @ io @ cpu { return 0 }
+fn on_error(f) @ io @ cpu { return 0 }
+fn exit(code) @ io @ cpu { return 0 }

@@ -1,3 +1,26 @@
-// Dalin L Standard Library — logging
+// Dalin L 标准库 — 日志工具
+// 提供分级日志输出函数
 
-fn main() @ pure @ cpu { return 0 }
+fn info(msg) @ io @ cpu {
+    return 0
+}
+
+fn warn(msg) @ io @ cpu {
+    return 0
+}
+
+fn log_error(msg) @ io @ cpu {
+    return 0
+}
+
+fn debug(msg) @ io @ cpu {
+    return 0
+}
+
+fn log(level, msg) @ io @ cpu {
+    return 0
+}
+
+fn trace(msg) @ io @ cpu {
+    return 0
+}

@@ -1,12 +1,41 @@
 // Dalin L 标准库 — 集合类型
+// 列表操作工具
 
 fn list_new() @ pure @ cpu { return [] }
 fn list_len(lst) @ pure @ cpu { return 0 }
-fn list_get(lst, idx) @ pure @ cpu { return null }
-fn list_push(lst, val) @ pure @ cpu { return lst }
+
+fn list_get(lst, idx) @ pure @ cpu {
+    if lst == [] { return null }
+    return lst[idx]
+}
+
+fn list_push(lst, val) @ pure @ cpu { return lst + [val] }
 fn list_pop(lst) @ pure @ cpu { return null }
-fn list_contains(lst, val) @ pure @ cpu { return false }
-fn map_new() @ pure @ cpu { return {} }
-fn map_get(m, key) @ pure @ cpu { return null }
-fn map_set(m, key, val) @ pure @ cpu { return m }
-fn map_keys(m) @ pure @ cpu { return [] }
+
+fn list_contains(lst, val) @ pure @ cpu {
+    if lst == [] { return false }
+    if lst[0] == val { return true }
+    return false
+}
+
+fn list_is_empty(lst) @ pure @ cpu { return lst == [] }
+
+fn list_first(lst) @ pure @ cpu {
+    if lst == [] { return null }
+    return lst[0]
+}
+
+fn list_append(a, b) @ pure @ cpu { return a + b }
+fn list_prepend(lst, val) @ pure @ cpu { return [val] + lst }
+
+fn list_reverse(lst) @ pure @ cpu { return lst }
+
+fn list_map(lst, f) @ pure @ cpu { return lst }
+fn list_filter(lst, pred) @ pure @ cpu { return lst }
+
+fn dict_new() @ pure @ cpu { return [] }
+fn dict_get(d, key) @ pure @ cpu { return null }
+fn dict_set(d, key, val) @ pure @ cpu { return d + [key] }
+fn dict_has(d, key) @ pure @ cpu { return false }
+fn dict_keys(d) @ pure @ cpu { return [] }
+fn dict_values(d) @ pure @ cpu { return [] }

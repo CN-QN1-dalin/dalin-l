@@ -1,8 +1,41 @@
 // Dalin L 标准库预置模块
-// 自动为所有编译单元导入
+// 自动为所有编译单元导入 — 基础函数
 
 fn identity(x) @ pure @ cpu { return x }
 fn const_true() @ pure @ cpu { return true }
 fn const_false() @ pure @ cpu { return false }
+fn const_zero() @ pure @ cpu { return 0 }
+fn const_one() @ pure @ cpu { return 1 }
+fn const_none() @ pure @ cpu { return null }
+
 fn is_defined(x) @ pure @ cpu { return !(x == null) }
+fn is_undefined(x) @ pure @ cpu { return x == null }
+
 fn noop() @ pure @ cpu { return 0 }
+
+fn eq(a, b) @ pure @ cpu { return a == b }
+fn neq(a, b) @ pure @ cpu { return a != b }
+fn not(x) @ pure @ cpu { return !x }
+
+fn and(a, b) @ pure @ cpu { return a && b }
+fn or(a, b) @ pure @ cpu { return a || b }
+
+fn inc(x) @ pure @ cpu { return x + 1 }
+fn dec(x) @ pure @ cpu { return x - 1 }
+fn double(x) @ pure @ cpu { return x * 2 }
+fn half(x) @ pure @ cpu { return x / 2 }
+fn square(x) @ pure @ cpu { return x * x }
+fn cube(x) @ pure @ cpu { return x * x * x }
+
+fn negate(x) @ pure @ cpu { return -x }
+fn complement(x) @ pure @ cpu { return -x }
+
+fn when(cond, val) @ pure @ cpu {
+    if cond { return val }
+    return null
+}
+
+fn unless(cond, val) @ pure @ cpu {
+    if !cond { return val }
+    return null
+}

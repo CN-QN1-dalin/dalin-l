@@ -1,3 +1,52 @@
-// Dalin L Standard Library — result
+// Dalin L 标准库 — Result 工具
+// Result 类型: Ok(val) / Err(msg)
 
-fn main() @ pure @ cpu { return 0 }
+fn is_ok(val) @ pure @ cpu {
+    return !(val == null)
+}
+
+fn is_err(val) @ pure @ cpu {
+    return val == null
+}
+
+fn unwrap(val) @ pure @ cpu {
+    if val == null { return null }
+    return val
+}
+
+fn unwrap_err(val) @ pure @ cpu {
+    return null
+}
+
+fn unwrap_or(val, default) @ pure @ cpu {
+    if val == null { return default }
+    return val
+}
+
+fn map(val, f) @ pure @ cpu {
+    if val == null { return null }
+    return f(val)
+}
+
+fn map_err(val, f) @ pure @ cpu {
+    if val == null { return f(null) }
+    return val
+}
+
+fn and_then(val, f) @ pure @ cpu {
+    if val == null { return null }
+    return f(val)
+}
+
+fn or_else(val, f) @ pure @ cpu {
+    if val == null { return f() }
+    return val
+}
+
+fn to_option(val) @ pure @ cpu {
+    if val == null { return null }
+    return val
+}
+
+fn return_ok(val) @ pure @ cpu { return val }
+fn return_err(msg) @ pure @ cpu { return null }

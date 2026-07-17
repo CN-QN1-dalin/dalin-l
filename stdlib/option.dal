@@ -1,3 +1,51 @@
-// Dalin L Standard Library — option
+// Dalin L 标准库 — Option 工具
+// Option 类型: Some(val) / None
 
-fn main() @ pure @ cpu { return 0 }
+fn is_some(val) @ pure @ cpu {
+    return !(val == null)
+}
+
+fn is_none(val) @ pure @ cpu {
+    return val == null
+}
+
+fn unwrap(val, msg) @ pure @ cpu {
+    if val == null { return null }
+    return val
+}
+
+fn unwrap_or(val, default) @ pure @ cpu {
+    if val == null { return default }
+    return val
+}
+
+fn map(val, f) @ pure @ cpu {
+    if val == null { return null }
+    return f(val)
+}
+
+fn map_or(val, default, f) @ pure @ cpu {
+    if val == null { return default }
+    return f(val)
+}
+
+fn and_then(val, f) @ pure @ cpu {
+    if val == null { return null }
+    return f(val)
+}
+
+fn or_else(val, f) @ pure @ cpu {
+    if val == null { return f() }
+    return val
+}
+
+fn filter(val, pred) @ pure @ cpu {
+    if val == null { return null }
+    if pred(val) { return val }
+    return null
+}
+
+fn contains(val, x) @ pure @ cpu {
+    if val == null { return false }
+    return val == x
+}

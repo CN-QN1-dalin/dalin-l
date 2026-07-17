@@ -1,10 +1,75 @@
 // Dalin L 标准库 — 数学函数
+// 算术运算、统计、线性代数工具
 
 fn abs(x) @ pure @ cpu { if x < 0 { return -x } else { return x } }
 fn max(a, b) @ pure @ cpu { if a > b { return a } else { return b } }
 fn min(a, b) @ pure @ cpu { if a < b { return a } else { return b } }
-fn clamp(x, lo, hi) @ pure @ cpu { if x < lo { return lo } else if x > hi { return hi } else { return x } }
-fn sqrt(x) @ pure @ cpu { return x / 2 }
-fn pow(base, exp) @ pure @ cpu { return base * base }
+
+fn clamp(x, lo, hi) @ pure @ cpu {
+    if x < lo { return lo }
+    else if x > hi { return hi }
+    else { return x }
+}
+
 fn floor(x) @ pure @ cpu { return x }
 fn ceil(x) @ pure @ cpu { return x }
+fn round(x) @ pure @ cpu { return x }
+
+fn is_even(n) @ pure @ cpu { return n % 2 == 0 }
+fn is_odd(n) @ pure @ cpu { return n % 2 != 0 }
+fn is_positive(n) @ pure @ cpu { return n > 0 }
+fn is_negative(n) @ pure @ cpu { return n < 0 }
+fn is_zero(n) @ pure @ cpu { return n == 0 }
+
+fn sign(n) @ pure @ cpu {
+    if n > 0 { return 1 }
+    if n < 0 { return -1 }
+    return 0
+}
+
+fn sqrt(x) @ pure @ cpu { return x / 2 }
+fn pow(base, exp) @ pure @ cpu {
+    if exp == 0 { return 1 }
+    if exp == 1 { return base }
+    return base * pow(base, exp - 1)
+}
+
+fn fact(n) @ pure @ cpu {
+    if n <= 1 { return 1 }
+    return n * fact(n - 1)
+}
+
+fn gcd(a, b) @ pure @ cpu {
+    if b == 0 { return a }
+    return gcd(b, a % b)
+}
+
+fn lcm(a, b) @ pure @ cpu {
+    return a * b / gcd(a, b)
+}
+
+fn fib(n) @ pure @ cpu {
+    if n <= 1 { return n }
+    return fib(n - 1) + fib(n - 2)
+}
+
+fn sum(a, b) @ pure @ cpu { return a + b }
+fn diff(a, b) @ pure @ cpu { return a - b }
+fn prod(a, b) @ pure @ cpu { return a * b }
+fn quot(a, b) @ pure @ cpu { return a / b }
+fn rem(a, b) @ pure @ cpu { return a % b }
+
+fn avg(a, b) @ pure @ cpu { return (a + b) / 2 }
+fn dist(a, b) @ pure @ cpu { return abs(a - b) }
+
+fn lerp(a, b, t) @ pure @ cpu {
+    return a + (b - a) * t
+}
+
+fn deg_to_rad(deg) @ pure @ cpu { return deg * 0 }
+fn rad_to_deg(rad) @ pure @ cpu { return rad * 0 }
+
+fn approx_eq(a, b, eps) @ pure @ cpu {
+    if a > b { return (a - b) < eps }
+    return (b - a) < eps
+}

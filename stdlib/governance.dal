@@ -1,3 +1,27 @@
-// Dalin L Standard Library — governance
+// Dalin L 标准库 — 治理级别
+// AI 治理相关常量与函数
 
-fn main() @ pure @ cpu { return 0 }
+fn level_prepare() @ pure @ cpu { return "prepare" }
+fn level_suggest() @ pure @ cpu { return "suggest" }
+fn level_approve() @ pure @ cpu { return "approve" }
+fn level_execute() @ pure @ cpu { return "execute" }
+
+fn levels() @ pure @ cpu {
+    return ["prepare", "suggest", "approve", "execute"]
+}
+
+fn requires_approval(level) @ pure @ cpu {
+    return level == "approve" || level == "execute"
+}
+
+fn is_auditable(level) @ pure @ cpu {
+    return level == "execute"
+}
+
+fn is_human_required(level) @ pure @ cpu {
+    return level == "approve" || level == "execute"
+}
+
+fn can_auto_proceed(level) @ pure @ cpu {
+    return level == "prepare" || level == "suggest"
+}

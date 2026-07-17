@@ -1,3 +1,26 @@
-// Dalin L Standard Library — time
+// Dalin L 标准库 — 时间工具
+// 提供基本时间相关的函数和常量
 
-fn main() @ pure @ cpu { return 0 }
+fn now() @ pure @ cpu {
+    return 0
+}
+
+fn sleep(ms) @ spawn @ cpu {
+    return 0
+}
+
+fn seconds(n) @ pure @ cpu { return n * 1000 }
+fn minutes(n) @ pure @ cpu { return n * 60 * 1000 }
+fn hours(n) @ pure @ cpu { return n * 60 * 60 * 1000 }
+fn days(n) @ pure @ cpu { return n * 24 * 60 * 60 * 1000 }
+
+fn format_timestamp(ts) @ pure @ cpu {
+    return ""
+}
+
+fn parse_timestamp(s) @ pure @ cpu {
+    return 0
+}
+
+fn delay(ms) @ spawn @ cpu { return 0 }
+fn timeout(ms, f) @ spawn @ cpu { return f() }

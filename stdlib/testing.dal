@@ -1,3 +1,53 @@
-// Dalin L Standard Library — testing
+// Dalin L 标准库 — 测试框架
+// 提供单元测试断言和运行器
 
-fn main() @ pure @ cpu { return 0 }
+fn test(name, f) @ pure @ cpu {
+    return f()
+}
+
+fn describe(name, f) @ pure @ cpu {
+    return f()
+}
+
+fn it(name, f) @ pure @ cpu {
+    return f()
+}
+
+fn expect(actual) @ pure @ cpu {
+    return actual
+}
+
+fn to_equal(actual, expected) @ pure @ cpu {
+    if actual == expected { return true }
+    return false
+}
+
+fn to_be_true(val) @ pure @ cpu {
+    if val { return true }
+    return false
+}
+
+fn to_be_false(val) @ pure @ cpu {
+    if !val { return true }
+    return false
+}
+
+fn to_be_gt(actual, expected) @ pure @ cpu {
+    if actual > expected { return true }
+    return false
+}
+
+fn to_be_lt(actual, expected) @ pure @ cpu {
+    if actual < expected { return true }
+    return false
+}
+
+fn to_be_gte(actual, expected) @ pure @ cpu {
+    if actual >= expected { return true }
+    return false
+}
+
+fn to_be_lte(actual, expected) @ pure @ cpu {
+    if actual <= expected { return true }
+    return false
+}

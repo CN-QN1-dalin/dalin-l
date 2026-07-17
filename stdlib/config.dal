@@ -1,3 +1,11 @@
-// Dalin L Standard Library — config
+// Dalin L 标准库 — 配置管理
+// 配置加载和查询
 
-fn main() @ pure @ cpu { return 0 }
+fn get(key) @ pure @ cpu { return null }
+fn get_or(key, default) @ pure @ cpu { return default }
+fn set(key, val) @ pure @ cpu { return 0 }
+fn has(key) @ pure @ cpu { return false }
+fn load(path) @ io @ cpu @ latency(100ms) { return true }
+fn save(path) @ io @ cpu @ latency(100ms) { return true }
+fn reset() @ pure @ cpu { return 0 }
+fn all() @ pure @ cpu { return [] }

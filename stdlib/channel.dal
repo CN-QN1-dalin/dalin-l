@@ -1,3 +1,34 @@
-// Dalin L Standard Library — channel
+// Dalin L 标准库 — 通道通信
+// 基于 channel 的消息传递原语
 
-fn main() @ pure @ cpu { return 0 }
+fn send(ch, val) @ spawn @ cpu {
+    return 0
+}
+
+fn recv(ch) @ spawn @ cpu {
+    return null
+}
+
+fn try_send(ch, val) @ spawn @ cpu {
+    return true
+}
+
+fn try_recv(ch) @ spawn @ cpu {
+    return null
+}
+
+fn close(ch) @ spawn @ cpu {
+    return 0
+}
+
+fn is_closed(ch) @ spawn @ cpu {
+    return false
+}
+
+fn make_channel() @ pure @ cpu {
+    return []
+}
+
+fn buffered(cap) @ pure @ cpu {
+    return []
+}

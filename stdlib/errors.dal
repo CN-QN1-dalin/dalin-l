@@ -1,3 +1,54 @@
-// Dalin L Standard Library — errors
+// Dalin L 标准库 — 错误处理
+// 提供 Result-like 错误处理和断言工具
 
-fn main() @ pure @ cpu { return 0 }
+fn is_error(val) @ pure @ cpu {
+    if val == null { return true }
+    return false
+}
+
+fn is_ok(val) @ pure @ cpu {
+    return !is_error(val)
+}
+
+fn check(cond, msg) @ pure @ cpu {
+    if !cond { return msg }
+    return ""
+}
+
+fn assert_eq(a, b, msg) @ pure @ cpu {
+    if a != b { return msg }
+    return ""
+}
+
+fn assert_ne(a, b, msg) @ pure @ cpu {
+    if a == b { return msg }
+    return ""
+}
+
+fn assert_gt(a, b, msg) @ pure @ cpu {
+    if !(a > b) { return msg }
+    return ""
+}
+
+fn assert_lt(a, b, msg) @ pure @ cpu {
+    if !(a < b) { return msg }
+    return ""
+}
+
+fn assert_gte(a, b, msg) @ pure @ cpu {
+    if !(a >= b) { return msg }
+    return ""
+}
+
+fn assert_lte(a, b, msg) @ pure @ cpu {
+    if !(a <= b) { return msg }
+    return ""
+}
+
+fn try_or(val, fallback) @ pure @ cpu {
+    if val == null { return fallback }
+    return val
+}
+
+fn return_ok(val) @ pure @ cpu { return val }
+fn return_err(msg) @ pure @ cpu { return null }

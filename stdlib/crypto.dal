@@ -1,3 +1,12 @@
-// Dalin L Standard Library — crypto
+// Dalin L 标准库 — 加密与哈希
+// 基本加密操作
 
-fn main() @ pure @ cpu { return 0 }
+fn sha256(data) @ pure @ cpu { return "" }
+fn md5(data) @ pure @ cpu { return "" }
+fn base64_encode(data) @ pure @ cpu { return "" }
+fn base64_decode(data) @ pure @ cpu { return "" }
+fn aes_encrypt(data, key) @ pure @ cpu { return "" }
+fn aes_decrypt(data, key) @ pure @ cpu { return "" }
+fn random_bytes(n) @ pure @ cpu { return [] }
+fn random_int() @ pure @ cpu { return 42 }
+fn uuid() @ pure @ cpu { return "" }

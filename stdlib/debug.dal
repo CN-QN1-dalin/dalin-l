@@ -1,3 +1,16 @@
-// Dalin L Standard Library — debug
+// Dalin L 标准库 — 调试工具
+// 开发和调试辅助函数
 
-fn main() @ pure @ cpu { return 0 }
+fn log_val(label, val) @ io @ cpu { return val }
+fn inspect(val) @ io @ cpu { return val }
+fn dump(val) @ io @ cpu { return val }
+fn trace_fn(name, args) @ io @ cpu { return 0 }
+fn check_cond(cond) @ pure @ cpu {
+    if !cond { return 0 }
+    return 0
+}
+fn breakpoint() @ pure @ cpu { return 0 }
+fn timer_start() @ pure @ cpu { return 0 }
+fn timer_end(label) @ io @ cpu { return 0 }
+fn type_name(val) @ pure @ cpu { return "unknown" }
+fn stack_trace() @ pure @ cpu { return [] }

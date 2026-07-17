@@ -1,3 +1,26 @@
-// Dalin L Standard Library — scheduler
+// Dalin L 标准库 — 任务调度
+// 并发任务管理
 
-fn main() @ pure @ cpu { return 0 }
+fn schedule(f) @ spawn @ cpu { return 0 }
+fn schedule_with(f, args) @ spawn @ cpu { return 0 }
+fn await(task) @ spawn @ cpu { return null }
+fn yield_now() @ spawn @ cpu { return 0 }
+fn sleep(ms) @ spawn @ cpu { return 0 }
+
+fn parallel(fns) @ spawn @ cpu { return [] }
+fn race(fns) @ spawn @ cpu { return null }
+
+fn task_count() @ pure @ cpu { return 0 }
+fn task_id() @ pure @ cpu { return 0 }
+fn task_name() @ pure @ cpu { return "" }
+
+fn pool_create(size) @ pure @ cpu { return 0 }
+fn pool_exec(pool, f) @ spawn @ cpu { return null }
+fn pool_destroy(pool) @ pure @ cpu { return 0 }
+
+fn barrier_new(n) @ pure @ cpu { return 0 }
+fn barrier_wait(b) @ spawn @ cpu { return 0 }
+
+fn mutex_new() @ pure @ cpu { return 0 }
+fn mutex_lock(m) @ spawn @ cpu { return 0 }
+fn mutex_unlock(m) @ spawn @ cpu { return 0 }

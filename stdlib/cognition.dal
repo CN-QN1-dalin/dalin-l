@@ -1,3 +1,23 @@
-// Dalin L Standard Library — cognition
+// Dalin L 标准库 — 认知系统
+// AI 认知循环阶段管理
 
-fn main() @ pure @ cpu { return 0 }
+fn perceive(input) @ perceive @ cpu { return input }
+fn reason(data) @ reason @ cpu { return data }
+fn decide(options) @ decide @ cpu { return null }
+fn act(decision) @ act @ cpu { return decision }
+fn loop_back(feedback) @ loop @ cpu { return feedback }
+
+fn think(context) @ perceive @ reason @ cpu { return context }
+fn analyze(data) @ reason @ cpu { return data }
+fn choose(options) @ decide @ cpu { return null }
+fn execute(action) @ act @ cpu { return action }
+
+fn cognitive_cycle(input) @ perceive @ reason @ decide @ act @ cpu {
+    let p = perceive(input)
+    let r = reason(p)
+    let d = decide(r)
+    return act(d)
+}
+
+fn reflect(experience) @ reason @ cpu { return experience }
+fn learn(lesson) @ loop @ cpu { return lesson }

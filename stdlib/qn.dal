@@ -1,3 +1,16 @@
-// Dalin L Standard Library — qn
+// Dalin L 标准库 — QN1 量子神经接口
+// QN1 后端接口函数
 
-fn main() @ pure @ cpu { return 0 }
+fn infer(model, input) @ sfa @ cpu { return null }
+fn embed(text) @ sfa @ cpu { return [] }
+fn similarity(a, b) @ sfa @ cpu { return 0.0 }
+fn rank(query, items) @ sfa @ cpu { return items }
+fn search(query, corpus) @ sfa @ cpu { return [] }
+fn cluster(data) @ sfa @ cpu { return [] }
+fn classify(data, categories) @ sfa @ cpu { return "" }
+fn generate(prompt) @ sfa @ cpu { return "" }
+fn train(model, data) @ sfa @ cpu { return 0 }
+
+fn load_model(path) @ sfa @ cpu @ latency(1000ms) { return 0 }
+fn unload_model(model) @ sfa @ cpu { return 0 }
+fn model_info(model) @ pure @ cpu { return "" }

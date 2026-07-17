@@ -1,3 +1,11 @@
-// Dalin L Standard Library — memory
+// Dalin L 标准库 — 内存管理
+// 内存分配和 GC 接口
 
-fn main() @ pure @ cpu { return 0 }
+fn alloc(size) @ pure @ cpu { return 0 }
+fn free(ptr) @ pure @ cpu { return 0 }
+fn gc_collect() @ pure @ cpu { return 0 }
+fn gc_stats() @ pure @ cpu { return "" }
+fn memory_used() @ pure @ cpu { return 0 }
+fn memory_available() @ pure @ cpu { return 0 }
+fn stack_usage() @ pure @ cpu { return 0 }
+fn heap_size() @ pure @ cpu { return 0 }
