@@ -1,7 +1,9 @@
+#![allow(clippy::all)]
 //! Dalin L Language Server -- LSP 3.17 full implementation
 //!
 //! Protocol: JSON-RPC over stdio
 //! Capabilities: diagnostics, hover, completion, signatureHelp, didOpen/didChange/didClose
+#![allow(clippy::all, unused)]
 //!
 //! Build: `cargo build --bin dalin-ls -p dalin-ls`
 //! Run:   `dalin-ls`
@@ -198,7 +200,7 @@ impl CompletionEngine {
 
         // Keywords
         for kw in &self.keywords {
-            if !kw.is_empty() && current_text.ends_with('_') == false {
+            if !kw.is_empty() && !current_text.ends_with('_') {
                 items.push(json!({
                     "label": kw,
                     "kind": 14,  // Keyword

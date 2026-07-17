@@ -12,6 +12,12 @@ pub struct GcRoot {
     roots: RefCell<Vec<GcPtr>>,
 }
 
+impl Default for GcRoot {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl GcRoot {
     pub fn new() -> Self {
         Self {

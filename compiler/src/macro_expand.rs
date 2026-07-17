@@ -552,7 +552,7 @@ mod tests {
         ];
         let mut expander = DeriveExpander::new();
         expander.expand_derives(&mut stmts);
-        assert!(stmts.len() >= 1);
+        assert!(!stmts.is_empty());
     }
 
     #[test]
@@ -698,7 +698,7 @@ mod tests {
     #[test]
     fn test_expand_unknown_macro_returns_none() {
         let macros = BuiltinMacros::new();
-        let result = macros.expand_call("unknown_macro", &vec![]);
+        let result = macros.expand_call("unknown_macro", &[]);
         assert!(result.is_none());
     }
 

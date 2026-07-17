@@ -346,7 +346,7 @@ mod tests {
         let fallback_rules: Vec<_> = rules.iter()
             .filter(|r| matches!(r.applies_mode, RecoveryMode::Fallback))
             .collect();
-        assert!(fallback_rules.len() >= 1, "Fallback mode should be in the rules");
+        assert!(!fallback_rules.is_empty(), "Fallback mode should be in the rules");
     }
 
     #[test]

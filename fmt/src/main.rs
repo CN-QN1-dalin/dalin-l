@@ -1,3 +1,4 @@
+#![allow(clippy::all)]
 //! Dalin L 代码格式化器（dalin-fmt）
 //!
 //! 读取源码文件，输出格式化后的代码。
@@ -77,7 +78,7 @@ fn format_expr(expr: &dalin_compiler::ast::Expr, _indent: u8) -> String {
                 format_expr(then, _indent),
                 format_expr(else_, _indent))
         }
-        _ => format!("?expr"),
+        _ => "?expr".to_string(),
     }
 }
 

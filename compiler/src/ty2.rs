@@ -1,3 +1,4 @@
+#![allow(clippy::only_used_in_recursion, clippy::too_many_arguments)]
 /// Dalin L 3.0 — 七通道类型系统
 ///
 /// 类型 = (值类型) × (效应类型) × (能力类型)
