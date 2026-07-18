@@ -25,5 +25,6 @@ pub mod convert;
 pub mod server;
 pub mod client;
 pub mod k8s;
+pub mod tests;
 
 tonic::include_proto!("dalin_control");

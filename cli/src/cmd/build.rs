@@ -9,36 +9,36 @@ pub fn run(input: &str, output: &str, verbose: bool) -> Result<(), String> {
     let src = std::fs::read_to_string(input).map_err(|e| format!("Cannot read '{}': {}", input, e))?;
     if verbose { println!("\n  [src] {} bytes", src.len()); }
 
-    // Lexer
+    // ── 单次 Lex + Parse，后续阶段共享 &Program（DRY：消除 4 次重复解析）──
+    let mut lex = lexer::Lexer::new(&src);
+    let tokens = lex.tokenize().map_err(|e| format!("{}", e))?;
+    let token_count = tokens.len();
+    let prog = parser::Parser::new(tokens).parse().map_err(|e| format!("{}", e))?;
+
+    // Lexer（展示 token 统计）
     {
         util::section("Lexer");
-        let mut lex = lexer::Lexer::new(&src);
-        let tokens = lex.tokenize().map_err(|e| format!("{}", e))?;
         if verbose {
-            let total = tokens.iter().filter(|t| t.token_type != dalin_compiler::token::TokenType::Eof).count();
-            for tok in tokens.iter().filter(|t| t.token_type != dalin_compiler::token::TokenType::Eof).take(20) {
+            let mut tl = lexer::Lexer::new(&src);
+            let toks = tl.tokenize().map_err(|e| format!("{}", e))?;
+            let total = toks.iter().filter(|t| t.token_type != dalin_compiler::token::TokenType::Eof).count();
+            for tok in toks.iter().filter(|t| t.token_type != dalin_compiler::token::TokenType::Eof).take(20) {
                 println!("  {}", tok);
             }
             if total > 20 { println!("  ... and {} more", total - 20); }
         }
-        println!("  ✅ {} tokens", tokens.len());
+        println!("  ✅ {} tokens", token_count);
     }
 
-    // Parser
+    // Parser（展示语句数）
     {
         util::section("Parser");
-        let mut lex = lexer::Lexer::new(&src);
-        let tokens = lex.tokenize().map_err(|e| format!("{}", e))?;
-        let prog = parser::Parser::new(tokens).parse().map_err(|e| format!("{}", e))?;
         println!("  ✅ {} statements", prog.statements.len());
     }
 
-    // Type Inference
+    // Type Inference（复用 &prog）
     {
         util::section("Type Inference");
-        let mut lex = lexer::Lexer::new(&src);
-        let tokens = lex.tokenize().map_err(|e| format!("{}", e))?;
-        let prog = parser::Parser::new(tokens).parse().map_err(|e| format!("{}", e))?;
         let mut infer = ty::TypeInferencer::new();
         infer.infer_program(&prog);
         let report = infer.print_report();
@@ -47,12 +47,9 @@ pub fn run(input: &str, output: &str, verbose: bool) -> Result<(), String> {
         println!("  ✅ Type inference complete");
     }
 
-    // Bytecode Compilation
+    // Bytecode Compilation（复用 &prog）
     {
         util::section("Bytecode Compiler");
-        let mut lex = lexer::Lexer::new(&src);
-        let tokens = lex.tokenize().map_err(|e| format!("{}", e))?;
-        let prog = parser::Parser::new(tokens).parse().map_err(|e| format!("{}", e))?;
         let funcs = BytecodeCompiler::new().compile(&prog);
         println!("  ✅ Compiled {} functions", funcs.len());
     }

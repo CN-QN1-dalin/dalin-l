@@ -117,6 +117,16 @@ impl GenerationalGC {
         self.roots.borrow_mut().push(id);
     }
 
+    /// 清除所有根引用（GC 周期开始前调用）
+    pub fn clear_roots(&self) {
+        self.roots.borrow_mut().clear();
+    }
+
+    /// 获取当前根引用数量
+    pub fn root_count(&self) -> usize {
+        self.roots.borrow().len()
+    }
+
     /// 将对象提升到 gen-2（永久代）
     pub fn pin_to_gen2(&self, id: usize) {
         self.gen2.borrow_mut().insert(id);
