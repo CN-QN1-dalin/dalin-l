@@ -1,7 +1,7 @@
 /// Dalin L 3.0 — 编译器工具链 crate
 ///
 /// 把源码落到七通道类型系统的"可执行单元" (TaskSpec)：
-/// token → lexer → parser → [llm_expand] → (ty2 七通道推断) → task_spec。
+/// token → lexer → parser → LLM 扩展 (llm_expand) → ty2 七通道推断 → task_spec。
 /// 纯编译期，无运行时并发依赖，可作为独立库被 runtime / control-plane 复用。
 pub mod token;
 pub mod ast;

@@ -3,5 +3,5 @@
 
 #[test]
 fn test_fmt_compiles() {
-    assert!(true, "fmt crate compiles");
+    // Smoke test: fmt crate compiles without errors
 }

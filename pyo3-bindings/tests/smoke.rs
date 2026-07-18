@@ -3,7 +3,7 @@
 
 #[test]
 fn test_pyo3_compiles() {
-    assert!(true, "pyo3 bindings crate compiles");
+    // Smoke test: pyo3-bindings crate compiles without errors
 }
 
 #[test]

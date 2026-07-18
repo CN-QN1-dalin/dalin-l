@@ -49,7 +49,7 @@ impl StdLibConfig {
         }
     }
 
-    /// 从 dalin.toml 文件内容解析（如果包含 [stdlib] 段落）
+    /// 从 dalin.toml 文件内容解析（如果包含 `[stdlib]` 段落）
     pub fn from_toml(content: &str, project_root: &Path) -> Result<Self, String> {
         let mut stdlib_path = PathBuf::from("stdlib");
         let mut prelude = vec!["prelude".to_string(), "core_types".to_string()];

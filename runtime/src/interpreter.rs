@@ -156,10 +156,8 @@ impl Interpreter {
     fn register_value_root(&self, val: &Value) {
         match val {
             Value::Array(a) => {
-                let ref_ids: Vec<usize> = a.iter().enumerate()
-                    .filter_map(|(i, _)| Some(i))
-                    .collect();
-                let _ = ref_ids; // GC 对象 ID 在 alloc 时分配，此处仅标记可达
+                let _ids: Vec<usize> = a.iter().enumerate().map(|(i, _)| i).collect();
+                let _ = _ids; // GC 对象 ID 在 alloc 时分配，此处仅标记可达
                 // 遍历子值
                 for child in a {
                     self.register_value_root(child);

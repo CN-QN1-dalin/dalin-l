@@ -3,7 +3,7 @@
 
 #[test]
 fn test_lsp_compiles() {
-    assert!(true, "lsp crate compiles");
+    // Smoke test: crate compiles without errors
 }
 
 #[test]
