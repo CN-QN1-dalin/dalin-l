@@ -6,7 +6,6 @@
 /// - dalib pkg list — 列出已安装的依赖及版本
 /// - dalib pkg build — 解析 dalan.toml，下载/解析依赖，生成 dalan.lock
 /// - dalib pkg remove [dep] — 移除依赖
-
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
@@ -20,7 +19,7 @@ use dalin_compiler::package::{
 //  核心实现
 // ═══════════════════════════════
 
-fn find_dalan_toml(path: &PathBuf) -> Result<PathBuf, String> {
+fn find_dalan_toml(path: &std::path::Path) -> Result<PathBuf, String> {
     let candidate = path.join("dalan.toml");
     if candidate.exists() {
         return Ok(candidate);
@@ -31,12 +30,12 @@ fn find_dalan_toml(path: &PathBuf) -> Result<PathBuf, String> {
     ))
 }
 
-fn read_manifest(path: &PathBuf) -> Result<PackageManifest, String> {
+fn read_manifest(path: &std::path::Path) -> Result<PackageManifest, String> {
     let content = fs::read_to_string(path).map_err(|e| format!("Cannot read {}: {}", path.display(), e))?;
     parse_package_manifest(&content)
 }
 
-fn write_manifest(path: &PathBuf, manifest: &PackageManifest) -> Result<(), String> {
+fn write_manifest(path: &std::path::Path, manifest: &PackageManifest) -> Result<(), String> {
     let mut content = String::new();
 
     content.push_str("[package]\n");
@@ -109,20 +108,19 @@ fn cmd_init(args: &HashMap<String, String>) -> Result<(), String> {
         });
     let lib_only = args.get("lib").map(|v| v == "true").unwrap_or(false);
 
-    let out_dir = if pbuf == PathBuf::from(".") {
+    let out_dir = if pbuf.as_os_str() == "." {
         PathBuf::from(&name)
     } else {
         pbuf.clone()
     };
 
-    if out_dir.exists() {
-        if let Ok(entries) = fs::read_dir(&out_dir) {
+    if out_dir.exists()
+        && let Ok(entries) = fs::read_dir(&out_dir) {
             let count: usize = entries.count();
             if count > 0 {
                 return Err(format!("Directory '{}' is not empty", out_dir.display()));
             }
         }
-    }
 
     fs::create_dir_all(out_dir.join("src")).map_err(|e| format!("Cannot create src/: {}", e))?;
     fs::create_dir_all(out_dir.join("tests")).map_err(|e| format!("Cannot create tests/: {}", e))?;
@@ -265,7 +263,7 @@ fn cmd_build(_args: &HashMap<String, String>) -> Result<(), String> {
 
     let mut graph = DependencyGraph::new();
     for (name, dep) in &manifest.deps {
-        let ver = SemVer::parse(&dep.version.trim_matches('"'))
+        let ver = SemVer::parse(dep.version.trim_matches('"'))
             .unwrap_or_else(|_| SemVer::new(1, 0, 0));
         
         let available_versions = vec![ver];
@@ -316,11 +314,10 @@ fn cmd_build(_args: &HashMap<String, String>) -> Result<(), String> {
         let mut count = 0;
         for entry in entries.flatten() {
             let path = entry.path();
-            if let Some(ext) = path.extension() {
-                if ext == "dal" {
+            if let Some(ext) = path.extension()
+                && ext == "dal" {
                     count += 1;
                 }
-            }
         }
         println!("  Compiled {} stdlib modules", count);
     } else {

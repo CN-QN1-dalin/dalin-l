@@ -245,9 +245,8 @@ mod store_tests {
         store.set_status(&rec.id, TaskStatus::Running).await;
         let mut found_running = false;
         while let Ok(ev) = rx.try_recv() {
-            if let crate::registry::TaskEvent::StatusChanged(r) = ev {
-                if r.status == TaskStatus::Running { found_running = true; }
-            }
+            if let crate::registry::TaskEvent::StatusChanged(r) = ev
+                && r.status == TaskStatus::Running { found_running = true; }
         }
         assert!(found_running, "应收到 Running 状态的 StatusChanged 事件");
     }

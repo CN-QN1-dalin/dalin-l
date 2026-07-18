@@ -169,6 +169,7 @@ pub struct MatchArm {
 // ═══════════════════════════════
 
 #[derive(Debug, Clone)]
+#[allow(clippy::large_enum_variant)] // Fn variant is intentionally large (~12 annotated fields)
 pub enum Stmt {
     Let {
         name: String,

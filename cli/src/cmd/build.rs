@@ -42,7 +42,7 @@ pub fn run(input: &str, output: &str, verbose: bool) -> Result<(), String> {
         let mut infer = ty::TypeInferencer::new();
         infer.infer_program(&prog);
         let report = infer.print_report();
-        if !report.trim().is_empty() { println!("\n{}\n{}", "  ", report.trim_end()); }
+        if !report.trim().is_empty() { println!("\n  \n{}", report.trim_end()); }
         else { println!("  (no inference data)"); }
         println!("  ✅ Type inference complete");
     }

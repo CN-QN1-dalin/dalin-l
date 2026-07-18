@@ -1,4 +1,3 @@
-#![allow(clippy::all)]
 //! Dalin L 3.0 — 分布式控制面（Phase 2 脚手架）
 //!
 //! 复用 dalin-compiler 的 TaskSpec，把三通道类型契约落到真实调度：

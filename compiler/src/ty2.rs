@@ -1793,6 +1793,8 @@ mod tests {
     //  Phase C — Parser 注解解析测试
     // ═══════════════════════════════
 
+    /// Parse function annotation values from a `Stmt::Fn`. Returns a 7-tuple of optional strings.
+    #[allow(clippy::type_complexity)] // 7-option tuple for phase C parser tests
     fn parse_fn_all_annotations(src: &str) -> (Option<String>, Option<String>, Option<String>, Option<String>, Option<String>, Option<String>, Option<String>) {
         use crate::ast::Stmt;
         use crate::lexer::Lexer;
@@ -2026,6 +2028,7 @@ mod tests {
     //  P2.2 — Body-level 违规检测测试
     // ═══════════════════════════════
 
+    #[allow(dead_code)] // helper for body-level violation tests
     fn make_body_with_call(called_fn: &str) -> Vec<crate::ast::Stmt> {
         vec![
             crate::ast::Stmt::Expr(Box::new(crate::ast::Expr::Call {

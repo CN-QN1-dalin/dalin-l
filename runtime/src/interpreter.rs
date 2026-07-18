@@ -65,7 +65,8 @@ pub struct Interpreter {
     task_tree: Arc<Mutex<HashMap<String, TaskNode>>>,
     // 任务结果通道：id -> Receiver，await 时取出消费（瞬态）。
     task_results: Arc<Mutex<HashMap<String, mpsc::Receiver<Value>>>>,
-    // 通道接收端表：名称 -> Receiver（发送端随 Value 跨线程共享）
+    // 通道接收端表：名称 → Receiver（发送端随 Value 跨线程共享）
+    #[allow(clippy::type_complexity)]
     channel_registry: Arc<Mutex<HashMap<String, Arc<Mutex<mpsc::Receiver<Value>>>>>>,
     // 当前任务 id（worker 线程内用于把子任务挂到正确父节点）
     current_task_id: Option<String>,
@@ -314,6 +315,7 @@ impl Interpreter {
         Ok(val)
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn eval_fn_decl(&mut self, name: &str, params: &[FnParam], return_type: &Option<TypeRef>, body: &[Stmt], effect: &Option<String>, capability: &Option<String>, env: &mut Environment) -> Result<Value, RuntimeError> {
         let fn_val = FnValue {
             name: name.to_string(),

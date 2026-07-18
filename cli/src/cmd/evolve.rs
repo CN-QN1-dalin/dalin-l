@@ -1,9 +1,9 @@
-/// Dalin L 3.0 — evolve CLI (Phase J Human Review Interface)
-///
-/// Subcommands: review, view, accept, reject, revert, stats, knowledge, calibrate
-/// Audit log: ~/.dalan/audit_log/{YYYY-MM}/{action}_{id}.json
-///
-/// 四通道闭环串联：J1(模式聚类) → J2(策略生成) → J3(进化验证) → J4(人类审查)
+//! Dalin L 3.0 — evolve CLI (Phase J Human Review Interface)
+//!
+//! Subcommands: review, view, accept, reject, revert, stats, knowledge, calibrate
+//! Audit log: ~/.dalan/audit_log/{YYYY-MM}/{action}_{id}.json
+//!
+//! 四通道闭环串联：J1(模式聚类) → J2(策略生成) → J3(进化验证) → J4(人类审查)
 
 use chrono::Local;
 use dalin_compiler::{
@@ -22,19 +22,19 @@ use std::path::PathBuf;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum RiskLevel {
-    TRIVIAL,
-    LOW,
-    MEDIUM,
-    HIGH,
+    Trivial,
+    Low,
+    Medium,
+    High,
 }
 
 impl std::fmt::Display for RiskLevel {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            RiskLevel::TRIVIAL => write!(f, "TRIVIAL"),
-            RiskLevel::LOW => write!(f, "LOW"),
-            RiskLevel::MEDIUM => write!(f, "MEDIUM"),
-            RiskLevel::HIGH => write!(f, "HIGH"),
+            RiskLevel::Trivial => write!(f, "TRIVIAL"),
+            RiskLevel::Low => write!(f, "LOW"),
+            RiskLevel::Medium => write!(f, "MEDIUM"),
+            RiskLevel::High => write!(f, "HIGH"),
         }
     }
 }
@@ -117,7 +117,7 @@ fn fetch_j1_clusters() -> Vec<EvolutionChange> {
             diff: tmpl.root_causes.join(", "),
             impact: format!("{} 条相似错误归为一类", tmpl.regression_count),
             expected_benefit: tmpl.fix_strategy.first().cloned().unwrap_or("标准化修复".into()),
-            risk_level: if tmpl.confidence > 0.8 { RiskLevel::LOW } else { RiskLevel::MEDIUM },
+            risk_level: if tmpl.confidence > 0.8 { RiskLevel::Low } else { RiskLevel::Medium },
             test_coverage: TestCoverage { unit: true, integration: tmpl.tested, e2e: false },
         }
     }).collect()
@@ -148,13 +148,13 @@ fn fetch_j2_strategies() -> Vec<EvolutionChange> {
 
     rules.into_iter().map(|rule| {
         EvolutionChange {
-            id: (40 + rule.usage_count as u64 % 10),
+            id: 40 + (rule.usage_count % 10),
             module: "j2_strategy".into(),
             description: format!("恢复策略: {}", rule.triggers_on.chars().take(50).collect::<String>()),
             diff: format!("applies_mode={}, confidence={:.2}", rule.applies_mode, rule.confidence),
             impact: "七通道权重动态更新".into(),
             expected_benefit: format!("权重摘要: {weight_summary}"),
-            risk_level: RiskLevel::TRIVIAL,
+            risk_level: RiskLevel::Trivial,
             test_coverage: TestCoverage { unit: rule.tested, integration: true, e2e: false },
         }
     }).collect()
@@ -179,7 +179,7 @@ fn fetch_j3_results() -> Result<Vec<EvolutionChange>, String> {
             diff: format!("scores: {:.2} → {:.2}", a_score, b_score),
             impact: format!("experiment {}", id),
             expected_benefit: "新策略胜出".into(),
-            risk_level: RiskLevel::LOW,
+            risk_level: RiskLevel::Low,
             test_coverage: TestCoverage { unit: true, integration: true, e2e: true },
         })
     }).collect::<Result<_, _>>()?;
@@ -274,7 +274,7 @@ fn mock_changes() -> Vec<EvolutionChange> {
             ).into(),
             impact: "3个 TaskSpec 生成逻辑".into(),
             expected_benefit: "延迟违规减少 15%".into(),
-            risk_level: RiskLevel::LOW,
+            risk_level: RiskLevel::Low,
             test_coverage: TestCoverage { unit: true, integration: true, e2e: false },
         },
         EvolutionChange {
@@ -290,7 +290,7 @@ fn mock_changes() -> Vec<EvolutionChange> {
             ).into(),
             impact: "ty2 模块全部推断路径".into(),
             expected_benefit: "类型推导覆盖率提升 10%".into(),
-            risk_level: RiskLevel::MEDIUM,
+            risk_level: RiskLevel::Medium,
             test_coverage: TestCoverage { unit: true, integration: true, e2e: true },
         },
         EvolutionChange {
@@ -304,7 +304,7 @@ fn mock_changes() -> Vec<EvolutionChange> {
             ).into(),
             impact: "宏缓存命中率".into(),
             expected_benefit: "编译速度提升 5%".into(),
-            risk_level: RiskLevel::TRIVIAL,
+            risk_level: RiskLevel::Trivial,
             test_coverage: TestCoverage { unit: true, integration: false, e2e: false },
         },
         EvolutionChange {
@@ -322,7 +322,7 @@ fn mock_changes() -> Vec<EvolutionChange> {
             ).into(),
             impact: "全部代码生成路径".into(),
             expected_benefit: "运行时性能提升 12%".into(),
-            risk_level: RiskLevel::HIGH,
+            risk_level: RiskLevel::High,
             test_coverage: TestCoverage { unit: true, integration: true, e2e: true },
         },
         EvolutionChange {
@@ -337,7 +337,7 @@ fn mock_changes() -> Vec<EvolutionChange> {
             ).into(),
             impact: "词法分析后处理".into(),
             expected_benefit: "代码风格一致性".into(),
-            risk_level: RiskLevel::TRIVIAL,
+            risk_level: RiskLevel::Trivial,
             test_coverage: TestCoverage { unit: false, integration: false, e2e: false },
         },
     ]
@@ -358,18 +358,15 @@ fn ensure_audit_dir() -> Result<(), String> {
 
 fn load_audit_log() -> AuditLog {
     let path = audit_log_dir().join("_index.json");
-    if path.exists() {
-        if let Ok(content) = fs::read_to_string(&path) {
-            if let Ok(log) = serde_json::from_str(&content) {
-                return log;
-            }
+    if let Ok(content) = fs::read_to_string(&path)
+        && let Ok(log) = serde_json::from_str(&content) {
+            return log;
         }
-    }
     AuditLog { entries: vec![] }
 }
 
 fn save_audit_log(log: &AuditLog) -> Result<(), String> {
-    fs::create_dir_all(&audit_log_dir()).map_err(|e| format!("Cannot create dir: {}", e))?;
+    fs::create_dir_all(audit_log_dir()).map_err(|e| format!("Cannot create dir: {}", e))?;
     let path = audit_log_dir().join("_index.json");
     let content = serde_json::to_string_pretty(log).map_err(|e| format!("JSON error: {}", e))?;
     fs::write(path, content).map_err(|e| format!("Cannot write file: {}", e))?;
@@ -469,10 +466,10 @@ fn compute_stats(changes: &[EvolutionChange], audit: &AuditLog) -> EvolveStats {
 #[allow(dead_code)]
 fn auto_assign_risk(change: &EvolutionChange) -> RiskLevel {
     match (change.test_coverage.unit, change.test_coverage.integration, change.test_coverage.e2e) {
-        (true, true, true) => RiskLevel::TRIVIAL,
-        (true, true, false) => RiskLevel::LOW,
-        (true, false, false) => RiskLevel::MEDIUM,
-        _ => RiskLevel::HIGH,
+        (true, true, true) => RiskLevel::Trivial,
+        (true, true, false) => RiskLevel::Low,
+        (true, false, false) => RiskLevel::Medium,
+        _ => RiskLevel::High,
     }
 }
 
@@ -532,10 +529,10 @@ fn cmd_review(json: bool) -> Result<(), String> {
             format!("{:<18}", c.module)
         };
         let risk = match c.risk_level {
-            RiskLevel::TRIVIAL => "[OK]",
-            RiskLevel::LOW => "[--]",
-            RiskLevel::MEDIUM => "[!!]",
-            RiskLevel::HIGH => "[XX]",
+            RiskLevel::Trivial => "[OK]",
+            RiskLevel::Low => "[--]",
+            RiskLevel::Medium => "[!!]",
+            RiskLevel::High => "[XX]",
         };
         println!("  \u{2551} #{}     {}  {}  {}     \u{2551}", c.id, mod_short, risk, c.expected_benefit);
     }
@@ -738,14 +735,14 @@ mod tests {
         let c = EvolutionChange {
             id: 1, module: "t.rs".into(), description: "d".into(),
             diff: "diff".into(), impact: "all".into(), expected_benefit: "+10%".into(),
-            risk_level: RiskLevel::LOW,
+            risk_level: RiskLevel::Low,
             test_coverage: TestCoverage { unit: true, integration: false, e2e: false },
         };
         let s = serde_json::to_string(&c).expect("serialize");
         let d: EvolutionChange = serde_json::from_str(&s).expect("deserialize");
         assert_eq!(d.id, 1);
         assert_eq!(d.module, "t.rs");
-        assert_eq!(d.risk_level, RiskLevel::LOW);
+        assert_eq!(d.risk_level, RiskLevel::Low);
     }
 
     #[test]
@@ -776,26 +773,26 @@ mod tests {
         let c_full = EvolutionChange {
             id: 1, module: "a".into(), description: "d".into(), diff: "d".into(),
             impact: "i".into(), expected_benefit: "b".into(),
-            risk_level: RiskLevel::LOW,
+            risk_level: RiskLevel::Low,
             test_coverage: TestCoverage { unit: true, integration: true, e2e: true },
         };
-        assert_eq!(auto_assign_risk(&c_full), RiskLevel::TRIVIAL);
+        assert_eq!(auto_assign_risk(&c_full), RiskLevel::Trivial);
 
         let c_partial = EvolutionChange {
             id: 2, module: "a".into(), description: "d".into(), diff: "d".into(),
             impact: "i".into(), expected_benefit: "b".into(),
-            risk_level: RiskLevel::LOW,
+            risk_level: RiskLevel::Low,
             test_coverage: TestCoverage { unit: true, integration: true, e2e: false },
         };
-        assert_eq!(auto_assign_risk(&c_partial), RiskLevel::LOW);
+        assert_eq!(auto_assign_risk(&c_partial), RiskLevel::Low);
 
         let c_unit_only = EvolutionChange {
             id: 3, module: "a".into(), description: "d".into(), diff: "d".into(),
             impact: "i".into(), expected_benefit: "b".into(),
-            risk_level: RiskLevel::MEDIUM,
+            risk_level: RiskLevel::Medium,
             test_coverage: TestCoverage { unit: true, integration: false, e2e: false },
         };
-        assert_eq!(auto_assign_risk(&c_unit_only), RiskLevel::MEDIUM);
+        assert_eq!(auto_assign_risk(&c_unit_only), RiskLevel::Medium);
     }
 
     // ═══════════════════════════════════════════
@@ -823,7 +820,7 @@ mod tests {
 
         // Step 2: 聚类结果至少产生一些模板
         assert!(!clusters.is_empty(), "J1 should produce clusters from similar errors");
-        assert!(templates.len() >= 1, "J1 should extract at least 1 template from clusters");
+        assert!(!templates.is_empty(), "J1 should extract at least 1 template from clusters");
 
         // Step 3: J2 — 注入修复记录并生成策略
         let mut j2_gen = StrategyGenerator::new();
@@ -833,7 +830,7 @@ mod tests {
                 confidence_before: 0.4, confidence_after: 0.9,
             });
         }
-        let j2_rules = j2_gen.infer_new_rules();
+        let _j2_rules = j2_gen.infer_new_rules();
         let j2_weights = j2_gen.update_calibrator_weights();
 
         assert!(j2_gen.history_len() == 5, "J2 history should have 5 records");
@@ -910,14 +907,14 @@ mod tests {
         let fallback_rules: Vec<_> = rules.iter()
             .filter(|r| matches!(r.applies_mode, RecoveryMode::Fallback))
             .collect();
-        assert!(fallback_rules.len() >= 1, "Fallback mode should be recognized as a rule");
+        assert!(!fallback_rules.is_empty(), "Fallback mode should be recognized as a rule");
 
         // 验证权重更新
         let weights = strategy_gen.update_calibrator_weights();
         assert_eq!(weights.len(), 7, "All 7 channels should be updated");
 
         // 所有权重在合法范围内
-        for (_, w) in &weights {
+        for w in weights.values() {
             assert!(*w >= 0.05 && *w <= 0.5, "weight {} out of bounds", w);
         }
     }
@@ -1002,7 +999,7 @@ mod tests {
             
             // Risk level must be valid
             match c.risk_level {
-                RiskLevel::TRIVIAL | RiskLevel::LOW | RiskLevel::MEDIUM | RiskLevel::HIGH => {}
+                RiskLevel::Trivial | RiskLevel::Low | RiskLevel::Medium | RiskLevel::High => {}
             }
             
             // Test coverage must have at least one field set
@@ -1063,7 +1060,7 @@ mod tests {
         
         // Either suggests recompilation or has rules worth tracking
         // The key assertion: strategy generation produced rules
-        assert!(strategy.known_rules().len() >= 0, "Should track known rules");
+        assert!(!strategy.known_rules().is_empty(), "Should track known rules");
         assert!(strategy.history_len() >= 15, "Should record all fixes");
     }
 
@@ -1110,7 +1107,7 @@ mod tests {
         
         let score = EvolutionScore {
             regression_pass_rate: if total_j1_clusters >= 2 { 1.0 } else { 0.7 },
-            performance_delta: avg_weight.min(0.5).max(-0.2),
+            performance_delta: avg_weight.clamp(-0.2, 0.5),
             memory_delta: 0.0,
             coverage_impact: (total_j2_rules as f64 / 10.0).min(1.0) * 2.0 - 1.0,
             governance_compliance: total_j2_rules > 0,
