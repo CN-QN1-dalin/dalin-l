@@ -143,7 +143,7 @@ impl Interpreter {
 
     /// 递归注册环境中所有值为 GC 根（模拟根集扫描）。
     fn register_env_roots(&self, env: &Environment) {
-        for (_name, val) in &env.vars {
+        for val in env.vars.values() {
             self.register_value_root(val);
         }
         if let Some(parent) = &env.parent {
@@ -1251,7 +1251,7 @@ mod tests {
 
     #[test]
     fn gc_stats_reports_correct_counts() {
-        let mut interp = Interpreter::new();
+        let interp = Interpreter::new();
         let stats = interp.gc_stats();
         assert_eq!(stats.gen0_count, 0);
         assert_eq!(stats.gen1_count, 0);

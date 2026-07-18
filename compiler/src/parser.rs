@@ -385,18 +385,12 @@ impl Parser {
             return Ok(vec![]);
         }
         let mut params = Vec::new();
-        loop {
-            let name = match self.current().token_type {
-                Ident => self.advance().value.clone(),
-                _ => break,
-            };
+        while self.current().token_type == Ident {
+            let name = self.advance().value.clone();
             let bounds = if self.match_token(Colon) {
                 let mut b = Vec::new();
-                loop {
-                    let bound = match self.current().token_type {
-                        Ident => self.advance().value.clone(),
-                        _ => break,
-                    };
+                while self.current().token_type == Ident {
+                    let bound = self.advance().value.clone();
                     b.push(bound);
                     if !self.match_token(Plus) { break; }
                 }
