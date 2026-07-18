@@ -245,8 +245,11 @@ impl Vm {
             Opcode::LoadFloat(f) => self.stack.push(Value::Float(f)),
             Opcode::LoadStr(idx) => {
                 let func = &self.functions[self.current_fn];
-                let s = func.constants.get(idx as usize).cloned().unwrap_or_default();
-                self.stack.push(Value::Str(s));
+                let s = func.constants.get(idx as usize).cloned();
+                match s {
+                    Some(s) => self.stack.push(Value::Str(s)),
+                    None => return Err(VmError::TypeError("string constant out of bounds".into())),
+                }
             }
             Opcode::LoadBool(b) => self.stack.push(Value::Bool(b)),
             Opcode::LoadNone => self.stack.push(Value::None),

@@ -1,0 +1,6 @@
+// Dalin L 标准库 — 调试输出工具
+// 提供类似 Rust dbg!() 的表达式打印功能
+
+fn print(label, val) @ io @ cpu {
+    return val
+}

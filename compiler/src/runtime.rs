@@ -1016,6 +1016,22 @@ impl Runtime {
                 }
                 Ok(RuntimeValue::None)
             }
+            Expr::Interpolate { parts } => {
+                use crate::ast::InterpolatePart;
+                let mut result = String::new();
+                for part in parts {
+                    match part {
+                        InterpolatePart::Literal(s) => {
+                            result.push_str(s);
+                        }
+                        InterpolatePart::Expr(e) => {
+                            let val = self.eval_expr(e)?;
+                            result.push_str(&val.to_string());
+                        }
+                    }
+                }
+                Ok(RuntimeValue::String(result))
+            }
             Expr::Array(items) => {
                 let mut vals = Vec::new();
                 for item in items {

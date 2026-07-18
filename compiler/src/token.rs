@@ -39,7 +39,8 @@ pub enum TokenType {
     Ident,
     IntLiteral,
     FloatLiteral,
-    StringLiteral,
+    StringLiteral,       // 纯字符串字面量 "hello world"
+    InterpolateToken,    // 含 $ident 的插值字符串 "hello $name!"
     CharLiteral,
     BoolLiteral,
 
@@ -67,6 +68,8 @@ pub enum TokenType {
     DoubleArrow,   // =>
     Pipe,          // |> or <|
     QuestionMark,  // ?
+    DoubleQuestionMark, // ??
+    ColonQuestion,   // ?:
     At,            // @
     Dollar,        // $
 
@@ -128,6 +131,7 @@ impl TokenType {
             Self::IntLiteral => "INT_LITERAL",
             Self::FloatLiteral => "FLOAT_LITERAL",
             Self::StringLiteral => "STRING_LITERAL",
+            Self::InterpolateToken => "INTERPOLATE_TOKEN",
             Self::CharLiteral => "CHAR_LITERAL",
             Self::BoolLiteral => "BOOL_LITERAL",
             Self::Plus => "PLUS",
@@ -153,6 +157,8 @@ impl TokenType {
             Self::DoubleArrow => "DOUBLE_ARROW",
             Self::Pipe => "PIPE",
             Self::QuestionMark => "QUESTION_MARK",
+            Self::DoubleQuestionMark => "DOUBLE_QUESTION_MARK",
+            Self::ColonQuestion => "COLON_QUESTION",
             Self::At => "AT",
             Self::Dollar => "DOLLAR",
             Self::Comma => "COMMA",

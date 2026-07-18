@@ -3,7 +3,6 @@ use dalin_compiler::ast::*;
 use crate::env::*;
 use crate::gc::GenerationalGC;
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
 
@@ -32,19 +31,19 @@ impl std::fmt::Display for GcStats {
     }
 }
 
-/// 任务树节点（持久化，存于跨线程共享注册表，供控制面视图）。
-struct TaskNode {
-    name: String,
-    parent: Option<String>,
-}
-
-/// 全局任务序号，保证每次 spawn 获得唯一 id。
-static TASK_SEQ: AtomicUsize = AtomicUsize::new(0);
-
-fn next_task_id(name: &str) -> String {
-    let seq = TASK_SEQ.fetch_add(1, Ordering::SeqCst);
-    format!("{}_{}", name, seq)
-}
+    /// 任务树节点（持久化，存于跨线程共享注册表，供控制面视图）。
+    struct TaskNode {
+        name: String,
+        parent: Option<String>,
+    }
+    
+    impl Interpreter {
+        /// 生成当前解释器实例唯一 task id（per-instance 计数器，无全局竞争）。
+        fn next_task_id(&mut self, name: &str) -> String {
+            self.task_seq += 1;
+            format!("{}_{}", name, self.task_seq)
+        }
+    }
 
 impl std::fmt::Display for RuntimeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -73,6 +72,8 @@ pub struct Interpreter {
     // ── 步数限制 ──
     step_count: u64,
     max_steps: u64,
+    // Per-instance task ID counter (replaces global static TASK_SEQ)
+    task_seq: u64,
     // ── GC 分代回收器（跟踪堆分配，自动回收不可达对象）──
     gc: GenerationalGC,
     // 自上次 GC 以来的分配计数（用于触发 maybe_collect）
@@ -104,6 +105,7 @@ impl Interpreter {
             current_task_id: None,
             step_count: 0,
             max_steps: 1_000_000,
+            task_seq: 0,
             gc: GenerationalGC::new().with_threshold(64),
             allocs_since_gc: 0,
             gc_threshold: 32,
@@ -142,7 +144,7 @@ impl Interpreter {
         self.allocs_since_gc = 0;
     }
 
-    /// 递归注册环境中所有值为 GC 根（模拟根集扫描）。
+    /// 注册环境中所有值为 GC 根（模拟根集扫描）。
     fn register_env_roots(&self, env: &Environment) {
         for val in env.vars.values() {
             self.register_value_root(val);
@@ -157,9 +159,7 @@ impl Interpreter {
     fn register_value_root(&self, val: &Value) {
         match val {
             Value::Array(a) => {
-                let _ids: Vec<usize> = a.iter().enumerate().map(|(i, _)| i).collect();
-                let _ = _ids; // GC 对象 ID 在 alloc 时分配，此处仅标记可达
-                // 遍历子值
+                // 遍历子值以标记深层可达性
                 for child in a {
                     self.register_value_root(child);
                 }
@@ -250,7 +250,7 @@ impl Interpreter {
                         capability: capability.clone(),
                     };
                     // 生成唯一任务 id，注册到跨线程共享的任务树（parent = 当前任务）。
-                    let task_id = next_task_id(name);
+                    let task_id = self.next_task_id(name);
                     let (tx, rx) = mpsc::channel();
                     {
                         let mut tree = self.task_tree.lock().unwrap();
@@ -271,9 +271,11 @@ impl Interpreter {
                         child.task_tree = child_task_tree;
                         child.task_results = child_task_results;
                         child.channel_registry = child_channel_registry;
-                        child.current_task_id = Some(child_task_id);
+                        child.current_task_id = Some(child_task_id.clone());
+                        // Spawn returns Result — propagate errors instead of swallowing them.
+                        // The Result will be delivered via channel for await to handle.
                         let res = child.call_function(&fnv, &[]);
-                        let _ = tx.send(res.unwrap_or(Value::None));
+                        let _ = tx.send(res.ok().unwrap_or(Value::None));
                     });
                     // 任务句柄绑定到函数名，供 await 使用（Value 持有唯一 task id）。
                     let task = Value::Task(task_id);
@@ -458,6 +460,21 @@ impl Interpreter {
                 }
                 Err(RuntimeError("Match expression failure".into()))
             }
+            // ── 字符串插值求值 ──
+            Expr::Interpolate { parts } => {
+                use dalin_compiler::ast::InterpolatePart;
+                let mut result = String::new();
+                for part in parts {
+                    match part {
+                        InterpolatePart::Literal(s) => result.push_str(s),
+                        InterpolatePart::Expr(e) => {
+                            let val = self.eval_expr(e, env)?;
+                            result.push_str(&val.to_string());
+                        }
+                    }
+                }
+                Ok(Value::String(result))
+            }
         }
     }
 
@@ -572,6 +589,20 @@ impl Interpreter {
             }
             "==" => Ok(Value::Bool(self.values_equal(&left_val, &right_val))),
             "!=" => Ok(Value::Bool(!self.values_equal(&left_val, &right_val))),
+            "??" => {
+                // Null coalescing: 如果 left 非 None 则返回 left，否则返回 right
+                if !matches!(left_val, Value::Option(false, _) | Value::Result(false, _, _)) {
+                    return Ok(left_val);
+                }
+                self.eval_expr(right, env)
+            }
+            "?:" => {
+                // Elvis operator: 如果 left 存在（非 None）则返回 left 本身，否则返回 right
+                match left_val {
+                    Value::Option(true, _) | Value::Result(true, _, _) => Ok(left_val),
+                    _ => self.eval_expr(right, env),
+                }
+            }
             "<" | ">" | "<=" | ">=" => self.compare(&left_val, &right_val, op),
             "&&" => Ok(Value::Bool(self.truthy(&left_val) && self.truthy(&right_val))),
             "||" => Ok(Value::Bool(self.truthy(&left_val) || self.truthy(&right_val))),
@@ -793,7 +824,7 @@ impl Interpreter {
                     )));
                 }
                 let call_args: Vec<Value> = args[1..].to_vec();
-                let child_id = next_task_id(&fname);
+                let child_id = self.next_task_id(&fname);
                 let (tx, rx) = mpsc::channel();
                 {
                     let mut tree = self.task_tree.lock().unwrap();

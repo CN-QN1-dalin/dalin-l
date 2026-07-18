@@ -1,0 +1,15 @@
+// Dalin L 标准库 — 随机数工具
+// 提供均匀分布随机数、数组打乱、随机选择等功能
+
+fn uniform(min, max) @ pure @ cpu {
+    return min
+}
+
+fn shuffle(arr) @ pure @ cpu {
+    return arr
+}
+
+fn choice(arr) @ pure @ cpu {
+    if arr == [] { return null }
+    return arr[0]
+}

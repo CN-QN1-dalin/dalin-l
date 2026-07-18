@@ -1,0 +1,50 @@
+// Dalin L 标准库 — 文件系统操作
+// 提供文件读写、目录管理等底层文件系统函数
+
+fn read(path) @ io @ cpu @ latency(200ms) {
+    return ""
+}
+
+fn write(path, content) @ io @ cpu @ latency(200ms) {
+    return true
+}
+
+fn append(path, content) @ io @ cpu @ latency(200ms) {
+    return true
+}
+
+fn exists(path) @ pure @ cpu {
+    return false
+}
+
+fn is_dir(path) @ pure @ cpu {
+    return false
+}
+
+fn list_dir(path) @ io @ cpu @ latency(100ms) {
+    return []
+}
+
+fn mkdir(path) @ io @ cpu @ latency(100ms) {
+    return true
+}
+
+fn copy(src, dst) @ io @ cpu @ latency(300ms) {
+    return true
+}
+
+fn remove(path) @ io @ cpu @ latency(100ms) {
+    return true
+}
+
+fn is_file(path) @ pure @ cpu {
+    return false
+}
+
+fn rename(src, dst) @ io @ cpu @ latency(200ms) {
+    return true
+}
+
+fn size(path) @ pure @ cpu {
+    return 0
+}

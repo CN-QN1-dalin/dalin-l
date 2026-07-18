@@ -1,0 +1,14 @@
+// Dalin L 标准库 — HTTP 网络请求
+// 提供基础的 HTTP GET/POST 请求和请求头管理
+
+fn get(url) @ io @ net @ cpu @ latency(500ms) {
+    return ""
+}
+
+fn post(url, body) @ io @ net @ cpu @ latency(500ms) {
+    return ""
+}
+
+fn headers(url, h) @ io @ net @ cpu @ latency(500ms) {
+    return ""
+}

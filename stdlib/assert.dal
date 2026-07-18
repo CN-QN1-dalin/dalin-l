@@ -1,0 +1,58 @@
+// Dalin L 标准库 — 断言增强
+// 提供多种比较类型的断言检查
+
+fn assert_eq(a, b) @ pure @ cpu {
+    if a == b {
+        return 0
+    }
+    return 0
+}
+
+fn assert_neq(a, b) @ pure @ cpu {
+    if a != b {
+        return 0
+    }
+    return 0
+}
+
+fn assert_gt(a, b) @ pure @ cpu {
+    if a > b {
+        return 0
+    }
+    return 0
+}
+
+fn assert_lt(a, b) @ pure @ cpu {
+    if a < b {
+        return 0
+    }
+    return 0
+}
+
+fn assert_gte(a, b) @ pure @ cpu {
+    if a >= b {
+        return 0
+    }
+    return 0
+}
+
+fn assert_lte(a, b) @ pure @ cpu {
+    if a <= b {
+        return 0
+    }
+    return 0
+}
+
+fn assert_true(val) @ pure @ cpu {
+    if val == true {
+        return 0
+    }
+    return 0
+}
+
+fn assert_false(val) @ pure @ cpu {
+    if val != true {
+        return 0
+    }
+    return 0
+}

@@ -184,9 +184,11 @@ impl Lexer {
         (Ident, text)
     }
 
-    fn read_string(&mut self, quote: char) -> Result<String, LexerError> {
+    fn read_string(&mut self, quote: char) -> Result<(String, bool), LexerError> {
         self.advance(); // skip opening quote
-        let mut parts = String::new();
+        let mut raw = String::new();  // 保留原始文本（含 $ 和标识符）
+        let mut result = String::new();  // 处理转义后的结果
+        let mut has_interp = false;
 
         loop {
             match self.current() {
@@ -206,15 +208,67 @@ impl Lexer {
                         '\\' => '\\',
                         _ => esc,
                     };
-                    parts.push(replacement);
+                    result.push(replacement);
                     self.advance();
+                }
+                Some('$') if !has_interp => {
+                    // 检查 $ 后面是否是合法标识符开头
+                    match self.peek(1) {
+                        Some(c) if is_ident_start(c) => {
+                            // 保存当前已处理的部分
+                            result.push('$');
+                            raw.push('$');
+                            has_interp = true;
+                            self.advance(); // consume $
+                            // 消费整个标识符
+                            while let Some(ch) = self.current() {
+                                if is_ident_continue(ch) {
+                                    raw.push(ch);
+                                    result.push(ch);
+                                    self.advance();
+                                } else {
+                                    break;
+                                }
+                            }
+                        }
+                        _ => {
+                            // 单独的 $，当作普通字符
+                            raw.push('$');
+                            result.push('$');
+                            self.advance();
+                        }
+                    }
+                }
+                Some('$') => {
+                    // 已经确认有插值了，只需保存 $ 和标识符
+                    match self.peek(1) {
+                        Some(c) if is_ident_start(c) => {
+                            raw.push('$');
+                            self.advance(); // consume $
+                            while let Some(ch) = self.current() {
+                                if is_ident_continue(ch) {
+                                    raw.push(ch);
+                                    result.push(ch);
+                                    self.advance();
+                                } else {
+                                    break;
+                                }
+                            }
+                        }
+                        _ => {
+                            raw.push('$');
+                            result.push('$');
+                            self.advance();
+                        }
+                    }
                 }
                 Some(ch) if ch == quote => {
                     self.advance(); // skip closing quote
-                    return Ok(parts);
+                    return Ok((result, has_interp));
                 }
                 Some(ch) => {
-                    parts.push(ch);
+                    raw.push(ch);
+                    result.push(ch);
                     self.advance();
                 }
             }
@@ -248,8 +302,14 @@ impl Lexer {
         // Strings
         if ch == '"' || ch == '\'' {
             let s = self.read_string(ch)?;
-            let tt = if ch == '"' { StringLiteral } else { CharLiteral };
-            return Ok(Token::new(tt, s, line, col));
+            let tt = if ch == '"' {
+                if s.1 {
+                    InterpolateToken
+                } else {
+                    StringLiteral
+                }
+            } else { CharLiteral };
+            return Ok(Token::new(tt, s.0, line, col));
         }
 
         // Attribute #[...]
@@ -276,6 +336,7 @@ impl Lexer {
             ("==", DoubleEqual), ("!=", NotEqual), ("<=", LessEqual), (">=", GreaterEqual),
             ("&&", And), ("||", Or), ("..", DoubleDot), ("::", DoubleColon),
             ("+=", PlusEqual), ("-=", MinusEqual), ("*=", StarEqual), ("/=", SlashEqual),
+            ("??", DoubleQuestionMark), ("?:", ColonQuestion),
         ].iter().cloned().collect();
 
         if let Some(&tt) = double_map.get(two_char.as_str()) {

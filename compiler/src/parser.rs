@@ -1,6 +1,23 @@
 /// Dalin L — 递归下降语法分析器
 use crate::ast::*;
 use crate::token::{Token, TokenType, TokenType::*};
+
+/// Check if a character can start an identifier (including Chinese chars)
+fn is_ident_start(ch: char) -> bool {
+    ch.is_alphabetic() || ch == '_' || is_chinese_char(ch)
+}
+
+fn is_chinese_char(ch: char) -> bool {
+    let cp = ch as u32;
+    (0x4E00..=0x9FFF).contains(&cp)
+        || (0x3400..=0x4DBF).contains(&cp)
+        || (0x20000..=0x2A6DF).contains(&cp)
+        || (0xF900..=0xFAFF).contains(&cp)
+}
+
+fn is_ident_continue(ch: char) -> bool {
+    ch.is_alphanumeric() || ch == '_' || is_chinese_char(ch)
+}
 /// Nine annotation fields returned by parse_channel_annotations.
 pub type AnnotationResult = Result<(
     Option<String>, Option<String>, Option<String>, // effect, capability, llm_prompt
@@ -736,10 +753,11 @@ impl Parser {
         match tt {
             Or => 1,
             And => 2,
-            Equal | DoubleEqual | NotEqual => 3,
-            Less | Greater | LessEqual | GreaterEqual => 4,
-            Plus | Minus => 5,
-            Star | Slash | Modulo => 6,
+            DoubleQuestionMark | ColonQuestion => 3,
+            Equal | DoubleEqual | NotEqual => 4,
+            Less | Greater | LessEqual | GreaterEqual => 5,
+            Plus | Minus => 6,
+            Star | Slash | Modulo => 7,
             _ => 0,
         }
     }
@@ -759,6 +777,8 @@ impl Parser {
                 Equal => "=", DoubleEqual => "==", NotEqual => "!=",
                 Less => "<", Greater => ">", LessEqual => "<=", GreaterEqual => ">=",
                 And => "&&", Or => "||",
+                DoubleQuestionMark => "??",
+                ColonQuestion => "?:",
                 _ => return Err(ParseError {
                     message: format!("Unknown binary operator: {:?}", self.current().value),
                     line: self.current().line,
@@ -790,19 +810,64 @@ impl Parser {
         }
     }
 
+    /// 解析插值字符串，如 "hello $name, you are $age years old"
+    /// tokenizer 已经将 $ident 原样保留在 value 中（如 "hello $name, you are $age years old"）
+    fn parse_interpolate(&self, s: &str) -> Expr {
+        use crate::ast::{InterpolatePart, Expr};
+        let mut parts = Vec::new();
+        let chars: Vec<char> = s.chars().collect();
+        let len = chars.len();
+        let mut i = 0;
+        let mut buf = String::new();
+
+        while i < len {
+            if chars[i] == '$' && i + 1 < len {
+                // 处理转义 \$
+                if chars[i + 1] == '\\' {
+                    buf.push('\\');
+                    i += 2;
+                    continue;
+                }
+                // 尝试消费标识符
+                if is_ident_start(chars[i + 1]) {
+                    let ident_start = i + 1;
+                    i += 1; // skip $
+                    while i < len && is_ident_continue(chars[i]) {
+                        i += 1;
+                    }
+                    let ident: String = chars[ident_start..i].iter().collect();
+                    // 先追加前面的文字部分
+                    if !buf.is_empty() {
+                        parts.push(InterpolatePart::Literal(buf.clone()));
+                        buf.clear();
+                    }
+                    // 将 $ident 转换为 Ident expr
+                    parts.push(InterpolatePart::Expr(Box::new(Expr::Ident(ident))));
+                } else {
+                    buf.push(chars[i]);
+                    i += 1;
+                }
+            } else {
+                buf.push(chars[i]);
+                i += 1;
+            }
+        }
+
+        // 追加最后一段文字
+        if !buf.is_empty() {
+            parts.push(InterpolatePart::Literal(buf));
+        }
+
+        Expr::Interpolate { parts }
+    }
+
     fn parse_primary(&mut self) -> Result<Expr, ParseError> {
         let tok = self.current().clone();
 
-        // if/match as expressions (for let r = if true { 42 })
-        if tok.token_type == KeywordIf {
+        // Interpolation token (contains $ident patterns)
+        if tok.token_type == InterpolateToken {
             self.advance();
-            let stmt = self.parse_if()?;
-            return Ok(self.stmt_to_expr(stmt));
-        }
-        if tok.token_type == KeywordMatch {
-            self.advance();
-            let stmt = self.parse_match()?;
-            return Ok(self.stmt_to_expr(stmt));
+            return Ok(self.parse_interpolate(&tok.value));
         }
 
         // Range expression: 0..10
@@ -1073,6 +1138,13 @@ fn expr_to_string(expr: &Expr, _indent: usize) -> String {
         Expr::Index { array, index } => format!("{}[{}]", expr_to_string(array, 0), expr_to_string(index, 0)),
         Expr::IfExpr(c, t, e) => format!("If({}, {}, {})", expr_to_string(c, 0), expr_to_string(t, 0), expr_to_string(e, 0)),
         Expr::MatchExpr(target, _) => format!("Match({})", expr_to_string(target, 0)),
+        Expr::Interpolate { parts } => {
+            let parts_str: Vec<String> = parts.iter().map(|p| match p {
+                InterpolatePart::Literal(s) => format!("\"{}\"", s),
+                InterpolatePart::Expr(e) => expr_to_string(e, 0),
+            }).collect();
+            format!("Interpolate([{}])", parts_str.join(", "))
+        }
     }
 }
 

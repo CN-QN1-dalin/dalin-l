@@ -277,6 +277,15 @@ impl TypeInferencer {
                 }
                 arm_types.into_iter().next().unwrap_or(TypeOrVar::Concrete(none_type()))
             }
+            Expr::Interpolate { parts } => {
+                // String interpolation always yields string type
+                for part in parts {
+                    if let crate::ast::InterpolatePart::Expr(e) = part {
+                        let _ = self.infer_expr(e);
+                    }
+                }
+                TypeOrVar::Concrete(string_type())
+            }
         }
     }
 

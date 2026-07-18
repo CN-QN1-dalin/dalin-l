@@ -137,6 +137,18 @@ pub enum Expr {
     /// if/match 作为表达式（从语句转换而来）
     IfExpr(Box<Expr>, Box<Expr>, Box<Expr>),    // (condition, then, else)
     MatchExpr(Box<Expr>, Vec<MatchArm>),         // (target, arms)
+    /// 字符串插值: `"hello $name, welcome to $city!"`
+    Interpolate {
+        /// 每个部分：纯文本片段或嵌入表达式
+        parts: Vec<InterpolatePart>,
+    },
+}
+
+/// 插值字符串的一个组成部分
+#[derive(Debug, Clone)]
+pub enum InterpolatePart {
+    Literal(String),     // 纯文本，如 "hello "
+    Expr(Box<Expr>),     // 嵌入的表达式，如 $name → Ident(name)
 }
 
 // ═══════════════════════════════

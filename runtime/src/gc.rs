@@ -385,7 +385,7 @@ mod tests {
 
     #[test]
     fn test_gc_maybe_collect_below_threshold() {
-        let gc = GenerationalGC::with_threshold(GenerationalGC::new(), 5);
+        let gc = GenerationalGC::new().with_threshold(5);
 
         // 分配少于阈值的对象
         gc.alloc("int", vec![]);
@@ -400,7 +400,7 @@ mod tests {
 
     #[test]
     fn test_gc_maybe_collect_above_threshold() {
-        let gc = GenerationalGC::with_threshold(GenerationalGC::new(), 3);
+        let gc = GenerationalGC::new().with_threshold(3);
 
         // 分配 4 个对象（超过阈值 3）
         for _ in 0..4 {
