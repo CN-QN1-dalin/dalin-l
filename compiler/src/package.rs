@@ -3,6 +3,9 @@
 /// 解析 `dalin.toml`、SemVer 版本解析与比较、依赖解析、缓存机制。
 /// 参考 Cargo 的设计，但简化为 DALin L 的最小可用子集。
 use std::collections::HashMap;
+use std::fs;
+use std::io::Read;
+use std::path::PathBuf;
 
 // ═══════════════════════════════
 //  SemVer 版本号
@@ -398,77 +401,75 @@ pub struct CachedPackage {
     pub name: String,
     pub version: SemVer,
     pub cache_path: String,
-    pub downloaded_at: u64, // Unix timestamp
-    pub content_hash: String,
+    /// 真实下载时间 (Unix 秒)，用于缓存过期与可重现性
+    pub downloaded_at: u64,
+    /// SHA-256 校验和 (hex)，下载自 registry 时填充；dev 模式为 None
+    pub checksum: Option<String>,
 }
 
-/// 包管理器: 管理缓存和下载
-#[derive(Debug, Clone)]
+/// 包管理器: 管理缓存和真实下载
+///
+/// 通过可插拔的 [`RegistryClient`] 后端实现下载，支持：
+/// - `file://` / 本地目录 → [`LocalRegistryClient`] (离线、私有 registry，真实落盘 + SHA-256)
+/// - `http(s)://` → [`HttpRegistryClient`] (真实网络 registry，索引 + 下载 + 校验)
+/// - dev 模式 → [`InMemoryRegistryClient`] (mock，不落盘)
+#[derive(Debug)]
 pub struct PackageManager {
     pub cache_dir: String,
     pub cached_packages: HashMap<String, CachedPackage>,
     pub registry_url: String,
     pub dev_mode: bool,
+    client: Box<dyn RegistryClient + Send>,
 }
 
 impl PackageManager {
     pub fn new(cache_dir: String, registry_url: String) -> Self {
+        let client = make_client(&registry_url);
         Self {
             cache_dir,
             cached_packages: HashMap::new(),
             registry_url,
             dev_mode: false,
+            client,
         }
     }
 
-    /// 切换到本地开发模式
+    /// 切换到本地开发模式 (mock 后端，不落盘)
     pub fn enable_dev_mode(&mut self) {
         self.dev_mode = true;
+        self.client = Box::new(InMemoryRegistryClient);
     }
 
-    /// 切换到远程仓库模式
+    /// 切换回远程仓库模式 (按 registry_url 重建后端)
     pub fn disable_dev_mode(&mut self) {
         self.dev_mode = false;
+        self.client = make_client(&self.registry_url);
     }
 
-    /// 获取包: 从缓存或远程下载
+    /// 获取包: 缓存命中直接返回，否则委托给后端真实下载
     pub fn get_package(&mut self, name: &str, version: &SemVer) -> Result<CachedPackage, String> {
-        // 检查缓存
+        // 1. 缓存命中
         let cache_key = format!("{}@{}", name, version);
         if let Some(cached) = self.cached_packages.get(&cache_key) {
             return Ok(cached.clone());
         }
 
-        // 开发模式: 返回 mock
+        // 2. dev 模式: 返回 mock，不落盘
         if self.dev_mode {
-            return Ok(CachedPackage {
+            let pkg = CachedPackage {
                 name: name.to_string(),
                 version: version.clone(),
                 cache_path: format!("./dev/packages/{}", name),
-                downloaded_at: 0,
-                content_hash: "dev-mode-hash".to_string(),
-            });
+                downloaded_at: now(),
+                checksum: None,
+            };
+            self.cached_packages.insert(cache_key, pkg.clone());
+            return Ok(pkg);
         }
 
-        // 远程下载 (mock)
-        self.download_package(name, version)
-    }
-
-    /// 模拟远程下载
-    fn download_package(&mut self, name: &str, version: &SemVer) -> Result<CachedPackage, String> {
-        let content_hash = format!("{:x}", hash_string(&format!("{}@{}", name, version)));
-        let cache_path = format!("{}/{}/{}", self.cache_dir, name, version);
-
-        let pkg = CachedPackage {
-            name: name.to_string(),
-            version: version.clone(),
-            cache_path: cache_path.clone(),
-            downloaded_at: 0, // Would be real timestamp in production
-            content_hash,
-        };
-
-        self.cached_packages
-            .insert(format!("{}@{}", name, version), pkg.clone());
+        // 3. 真实下载 (经由可插拔后端)
+        let pkg = self.client.download(name, version, &self.cache_dir)?;
+        self.cached_packages.insert(cache_key, pkg.clone());
         Ok(pkg)
     }
 
@@ -483,13 +484,330 @@ impl PackageManager {
         pkgs
     }
 
-    /// 清除过期缓存 (> 1 hour old, simulated with threshold)
+    /// 清除过期缓存
     pub fn clean_cache(&mut self, max_age_seconds: u64) -> usize {
-        let now: u64 = 0; // In production, use std::time::SystemTime
+        let now_ts = now();
         let original_len = self.cached_packages.len();
         self.cached_packages
-            .retain(|_, pkg| (now.saturating_sub(pkg.downloaded_at)) < max_age_seconds);
+            .retain(|_, pkg| (now_ts.saturating_sub(pkg.downloaded_at)) < max_age_seconds);
         original_len - self.cached_packages.len()
+    }
+}
+
+// ═══════════════════════════════
+//  Registry 后端 (可插拔)
+// ═══════════════════════════════
+
+/// registry 索引中的单个版本引用 (JSON 可序列化)
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PackageVersionRef {
+    pub name: String,
+    pub version: String,
+    pub artifact_url: String,
+    #[serde(default)]
+    pub checksum: Option<String>,
+    #[serde(default)]
+    pub capability: Option<String>,
+    #[serde(default)]
+    pub effect_level: Option<String>,
+}
+
+impl PackageVersionRef {
+    pub fn semver(&self) -> Result<SemVer, String> {
+        SemVer::parse(&self.version)
+    }
+}
+
+/// registry 索引 (某包的全部可用版本)
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PackageIndex {
+    pub packages: Vec<PackageVersionRef>,
+}
+
+/// 可插拔的 registry 客户端抽象
+///
+/// 所有网络/IO 细节收敛到实现中，[`PackageManager`] 只依赖此 trait，
+/// 便于在测试、离线、私有 registry 之间切换。
+pub trait RegistryClient: std::fmt::Debug {
+    /// 获取某包的可用版本索引
+    fn fetch_index(&self, name: &str) -> Result<Vec<PackageVersionRef>, String>;
+    /// 下载指定版本到 `cache_dir`，返回落盘路径与 SHA-256 校验和
+    fn download(&self, name: &str, version: &SemVer, cache_dir: &str) -> Result<CachedPackage, String>;
+}
+
+/// dev 模式后端: 不落盘、不校验，仅返回占位缓存项
+#[derive(Debug)]
+pub struct InMemoryRegistryClient;
+
+impl RegistryClient for InMemoryRegistryClient {
+    fn fetch_index(&self, _name: &str) -> Result<Vec<PackageVersionRef>, String> {
+        Ok(Vec::new())
+    }
+
+    fn download(&self, name: &str, version: &SemVer, _cache_dir: &str) -> Result<CachedPackage, String> {
+        Ok(CachedPackage {
+            name: name.to_string(),
+            version: version.clone(),
+            cache_path: format!("./dev/packages/{}", name),
+            downloaded_at: now(),
+            checksum: None,
+        })
+    }
+}
+
+/// 本地文件系统 registry 后端 (离线 / 私有 registry)
+///
+/// 目录布局: `{root}/{name}/index.json` + `{root}/{name}/{version}.dal`
+#[derive(Debug)]
+pub struct LocalRegistryClient {
+    pub root: PathBuf,
+}
+
+impl RegistryClient for LocalRegistryClient {
+    fn fetch_index(&self, name: &str) -> Result<Vec<PackageVersionRef>, String> {
+        let idx_path = self.root.join(name).join("index.json");
+        if !idx_path.exists() {
+            return Err(format!(
+                "local registry: no index for '{}' at {}",
+                name,
+                idx_path.display()
+            ));
+        }
+        let data = fs::read_to_string(&idx_path)
+            .map_err(|e| format!("read index {}: {}", idx_path.display(), e))?;
+        let idx: PackageIndex = serde_json::from_str(&data)
+            .map_err(|e| format!("parse index {}: {}", idx_path.display(), e))?;
+        Ok(idx.packages)
+    }
+
+    fn download(&self, name: &str, version: &SemVer, cache_dir: &str) -> Result<CachedPackage, String> {
+        let artifact = self.root.join(name).join(format!("{}.dal", version));
+        if !artifact.exists() {
+            return Err(format!(
+                "local registry: artifact missing {}",
+                artifact.display()
+            ));
+        }
+        let bytes = fs::read(&artifact)
+            .map_err(|e| format!("read artifact {}: {}", artifact.display(), e))?;
+        let checksum = sha256_hex(&bytes);
+
+        // 纵深防御: 若索引中声明了 checksum，则校验下载内容完整性
+        if let Ok(index) = self.fetch_index(name)
+            && let Some(entry) = index
+                .iter()
+                .find(|p| p.semver().map(|v| &v == version).unwrap_or(false))
+            && let Some(expected) = entry.checksum.as_deref()
+            && !expected.eq_ignore_ascii_case(&checksum)
+        {
+            return Err(format!(
+                "checksum mismatch for {}/{}: expected {}, got {}",
+                name, version, expected, checksum
+            ));
+        }
+
+        let dest_dir = PathBuf::from(cache_dir).join(name);
+        fs::create_dir_all(&dest_dir)
+            .map_err(|e| format!("create cache dir {}: {}", dest_dir.display(), e))?;
+        let dest = dest_dir.join(format!("{}.dal", version));
+        fs::write(&dest, &bytes)
+            .map_err(|e| format!("write cache {}: {}", dest.display(), e))?;
+
+        Ok(CachedPackage {
+            name: name.to_string(),
+            version: version.clone(),
+            cache_path: dest.to_string_lossy().to_string(),
+            downloaded_at: now(),
+            checksum: Some(checksum),
+        })
+    }
+}
+
+/// 真实 HTTP registry 后端 (HTTPS)
+///
+/// 协议: `GET {base}/index/{name}` → `PackageIndex` (JSON)；
+/// `GET {artifact_url}` → 字节流，下载后校验 registry 提供的 SHA-256。
+#[derive(Debug)]
+pub struct HttpRegistryClient {
+    pub base_url: String,
+}
+
+impl RegistryClient for HttpRegistryClient {
+    fn fetch_index(&self, name: &str) -> Result<Vec<PackageVersionRef>, String> {
+        let url = format!("{}/index/{}", self.base_url.trim_end_matches('/'), name);
+        let resp = ureq::get(&url)
+            .call()
+            .map_err(|e| format!("registry fetch_index {} failed: {}", url, e))?;
+        let (_, body) = resp.into_parts();
+        let mut bytes = Vec::new();
+        body.into_reader()
+            .read_to_end(&mut bytes)
+            .map_err(|e| format!("read body {}: {}", url, e))?;
+        let text = String::from_utf8_lossy(&bytes);
+        let idx: PackageIndex = serde_json::from_str(&text)
+            .map_err(|e| format!("registry index parse {}: {}", url, e))?;
+        Ok(idx.packages)
+    }
+
+    fn download(&self, name: &str, version: &SemVer, cache_dir: &str) -> Result<CachedPackage, String> {
+        let index = self.fetch_index(name)?;
+        let entry = index
+            .iter()
+            .find(|p| p.semver().map(|v| &v == version).unwrap_or(false))
+            .ok_or_else(|| format!("registry: version {} of '{}' not found", version, name))?;
+
+        let url = entry.artifact_url.clone();
+        let resp = ureq::get(&url)
+            .call()
+            .map_err(|e| format!("registry download {} failed: {}", url, e))?;
+        let (_, body) = resp.into_parts();
+        let mut bytes = Vec::new();
+        body.into_reader()
+            .read_to_end(&mut bytes)
+            .map_err(|e| format!("read body {}: {}", url, e))?;
+
+        let checksum = sha256_hex(&bytes);
+        if let Some(expected) = entry.checksum.as_deref()
+            && !expected.eq_ignore_ascii_case(&checksum)
+        {
+            return Err(format!(
+                "checksum mismatch for {}/{}: expected {}, got {}",
+                name, version, expected, checksum
+            ));
+        }
+
+        let dest_dir = PathBuf::from(cache_dir).join(name);
+        fs::create_dir_all(&dest_dir)
+            .map_err(|e| format!("create cache dir {}: {}", dest_dir.display(), e))?;
+        let dest = dest_dir.join(format!("{}.dal", version));
+        fs::write(&dest, &bytes)
+            .map_err(|e| format!("write cache {}: {}", dest.display(), e))?;
+
+        Ok(CachedPackage {
+            name: name.to_string(),
+            version: version.clone(),
+            cache_path: dest.to_string_lossy().to_string(),
+            downloaded_at: now(),
+            checksum: Some(checksum),
+        })
+    }
+}
+
+/// 依据 registry URL 选择后端实现
+pub fn make_client(registry_url: &str) -> Box<dyn RegistryClient + Send> {
+    let url = registry_url.trim();
+
+    // 显式 file:// 协议
+    if let Some(path) = url.strip_prefix("file://") {
+        return Box::new(LocalRegistryClient {
+            root: PathBuf::from(path),
+        });
+    }
+
+    // 本地已存在的目录 (绝对路径或相对路径且存在) → 本地 registry
+    let as_path = PathBuf::from(url);
+    if (as_path.is_absolute() || as_path.exists()) && as_path.is_dir() {
+        return Box::new(LocalRegistryClient { root: as_path });
+    }
+
+    // 否则按 HTTPS 处理 (无协议前缀时自动补 https://)
+    let base = if url.starts_with("http://") || url.starts_with("https://") {
+        url.to_string()
+    } else {
+        format!("https://{}", url)
+    };
+    Box::new(HttpRegistryClient { base_url: base })
+}
+
+// ═══════════════════════════════
+//  dalan.lock 锁定文件
+// ═══════════════════════════════
+
+/// 锁定文件中的单个依赖条目
+#[derive(Debug, Clone)]
+pub struct LockEntry {
+    pub name: String,
+    pub version: String,
+    pub checksum: Option<String>,
+    pub source: String,
+}
+
+/// `dalan.lock` — 记录已解析依赖的精确版本与 SHA-256 校验和，保证可重现构建
+#[derive(Debug, Clone)]
+pub struct Lockfile {
+    pub package: String,
+    pub version: String,
+    pub entries: Vec<LockEntry>,
+}
+
+impl Lockfile {
+    /// 序列化为带注释的 TOML (手写，零额外依赖)
+    pub fn to_toml(&self) -> String {
+        let mut out = String::new();
+        out.push_str("# Dalin L Package Lock (auto-generated by `dalib pkg build`)\n");
+        out.push_str(&format!("package = \"{}\"\n", self.package));
+        out.push_str(&format!("version = \"{}\"\n", self.version));
+        if !self.entries.is_empty() {
+            out.push('\n');
+        }
+        for e in &self.entries {
+            out.push_str("[[dependencies]]\n");
+            out.push_str(&format!("name = \"{}\"\n", e.name));
+            out.push_str(&format!("version = \"{}\"\n", e.version));
+            let cs = e.checksum.clone().unwrap_or_default();
+            out.push_str(&format!("checksum = \"{}\"\n", cs));
+            out.push_str(&format!("source = \"{}\"\n", e.source));
+            out.push('\n');
+        }
+        out
+    }
+
+    /// 从 TOML 解析 (仅支持本结构约定的子集)
+    pub fn from_toml(s: &str) -> Result<Lockfile, String> {
+        let mut package = String::new();
+        let mut version = String::new();
+        let mut entries: Vec<LockEntry> = Vec::new();
+        let mut cur: Option<LockEntry> = None;
+
+        for raw in s.lines() {
+            let line = raw.trim();
+            if line.is_empty() || line.starts_with('#') {
+                continue;
+            }
+            if line == "[[dependencies]]" {
+                if let Some(c) = cur.take() {
+                    entries.push(c);
+                }
+                cur = Some(LockEntry {
+                    name: String::new(),
+                    version: String::new(),
+                    checksum: None,
+                    source: String::new(),
+                });
+                continue;
+            }
+            if let Some(eq) = line.find('=') {
+                let k = line[..eq].trim();
+                let v = strip_toml_string(line[eq + 1..].trim());
+                match (k, cur.as_mut()) {
+                    ("package", None) => package = v,
+                    ("version", None) => version = v,
+                    ("name", Some(c)) => c.name = v,
+                    ("version", Some(c)) => c.version = v,
+                    ("checksum", Some(c)) => c.checksum = if v.is_empty() { None } else { Some(v) },
+                    ("source", Some(c)) => c.source = v,
+                    _ => {}
+                }
+            }
+        }
+        if let Some(c) = cur.take() {
+            entries.push(c);
+        }
+        Ok(Lockfile {
+            package,
+            version,
+            entries,
+        })
     }
 }
 
@@ -497,12 +815,26 @@ impl PackageManager {
 //  工具函数
 // ═══════════════════════════════
 
-fn hash_string(s: &str) -> u64 {
-    let mut hash: u64 = 5381;
-    for c in s.bytes() {
-        hash = ((hash << 5).wrapping_add(hash)).wrapping_add(c as u64);
+/// 当前 Unix 时间戳 (秒)
+pub fn now() -> u64 {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0)
+}
+
+/// SHA-256 (hex) — 用于 dalan.lock 校验和与缓存完整性验证
+pub fn sha256_hex(bytes: &[u8]) -> String {
+    use sha2::{Digest, Sha256};
+    let mut h = Sha256::new();
+    h.update(bytes);
+    let out = h.finalize();
+    let mut s = String::with_capacity(out.len() * 2);
+    for b in out {
+        s.push_str(&format!("{:02x}", b));
     }
-    hash
+    s
 }
 
 // ═══════════════════════════════
@@ -829,11 +1161,163 @@ rustflags = ["-C", "target-cpu=native"]
             version: SemVer::new(1, 0, 0),
             cache_path: "/tmp/test".to_string(),
             downloaded_at: 12345,
-            content_hash: "abc123".to_string(),
+            checksum: Some("abc123".to_string()),
         };
         let cloned = pkg.clone();
         assert_eq!(cloned.name, pkg.name);
         assert_eq!(cloned.version, pkg.version);
-        assert_eq!(cloned.content_hash, pkg.content_hash);
+        assert_eq!(cloned.checksum, pkg.checksum);
+    }
+
+    // ── SHA-256 测试 (NIST 已知向量) ──
+
+    #[test]
+    fn test_sha256_nist_vectors() {
+        assert_eq!(
+            sha256_hex(b"abc"),
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+        );
+        assert_eq!(
+            sha256_hex(b""),
+            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        );
+        assert_eq!(
+            sha256_hex(b"hello, dalin"),
+            "7a04eec34adc170330551790ffa3f4dc972c38991f7b98860ee99761d65f3c47"
+        );
+    }
+
+    // ── Lockfile 往返测试 ──
+
+    #[test]
+    fn test_lockfile_roundtrip() {
+        let lock = Lockfile {
+            package: "my-proj".to_string(),
+            version: "0.1.0".to_string(),
+            entries: vec![
+                LockEntry {
+                    name: "serde".to_string(),
+                    version: "1.0.0".to_string(),
+                    checksum: Some(
+                        "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+                            .to_string(),
+                    ),
+                    source: "https://registry.dal.in".to_string(),
+                },
+                LockEntry {
+                    name: "tokio".to_string(),
+                    version: "1.2.0".to_string(),
+                    checksum: None,
+                    source: "file://./local-reg".to_string(),
+                },
+            ],
+        };
+        let toml = lock.to_toml();
+        let parsed = Lockfile::from_toml(&toml).expect("parse ok");
+        assert_eq!(parsed.package, "my-proj");
+        assert_eq!(parsed.version, "0.1.0");
+        assert_eq!(parsed.entries.len(), 2);
+        assert_eq!(parsed.entries[0].name, "serde");
+        assert_eq!(parsed.entries[0].checksum, lock.entries[0].checksum);
+        assert_eq!(parsed.entries[1].name, "tokio");
+        assert_eq!(parsed.entries[1].checksum, None);
+    }
+
+    // ── 本地 registry 端到端测试 (离线) ──
+
+    #[test]
+    fn test_local_registry_client() {
+        let base = std::env::temp_dir().join(format!("dalin_test_reg_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&base);
+        fs::create_dir_all(&base).unwrap();
+
+        // 构造本地 registry: mylib/1.0.0.dal + index.json
+        let artifact = b"fn main() { println(\"hi\"); }";
+        let client = LocalRegistryClient {
+            root: base.clone(),
+        };
+        // 手工写入 index + artifact (模拟 registry 服务端已发布)
+        let name_dir = base.join("mylib");
+        fs::create_dir_all(&name_dir).unwrap();
+        fs::write(name_dir.join("1.0.0.dal"), artifact).unwrap();
+        let idx = PackageIndex {
+            packages: vec![PackageVersionRef {
+                name: "mylib".to_string(),
+                version: "1.0.0".to_string(),
+                artifact_url: "1.0.0.dal".to_string(),
+                checksum: Some(sha256_hex(artifact)),
+                capability: None,
+                effect_level: None,
+            }],
+        };
+        fs::write(
+            name_dir.join("index.json"),
+            serde_json::to_string_pretty(&idx).unwrap(),
+        )
+        .unwrap();
+
+        // fetch_index
+        let index = client.fetch_index("mylib").expect("fetch index");
+        assert_eq!(index.len(), 1);
+        assert_eq!(index[0].version, "1.0.0");
+
+        // download → 真实落盘 + SHA-256
+        let cache = std::env::temp_dir().join(format!("dalin_test_cache_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&cache);
+        let pkg = client
+            .download("mylib", &SemVer::new(1, 0, 0), &cache.to_string_lossy())
+            .expect("download");
+        assert!(pkg.checksum.is_some());
+        assert_eq!(pkg.checksum.as_deref(), Some(sha256_hex(artifact).as_str()));
+        assert!(PathBuf::from(&pkg.cache_path).exists());
+
+        let _ = fs::remove_dir_all(&base);
+        let _ = fs::remove_dir_all(&cache);
+    }
+
+    // ── PackageManager 真实下载 (file:// 后端) 测试 ──
+
+    #[test]
+    fn test_package_manager_local_download() {
+        let base = std::env::temp_dir().join(format!("dalin_pm_reg_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&base);
+        fs::create_dir_all(&base).unwrap();
+
+        let artifact = b"@lib\nfn add(a: Int, b: Int) -> Int { return a + b; }";
+        let name_dir = base.join("math");
+        fs::create_dir_all(&name_dir).unwrap();
+        fs::write(name_dir.join("2.1.0.dal"), artifact).unwrap();
+        let idx = PackageIndex {
+            packages: vec![PackageVersionRef {
+                name: "math".to_string(),
+                version: "2.1.0".to_string(),
+                artifact_url: "2.1.0.dal".to_string(),
+                checksum: Some(sha256_hex(artifact)),
+                capability: None,
+                effect_level: None,
+            }],
+        };
+        fs::write(
+            name_dir.join("index.json"),
+            serde_json::to_string_pretty(&idx).unwrap(),
+        )
+        .unwrap();
+
+        let cache = std::env::temp_dir().join(format!("dalin_pm_cache_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&cache);
+        let url = format!("file://{}", base.to_string_lossy());
+        let mut pm = PackageManager::new(cache.to_string_lossy().to_string(), url);
+        let pkg = pm
+            .get_package("math", &SemVer::new(2, 1, 0))
+            .expect("get_package");
+        assert_eq!(pkg.checksum.as_deref(), Some(sha256_hex(artifact).as_str()));
+        // 二次获取应命中缓存
+        let cached = pm
+            .get_package("math", &SemVer::new(2, 1, 0))
+            .expect("cached get");
+        assert_eq!(cached.cache_path, pkg.cache_path);
+
+        let _ = fs::remove_dir_all(&base);
+        let _ = fs::remove_dir_all(&cache);
     }
 }
