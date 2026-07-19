@@ -395,6 +395,45 @@ impl Parser {
         Ok(params)
     }
 
+    /// 检测当前 token 是否为命名参数模式: `name:`（标识符后跟冒号，且冒号后不是 `:`）
+    fn is_named_arg(&self) -> bool {
+        self.current().token_type == Ident
+            && self.peek(1).token_type == Colon
+            && self.peek(2).token_type != Colon // 排除 ::
+    }
+
+    /// 解析调用参数列表 `(...)` 的内部内容（不含括号），返回 Vec<Expr>。
+    /// 命名参数解析为 Expr::NamedArg(name, expr) 并放入 args 列表中。
+    /// 命名参数必须跟在位置参数之后，但不能交叉混排。
+    fn parse_call_args(&mut self) -> Result<Vec<Expr>, ParseError> {
+        let mut args = Vec::new();
+        let mut seen_named = false;
+
+        if !self.check(RightParen) {
+            loop {
+                if self.is_named_arg() {
+                    seen_named = true;
+                    let name = self.advance().value.clone(); // 消费 Ident
+                    self.expect(Colon, "':'")?;              // 消费 :
+                    let value = self.parse_expression()?;
+                    args.push(Expr::NamedArg(name, Box::new(value)));
+                } else {
+                    if seen_named {
+                        return Err(ParseError {
+                            message: "positional argument after named argument is not allowed".to_string(),
+                            line: self.current().line,
+                            column: self.current().column,
+                        });
+                    }
+                    args.push(self.parse_expression()?);
+                }
+                if !self.match_token(Comma) { break; }
+            }
+        }
+
+        Ok(args)
+    }
+
     /// 解析泛型参数列表: `<T: Bound1 + Bound2, U>`
     /// 如果当前 token 不是 `<` 则返回空 vec。
     fn parse_type_params(&mut self) -> Result<Vec<TypeParam>, ParseError> {
@@ -728,9 +767,27 @@ impl Parser {
                 column: self.current().column,
             });
         }
-        let result = self.parse_pipe();
+        let result = self.parse_is_as();
         self.recursion_depth -= 1;
         result
+    }
+
+    fn parse_is_as(&mut self) -> Result<Expr, ParseError> {
+        let mut left = self.parse_pipe()?;
+        while matches!(self.current().token_type, KeywordIs | KeywordAs) {
+            let token = self.advance();
+            let type_ref = self.parse_type()?;
+            match token.token_type {
+                KeywordIs => {
+                    left = Expr::IsCheck(Box::new(left), type_ref);
+                }
+                KeywordAs => {
+                    left = Expr::Cast(Box::new(left), type_ref);
+                }
+                _ => {}
+            }
+        }
+        Ok(left)
     }
 
     fn parse_pipe(&mut self) -> Result<Expr, ParseError> {
@@ -961,15 +1018,9 @@ impl Parser {
                     let member = self.expect(Ident, "field name")?.value.clone();
                     obj = Expr::MemberAccess { object: Box::new(obj), member };
                 }
-                // Call: obj(args)
+                // Call: obj(args) — 支持命名参数 name: expr
                 else if self.match_token(LeftParen) {
-                    let mut args = Vec::new();
-                    if !self.check(RightParen) {
-                        args.push(self.parse_expression()?);
-                        while self.match_token(Comma) {
-                            args.push(self.parse_expression()?);
-                        }
-                    }
+                    let args = self.parse_call_args()?;
                     self.expect(RightParen, "')'")?;
                     obj = Expr::Call { func: Box::new(obj), args };
                 }
@@ -1145,6 +1196,9 @@ fn expr_to_string(expr: &Expr, _indent: usize) -> String {
             }).collect();
             format!("Interpolate([{}])", parts_str.join(", "))
         }
+        Expr::IsCheck(expr, type_ref) => format!("IsCheck({}, {})", expr_to_string(expr, 0), type_ref),
+        Expr::Cast(expr, type_ref) => format!("Cast({}, {})", expr_to_string(expr, 0), type_ref),
+        Expr::NamedArg(name, e) => format!("{}: {}", name, expr_to_string(e, 0)),
     }
 }
 

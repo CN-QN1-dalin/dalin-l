@@ -475,6 +475,79 @@ impl Interpreter {
                 }
                 Ok(Value::String(result))
             }
+            // ── 命名参数包装（解析时展开为 args 向量，此处求值为子表达式的值）──
+            Expr::NamedArg(_, inner) => self.eval_expr(inner, env),
+            // ── 类型检查 is ──
+            Expr::IsCheck(expr, type_ref) => {
+                let val = self.eval_expr(expr, env)?;
+                let expected = &match type_ref.base {
+                    BaseType::Int => "int",
+                    BaseType::Float => "float",
+                    BaseType::String => "string",
+                    BaseType::Bool => "bool",
+                    BaseType::Array => "array",
+                    BaseType::None => "none",
+                    BaseType::Char => "char",
+                    BaseType::Option => "option",
+                    BaseType::Result => "result",
+                    _ => "unknown",
+                };
+                let matches = match (&val, *expected) {
+                    (Value::Int(_), "int") => true,
+                    (Value::Float(_), "float") => true,
+                    (Value::String(_), "string") => true,
+                    (Value::Bool(_), "bool") => true,
+                    (Value::Char(_), "char") => true,
+                    (Value::Array(_), "array") => true,
+                    (Value::None, "none") => true,
+                    (Value::Option(..), "option") => true,
+                    (Value::Result(..), "result") => true,
+                    _ => false,
+                };
+                Ok(Value::Bool(matches))
+            }
+            // ── 类型转换 as ──
+            Expr::Cast(expr, type_ref) => {
+                let val = self.eval_expr(expr, env)?;
+                let target = match type_ref.base {
+                    BaseType::Int => "int",
+                    BaseType::Float => "float",
+                    BaseType::String => "string",
+                    BaseType::Bool => "bool",
+                    _ => "unknown",
+                };
+                match (val, target) {
+                    (Value::Int(i), "float") => Ok(Value::Float(i as f64)),
+                    (Value::Float(f), "int") => Ok(Value::Int(f as i64)),
+                    (Value::String(s), "int") => {
+                        s.parse::<i64>().map(Value::Int)
+                            .map_err(|_| RuntimeError("cast failed: not an int".into()))
+                    }
+                    (Value::String(s), "float") => {
+                        s.parse::<f64>().map(Value::Float)
+                            .map_err(|_| RuntimeError("cast failed: not a float".into()))
+                    }
+                    (Value::Int(i), "string") => Ok(Value::String(i.to_string())),
+                    (Value::Float(f), "string") => Ok(Value::String(f.to_string())),
+                    (Value::Bool(b), "string") => Ok(Value::String(b.to_string())),
+                    (Value::None, _) => Err(RuntimeError("cannot cast none".into())),
+                    (v, t) => {
+                        // 同类型不需要转换
+                        let val_type = match &v {
+                            Value::Int(_) => "int",
+                            Value::Float(_) => "float",
+                            Value::String(_) => "string",
+                            Value::Bool(_) => "bool",
+                            _ => "unknown",
+                        };
+                        if val_type == t {
+                            Ok(v)
+                        } else {
+                            Err(RuntimeError(format!("cannot cast {:?} to {}", v, t)))
+                        }
+                    }
+                }
+            }
         }
     }
 

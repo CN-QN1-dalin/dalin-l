@@ -35,6 +35,10 @@ pub enum TokenType {
     KeywordConst,
     KeywordMod,
 
+    // ── 类型检查/转换 (Step 2: is/as) ──
+    KeywordIs,       // is — 类型检查 operator
+    KeywordAs,       // as — 类型转换 operator
+
     // ── 字面量 ──
     Ident,
     IntLiteral,
@@ -127,6 +131,8 @@ impl TokenType {
             Self::KeywordType => "KEYWORD_TYPE",
             Self::KeywordConst => "KEYWORD_CONST",
             Self::KeywordMod => "KEYWORD_MOD",
+            Self::KeywordIs => "KEYWORD_IS",
+            Self::KeywordAs => "KEYWORD_AS",
             Self::Ident => "IDENT",
             Self::IntLiteral => "INT_LITERAL",
             Self::FloatLiteral => "FLOAT_LITERAL",

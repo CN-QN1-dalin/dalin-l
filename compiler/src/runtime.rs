@@ -2,7 +2,7 @@
 ///
 /// 把编译后的 Program + TaskSpec 真正跑起来。
 /// 内置七通道运行时检查：效应、能力、置信度、认知循环、治理、时间约束。
-use crate::ast::{Expr, FnParam, Program, Stmt};
+use crate::ast::{BaseType, Expr, FnParam, Program, Stmt};
 use crate::ty2::{
     parse_capability, parse_cognitive_loop, parse_confidence, parse_effect, parse_governance,
     Capability, CognitiveLoop, Confidence, Effect, GovernanceLevel, TimeConstraint,
@@ -1158,6 +1158,51 @@ impl Runtime {
                         None
                     };
                     Ok(RuntimeValue::Result(false, None, e))
+                }
+            }
+            Expr::NamedArg(_, _) => {
+                // NamedArg 在 parse_call_args 时已消费，此处作为普通表达式求值
+                Ok(RuntimeValue::None)
+            }
+            Expr::IsCheck(expr, type_ref) => {
+                let val = self.eval_expr(expr)?;
+                let expected_base = &type_ref.base;
+                let matches = match (&val, expected_base) {
+                    (RuntimeValue::Int(_), BaseType::Int) => true,
+                    (RuntimeValue::Float(_), BaseType::Float) => true,
+                    (RuntimeValue::String(_), BaseType::String) => true,
+                    (RuntimeValue::Bool(_), BaseType::Bool) => true,
+                    (RuntimeValue::Array(_), BaseType::Array) => true,
+                    (RuntimeValue::None, BaseType::None) => true,
+                    _ => false,
+                };
+                Ok(RuntimeValue::Bool(matches))
+            }
+            Expr::Cast(expr, type_ref) => {
+                let val = self.eval_expr(expr)?;
+                let target_base = &type_ref.base;
+                match (&val, target_base) {
+                    (RuntimeValue::Int(i), BaseType::Float) => Ok(RuntimeValue::Float((*i) as f64)),
+                    (RuntimeValue::Float(f), BaseType::Int) => Ok(RuntimeValue::Int((*f) as i64)),
+                    (RuntimeValue::String(s), BaseType::Int) => {
+                        s.parse::<i64>()
+                            .map(RuntimeValue::Int)
+                            .map_err(|_| RuntimeError::TypeError {
+                                expected: "int".to_string(),
+                                actual: format!("{}", val),
+                                detail: "cast from string to int failed".to_string(),
+                            })
+                    }
+                    (RuntimeValue::String(s), BaseType::Float) => {
+                        s.parse::<f64>()
+                            .map(RuntimeValue::Float)
+                            .map_err(|_| RuntimeError::TypeError {
+                                expected: "float".to_string(),
+                                actual: format!("{}", val),
+                                detail: "cast from string to float failed".to_string(),
+                            })
+                    }
+                    _ => Ok(val), // 同类型或不可转换 → 返回原值
                 }
             }
         }

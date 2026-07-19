@@ -142,6 +142,12 @@ pub enum Expr {
         /// 每个部分：纯文本片段或嵌入表达式
         parts: Vec<InterpolatePart>,
     },
+    /// 命名参数包装: `name: expr`（用于函数调用中的关键字参数）
+    NamedArg(String, Box<Expr>),
+    /// 类型检查：expr is TypeRef — 运行时检查值是否为指定类型
+    IsCheck(Box<Expr>, TypeRef),
+    /// 类型转换：expr as TypeRef — 运行时将值转为指定类型
+    Cast(Box<Expr>, TypeRef),
 }
 
 /// 插值字符串的一个组成部分

@@ -286,6 +286,15 @@ impl TypeInferencer {
                 }
                 TypeOrVar::Concrete(string_type())
             }
+            // is 返回 bool，as 返回目标类型
+            Expr::IsCheck(expr, _) => {
+                let _ = self.infer_expr(expr);
+                TypeOrVar::Concrete(bool_type())
+            }
+            Expr::Cast(_, target_type) => {
+                TypeOrVar::Concrete(target_type.clone())
+            }
+            Expr::NamedArg(_, expr) => self.infer_expr(expr),
         }
     }
 
