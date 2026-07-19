@@ -1,0 +1,105 @@
+// HashSet<T> — 泛型集合（去重）
+// Rust std::collections::HashSet 风格的 Dalin stdlib 封装
+
+/// new<T>() — 创建空的 HashSet
+fn new() @ pure @ cpu {
+    return []
+}
+
+/// insert<T>(s, item) — 添加元素（自动去重）
+fn insert(s, item) @ spawn @ cpu {
+    if contains(s, item) {
+        return s
+    }
+    return append(s, item)
+}
+
+/// remove<T>(s, item) — 删除元素
+fn remove(s, item) @ spawn @ cpu {
+    let kept = []
+    let i = 0
+    let n = len(s)
+    while i < n {
+        if s[i] != item {
+            kept = append(kept, s[i])
+        }
+        i = i + 1
+    }
+    return kept
+}
+
+/// contains<T>(s, item) — 检查是否包含
+fn contains(s, item) @ pure @ cpu {
+    let i = 0
+    let n = len(s)
+    while i < n {
+        if s[i] == item {
+            return true
+        }
+        i = i + 1
+    }
+    return false
+}
+
+/// union(s1, s2) — 并集
+fn union(s1, s2) @ spawn @ cpu {
+    let result = s1
+    let i = 0
+    let n = len(s2)
+    while i < n {
+        result = insert(result, s2[i])
+        i = i + 1
+    }
+    return result
+}
+
+/// intersect(s1, s2) — 交集
+fn intersect(s1, s2) @ spawn @ cpu {
+    let result = []
+    let i = 0
+    let n = len(s1)
+    while i < n {
+        if contains(s2, s1[i]) {
+            result = append(result, s1[i])
+        }
+        i = i + 1
+    }
+    return result
+}
+
+/// difference(s1, s2) — 差集 (s1 - s2)
+fn difference(s1, s2) @ spawn @ cpu {
+    let result = []
+    let i = 0
+    let n = len(s1)
+    while i < n {
+        if !contains(s2, s1[i]) {
+            result = append(result, s1[i])
+        }
+        i = i + 1
+    }
+    return result
+}
+
+/// len<T>(s) — 集合大小
+fn len(s) @ pure @ cpu {
+    return count(s)
+}
+
+/// is_empty<T>(s) — 是否为空
+fn is_empty(s) @ pure @ cpu {
+    return count(s) == 0
+}
+
+/// subset(s1, s2) — s1 是否是 s2 的子集
+fn subset(s1, s2) @ pure @ cpu {
+    let i = 0
+    let n = len(s1)
+    while i < n {
+        if !contains(s2, s1[i]) {
+            return false
+        }
+        i = i + 1
+    }
+    return true
+}

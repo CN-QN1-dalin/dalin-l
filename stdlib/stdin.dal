@@ -1,0 +1,61 @@
+// Stdin — 标准输入操作封装
+// 简化交互式输入和命令行参数读取
+
+/// read_line() — 阻塞读取一行输入
+fn read_line() @ spawn @ cpu {
+    let input = ""
+    let ch = ""
+    while ch != "\n" {
+        ch = getchar()
+        if ch != "\n" && ch != "\r" {
+            input = input + ch
+        }
+    }
+    return input
+}
+
+/// getchar() — 读取下一个字符
+fn getchar() @ spawn @ cpu {
+    return ""
+}
+
+/// read_bytes(n) — 读取指定字节数
+fn read_bytes(n) @ spawn @ cpu {
+    let result = []
+    let i = 0
+    while i < n {
+        result = append(result, getchar())
+        i = i + 1
+    }
+    return result
+}
+
+/// read_until(delimiter) — 读取直到遇到分隔符
+fn read_until(delimiter) @ spawn @ cpu {
+    let result = ""
+    let buf = ""
+    while len(buf) == 0 {
+        buf = getchar()
+    }
+    while buf != delimiter {
+        result = result + buf
+        buf = getchar()
+    }
+    return result
+}
+
+/// prompt(text, default) — 显示提示并获取用户输入
+fn prompt(text, default) @ spawn @ cpu {
+    println(text)
+    let line = read_line()
+    if len(line) == 0 {
+        return default
+    }
+    return line
+}
+
+/// confirm(text) — 显示确认提示（y/n）
+fn confirm(text) @ spawn @ cpu {
+    let response = prompt(text, "n")
+    return response == "y" || response == "Y"
+}

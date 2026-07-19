@@ -1,0 +1,92 @@
+// Vec<T> — 泛型动态数组容器
+// Rust std::vec::Vec 风格的 Dalin stdlib 封装
+
+/// new<T>() — 创建空的 Vec
+fn new() @ pure @ cpu {
+    return []
+}
+
+/// push<T>(v, item) — 追加元素
+fn push(v, item) @ spawn @ cpu {
+    return append(v, item)
+}
+
+/// pop<T>(v) — 弹出最后一个元素，返回 Option
+fn pop(v) @ pure @ cpu {
+    let n = len(v)
+    if n == 0 {
+        return None
+    }
+    let last = v[n - 1]
+    return Some(last)
+}
+
+/// get<T>(v, index) — 按索引访问，返回 Option
+fn get(v, index) @ pure @ cpu {
+    let n = len(v)
+    if index >= 0 && index < n {
+        return v[index]
+    }
+    return None
+}
+
+/// contains<T>(v, item) — 检查是否包含某元素
+fn contains(v, item) @ pure @ cpu {
+    let i = 0
+    let n = len(v)
+    while i < n {
+        if v[i] == item {
+            return true
+        }
+        i = i + 1
+    }
+    return false
+}
+
+/// retain<T>(v, predicate) — 原地过滤：只保留 predicate 为 true 的元素
+fn retain(v, predicate) @ spawn @ cpu {
+    let kept = []
+    let i = 0
+    let n = len(v)
+    while i < n {
+        if predicate(v[i]) {
+            kept = append(kept, v[i])
+        }
+        i = i + 1
+    }
+    return kept
+}
+
+/// map<T, U>(v, f) — 对每个元素应用映射
+fn map(v, f) @ spawn @ cpu {
+    let result = []
+    let i = 0
+    let n = len(v)
+    while i < n {
+        result = append(result, f(v[i]))
+        i = i + 1
+    }
+    return result
+}
+
+/// filter<T>(v, predicate) — 过滤返回新数组
+fn filter(v, predicate) @ spawn @ cpu {
+    return retain(v, predicate)
+}
+
+/// reduce<T>(v, init, f) — 折叠归约
+fn reduce(v, init, f) @ spawn @ cpu {
+    let acc = init
+    let i = 0
+    let n = len(v)
+    while i < n {
+        acc = f(acc, v[i])
+        i = i + 1
+    }
+    return acc
+}
+
+/// iter<T>(v) — 返回可迭代的视图
+fn iter(v) @ pure @ cpu {
+    return v
+}

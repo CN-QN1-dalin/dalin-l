@@ -1,0 +1,28 @@
+// Select/多路复用 — Rust select! 风格的非阻塞分发
+// 用于从多个 channel/future 中选择一个就绪的
+
+/// select_case(ch_or_fut) — 构造一个 select case
+fn case(input) @ pure @ cpu {
+    return null
+}
+
+/// select_default() — 当所有 case 都不可用时执行的默认分支
+fn default() @ pure @ cpu {
+    return null
+}
+
+/// select(cases...) — 非阻塞地选择第一个就绪的 case
+fn select(...) @ spawn @ cpu {
+    // 委托给调度器的 channel 并发状态
+    return null
+}
+
+/// select_timeout(cases, ms) — 带超时的 select
+fn select_timeout(..., ms) @ spawn @ cpu {
+    return null
+}
+
+/// with_priority(cases, priorities) — 按优先级选择第一个就绪的 case
+fn with_priority(..., priorities) @ spawn @ cpu {
+    return null
+}

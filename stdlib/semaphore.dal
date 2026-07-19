@@ -1,0 +1,55 @@
+// Semaphore — 信号量同步原语
+// 控制并发资源访问数量
+
+/// acquire(sem, permits) — 获取信号量许可
+fn acquire(sem, permits) @ spawn @ cpu {
+    let available = sem.available
+    if available >= permits {
+        sem.available = available - permits
+        return 0
+    }
+    // 等待其他协程 release
+    yield_now()
+    return 0
+}
+
+/// release(sem, permits) — 释放信号量许可
+fn release(sem, permits) @ spawn @ cpu {
+    sem.available = sem.available + permits
+    // 唤醒等待者
+    yield_now()
+    return 0
+}
+
+/// try_acquire(sem, permits) — 非阻塞尝试获取
+fn try_acquire(sem, permits) @ spawn @ cpu {
+    let available = sem.available
+    if available >= permits {
+        sem.available = available - permits
+        return Result::Ok(0)
+    }
+    return Result::Err("no permits available")
+}
+
+/// available(sem) — 查询剩余可用许可数
+fn available(sem) @ spawn @ cpu {
+    return sem.available
+}
+
+/// try_acquire_blocking(sem, permits, timeout_ms) — 带超时的阻塞获取
+fn try_acquire_blocking(sem, permits, timeout_ms) @ spawn @ cpu {
+    let start = time::now_ms()
+    let acquired = 0
+    while acquired == 0 {
+        let result = try_acquire(sem, permits)
+        if is_ok(result) {
+            acquired = 1
+        }
+        let elapsed = time::now_ms() - start
+        if elapsed > timeout_ms {
+            return Result::Err("timeout waiting for semaphore")
+        }
+        sleep(timeout_ms / 10)
+    }
+    return Result::Ok(acquired)
+}

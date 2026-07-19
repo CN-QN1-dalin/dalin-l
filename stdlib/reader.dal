@@ -1,0 +1,49 @@
+// Reader — 通用读取器封装
+// 统一文件、网络、内存等多种数据源的读取接口
+
+/// read<R>(r, buf) — 从读取器读取到缓冲区
+fn read(r, buf) @ spawn @ cpu {
+    let len_buf = count(buf)
+    if len_buf == 0 {
+        return 0
+    }
+    let data = r.read()
+    let i = 0
+    let len_data = count(data)
+    while i < len_data && i < len_buf {
+        buf[i] = data[i]
+        i = i + 1
+    }
+    return i
+}
+
+/// read_to_end<R>(r) — 读取所有数据到数组
+fn read_to_end(r) @ spawn @ cpu {
+    let result = []
+    loop {
+        let chunk = r.read_n(1024)
+        if is_empty(chunk) {
+            break
+        }
+        result = append(result, chunk)
+    }
+    return result
+}
+
+/// read_line<R>(r) — 读取一行
+fn read_line(r) @ spawn @ cpu {
+    let line = ""
+    loop {
+        let ch = r.get_char()
+        if ch == "\n" || ch == null {
+            break
+        }
+        line = line + ch
+    }
+    return line
+}
+
+/// peek<R>(r, n) — 非消耗性查看前 n 个字符
+fn peek(r, n) @ spawn @ cpu {
+    return r.read_n(n)
+}

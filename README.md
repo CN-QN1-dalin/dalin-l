@@ -27,8 +27,20 @@
 
 ## 快速开始
 
+**GitHub**
+
 ```bash
 git clone https://github.com/CN-QN1-dalin/dalin-l.git
+cd dalin-l
+cargo run          # 运行演示
+cargo run --repl   # 启动交互式 REPL
+cargo run --test   # 运行测试
+```
+
+**Gitee（国内加速）**
+
+```bash
+git clone https://gitee.com/dalin-x/dalin-l.git
 cd dalin-l
 cargo run          # 运行演示
 cargo run --repl   # 启动交互式 REPL
@@ -209,6 +221,40 @@ cargo run --test
 
 [MIT](LICENSE)
 
+---
+
+## 公开资料
+
+### CSDN 系列技术文章
+
+| # | 标题 | 日期 | 链接 |
+|---|------|------|------|
+| 1 | [Dalin L — 我造了一门支持中文编程的语言,完整移植到 Rust 了](https://blog.csdn.net/2601_96175637/article/details/162883913) | 2026-06-24 | [CSDN](https://blog.csdn.net/2601_96175637/article/details/162883913) |
+| 2 | [Dalin L 2.0: 七通道类型系统 + 自修复运行时 + 语言服务器 + K8s 调度器](https://adg.csdn.net/6a58e5de10ee7a33f28e36df.html) | 2026-07-17 | [CSDN](https://adg.csdn.net/6a58e5de10ee7a33f28e36df.html) |
+| 3 | [AI Agent 技术社区 · Dalin L 自进化编程语言](https://agent.csdn.net/6a58e5de662f9a54cb9010ed.html) | 2026-07-17 | [CSDN Agent](https://agent.csdn.net/6a58e5de662f9a54cb9010ed.html) |
+| 4 | [Dalin L 2.0 — 2 万行 Rust 实现自进化语言](http://www.xxmr.cn/news/40733) *(镜像)* | 2026-07-17 | [镜像](http://www.xxmr.cn/news/40733) |
+| 5 | [Dalin Soma v3.0 — 用菲尔兹奖数学给 ASI 意识奠基](https://blog.csdn.net/2601_96175637/article/details/162539119) | 2026-07-18 | [CSDN](https://blog.csdn.net/2601_96175637/article/details/162539119) |
+
+### 项目分支索引
+
+| 分支 | 版本 | 说明 | 链接 |
+|------|------|------|------|
+| `master` | v3.0-dev | 当前主分支: null/??/is-as/C FFI/M:N 调度器/stdlib 58 模块 | [GitHub](https://github.com/CN-QN1-dalin/dalin-l) · [Gitee](https://gitee.com/dalin-x/dalin-l) |
+| `origin/v2-types` | v2.0 | Phase A-J 全线完成: 七通道类型系统/SelfHealing/LSP/K8s 算子 | [GitHub v2-types](https://github.com/CN-QN1-dalin/dalin-l/tree/v2-types) · [Gitee v2-types](https://gitee.com/dalin-x/dalin-l/tree/v2-types) |
+| `origin/main` | v1.0 | Phase A-J 初版: 7 道类型·CLI 18cmd·分布式控制面 | [GitHub main](https://github.com/CN-QN1-dalin/dalin-l/tree/main) · [Gitee main](https://gitee.com/dalin-x/dalin-l/tree/main) |
+| `v0.1.0` | v0.1.0 | Python v0.2 树遍历解释器 + HM 类型推断原型 | [GitHub tag](https://github.com/CN-QN1-dalin/dalin-l/releases/tag/v0.1.0) · [Gitee tag](https://gitee.com/dalin-x/dalin-l/tags/v0.1.0) |
+
+### 版本演进时间线
+
+| 日期 | 事件 |
+|------|------|
+| 2026-06-24 | v0.1.0 发布: HM 类型推断 + 树遍历解释器 + 模式匹配 (Python 原型 → Rust 移植) |
+| 2026-07-15 | Dalin L 2.0 Phase A-J 全线完成 (2 万行 Rust, 318 测试全绿) |
+| 2026-07-17 | P1-P10 升级: Trait System + GC 分代 + Criterion Bench; LSP/Deloy CRD/LLM 注入防护 |
+| 2026-07-17 | v2-types 分支发布: 七通道类型系统 + SelfHealing + VSCode 扩展 + K8s Operator |
+| 2026-07-18 | Dalin Soma v3.0 技术报告: 菲尔兹奖数学 (力迫法/非交换几何/同伦类型论) 应用于认知架构 |
+| 2026-07-19 | **Dalin L 3.0 启动**: null 关键字/?? Elvis/is-as 类型检查/var 语句/C FFI 桥接/真实包管理器联网/M:N 协程调度器/stdlib 扩至 58 模块 (目标 100+) |
+
 ## 作者
 
-**贾大林** ([@CN-QN1-dalin](https://github.com/CN-QN1-dalin))
+**贾大林** ([@CN-QN1-dalin](https://github.com/CN-QN1-dalin) · [@dalin-x](https://gitee.com/dalin-x))

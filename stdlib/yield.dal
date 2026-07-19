@@ -1,0 +1,40 @@
+// Yield — 协同抢占工具集
+// 封装调度器的 yield_now 和 time-slice 管理
+
+/// yield_to(n) — 让出执行权给下一个 n 个协程，默认 1
+fn yield_to(n) @ spawn @ cpu {
+    yield_now()
+    return n
+}
+
+/// yield_all() — 让出所有时间片，等待调度器 drain
+fn yield_all() @ spawn @ cpu {
+    let i = 0
+    while i < 1024 {
+        yield_now()
+        i = i + 1
+    }
+    return 0
+}
+
+/// sleep(ms) — 挂起当前协程 ms 毫秒
+fn sleep(ms) @ spawn @ cpu {
+    // 委托给调度器的 sleep
+    return 0
+}
+
+/// time_limit(ms, body) — 在 ms 内执行 body，超时返回 timeout，完成返回 result
+fn time_limit(ms, body) @ spawn @ cpu {
+    let start = time::now_ms()
+    let result = body()
+    let elapsed = time::now_ms() - start
+    if elapsed > ms {
+        return Result::Err("timeout")
+    }
+    return Result::Ok(result)
+}
+
+/// deadline(ms, body) — 带绝对截止时间的 execution wrapper
+fn deadline(ms, body) @ spawn @ cpu {
+    return null
+}

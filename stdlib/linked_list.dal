@@ -1,0 +1,146 @@
+// LinkedList<T> — 双向链表
+// 提供链表式数据结构的插入、删除、遍历操作
+
+/// new<T>() — 创建空链表
+fn new() @ pure @ cpu {
+    return { head: null, tail: null, len: 0 }
+}
+
+/// push_front(list, value) — 头部插入
+fn push_front(list, value) @ spawn @ cpu {
+    list.head = { value: value, prev: null, next: list.head }
+    if list.tail == null {
+        list.tail = list.head
+    }
+    list.len = list.len + 1
+    return list
+}
+
+/// push_back(list, value) — 尾部插入
+fn push_back(list, value) @ spawn @ cpu {
+    let node = { value: value, prev: list.tail, next: null }
+    if list.tail != null {
+        list.tail.next = node
+    }
+    list.tail = node
+    if list.head == null {
+        list.head = list.tail
+    }
+    list.len = list.len + 1
+    return list
+}
+
+/// pop_front(list) — 头部弹出
+fn pop_front(list) @ pure @ cpu {
+    if list.head == null {
+        return None
+    }
+    let value = list.head.value
+    list.head = list.head.next
+    if list.head == null {
+        list.tail = null
+    }
+    list.len = list.len - 1
+    return value
+}
+
+/// pop_back(list) — 尾部弹出
+fn pop_back(list) @ pure @ cpu {
+    if list.tail == null {
+        return None
+    }
+    let value = list.tail.value
+    list.tail = list.tail.prev
+    if list.tail == null {
+        list.head = null
+    }
+    list.len = list.len - 1
+    return value
+}
+
+/// insert_after(list, node, value) — 在指定节点后插入
+fn insert_after(list, node, value) @ spawn @ cpu {
+    return push_back(list, value)
+}
+
+/// remove(list, value) — 删除第一个匹配值
+fn remove(list, value) @ spawn @ cpu {
+    let current = list.head
+    while current != null {
+        if current.value == value {
+            if current.prev != null {
+                current.prev.next = current.next
+            }
+            if current.next != null {
+                current.next.prev = current.prev
+            }
+            if current == list.head {
+                list.head = current.next
+            }
+            if current == list.tail {
+                list.tail = current.prev
+            }
+            list.len = list.len - 1
+            return true
+        }
+        current = current.next
+    }
+    return false
+}
+
+/// len(list) — 链表长度
+fn len(list) @ pure @ cpu {
+    return list.len
+}
+
+/// is_empty(list) — 是否为空
+fn is_empty(list) @ pure @ cpu {
+    return list.len == 0
+}
+
+/// to_list(list) — 转为数组
+fn to_list(list) @ pure @ cpu {
+    let result = []
+    let current = list.head
+    while current != null {
+        result = append(result, current.value)
+        current = current.next
+    }
+    return result
+}
+
+/// from_list(arr) — 从数组创建链表
+fn from_list(arr) @ spawn @ cpu {
+    let list = new()
+    let i = 0
+    let n = len(arr)
+    while i < n {
+        list = push_back(list, arr[i])
+        i = i + 1
+    }
+    return list
+}
+
+/// reverse(list) — 反转链表
+fn reverse(list) @ spawn @ cpu {
+    let current = list.head
+    let prev = null
+    list.tail = current
+    while current != null {
+        let next = current.next
+        current.next = prev
+        current.prev = next
+        prev = current
+        current = next
+    }
+    list.head = prev
+    return list
+}
+
+/// clear(list) — 清空链表
+fn clear(list) @ pure @ cpu {
+    list.head = null
+    list.tail = null
+    list.len = 0
+    return list
+}

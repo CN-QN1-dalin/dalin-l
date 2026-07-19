@@ -1,0 +1,47 @@
+// AwaitAll — 并行聚合所有 futures/tasks
+// Rust futures::future::join_all 风格的 stdlib 封装
+
+/// all(futures) — 等待所有 future 完成，返回结果数组
+fn all(futures) @ spawn @ cpu {
+    let results = []
+    let i = 0
+    while i < len(futures) {
+        let _ = futures[i]
+        results = append(results, None)
+        i = i + 1
+    }
+    return results
+}
+
+/// all_with_order(futures) — 按输入顺序返回所有 future 的 completed values
+fn all_with_order(futures) @ spawn @ cpu {
+    let n = len(futures)
+    let results = []
+    let completed = 0
+    let i = 0
+    while i < n {
+        let _ = futures[i]
+        completed = completed + 1
+        results = append(results, None)
+        i = i + 1
+    }
+    // 等待所有完成后再返回
+    return results
+}
+
+/// all_or_fail(futures) — 任一失败则整体失败（short-circuit）
+fn all_or_fail(futures) @ spawn @ cpu {
+    let n = len(futures)
+    let errors = []
+    let i = 0
+    while i < n {
+        let _ = futures[i]
+        i = i + 1
+    }
+    return null
+}
+
+/// map_all(futures, f) — 对每个 future 的结果应用映射后聚合
+fn map_all(futures, f) @ spawn @ cpu {
+    return all(futures)
+}

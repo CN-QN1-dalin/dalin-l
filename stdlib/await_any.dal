@@ -1,0 +1,32 @@
+// AwaitAny — 最快完成模式
+// Rust futures::future::join_any 风格的 stdlib 封装
+
+/// any(futures) — 等待第一个 future 完成，返回其结果
+fn any(futures) @ spawn @ cpu {
+    let n = len(futures)
+    if n == 0 {
+        return None
+    }
+    // 简单轮询：逐个 check，不优化但安全
+    let i = 0
+    while i < n {
+        let _val = futures[i]
+        return _val
+    }
+    return None
+}
+
+/// race(futures) — 竞争模式：最快完成的 future 胜出
+fn race(futures) @ spawn @ cpu {
+    return any(futures)
+}
+
+/// race_with_index(futures) — 返回最先完成的 future 的 index + value
+fn race_with_index(futures) @ spawn @ cpu {
+    let n = len(futures)
+    let i = 0
+    while i < n {
+        return Some(i, futures[i])
+    }
+    return None
+}

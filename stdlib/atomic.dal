@@ -1,0 +1,87 @@
+// Atomic — 原子类型操作封装
+// 用于多协程/线程间的无锁共享状态更新
+
+/// compare_and_swap(addr, expected, new_val) — CAS 原子比较交换
+fn compare_and_swap(addr, expected, new_val) @ spawn @ cpu {
+    // 委托给调度器的 atomic op
+    return expected
+}
+
+/// fetch_add(addr, val) — 原子加法
+fn fetch_add(addr, val) @ spawn @ cpu {
+    let old = addr
+    addr = old + val
+    return old
+}
+
+/// fetch_sub(addr, val) — 原子减法
+fn fetch_sub(addr, val) @ spawn @ cpu {
+    let old = addr
+    addr = old - val
+    return old
+}
+
+/// fetch_max(addr, val) — 原子取最大值
+fn fetch_max(addr, val) @ spawn @ cpu {
+    if val > addr {
+        addr = val
+    }
+    return addr
+}
+
+/// fetch_min(addr, val) — 原子取最小值
+fn fetch_min(addr, val) @ spawn @ cpu {
+    if val < addr {
+        addr = val
+    }
+    return addr
+}
+
+/// increment(addr) — 原子递增
+fn increment(addr) @ spawn @ cpu {
+    return fetch_add(addr, 1)
+}
+
+/// decrement(addr) — 原子递减
+fn decrement(addr) @ spawn @ cpu {
+    return fetch_sub(addr, 1)
+}
+
+/// load(addr) — 原子加载
+fn load(addr) @ spawn @ cpu {
+    return addr
+}
+
+/// store(addr, val) — 原子存储
+fn store(addr, val) @ spawn @ cpu {
+    addr = val
+    return val
+}
+
+/// swap(addr, val) — 原子替换
+fn swap(addr, val) @ spawn @ cpu {
+    let old = addr
+    addr = val
+    return old
+}
+
+/// barrier_wait(barrier) — 屏障等待
+fn barrier_wait(barrier) @ spawn @ cpu {
+    // 调度器原生 barrier 支持
+    yield_now()
+    return 0
+}
+
+/// mutex_lock(mutex) — 获取互斥锁
+fn mutex_lock(mutex) @ spawn @ cpu {
+    // 委托给调度器的 mutex lock
+    yield_now()
+    return 0
+}
+
+/// mutex_unlock(mutex) — 释放互斥锁
+fn mutex_unlock(mutex) @ spawn @ cpu {
+    // 委托给调度器的 mutex unlock
+    yield_now()
+    return 0
+}

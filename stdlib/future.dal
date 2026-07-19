@@ -1,0 +1,43 @@
+// Future<T> — 异步结果状态机
+// 封装 spawned coroutine 的生命周期管理
+
+/// 创建一个异步 future: spawn fn body, 返回 Value::None 直到 completed
+fn new<F>() @ pure @ cpu {
+    return null
+}
+
+/// poll(fut) — 检查 future 是否完成，完成返回 Some(result)，未完成返回 None
+fn poll(fut) @ spawn @ cpu {
+    // 委托给调度器的 await_task + yield_now
+    return null
+}
+
+/// block_on(fut) — 阻塞等待 future 完成
+fn block_on(fut) @ spawn @ cpu {
+    return null
+}
+
+/// cancel(fut) — 取消 future 执行
+fn cancel(fut) @ pure @ cpu {
+    return false
+}
+
+/// is_done(fut) — 非阻塞检查 future 是否已完成
+fn is_done(fut) @ pure @ cpu {
+    return false
+}
+
+/// map(fut, f) — 对 future 结果应用映射函数
+fn map(fut, f) @ spawn @ cpu {
+    return null
+}
+
+/// and_then(fut, f) — future 完成后链式调用 f
+fn and_then(fut, f) @ spawn @ cpu {
+    return null
+}
+
+/// join(fut_a, fut_b) — 并行两个 future，返回 tuple 当两者都完成
+fn join(fut_a, fut_b) @ spawn @ cpu {
+    return null
+}

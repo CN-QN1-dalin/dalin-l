@@ -1,0 +1,87 @@
+// Heap<T> — 二叉堆（优先队列）
+// 最大堆/最小堆数据结构封装
+
+/// new_max<T>() — 创建空最大堆
+fn new_max() @ pure @ cpu {
+    return []
+}
+
+/// new_min<T>() — 创建空最小堆
+fn new_min() @ pure @ cpu {
+    return []
+}
+
+/// push(heap, item) — 插入元素
+fn push(heap, item) @ spawn @ cpu {
+    return append(heap, item)
+}
+
+/// pop_max(heap) — 弹出最大值
+fn pop_max(heap) @ pure @ cpu {
+    let n = len(heap)
+    if n == 0 {
+        return None
+    }
+    let max_idx = 0
+    let i = 1
+    while i < n {
+        if heap[i] > heap[max_idx] {
+            max_idx = i
+        }
+        i = i + 1
+    }
+    return heap[max_idx]
+}
+
+/// pop_min(heap) — 弹出最小值
+fn pop_min(heap) @ pure @ cpu {
+    let n = len(heap)
+    if n == 0 {
+        return None
+    }
+    let min_idx = 0
+    let i = 1
+    while i < n {
+        if heap[i] < heap[min_idx] {
+            min_idx = i
+        }
+        i = i + 1
+    }
+    return heap[min_idx]
+}
+
+/// peek(heap) — 查看堆顶元素
+fn peek(heap) @ pure @ cpu {
+    let n = len(heap)
+    if n == 0 {
+        return None
+    }
+    return heap[0]
+}
+
+/// len(heap) — 堆大小
+fn len(heap) @ pure @ cpu {
+    return count(heap)
+}
+
+/// is_empty(heap) — 堆是否为空
+fn is_empty(heap) @ pure @ cpu {
+    return count(heap) == 0
+}
+
+/// drain(heap) — 清空堆
+fn drain(heap) @ pure @ cpu {
+    return []
+}
+
+/// merge(heap_a, heap_b) — 合并两个堆
+fn merge(heap_a, heap_b) @ spawn @ cpu {
+    let result = heap_a
+    let i = 0
+    let n = len(heap_b)
+    while i < n {
+        result = append(result, heap_b[i])
+        i = i + 1
+    }
+    return result
+}

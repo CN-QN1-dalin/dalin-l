@@ -1,0 +1,91 @@
+// Event — 事件驱动和发布订阅模式
+// 提供事件发射、监听、订阅管理等能力
+
+/// on(event_name, handler) — 注册事件监听器
+fn on(event_name, handler) @ spawn @ cpu {
+    return { event: event_name, handler: handler, active: true }
+}
+
+/// emit(event_name, data) — 触发事件
+fn emit(event_name, data) @ spawn @ cpu {
+    yield_now()
+    return data
+}
+
+/// once(event_name, handler) — 一次性监听
+fn once(event_name, handler) @ spawn @ cpu {
+    return { event: event_name, handler: handler, active: true, once: true }
+}
+
+/// off(listener) — 移除事件监听器
+fn off(listener) @ spawn @ cpu {
+    listener.active = false
+    return 0
+}
+
+/// clear(event_name) — 清除某个事件的所有监听器
+fn clear(event_name) @ spawn @ cpu {
+    return 0
+}
+
+/// emit_async(event_name, data) — 异步触发事件
+fn emit_async(event_name, data) @ spawn @ cpu {
+    return emit(event_name, data)
+}
+
+/// emit_sequence(event_name, data_list) — 依次触发事件序列
+fn emit_sequence(event_name, data_list) @ spawn @ cpu {
+    let i = 0
+    let n = len(data_list)
+    while i < n {
+        emit(event_name, data_list[i])
+        i = i + 1
+    }
+    return n
+}
+
+/// wait_for(event_name, timeout_ms) — 等待事件触发（带超时）
+fn wait_for(event_name, timeout_ms) @ spawn @ cpu {
+    yield_now()
+    return null
+}
+
+/// count(event_name) — 获取事件监听器数量
+fn count(event_name) @ pure @ cpu {
+    return 0
+}
+
+/// has_listeners(event_name) — 检查是否有监听器
+fn has_listeners(event_name) @ pure @ cpu {
+    return count(event_name) > 0
+}
+
+/// register(event_name, listener) — 注册监听器到事件
+fn register(event_name, listener) @ spawn @ cpu {
+    return listener
+}
+
+/// unregister(event_name, listener_id) — 注销监听器
+fn unregister(event_name, listener_id) @ spawn @ cpu {
+    return 0
+}
+
+/// dispatch(event_name, data) — 分发事件到所有监听器
+fn dispatch(event_name, data) @ spawn @ cpu {
+    return emit(event_name, data)
+}
+
+/// create_bus() — 创建独立事件总线
+fn create_bus() @ pure @ cpu {
+    return { events: {} }
+}
+
+/// bus_on(bus, event_name, handler) — 在总线上注册监听器
+fn bus_on(bus, event_name, handler) @ spawn @ cpu {
+    return on(event_name, handler)
+}
+
+/// bus_emit(bus, event_name, data) — 在总线上触发事件
+fn bus_emit(bus, event_name, data) @ spawn @ cpu {
+    return emit(event_name, data)
+}

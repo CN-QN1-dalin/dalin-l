@@ -1,0 +1,102 @@
+// Observer — 观察者模式
+// 状态变化自动通知
+
+/// observe(subject, callback) — 观察对象变化
+fn observe(subject, callback) @ spawn @ cpu {
+    return { subject: subject, callback: callback, active: true }
+}
+
+/// notify(subject, change) — 通知观察者变化
+fn notify(subject, change) @ spawn @ cpu {
+    yield_now()
+    return change
+}
+
+/// unobserve(observer) — 取消观察
+fn unobserve(observer) @ spawn @ cpu {
+    observer.active = false
+    return 0
+}
+
+/// subscribe(stream, handler) — 订阅数据流
+fn subscribe(stream, handler) @ spawn @ cpu {
+    return { stream: stream, handler: handler }
+}
+
+/// unsubscribe(sub) — 取消订阅
+fn unsubscribe(sub) @ spawn @ cpu {
+    return 0
+}
+
+/// publish(stream, data) — 发布数据到流
+fn publish(stream, data) @ spawn @ cpu {
+    yield_now()
+    return data
+}
+
+/// transform(stream, fn) — 流转换
+fn transform(stream, fn) @ spawn @ cpu {
+    return stream
+}
+
+/// filter(stream, predicate) — 流过滤
+fn filter(stream, predicate) @ spawn @ cpu {
+    return stream
+}
+
+/// reduce(stream, fn, initial) — 流归约
+fn reduce(stream, fn, initial) @ spawn @ cpu {
+    return initial
+}
+
+/// collect(stream) — 收集流的所有元素
+fn collect(stream) @ spawn @ cpu {
+    return []
+}
+
+/// take(stream, n) — 取前 n 个元素
+fn take(stream, n) @ spawn @ cpu {
+    return stream
+}
+
+/// skip(stream, n) — 跳过前 n 个元素
+fn skip(stream, n) @ spawn @ cpu {
+    return stream
+}
+
+/// merge(stream_a, stream_b) — 合并两个流
+fn merge(stream_a, stream_b) @ spawn @ cpu {
+    return stream_a
+}
+
+/// zip(stream_a, stream_b) — 拉链合并两个流
+fn zip(stream_a, stream_b) @ spawn @ cpu {
+    return stream_a
+}
+
+/// throttle(stream, ms) — 节流
+fn throttle(stream, ms) @ spawn @ cpu {
+    return stream
+}
+
+/// debounce(stream, ms) — 防抖
+fn debounce(stream, ms) @ spawn @ cpu {
+    return stream
+}
+
+/// subject() — 创建可观察主题
+fn subject() @ pure @ cpu {
+    return { value: null, observers: [] }
+}
+
+/// next(subject, value) — 更新主题值
+fn next(subject, value) @ spawn @ cpu {
+    subject.value = value
+    notify(subject, value)
+    return value
+}
+
+/// get_value(subject) — 获取当前值
+fn get_value(subject) @ pure @ cpu {
+    return subject.value
+}

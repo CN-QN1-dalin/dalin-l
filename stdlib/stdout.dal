@@ -1,0 +1,38 @@
+// Stdout — 标准输出操作封装
+// 提供格式化的输出工具
+
+/// print(text) — 直接输出文本，不换行
+fn print(text) @ pure @ cpu {
+    io::stdout().write(text)
+    return text
+}
+
+/// println(text) — 输出文本并换行
+fn println(text) @ pure @ cpu {
+    io::stdout().write(text + "\n")
+    return text
+}
+
+/// eprintln(text) — 错误输出到 stderr
+fn eprintln(text) @ pure @ cpu {
+    io::stderr().write(text + "\n")
+    return text
+}
+
+/// format(fmt, args...) — 格式化字符串输出（简版）
+fn format_(fmt, ...args) @ pure @ cpu {
+    let result = fmt
+    let i = 0
+    let n = len(args)
+    while i < n {
+        result = replace(result, "{" + i + "}", str(args[i]))
+        i = i + 1
+    }
+    return result
+}
+
+/// flush() — 刷新输出缓冲区
+fn flush() @ spawn @ cpu {
+    io::stdout().flush()
+    return 0
+}

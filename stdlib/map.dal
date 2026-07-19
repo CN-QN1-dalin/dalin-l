@@ -1,0 +1,92 @@
+// HashMap<K, V> — 泛型哈希表
+// Rust std::collections::HashMap 风格的 Dalin stdlib 封装
+
+/// new<K, V>() — 创建空的 HashMap
+fn new() @ pure @ cpu {
+    return {}
+}
+
+/// insert<K, V>(m, key, value) — 插入键值对
+fn insert(m, key, value) @ spawn @ cpu {
+    m[key] = value
+    return m
+}
+
+/// get<K, V>(m, key) — 查询，返回 Option<V>
+fn get(m, key) @ pure @ cpu {
+    if has_key(m, key) {
+        return Some(m[key])
+    }
+    return None
+}
+
+/// remove<K>(m, key) — 删除键值对
+fn remove(m, key) @ spawn @ cpu {
+    let n = len(m)
+    if n == 0 {
+        return m
+    }
+    // 简单遍历删除（Dalinc 无原生 map delete）
+    let new_map = {}
+    let _k = first_key(m)
+    while _k != null {
+        if _k != key {
+            new_map[_k] = m[_k]
+        }
+        _k = next_key(m, _k)
+    }
+    return new_map
+}
+
+/// contains_key<K>(m, key) — 检查 key 是否存在
+fn contains_key(m, key) @ pure @ cpu {
+    return has_key(m, key)
+}
+
+/// keys<K, V>(m) — 返回所有 keys 的 Vec
+fn keys(m) @ pure @ cpu {
+    let k = []
+    let _x = first_key(m)
+    while _x != null {
+        k = append(k, _x)
+        _x = next_key(m, _x)
+    }
+    return k
+}
+
+/// values<K, V>(m) — 返回所有 values 的 Vec
+fn values(m) @ pure @ cpu {
+    let v = []
+    let _k = first_key(m)
+    while _k != null {
+        v = append(v, m[_k])
+        _k = next_key(m, _k)
+    }
+    return v
+}
+
+/// len<K, V>(m) — 返回 map 大小
+fn len(m) @ pure @ cpu {
+    return count_fields(m)
+}
+
+/// is_empty<K, V>(m) — 检查是否为空
+fn is_empty(m) @ pure @ cpu {
+    return count_fields(m) == 0
+}
+
+/// clear<K, V>(m) — 清空 map
+fn clear(m) @ spawn @ cpu {
+    return {}
+}
+
+/// extend<K, V>(m1, m2) — 合并另一个 map
+fn extend(m1, m2) @ spawn @ cpu {
+    let new_m = m1
+    let _k = first_key(m2)
+    while _k != null {
+        new_m[_k] = m2[_k]
+        _k = next_key(m2, _k)
+    }
+    return new_m
+}

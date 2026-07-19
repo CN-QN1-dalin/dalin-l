@@ -1,0 +1,38 @@
+// Writer — 通用写入器封装
+// 统一文件、网络、内存等多种目标的数据写入接口
+
+/// write<W>(w, data) — 写入数据到写入器
+fn write(w, data) @ spawn @ cpu {
+    w.send(data)
+    return count(data)
+}
+
+/// write_string<W>(w, text) — 写入字符串
+fn write_string(w, text) @ spawn @ cpu {
+    let bytes = text.to_bytes()
+    return write(w, bytes)
+}
+
+/// write_all<W>(w, data) — 确保全部数据被写入
+fn write_all(w, data) @ spawn @ cpu {
+    let written = 0
+    let total = count(data)
+    while written < total {
+        let chunk = slice(data, written, min(written + 1024, total))
+        write(w, chunk)
+        written = written + count(chunk)
+    }
+    return written
+}
+
+/// flush<W>(w) — 刷新写入缓冲区
+fn flush(w) @ spawn @ cpu {
+    w.flush_buffer()
+    return 0
+}
+
+/// writeln<W>(w, text) — 写入字符串并换行
+fn writeln(w, text) @ spawn @ cpu {
+    write_string(w, text + "\n")
+    return count(text) + 1
+}
