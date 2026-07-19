@@ -1,0 +1,4 @@
+// vec_deque — 向量双端队列
+// Auto-generated parse-safe stub for Dalin L 3.0 standard library
+
+fn vec_deque_new() @ pure @ cpu { return null }

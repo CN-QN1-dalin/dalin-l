@@ -1,0 +1,4 @@
+// synch — 同步原语集合
+// Auto-generated parse-safe stub for Dalin L 3.0 standard library
+
+fn synch_new() @ pure @ cpu { return null }

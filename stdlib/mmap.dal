@@ -1,0 +1,4 @@
+// mmap — 内存映射文件工具
+// Auto-generated parse-safe stub for Dalin L 3.0 standard library
+
+fn mmap_new() @ pure @ cpu { return null }

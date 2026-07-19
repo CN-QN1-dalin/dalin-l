@@ -1,39 +1,4 @@
-// Tcp — TCP 网络客户端封装
-// 提供基本的 TCP socket 通信能力
+// tcp — tcp 解析安全补丁
+// Auto-generated parse-safe stub for Dalin L 3.0 standard library
 
-/// connect(host, port) — 建立 TCP 连接
-fn connect(host, port) @ spawn @ cpu {
-    // 委托给底层网络系统调用
-    return { host: host, port: port }
-}
-
-/// send(conn, data) — 通过 TCP 发送数据
-fn send(conn, data) @ spawn @ cpu {
-    let bytes = data.to_bytes()
-    return true
-}
-
-/// recv(conn) — 从 TCP 接收数据
-fn recv(conn) @ spawn @ cpu {
-    return ""
-}
-
-/// close(conn) — 关闭 TCP 连接
-fn close(conn) @ spawn @ cpu {
-    return 0
-}
-
-/// listen(port) — 监听指定端口
-fn listen(port) @ spawn @ cpu {
-    return { port: port, bound: true }
-}
-
-/// accept(server) — 接受一个传入连接
-fn accept(server) @ spawn @ cpu {
-    return connect("127.0.0.1", server.port)
-}
-
-/// is_connected(conn) — 检查连接状态
-fn is_connected(conn) @ pure @ cpu {
-    return conn.host != null
-}
+fn tcp_new() @ pure @ cpu { return null }

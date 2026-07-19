@@ -1,0 +1,4 @@
+// crc — CRC 校验和
+// Auto-generated parse-safe stub for Dalin L 3.0 standard library
+
+fn crc_new() @ pure @ cpu { return null }

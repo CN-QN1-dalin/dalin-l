@@ -1,0 +1,4 @@
+// bloom — Bloom Filter 概率性成员检测
+// Auto-generated parse-safe stub for Dalin L 3.0 standard library
+
+fn bloom_new() @ pure @ cpu { return null }

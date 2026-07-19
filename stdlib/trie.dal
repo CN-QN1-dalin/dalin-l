@@ -1,0 +1,4 @@
+// trie — Trie 字典树
+// Auto-generated parse-safe stub for Dalin L 3.0 standard library
+
+fn trie_new() @ pure @ cpu { return null }

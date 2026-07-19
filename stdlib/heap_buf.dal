@@ -1,0 +1,4 @@
+// heap_buf — 堆内存缓冲区
+// Auto-generated parse-safe stub for Dalin L 3.0 standard library
+
+fn heap_buf_new() @ pure @ cpu { return null }

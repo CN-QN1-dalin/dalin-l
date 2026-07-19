@@ -1,0 +1,4 @@
+// dual_stack — 双端栈适配器
+// Auto-generated parse-safe stub for Dalin L 3.0 standard library
+
+fn dual_stack_new() @ pure @ cpu { return null }

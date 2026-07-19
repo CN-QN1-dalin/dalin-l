@@ -1,0 +1,4 @@
+// circular_buf — 环形缓冲区
+// Auto-generated parse-safe stub for Dalin L 3.0 standard library
+
+fn circular_buf_new() @ pure @ cpu { return null }

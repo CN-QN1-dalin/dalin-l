@@ -1,0 +1,4 @@
+// sampler — 采样器工具
+// Auto-generated parse-safe stub for Dalin L 3.0 standard library
+
+fn sampler_new() @ pure @ cpu { return null }

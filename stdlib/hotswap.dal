@@ -1,0 +1,4 @@
+// hotswap — 热替换工具
+// Auto-generated parse-safe stub for Dalin L 3.0 standard library
+
+fn hotswap_new() @ pure @ cpu { return null }

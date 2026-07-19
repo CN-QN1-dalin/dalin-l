@@ -1,0 +1,4 @@
+// http_client — HTTP 客户端封装
+// Auto-generated parse-safe stub for Dalin L 3.0 standard library
+
+fn http_client_new() @ pure @ cpu { return null }

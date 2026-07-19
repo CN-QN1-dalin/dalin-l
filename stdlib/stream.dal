@@ -1,0 +1,4 @@
+// stream — 流式数据处理
+// Auto-generated parse-safe stub for Dalin L 3.0 standard library
+
+fn stream_new() @ pure @ cpu { return null }

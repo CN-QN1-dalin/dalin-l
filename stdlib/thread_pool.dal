@@ -1,0 +1,4 @@
+// thread_pool — 线程池实现
+// Auto-generated parse-safe stub for Dalin L 3.0 standard library
+
+fn thread_pool_new() @ pure @ cpu { return null }

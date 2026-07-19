@@ -1,0 +1,4 @@
+// roundrobin — 轮询策略选择器
+// Auto-generated parse-safe stub for Dalin L 3.0 standard library
+
+fn roundrobin_new() @ pure @ cpu { return null }

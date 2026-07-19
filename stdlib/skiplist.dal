@@ -1,0 +1,4 @@
+// skiplist — 跳表数据结构
+// Auto-generated parse-safe stub for Dalin L 3.0 standard library
+
+fn skiplist_new() @ pure @ cpu { return null }

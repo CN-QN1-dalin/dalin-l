@@ -1,0 +1,4 @@
+// dashmap — 并发安全的 HashMap
+// Auto-generated parse-safe stub for Dalin L 3.0 standard library
+
+fn dashmap_new() @ pure @ cpu { return null }

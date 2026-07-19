@@ -1,0 +1,4 @@
+// signal_stream — 信号流处理管道
+// Auto-generated parse-safe stub for Dalin L 3.0 standard library
+
+fn signal_stream_new() @ pure @ cpu { return null }

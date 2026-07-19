@@ -1,0 +1,4 @@
+// executor — 任务执行器调度框架
+// Auto-generated parse-safe stub for Dalin L 3.0 standard library
+
+fn executor_new() @ pure @ cpu { return null }

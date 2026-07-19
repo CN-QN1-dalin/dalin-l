@@ -1,0 +1,4 @@
+// ring_buf — Ring Buffer 实现
+// Auto-generated parse-safe stub for Dalin L 3.0 standard library
+
+fn ring_buf_new() @ pure @ cpu { return null }

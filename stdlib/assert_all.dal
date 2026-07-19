@@ -1,0 +1,4 @@
+// assert_all — 批量断言 — 验证多个条件全部成立
+// Auto-generated parse-safe stub for Dalin L 3.0 standard library
+
+fn assert_all_new() @ pure @ cpu { return null }

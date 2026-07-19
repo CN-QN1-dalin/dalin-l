@@ -1,0 +1,4 @@
+// ratio — 比率计算工具
+// Auto-generated parse-safe stub for Dalin L 3.0 standard library
+
+fn ratio_new() @ pure @ cpu { return null }

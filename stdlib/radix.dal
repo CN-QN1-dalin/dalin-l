@@ -1,0 +1,4 @@
+// radix — Radix Tree / Trie 前缀树
+// Auto-generated parse-safe stub for Dalin L 3.0 standard library
+
+fn radix_new() @ pure @ cpu { return null }

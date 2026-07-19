@@ -1,0 +1,4 @@
+// merkle — Merkle Tree 数据结构
+// Auto-generated parse-safe stub for Dalin L 3.0 standard library
+
+fn merkle_new() @ pure @ cpu { return null }

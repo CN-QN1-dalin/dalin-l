@@ -1,0 +1,4 @@
+// sha256 — SHA-256 摘要计算
+// Auto-generated parse-safe stub for Dalin L 3.0 standard library
+
+fn sha256_new() @ pure @ cpu { return null }

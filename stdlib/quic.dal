@@ -1,0 +1,4 @@
+// quic — QUIC 传输层封装
+// Auto-generated parse-safe stub for Dalin L 3.0 standard library
+
+fn quic_new() @ pure @ cpu { return null }

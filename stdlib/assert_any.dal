@@ -1,0 +1,4 @@
+// assert_any — 任意指定条件断言
+// Auto-generated parse-safe stub for Dalin L 3.0 standard library
+
+fn assert_any_new() @ pure @ cpu { return null }

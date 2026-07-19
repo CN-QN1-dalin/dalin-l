@@ -1,0 +1,4 @@
+// lru_cache — 最近最少使用缓存
+// Auto-generated parse-safe stub for Dalin L 3.0 standard library
+
+fn lru_cache_new() @ pure @ cpu { return null }

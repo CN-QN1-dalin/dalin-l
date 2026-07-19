@@ -1,0 +1,4 @@
+// onoff — 开关状态机
+// Auto-generated parse-safe stub for Dalin L 3.0 standard library
+
+fn onoff_new() @ pure @ cpu { return null }

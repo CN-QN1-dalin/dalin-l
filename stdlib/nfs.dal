@@ -1,0 +1,4 @@
+// nfs — 网络文件系统抽象
+// Auto-generated parse-safe stub for Dalin L 3.0 standard library
+
+fn nfs_new() @ pure @ cpu { return null }

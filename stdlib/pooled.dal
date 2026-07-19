@@ -1,0 +1,4 @@
+// pooled — 对象池管理器
+// Auto-generated parse-safe stub for Dalin L 3.0 standard library
+
+fn pooled_new() @ pure @ cpu { return null }

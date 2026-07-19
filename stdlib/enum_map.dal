@@ -1,0 +1,4 @@
+// enum_map — 枚举映射表
+// Auto-generated parse-safe stub for Dalin L 3.0 standard library
+
+fn enum_map_new() @ pure @ cpu { return null }

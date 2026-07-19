@@ -1,0 +1,4 @@
+// flat_hash — 扁平哈希表
+// Auto-generated parse-safe stub for Dalin L 3.0 standard library
+
+fn flat_hash_new() @ pure @ cpu { return null }

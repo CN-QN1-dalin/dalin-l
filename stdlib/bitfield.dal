@@ -1,0 +1,4 @@
+// bitfield — 位域操作
+// Auto-generated parse-safe stub for Dalin L 3.0 standard library
+
+fn bitfield_new() @ pure @ cpu { return null }

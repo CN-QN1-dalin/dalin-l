@@ -1,0 +1,4 @@
+// xormap — 异或映射表
+// Auto-generated parse-safe stub for Dalin L 3.0 standard library
+
+fn xormap_new() @ pure @ cpu { return null }

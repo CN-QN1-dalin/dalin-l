@@ -1,0 +1,4 @@
+// two_queue — 双队列调度器
+// Auto-generated parse-safe stub for Dalin L 3.0 standard library
+
+fn two_queue_new() @ pure @ cpu { return null }

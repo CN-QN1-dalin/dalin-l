@@ -1,0 +1,4 @@
+// paginated — 分页查询器
+// Auto-generated parse-safe stub for Dalin L 3.0 standard library
+
+fn paginated_new() @ pure @ cpu { return null }

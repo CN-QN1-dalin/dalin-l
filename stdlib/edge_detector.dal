@@ -1,0 +1,4 @@
+// edge_detector — 边缘检测器
+// Auto-generated parse-safe stub for Dalin L 3.0 standard library
+
+fn edge_detector_new() @ pure @ cpu { return null }

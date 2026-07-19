@@ -1,0 +1,4 @@
+// u32_hash — u32 快速哈希
+// Auto-generated parse-safe stub for Dalin L 3.0 standard library
+
+fn u32_hash_new() @ pure @ cpu { return null }

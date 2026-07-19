@@ -1,0 +1,4 @@
+// span — 范围/span 操作工具
+// Auto-generated parse-safe stub for Dalin L 3.0 standard library
+
+fn span_new() @ pure @ cpu { return null }
