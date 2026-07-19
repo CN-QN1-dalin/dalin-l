@@ -994,6 +994,8 @@ impl Runtime {
             | Stmt::Use(_)
             | Stmt::Export(_)
             | Stmt::TypeAlias { .. } => Ok(RuntimeValue::None),
+            // extern "C" blocks are compile-time metadata only
+            Stmt::ExternBlock { .. } => Ok(RuntimeValue::None),
         }
     }
 
@@ -1098,6 +1100,48 @@ impl Runtime {
                     }
                 }
                 Ok(RuntimeValue::None)
+            }
+            Expr::CCall { lib_path, func_name, args } => {
+                // Evaluate all args
+                let mut c_args = Vec::new();
+                for a in args.iter() {
+                    c_args.push(self.eval_expr(a)?);
+                }
+                
+                // Load library
+                use libc::{dlopen, dlsym, RTLD_NOW};
+                use std::ffi::CString;
+                
+                let lib_path = lib_path.as_deref().unwrap_or("libc");
+                let c_lib = CString::new(lib_path)
+                    .map_err(|_| RuntimeError::RuntimePanic(format!("Invalid library path: {}", lib_path)))?;
+                let handle = unsafe { dlopen(c_lib.as_ptr(), RTLD_NOW) };
+                if handle.is_null() {
+                    return Err(RuntimeError::RuntimePanic(format!(
+                        "Failed to open C library '{}'", lib_path
+                    )));
+                }
+                
+                // Find symbol
+                let c_func = CString::new(func_name.as_str())
+                    .map_err(|_| RuntimeError::RuntimePanic(format!("Invalid function name: {}", func_name)))?;
+                let sym = unsafe { dlsym(handle, c_func.as_ptr()) };
+                if sym.is_null() {
+                    return Err(RuntimeError::RuntimePanic(format!(
+                        "Symbol not found: {}", func_name
+                    )));
+                }
+                
+                // Call with catch_unwind for safety
+                let result = unsafe {
+                    std::panic::catch_unwind(|| {
+                        let f: extern "C" fn() -> f64 = std::mem::transmute(sym);
+                        f()
+                    })
+                }
+                .map_err(|e| RuntimeError::RuntimePanic(format!("Panicked in C FFI: {:?}", e)))?;
+                
+                Ok(RuntimeValue::Float(result))
             }
             Expr::Interpolate { parts } => {
                 use crate::ast::InterpolatePart;

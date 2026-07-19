@@ -652,6 +652,11 @@ impl Interpreter {
                     }
                 }
             }
+            Expr::CCall { .. } => {
+                // C FFI calls require the compiler FFI bridge which handles dlopen/dlsym.
+                // The interpreter cannot execute C code directly.
+                Err(RuntimeError("CCall requires compiled FFI bridge".into()))
+            }
         }
     }
 

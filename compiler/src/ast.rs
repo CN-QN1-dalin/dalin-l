@@ -1,6 +1,14 @@
 /// Dalin L — AST 节点定义
 use std::fmt;
 
+/// C FFI extern function declaration: `fn printf(i32, ...) -> int;`
+#[derive(Debug, Clone)]
+pub struct ExternItem {
+    pub name: String,
+    pub params: Vec<(String, TypeRef)>,
+    pub return_type: TypeRef,
+}
+
 /// 泛型参数声明: `T: Comparable + Debug`
 #[derive(Debug, Clone)]
 pub struct TypeParam {
@@ -24,6 +32,7 @@ pub enum BaseType {
     Option,
     Result,
     Func,
+    Void,
     Unknown,
 }
 
@@ -40,6 +49,7 @@ impl fmt::Display for BaseType {
             Self::Option => write!(f, "option"),
             Self::Result => write!(f, "result"),
             Self::Func => write!(f, "func"),
+            Self::Void => write!(f, "void"),
             Self::Unknown => write!(f, "unknown"),
         }
     }
@@ -160,6 +170,12 @@ pub enum Expr {
     IsCheck(Box<Expr>, TypeRef),
     /// 类型转换：expr as TypeRef — 运行时将值转为指定类型
     Cast(Box<Expr>, TypeRef),
+    /// C FFI call expression: c_call(lib_path?, func_name, args...)
+    CCall {
+        lib_path: Option<String>,
+        func_name: String,
+        args: Vec<Expr>,
+    },
 }
 
 /// 插值字符串的一个组成部分
@@ -308,6 +324,11 @@ pub enum Stmt {
         aliased_type: Option<TypeRef>,
     },
     Expr(Box<Expr>),
+    /// extern "C" { fn foo(i32) -> int; } — 编译期元数据，运行时跳过
+    ExternBlock {
+        lang: String,
+        items: Vec<ExternItem>,
+    },
 }
 
 #[derive(Debug, Clone)]

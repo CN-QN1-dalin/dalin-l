@@ -43,6 +43,9 @@ pub enum TokenType {
     KeywordIs, // is — 类型检查 operator
     KeywordAs, // as — 类型转换 operator
 
+    // ── C FFI ──
+    KeywordExtern, // extern "C" — C FFI declaration keyword
+
     // ── 字面量 ──
     Ident,
     IntLiteral,
@@ -138,6 +141,7 @@ impl TokenType {
             Self::KeywordVar => "KEYWORD_VAR",
             Self::KeywordIs => "KEYWORD_IS",
             Self::KeywordAs => "KEYWORD_AS",
+            Self::KeywordExtern => "KEYWORD_EXTERN",
             Self::KeywordNull => "KEYWORD_NULL",
             Self::Ident => "IDENT",
             Self::IntLiteral => "INT_LITERAL",

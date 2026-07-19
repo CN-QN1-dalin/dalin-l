@@ -51,6 +51,7 @@ fn build_keywords() -> HashMap<&'static str, TokenType> {
     m.insert("var", KeywordVar);
     m.insert("is", KeywordIs);
     m.insert("as", KeywordAs);
+    m.insert("extern", KeywordExtern);
     m.insert("null", KeywordNull);
     m.insert("true", BoolLiteral);
     m.insert("false", BoolLiteral);

@@ -15,6 +15,11 @@ fn is_chinese_char(ch: char) -> bool {
         || (0xF900..=0xFAFF).contains(&cp)
 }
 
+/// Strip surrounding double quotes from a token value
+fn strip_string_literal(s: &str) -> String {
+    s.trim_matches('"').to_string()
+}
+
 fn is_ident_continue(ch: char) -> bool {
     ch.is_alphanumeric() || ch == '_' || is_chinese_char(ch)
 }
@@ -194,6 +199,21 @@ impl Parser {
                     type_annotation: type_ann,
                     mutable: true,
                 }))
+            }
+            KeywordExtern => {
+                self.advance(); // consume "extern"
+                let lang = if self.check(StringLiteral) {
+                    strip_string_literal(&self.advance().value)
+                } else {
+                    "C".to_string()
+                };
+                self.expect(LeftBrace, "'{'")?;
+                let mut items = Vec::new();
+                while !self.check(RightBrace) {
+                    items.push(self.parse_extern_item()?);
+                }
+                self.expect(RightBrace, "'}'")?;
+                Ok(Some(Stmt::ExternBlock { lang, items }))
             }
             KeywordFn => {
                 self.advance();
@@ -891,6 +911,54 @@ impl Parser {
     fn parse_export(&mut self) -> Result<Stmt, ParseError> {
         let name = self.expect(Ident, "export name")?.value.clone();
         Ok(Stmt::Export(name))
+    }
+
+    /// Parse an extern item: fn printf(i32, ...) -> int;
+    fn parse_extern_item(&mut self) -> Result<ExternItem, ParseError> {
+        let name = self.expect(Ident, "extern function name")?.value.clone();
+        self.expect(LeftParen, "'('")?;
+        let mut params = Vec::new();
+        if !self.check(RightParen) {
+            loop {
+                let param_name = self.expect(Ident, "param name")?.value.clone();
+                let type_tok = self.advance();
+                // C types are lexed as Ident ("int", "float", "char", "void")
+                let base = match type_tok.token_type {
+                    TokenType::Ident => match type_tok.value.as_str() {
+                        "int" | "i8" | "i16" | "i32" | "i64" | "usize" => BaseType::Int,
+                        "float" | "f32" | "f64" => BaseType::Float,
+                        "bool" | "boolean" => BaseType::Bool,
+                        "char" => BaseType::Char,
+                        "void" => BaseType::Void,
+                        _ => return Err(ParseError { message: format!("unknown C type '{}'", type_tok.value), line: type_tok.line, column: type_tok.column }),
+                    },
+                    _ => return Err(ParseError { message: format!("expected C type, got '{}'", type_tok.value), line: type_tok.line, column: type_tok.column }),
+                };
+                params.push((param_name, TypeRef::new(base)));
+                if self.match_token(Comma) { continue; }
+                break;
+            }
+        }
+        let ret_base = if self.match_token(Arrow) {
+            let tok = self.advance();
+            match tok.token_type {
+                TokenType::Ident => match tok.value.as_str() {
+                    "int" | "i8" | "i16" | "i32" | "i64" | "usize" => BaseType::Int,
+                    "float" | "f32" | "f64" => BaseType::Float,
+                    "void" => BaseType::Void,
+                    _ => BaseType::Void,
+                },
+                _ => BaseType::Void,
+            }
+        } else {
+            BaseType::Void
+        };
+        self.expect(Semicolon, ";")?;
+        Ok(ExternItem {
+            name,
+            params,
+            return_type: TypeRef::new(ret_base),
+        })
     }
 
     fn parse_spawn(&mut self) -> Result<Stmt, ParseError> {
@@ -1645,6 +1713,7 @@ fn stmt_name(stmt: &Stmt) -> &'static str {
         Stmt::TypeAlias { .. } => "TypeAlias",
         Stmt::Expr(_) => "Expr",
         Stmt::Llm { .. } => "Llm",
+        Stmt::ExternBlock { .. } => "ExternBlock",
     }
 }
 
@@ -1753,6 +1822,11 @@ fn expr_to_string(expr: &Expr, _indent: usize) -> String {
         }
         Expr::Cast(expr, type_ref) => format!("Cast({}, {})", expr_to_string(expr, 0), type_ref),
         Expr::NamedArg(name, e) => format!("{}: {}", name, expr_to_string(e, 0)),
+        Expr::CCall { lib_path, func_name, args } => {
+            let args_str: Vec<String> = args.iter().map(|a| expr_to_string(a, 0)).collect();
+            let lib = lib_path.as_deref().unwrap_or("c");
+            format!("CCall({}, {}, [{}])", lib, func_name, args_str.join(", "))
+        }
     }
 }
 
