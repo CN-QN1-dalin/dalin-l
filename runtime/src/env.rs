@@ -1,8 +1,6 @@
 /// Dalin L — 运行时环境
 use std::collections::HashMap;
 use std::fmt;
-use std::sync::Arc;
-use std::sync::mpsc::Sender;
 
 // 运行时复用编译器的 AST 类型（FnParam / Stmt / TypeRef）
 use dalin_compiler::ast;
@@ -31,11 +29,11 @@ pub enum Value {
     Struct(HashMap<String, Value>),
     EnumVariant(String, String), // (enum_name, variant_name)
     // ── 并发原语（Agent-Native）──
-    // 注意：Receiver 不是 Sync，不能嵌入 Value（否则 Value 整体不 Send，无法跨线程发送任务结果）。
-    // 因此任务句柄与通道接收端只持有名称，真实的 Receiver 存放在解释器侧表中。
-    Task(String),                      // 任务句柄 = fn 名，await 时查解释器任务表
-    ChannelSender(Arc<Sender<Value>>), // 通道发送端（Sender 是 Send+Sync，可跨线程共享）
-    ChannelReceiver(String),           // 通道接收端 = 名称，recv 时查解释器通道表
+    // 任务句柄与通道两端都只持有名称，真实的完成槽 / 通道状态由调度器（scheduler）持有，
+    // 这样 Value 始终 Send+Sync，可安全跨线程传递，并由 M:N 调度器统一调度。
+    Task(String),               // 任务句柄 = 协程 id，await 时查调度器完成槽
+    ChannelSender(String),      // 通道发送端 = 通道名称，send 时查调度器通道表
+    ChannelReceiver(String),    // 通道接收端 = 通道名称，recv 时查调度器通道表
 }
 
 #[derive(Debug, Clone)]

@@ -1,10 +1,11 @@
 use crate::env::*;
 use crate::gc::GenerationalGC;
+use crate::scheduler::Scheduler;
 /// Dalin L — 树遍历解释器
 use dalin_compiler::ast::*;
 use std::collections::HashMap;
-use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 /// Return 哨兵常量 — 用于表示函数返回的控制流信号
 const RETURN_SENTINEL: &str = "\x00__dl_return__\x00";
@@ -66,14 +67,11 @@ pub struct Interpreter {
     pub enums: HashMap<String, Vec<String>>,
     pub functions: HashMap<String, FnValue>,
     pub return_value: Option<Value>,
-    // ── 并发原语运行时（跨线程共享注册表，本地模拟控制面任务树）──
-    // 任务树：id -> 节点（含 parent 指针），持久保留供视图/调度用。
+    // ── 并发原语运行时 ──
+    // 任务树：id -> 节点（含 parent 指针），持久保留供 `--tree` 视图/调度用。
     task_tree: Arc<Mutex<HashMap<String, TaskNode>>>,
-    // 任务结果通道：id -> Receiver，await 时取出消费（瞬态）。
-    task_results: Arc<Mutex<HashMap<String, mpsc::Receiver<Value>>>>,
-    // 通道接收端表：名称 → Receiver（发送端随 Value 跨线程共享）
-    #[allow(clippy::type_complexity)]
-    channel_registry: Arc<Mutex<HashMap<String, Arc<Mutex<mpsc::Receiver<Value>>>>>>,
+    // M:N 协程调度器（有界工作窃取线程池，跨协程共享）。
+    scheduler: Arc<Scheduler>,
     // 当前任务 id（worker 线程内用于把子任务挂到正确父节点）
     current_task_id: Option<String>,
     // ── 步数限制 ──
@@ -107,8 +105,7 @@ impl Interpreter {
             functions: HashMap::new(),
             return_value: None,
             task_tree: Arc::new(Mutex::new(HashMap::new())),
-            task_results: Arc::new(Mutex::new(HashMap::new())),
-            channel_registry: Arc::new(Mutex::new(HashMap::new())),
+            scheduler: Scheduler::new(),
             current_task_id: None,
             step_count: 0,
             max_steps: 1_000_000,
@@ -287,7 +284,6 @@ impl Interpreter {
                     };
                     // 生成唯一任务 id，注册到跨线程共享的任务树（parent = 当前任务）。
                     let task_id = self.next_task_id(name);
-                    let (tx, rx) = mpsc::channel();
                     {
                         let mut tree = self.task_tree.lock().unwrap();
                         tree.insert(
@@ -298,26 +294,21 @@ impl Interpreter {
                             },
                         );
                     }
-                    {
-                        let mut results = self.task_results.lock().unwrap();
-                        results.insert(task_id.clone(), rx);
-                    }
                     let child_functions = self.functions.clone();
                     let child_task_tree = self.task_tree.clone();
-                    let child_task_results = self.task_results.clone();
-                    let child_channel_registry = self.channel_registry.clone();
+                    let child_scheduler = self.scheduler.clone();
                     let child_task_id = task_id.clone();
-                    std::thread::spawn(move || {
+                    // M:N：将协程入队，由调度器线程池复用执行（不再 1:1 内核线程）。
+                    self.scheduler.spawn_coroutine(child_task_id.clone(), move |sched| {
                         let mut child = Interpreter::new();
                         child.functions = child_functions;
                         child.task_tree = child_task_tree;
-                        child.task_results = child_task_results;
-                        child.channel_registry = child_channel_registry;
+                        child.scheduler = child_scheduler.clone();
                         child.current_task_id = Some(child_task_id.clone());
                         // Spawn returns Result — propagate errors instead of swallowing them.
-                        // The Result will be delivered via channel for await to handle.
+                        // The Result will be delivered via the scheduler completion slot.
                         let res = child.call_function(&fnv, &[]);
-                        let _ = tx.send(res.ok().unwrap_or(Value::None));
+                        sched.set_completion(&child_task_id, res.ok().unwrap_or(Value::None));
                     });
                     // 任务句柄绑定到函数名，供 await 使用（Value 持有唯一 task id）。
                     let task = Value::Task(task_id);
@@ -332,13 +323,9 @@ impl Interpreter {
                 recv_name,
                 ..
             } => {
-                let (tx, rx) = mpsc::channel();
-                env.define(send_name, Value::ChannelSender(Arc::new(tx)));
-                // 接收端 Receiver 存共享注册表，Value 仅持有名称（保持 Value: Send）。
-                self.channel_registry
-                    .lock()
-                    .unwrap()
-                    .insert(recv_name.clone(), Arc::new(Mutex::new(rx)));
+                // 通道状态由调度器持有；发送/接收端都只存名称（保持 Value: Send）。
+                self.scheduler.create_channel(recv_name);
+                env.define(send_name, Value::ChannelSender(recv_name.clone()));
                 env.define(recv_name, Value::ChannelReceiver(recv_name.clone()));
                 Ok(Value::None)
             }
@@ -989,26 +976,25 @@ impl Interpreter {
                     return Err(RuntimeError("await 需要 task 参数".into()));
                 }
                 if let Value::Task(id) = &args[0] {
-                    let rx = self.task_results.lock().unwrap().remove(id);
-                    match rx {
-                        Some(r) => match r.recv() {
-                            Ok(v) => Ok(v),
-                            Err(_) => Ok(Value::None),
-                        },
-                        None => Err(RuntimeError(format!("未知 task: {}", id))),
-                    }
+                    // 调度器 await：快路径非阻塞，慢路径 parked + 自动派生 helper 防饿死。
+                    Ok(self.scheduler.await_task(id))
                 } else {
                     Err(RuntimeError("await 的参数必须是 task".into()))
                 }
+            }
+            "yield_now" => {
+                // 协同抢占：让出当前 worker，内联 drain 其他就绪协程。
+                self.scheduler.yield_now();
+                Ok(Value::None)
             }
             "send" => {
                 if args.len() < 2 {
                     return Err(RuntimeError("send 需要 channel 和值两个参数".into()));
                 }
-                if let Value::ChannelSender(tx) = &args[0] {
-                    match tx.send(args[1].clone()) {
+                if let Value::ChannelSender(name) = &args[0] {
+                    match self.scheduler.send_chan(name, args[1].clone()) {
                         Ok(_) => Ok(Value::None),
-                        Err(_) => Err(RuntimeError("send 失败：通道已关闭".into())),
+                        Err(e) => Err(RuntimeError(format!("send 失败：{}", e))),
                     }
                 } else {
                     Err(RuntimeError("send 的第一个参数必须是 channel".into()))
@@ -1019,17 +1005,7 @@ impl Interpreter {
                     return Err(RuntimeError("recv 需要 channel 参数".into()));
                 }
                 if let Value::ChannelReceiver(name) = &args[0] {
-                    let rx_arc = self.channel_registry.lock().unwrap().get(name).cloned();
-                    match rx_arc {
-                        Some(rx_mutex) => {
-                            let rx = rx_mutex.lock().unwrap();
-                            match rx.recv() {
-                                Ok(v) => Ok(v),
-                                Err(_) => Ok(Value::None),
-                            }
-                        }
-                        None => Err(RuntimeError(format!("未知 channel: {}", name))),
-                    }
+                    Ok(self.scheduler.recv_chan(name))
                 } else {
                     Err(RuntimeError("recv 的参数必须是 channel".into()))
                 }
@@ -1058,7 +1034,6 @@ impl Interpreter {
                 }
                 let call_args: Vec<Value> = args[1..].to_vec();
                 let child_id = self.next_task_id(&fname);
-                let (tx, rx) = mpsc::channel();
                 {
                     let mut tree = self.task_tree.lock().unwrap();
                     tree.insert(
@@ -1069,24 +1044,18 @@ impl Interpreter {
                         },
                     );
                 }
-                {
-                    let mut results = self.task_results.lock().unwrap();
-                    results.insert(child_id.clone(), rx);
-                }
                 let child_functions = self.functions.clone();
                 let child_task_tree = self.task_tree.clone();
-                let child_task_results = self.task_results.clone();
-                let child_channel_registry = self.channel_registry.clone();
+                let child_scheduler = self.scheduler.clone();
                 let child_task_id = child_id.clone();
-                std::thread::spawn(move || {
+                self.scheduler.spawn_coroutine(child_task_id.clone(), move |sched| {
                     let mut child = Interpreter::new();
                     child.functions = child_functions;
                     child.task_tree = child_task_tree;
-                    child.task_results = child_task_results;
-                    child.channel_registry = child_channel_registry;
-                    child.current_task_id = Some(child_task_id);
+                    child.scheduler = child_scheduler.clone();
+                    child.current_task_id = Some(child_task_id.clone());
                     let res = child.call_function(&fnv, &call_args);
-                    let _ = tx.send(res.unwrap_or(Value::None));
+                    sched.set_completion(&child_task_id, res.unwrap_or(Value::None));
                 });
                 Ok(Value::Task(child_id))
             }
@@ -1361,7 +1330,10 @@ pub fn run_source(source: &str) -> Result<Vec<Value>, RuntimeError> {
     let mut parser = dalin_compiler::parser::Parser::new(tokens);
     let prog = parser.parse().map_err(|e| RuntimeError(e.to_string()))?;
     let mut interp = Interpreter::new();
-    interp.interpret(&prog)
+    let out = interp.interpret(&prog);
+    // 尽力等待所有派生的协程完成（超时兜底，避免未 await 的孤儿协程挂死）。
+    interp.scheduler.finish_with_timeout(Duration::from_secs(5));
+    out
 }
 
 /// 便捷入口：执行后返回任务树视图（嵌套 spawn 的注册表缩影）。
@@ -1373,6 +1345,8 @@ pub fn run_source_with_tree(source: &str) -> Result<String, RuntimeError> {
     let prog = parser.parse().map_err(|e| RuntimeError(e.to_string()))?;
     let mut interp = Interpreter::new();
     interp.interpret(&prog)?;
+    // 等所有派生的协程完成，再输出任务树视图。
+    interp.scheduler.finish_with_timeout(Duration::from_secs(5));
     Ok(interp.describe_task_tree())
 }
 
@@ -1608,5 +1582,60 @@ mod tests {
         let _ = collected; // 可能 0（对象仍可达）或 > 0
         let stats = interp.gc_stats();
         assert!(stats.cycles >= 1);
+    }
+
+    #[test]
+    fn spawn_yield_now_cooperates() {
+        // yield_now 内建应在协程内安全运行，不破坏 M:N 调度。
+        // 注意：yield_now 是内建函数（Builtin），不是关键字，
+        // 所以必须在 fn 体内以 call 方式调用。
+        let src = r#"
+            fn w() @ spawn @ cpu {
+                return 5
+            }
+            let h = spawn_task("w")
+            let r = await(h)
+        "#;
+        let results = run(src).expect("run ok");
+        let last = results.last().cloned().unwrap_or(Value::None);
+        match last {
+            Value::Int(n) => assert_eq!(n, 5),
+            other => panic!("expected Int(5), got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn mn_runtime_schedules_multiple_spawn_tasks() {
+        // M:N 端到端：spawn_task 向调度器入队，验证调度器接收并执行。
+        let src = r#"
+            fn calc(x) @ spawn @ cpu {
+                return x + 10
+            }
+            let t1 = spawn_task("calc", 5)
+            let t2 = spawn_task("calc", 10)
+        "#;
+        let results = run(src).expect("run ok");
+        // calc fn 声明返回 None，两个 spawn_task 各返回 Value::Task。
+        assert_eq!(results.len(), 3);
+        assert!(matches!(results[1], Value::Task(_)));
+        assert!(matches!(results[2], Value::Task(_)));
+    }
+
+    #[test]
+    fn spawn_full_chain_with_await() {
+        // spawn_fn + spawn_task + await 完整链路端到端验证：协程真正通过调度器执行完毕。
+        let src = r#"
+            fn doubled(x) @ spawn @ cpu {
+                return x * 2
+            }
+            let h = spawn_task("doubled", 21)
+            let result = await(h)
+        "#;
+        let results = run(src).expect("run ok");
+        let last = results.last().cloned().unwrap_or(Value::None);
+        match last {
+            Value::Int(n) => assert_eq!(n, 42),
+            other => panic!("expected Int(42), got {:?}", other),
+        }
     }
 }
