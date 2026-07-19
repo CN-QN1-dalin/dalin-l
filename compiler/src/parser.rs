@@ -188,12 +188,12 @@ impl Parser {
                     None
                 };
                 self.match_token(Semicolon);
-                return Ok(Some(Stmt::Let {
+                Ok(Some(Stmt::Let {
                     name,
                     value,
                     type_annotation: type_ann,
                     mutable: true,
-                }));
+                }))
             }
             KeywordFn => {
                 self.advance();
