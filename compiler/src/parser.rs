@@ -174,6 +174,27 @@ impl Parser {
                 self.advance();
                 Ok(Some(self.parse_mut_let()?))
             }
+            KeywordVar => {
+                self.advance();
+                let name = self.expect(Ident, "identifier")?.value.clone();
+                let type_ann = if self.match_token(Colon) {
+                    Some(self.parse_nullable_type()?)
+                } else {
+                    None
+                };
+                let value = if self.match_token(Equal) {
+                    Some(Box::new(self.parse_expression()?))
+                } else {
+                    None
+                };
+                self.match_token(Semicolon);
+                return Ok(Some(Stmt::Let {
+                    name,
+                    value,
+                    type_annotation: type_ann,
+                    mutable: true,
+                }));
+            }
             KeywordFn => {
                 self.advance();
                 Ok(Some(self.parse_fn()?))

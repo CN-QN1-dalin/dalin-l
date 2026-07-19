@@ -48,6 +48,7 @@ fn build_keywords() -> HashMap<&'static str, TokenType> {
     m.insert("type", KeywordType);
     m.insert("const", KeywordConst);
     m.insert("mod", KeywordMod);
+    m.insert("var", KeywordVar);
     m.insert("is", KeywordIs);
     m.insert("as", KeywordAs);
     m.insert("null", KeywordNull);

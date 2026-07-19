@@ -34,6 +34,7 @@ pub enum TokenType {
     KeywordType,
     KeywordConst,
     KeywordMod,
+    KeywordVar, // var — mutable variable declaration
 
     // ── 关键字/字面量 ──
     KeywordNull, // null — 空值关键字
@@ -134,6 +135,7 @@ impl TokenType {
             Self::KeywordType => "KEYWORD_TYPE",
             Self::KeywordConst => "KEYWORD_CONST",
             Self::KeywordMod => "KEYWORD_MOD",
+            Self::KeywordVar => "KEYWORD_VAR",
             Self::KeywordIs => "KEYWORD_IS",
             Self::KeywordAs => "KEYWORD_AS",
             Self::KeywordNull => "KEYWORD_NULL",
