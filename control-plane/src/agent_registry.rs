@@ -6,20 +6,17 @@
 //! - gRPC `AgentRegistry` 服务提供 RegisterNode / Heartbeat / ListNodes
 //! - 调度器通过 `fresh_nodes()` 获取在线节点列表
 
+use std::collections::HashMap;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
-use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
 use futures_core::Stream;
 use tokio_stream::StreamExt;
 use tonic::{Request, Response, Status};
 
-use crate::{
-    agent_registry_server::AgentRegistry,
-    Empty, NodeAck, NodeBeat, NodeSpec,
-};
 use crate::scheduler::{Capability as SchCap, Node};
+use crate::{Empty, NodeAck, NodeBeat, NodeSpec, agent_registry_server::AgentRegistry};
 
 /// 心跳超时：超过此时间未心跳的节点视为下线
 const HEARTBEAT_TTL: Duration = Duration::from_secs(30);
@@ -164,10 +161,7 @@ impl AgentRegistryService {
 
 #[tonic::async_trait]
 impl AgentRegistry for AgentRegistryService {
-    async fn register_node(
-        &self,
-        req: Request<NodeSpec>,
-    ) -> Result<Response<NodeAck>, Status> {
+    async fn register_node(&self, req: Request<NodeSpec>) -> Result<Response<NodeAck>, Status> {
         let spec = req.into_inner();
         let (is_new, msg) = self.registry.register(spec);
         Ok(Response::new(NodeAck {
@@ -180,10 +174,7 @@ impl AgentRegistry for AgentRegistryService {
         }))
     }
 
-    async fn heartbeat(
-        &self,
-        req: Request<NodeBeat>,
-    ) -> Result<Response<Empty>, Status> {
+    async fn heartbeat(&self, req: Request<NodeBeat>) -> Result<Response<Empty>, Status> {
         let beat = req.into_inner();
         let ok = self.registry.heartbeat(&beat);
         if !ok {

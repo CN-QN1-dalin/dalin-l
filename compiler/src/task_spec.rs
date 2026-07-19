@@ -11,8 +11,10 @@
 ///   @net   f(x) → TaskSpec{ capability: Net }，调度器路由到远程网关（需 net 凭证）
 ///   @sfa   f(x) → TaskSpec{ capability: Sfa }，路由到 SFA 路由服务（QN1）
 ///   plain  f(x) → TaskSpec{ effect: Io|Pure, capability: Cpu }，本地 DLVM 执行
-use crate::ast::{Stmt, Program};
-use crate::ty2::{parse_capability, parse_effect, parse_governance, Capability, Effect, GovernanceLevel};
+use crate::ast::{Program, Stmt};
+use crate::ty2::{
+    Capability, Effect, GovernanceLevel, parse_capability, parse_effect, parse_governance,
+};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 
@@ -36,7 +38,14 @@ pub struct TaskSpec {
 
 impl TaskSpec {
     /// 由函数名 + 七通道标注构造；幂等键用 (fn_id + 标注) 稳定哈希。
-    fn for_fn(name: &str, effect: Effect, capability: Capability, is_spawn: bool, llm_prompt: Option<String>, governance_level: Option<GovernanceLevel>) -> Self {
+    fn for_fn(
+        name: &str,
+        effect: Effect,
+        capability: Capability,
+        is_spawn: bool,
+        llm_prompt: Option<String>,
+        governance_level: Option<GovernanceLevel>,
+    ) -> Self {
         let mut hasher = DefaultHasher::new();
         name.hash(&mut hasher);
         effect.hash(&mut hasher);
@@ -63,7 +72,14 @@ impl TaskSpec {
 
     /// 由父任务派生一个 spawn 子任务规格（parent 指向父，is_spawn=true，继承父治理级别）
     pub fn spawn_child(&self, child_name: &str, effect: Effect, capability: Capability) -> Self {
-        let mut child = TaskSpec::for_fn(child_name, effect, capability, true, None, self.governance_level.clone());
+        let mut child = TaskSpec::for_fn(
+            child_name,
+            effect,
+            capability,
+            true,
+            None,
+            self.governance_level.clone(),
+        );
         child.parent_task = Some(self.idempotency_key.clone());
         child
     }
@@ -75,17 +91,34 @@ impl TaskSpec {
 pub fn from_program(prog: &Program) -> Vec<TaskSpec> {
     let mut specs = Vec::new();
     for stmt in &prog.statements {
-        if let Stmt::Fn { name, effect, capability, llm_prompt, governance, async_, .. } = stmt {
-            let eff = effect
-                .as_deref()
-                .map(parse_effect)
-                .unwrap_or(if *async_ { Effect::Async } else { Effect::Pure });
+        if let Stmt::Fn {
+            name,
+            effect,
+            capability,
+            llm_prompt,
+            governance,
+            async_,
+            ..
+        } = stmt
+        {
+            let eff = effect.as_deref().map(parse_effect).unwrap_or(if *async_ {
+                Effect::Async
+            } else {
+                Effect::Pure
+            });
             let cap = capability
                 .as_deref()
                 .map(parse_capability)
                 .unwrap_or(Capability::Cpu);
             let gov = governance.as_deref().map(parse_governance);
-            specs.push(TaskSpec::for_fn(name, eff, cap, false, llm_prompt.clone(), gov));
+            specs.push(TaskSpec::for_fn(
+                name,
+                eff,
+                cap,
+                false,
+                llm_prompt.clone(),
+                gov,
+            ));
         }
     }
     specs
@@ -142,7 +175,14 @@ mod tests {
 
     #[test]
     fn spawn_child_links_parent_and_marks_spawn() {
-        let parent = TaskSpec::for_fn("orchestrator", Effect::Spawn, Capability::Cpu, false, None, None);
+        let parent = TaskSpec::for_fn(
+            "orchestrator",
+            Effect::Spawn,
+            Capability::Cpu,
+            false,
+            None,
+            None,
+        );
         let child = parent.spawn_child("worker", Effect::Io, Capability::Cpu);
         assert!(child.is_spawn);
         assert_eq!(child.parent_task, Some(parent.idempotency_key));

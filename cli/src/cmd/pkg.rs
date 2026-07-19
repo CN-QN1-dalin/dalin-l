@@ -11,8 +11,8 @@ use std::fs;
 use std::path::PathBuf;
 
 use dalin_compiler::package::{
-    PackageManifest, DependencySource, DependencyEntry, SemVer,
-    DependencyGraph, PackageInfo, parse_package_manifest,
+    DependencyEntry, DependencyGraph, DependencySource, PackageInfo, PackageManifest, SemVer,
+    parse_package_manifest,
 };
 
 // ═══════════════════════════════
@@ -31,7 +31,8 @@ fn find_dalan_toml(path: &std::path::Path) -> Result<PathBuf, String> {
 }
 
 fn read_manifest(path: &std::path::Path) -> Result<PackageManifest, String> {
-    let content = fs::read_to_string(path).map_err(|e| format!("Cannot read {}: {}", path.display(), e))?;
+    let content =
+        fs::read_to_string(path).map_err(|e| format!("Cannot read {}: {}", path.display(), e))?;
     parse_package_manifest(&content)
 }
 
@@ -59,14 +60,23 @@ fn write_manifest(path: &std::path::Path, manifest: &PackageManifest) -> Result<
         for (name, dep) in &manifest.deps {
             match &dep.source {
                 DependencySource::Git(url) => {
-                    content.push_str(&format!("{} = {{ version = \"{}\", git = \"{}\" }}\n", name, dep.version, url));
+                    content.push_str(&format!(
+                        "{} = {{ version = \"{}\", git = \"{}\" }}\n",
+                        name, dep.version, url
+                    ));
                 }
                 DependencySource::Path(p) => {
-                    content.push_str(&format!("{} = {{ version = \"{}\", path = \"{}\" }}\n", name, dep.version, p));
+                    content.push_str(&format!(
+                        "{} = {{ version = \"{}\", path = \"{}\" }}\n",
+                        name, dep.version, p
+                    ));
                 }
                 _ => {
                     if dep.optional {
-                        content.push_str(&format!("{} = {{ version = \"{}\", optional = true }}\n", name, dep.version));
+                        content.push_str(&format!(
+                            "{} = {{ version = \"{}\", optional = true }}\n",
+                            name, dep.version
+                        ));
                     } else {
                         content.push_str(&format!("{} = \"{}\"\n", name, dep.version));
                     }
@@ -92,20 +102,21 @@ pub fn run(subcommand: &str, args: &HashMap<String, String>) -> Result<(), Strin
         "remove" => cmd_remove(args),
         "list" => cmd_list(args),
         "build" => cmd_build(args),
-        _ => Err(format!("Unknown pkg subcommand: {}. Use: init/add/remove/list/build", subcommand)),
+        _ => Err(format!(
+            "Unknown pkg subcommand: {}. Use: init/add/remove/list/build",
+            subcommand
+        )),
     }
 }
 
 fn cmd_init(args: &HashMap<String, String>) -> Result<(), String> {
     let path_str = args.get("path").cloned().unwrap_or_else(|| ".".to_string());
     let pbuf = PathBuf::from(&path_str);
-    let name = args.get("name")
-        .cloned()
-        .unwrap_or_else(|| {
-            pbuf.file_name()
-                .map(|s| s.to_string_lossy().to_string())
-                .unwrap_or_else(|| "my-dalin-project".to_string())
-        });
+    let name = args.get("name").cloned().unwrap_or_else(|| {
+        pbuf.file_name()
+            .map(|s| s.to_string_lossy().to_string())
+            .unwrap_or_else(|| "my-dalin-project".to_string())
+    });
     let lib_only = args.get("lib").map(|v| v == "true").unwrap_or(false);
 
     let out_dir = if pbuf.as_os_str() == "." {
@@ -115,21 +126,24 @@ fn cmd_init(args: &HashMap<String, String>) -> Result<(), String> {
     };
 
     if out_dir.exists()
-        && let Ok(entries) = fs::read_dir(&out_dir) {
-            let count: usize = entries.count();
-            if count > 0 {
-                return Err(format!("Directory '{}' is not empty", out_dir.display()));
-            }
+        && let Ok(entries) = fs::read_dir(&out_dir)
+    {
+        let count: usize = entries.count();
+        if count > 0 {
+            return Err(format!("Directory '{}' is not empty", out_dir.display()));
         }
+    }
 
     fs::create_dir_all(out_dir.join("src")).map_err(|e| format!("Cannot create src/: {}", e))?;
-    fs::create_dir_all(out_dir.join("tests")).map_err(|e| format!("Cannot create tests/: {}", e))?;
+    fs::create_dir_all(out_dir.join("tests"))
+        .map_err(|e| format!("Cannot create tests/: {}", e))?;
 
     let toml_content = format!(
         "[package]\nname = \"{}\"\nversion = \"0.1.0\"\nedition = \"2026\"\n\n[dependencies]\n",
         name
     );
-    fs::write(out_dir.join("dalan.toml"), toml_content).map_err(|e| format!("Cannot write dalan.toml: {}", e))?;
+    fs::write(out_dir.join("dalan.toml"), toml_content)
+        .map_err(|e| format!("Cannot write dalan.toml: {}", e))?;
     println!("  Created dalan.toml");
 
     let main_code = if lib_only {
@@ -137,17 +151,27 @@ fn cmd_init(args: &HashMap<String, String>) -> Result<(), String> {
     } else {
         "@main\nfn main() -> Int {\n    println(\"Hello, Dalin L 3.0!\");\n    return 0;\n}"
     };
-    fs::write(out_dir.join("src/main.dal"), main_code).map_err(|e| format!("Cannot write src/main.dal: {}", e))?;
+    fs::write(out_dir.join("src/main.dal"), main_code)
+        .map_err(|e| format!("Cannot write src/main.dal: {}", e))?;
     println!("  Created src/main.dal");
 
     let test_code = "?test\nfn test_basic() -> Bool { return true; }\n";
-    fs::write(out_dir.join("tests/basic_test.dal"), test_code).map_err(|e| format!("Cannot write tests/basic_test.dal: {}", e))?;
+    fs::write(out_dir.join("tests/basic_test.dal"), test_code)
+        .map_err(|e| format!("Cannot write tests/basic_test.dal: {}", e))?;
     println!("  Created tests/basic_test.dal");
 
-    fs::write(out_dir.join(".gitignore"), "target/\n.dalan/\n*.rlib\n*.lock\n").map_err(|e| format!("Cannot write .gitignore: {}", e))?;
+    fs::write(
+        out_dir.join(".gitignore"),
+        "target/\n.dalan/\n*.rlib\n*.lock\n",
+    )
+    .map_err(|e| format!("Cannot write .gitignore: {}", e))?;
     println!("  Created .gitignore");
 
-    println!("\n  Project '{}' initialized at {}\n", name, out_dir.display());
+    println!(
+        "\n  Project '{}' initialized at {}\n",
+        name,
+        out_dir.display()
+    );
     Ok(())
 }
 
@@ -187,7 +211,10 @@ fn cmd_add(args: &HashMap<String, String>) -> Result<(), String> {
         None => "".to_string(),
     };
 
-    println!("  Added {} {}{} (optional={})", name, version, src_display, optional);
+    println!(
+        "  Added {} {}{} (optional={})",
+        name, version, src_display, optional
+    );
     Ok(())
 }
 
@@ -224,11 +251,15 @@ fn cmd_list(args: &HashMap<String, String>) -> Result<(), String> {
         print!("{{\n  \"dependencies\": {{");
         let mut first = true;
         for (name, dep) in &manifest.deps {
-            if !first { print!(","); }
+            if !first {
+                print!(",");
+            }
             first = false;
             println!();
-            print!("    \"{}\": {{\"version\": \"{}\", \"optional\": {}, \"source\": {:?}",
-                name, dep.version, dep.optional, dep.source);
+            print!(
+                "    \"{}\": {{\"version\": \"{}\", \"optional\": {}, \"source\": {:?}",
+                name, dep.version, dep.optional, dep.source
+            );
         }
         println!("\n  }}\n}}");
         return Ok(());
@@ -259,15 +290,18 @@ fn cmd_build(_args: &HashMap<String, String>) -> Result<(), String> {
     let toml_path = find_dalan_toml(&PathBuf::from("."))?;
     let manifest = read_manifest(&toml_path)?;
 
-    println!("  Resolving dependencies for '{}' v{}...", manifest.name, manifest.version);
+    println!(
+        "  Resolving dependencies for '{}' v{}...",
+        manifest.name, manifest.version
+    );
 
     let mut graph = DependencyGraph::new();
     for (name, dep) in &manifest.deps {
-        let ver = SemVer::parse(dep.version.trim_matches('"'))
-            .unwrap_or_else(|_| SemVer::new(1, 0, 0));
-        
+        let ver =
+            SemVer::parse(dep.version.trim_matches('"')).unwrap_or_else(|_| SemVer::new(1, 0, 0));
+
         let available_versions = vec![ver];
-        
+
         let pkg_info = PackageInfo {
             name: name.clone(),
             description: None,
@@ -288,7 +322,10 @@ fn cmd_build(_args: &HashMap<String, String>) -> Result<(), String> {
     let mut lock_lines = Vec::new();
     lock_lines.push("# Dalin L Package Lock".to_string());
     lock_lines.push("# This file is auto-generated by `dalib pkg build`".to_string());
-    lock_lines.push(format!("# Package: {} v{}", manifest.name, manifest.version));
+    lock_lines.push(format!(
+        "# Package: {} v{}",
+        manifest.name, manifest.version
+    ));
     lock_lines.push("".to_string());
     for (name, ver) in &resolved {
         lock_lines.push(format!("{}@{}", name, ver));
@@ -315,9 +352,10 @@ fn cmd_build(_args: &HashMap<String, String>) -> Result<(), String> {
         for entry in entries.flatten() {
             let path = entry.path();
             if let Some(ext) = path.extension()
-                && ext == "dal" {
-                    count += 1;
-                }
+                && ext == "dal"
+            {
+                count += 1;
+            }
         }
         println!("  Compiled {} stdlib modules", count);
     } else {

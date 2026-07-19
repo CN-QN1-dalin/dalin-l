@@ -26,11 +26,18 @@ pub fn run() -> Result<(), String> {
                     let specs = task_spec::from_program(&prog);
                     println!("=== TaskSpec ===");
                     for s in &specs {
-                        println!("  {} : effect={:?} capability={:?}", s.fn_id, s.effect, s.capability);
+                        println!(
+                            "  {} : effect={:?} capability={:?}",
+                            s.fn_id, s.effect, s.capability
+                        );
                     }
                     if let Some(parent) = specs.iter().find(|s| s.fn_id == "fan_out") {
-                        let child = parent.spawn_child("worker", ty2::Effect::Io, ty2::Capability::Cpu);
-                        println!("\n  spawn: {} -> parent={:?}", child.fn_id, child.parent_task);
+                        let child =
+                            parent.spawn_child("worker", ty2::Effect::Io, ty2::Capability::Cpu);
+                        println!(
+                            "\n  spawn: {} -> parent={:?}",
+                            child.fn_id, child.parent_task
+                        );
                     }
                 }
                 Err(e) => println!("  Parse error: {}", e),

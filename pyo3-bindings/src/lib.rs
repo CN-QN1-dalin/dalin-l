@@ -13,21 +13,20 @@ use dalin_runtime::interpreter;
 #[pyfunction]
 fn compile(source: &str) -> PyResult<String> {
     let mut lex = Lexer::new(source);
-    let tokens = lex.tokenize().map_err(|e| {
-        PyErr::new::<pyo3::exceptions::PySyntaxError, _>(format!("词法错误: {e}"))
-    })?;
+    let tokens = lex
+        .tokenize()
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PySyntaxError, _>(format!("词法错误: {e}")))?;
     let mut parser = Parser::new(tokens);
-    let prog = parser.parse().map_err(|e| {
-        PyErr::new::<pyo3::exceptions::PySyntaxError, _>(format!("语法错误: {e}"))
-    })?;
-    let names: Vec<String> = prog.statements.iter()
-        .map(|s| format!("{s:?}"))
-        .collect();
+    let prog = parser
+        .parse()
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PySyntaxError, _>(format!("语法错误: {e}")))?;
+    let names: Vec<String> = prog.statements.iter().map(|s| format!("{s:?}")).collect();
     Ok(serde_json::json!({
         "ok": true,
         "stmt_count": names.len(),
         "statements": names,
-    }).to_string())
+    })
+    .to_string())
 }
 
 /// 在三通道类型系统中查询能力格的偏序关系。
@@ -60,7 +59,8 @@ fn parse_confidence(s: &str) -> String {
         "generated" => "generated",
         "uncertain" => "uncertain",
         _ => "uncertain",
-    }.to_string()
+    }
+    .to_string()
 }
 
 /// 执行 Dalin L 源代码并返回结果。
@@ -72,14 +72,14 @@ fn run(source: &str) -> PyResult<String> {
             Ok(serde_json::json!({
                 "ok": true,
                 "results": strs,
-            }).to_string())
+            })
+            .to_string())
         }
-        Err(e) => {
-            Ok(serde_json::json!({
-                "ok": false,
-                "error": e.to_string(),
-            }).to_string())
-        }
+        Err(e) => Ok(serde_json::json!({
+            "ok": false,
+            "error": e.to_string(),
+        })
+        .to_string()),
     }
 }
 
@@ -88,12 +88,11 @@ fn run(source: &str) -> PyResult<String> {
 fn run_with_tree(source: &str) -> PyResult<String> {
     match interpreter::run_source_with_tree(source) {
         Ok(tree_json) => Ok(tree_json),
-        Err(e) => {
-            Ok(serde_json::json!({
-                "ok": false,
-                "error": e.to_string(),
-            }).to_string())
-        }
+        Err(e) => Ok(serde_json::json!({
+            "ok": false,
+            "error": e.to_string(),
+        })
+        .to_string()),
     }
 }
 

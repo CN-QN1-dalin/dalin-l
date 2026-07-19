@@ -75,7 +75,8 @@ impl ModuleTree {
             }
         }
         let module_name = module.name.clone();
-        self.path_index.insert(module_name.clone(), vec![module_name]);
+        self.path_index
+            .insert(module_name.clone(), vec![module_name]);
     }
 
     pub fn insert_use(&mut self, imp: ImportItem) {
@@ -85,9 +86,11 @@ impl ModuleTree {
     }
 
     pub fn register_fn(&mut self, name: &str, _module_path: &[String]) {
-        let idx = self.root.items.iter().position(|item| {
-            matches!(item, ModuleItem::Function(n) if n == name)
-        });
+        let idx = self
+            .root
+            .items
+            .iter()
+            .position(|item| matches!(item, ModuleItem::Function(n) if n == name));
         if idx.is_none() {
             self.root.items.push(ModuleItem::Function(name.to_string()));
         }
@@ -166,7 +169,8 @@ impl ModuleNode {
     }
 
     pub fn exported_items(&self) -> Vec<&str> {
-        self.items.iter()
+        self.items
+            .iter()
             .filter_map(|item| match item {
                 ModuleItem::Function(name) => Some(name.as_str()),
                 ModuleItem::Struct(name) => Some(name.as_str()),
@@ -195,7 +199,9 @@ impl Default for DependencyGraph {
 
 impl DependencyGraph {
     pub fn new() -> Self {
-        Self { modules: HashMap::new() }
+        Self {
+            modules: HashMap::new(),
+        }
     }
 
     pub fn add_module(&mut self, name: &str, deps: Vec<String>) {
@@ -213,7 +219,12 @@ impl DependencyGraph {
         false
     }
 
-    fn has_cycle_util(&self, name: &str, visited: &mut HashSet<String>, rec_stack: &mut HashSet<String>) -> bool {
+    fn has_cycle_util(
+        &self,
+        name: &str,
+        visited: &mut HashSet<String>,
+        rec_stack: &mut HashSet<String>,
+    ) -> bool {
         visited.insert(name.to_string());
         rec_stack.insert(name.to_string());
 
@@ -252,7 +263,8 @@ impl DependencyGraph {
             }
         }
 
-        let mut queue: Vec<String> = in_degree.iter()
+        let mut queue: Vec<String> = in_degree
+            .iter()
             .filter(|(_, deg)| **deg == 0)
             .map(|(k, _)| k.clone())
             .collect();
@@ -264,13 +276,14 @@ impl DependencyGraph {
             // Remove this node: find all modules that depend on 'node' and decrease their in_degree
             for (mod_name, deps) in &self.modules {
                 if deps.contains(&node)
-                    && let Some(deg) = in_degree.get_mut(mod_name) {
-                        *deg -= 1;
-                        if *deg == 0 {
-                            queue.push(mod_name.clone());
-                            queue.sort();
-                        }
+                    && let Some(deg) = in_degree.get_mut(mod_name)
+                {
+                    *deg -= 1;
+                    if *deg == 0 {
+                        queue.push(mod_name.clone());
+                        queue.sort();
                     }
+                }
             }
         }
 
@@ -295,11 +308,16 @@ pub struct SymbolLocation {
 
 impl std::fmt::Display for SymbolLocation {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}::{} ({})", self.module, self.item_type,
+        write!(
+            f,
+            "{}::{} ({})",
+            self.module,
+            self.item_type,
             match &self.visibility {
                 Visibility::Private => "private",
                 Visibility::Pub => "pub",
-            })
+            }
+        )
     }
 }
 
@@ -316,7 +334,9 @@ impl Default for Namespace {
 
 impl Namespace {
     pub fn new() -> Self {
-        Self { names: HashMap::new() }
+        Self {
+            names: HashMap::new(),
+        }
     }
 
     pub fn register(&mut self, name: &str, location: SymbolLocation) -> Result<(), String> {
@@ -352,12 +372,13 @@ impl Namespace {
         let mut conflicts = Vec::new();
         for import_name in imports {
             if let Some(loc) = self.names.get(import_name)
-                && loc.module != source_module {
-                    conflicts.push(format!(
-                        "{}: 导入 '{}' 与来自 {} 的定义冲突",
-                        source_module, import_name, loc.module
-                    ));
-                }
+                && loc.module != source_module
+            {
+                conflicts.push(format!(
+                    "{}: 导入 '{}' 与来自 {} 的定义冲突",
+                    source_module, import_name, loc.module
+                ));
+            }
         }
         conflicts
     }
@@ -371,43 +392,76 @@ pub fn parse_module_from_source(source: &str, module_name: &str) -> ModuleDecl {
     let mut items = Vec::new();
     for line in source.lines() {
         let line = line.trim();
-        if line.is_empty() || line.starts_with("//") || line.starts_with("/*") { continue; }
+        if line.is_empty() || line.starts_with("//") || line.starts_with("/*") {
+            continue;
+        }
 
         if let Some(body) = line.strip_prefix("pub mod ") {
             let name = body.trim_end_matches(';').trim_end_matches('{');
             items.push(ModuleItem::Module(ModuleDecl {
-                name: name.to_string(), visibility: Visibility::Pub,
-                is_inline: line.contains('{'), items: Vec::new(),
+                name: name.to_string(),
+                visibility: Visibility::Pub,
+                is_inline: line.contains('{'),
+                items: Vec::new(),
             }));
         } else if let Some(body) = line.strip_prefix("mod ") {
             let name = body.trim_end_matches(';').trim_end_matches('{');
             items.push(ModuleItem::Module(ModuleDecl {
-                name: name.to_string(), visibility: Visibility::Private,
-                is_inline: line.contains('{'), items: Vec::new(),
+                name: name.to_string(),
+                visibility: Visibility::Private,
+                is_inline: line.contains('{'),
+                items: Vec::new(),
             }));
         } else if let Some(body) = line.strip_prefix("pub use ") {
-            let path: Vec<String> = body.trim_end_matches(';').split("::").map(|s| s.to_string()).collect();
+            let path: Vec<String> = body
+                .trim_end_matches(';')
+                .split("::")
+                .map(|s| s.to_string())
+                .collect();
             items.push(ModuleItem::Use(ImportItem {
-                path, alias: None, visibility: Visibility::Pub,
+                path,
+                alias: None,
+                visibility: Visibility::Pub,
             }));
         } else if let Some(body) = line.strip_prefix("use ") {
-            let path: Vec<String> = body.trim_end_matches(';').split("::").map(|s| s.to_string()).collect();
+            let path: Vec<String> = body
+                .trim_end_matches(';')
+                .split("::")
+                .map(|s| s.to_string())
+                .collect();
             items.push(ModuleItem::Use(ImportItem {
-                path, alias: None, visibility: Visibility::Private,
+                path,
+                alias: None,
+                visibility: Visibility::Private,
             }));
-        } else if let Some(body) = line.strip_prefix("pub fn ").or_else(|| line.strip_prefix("fn ")) {
+        } else if let Some(body) = line
+            .strip_prefix("pub fn ")
+            .or_else(|| line.strip_prefix("fn "))
+        {
             let name = extract_name(body);
             items.push(ModuleItem::Function(name));
-        } else if let Some(body) = line.strip_prefix("pub struct ").or_else(|| line.strip_prefix("struct ")) {
+        } else if let Some(body) = line
+            .strip_prefix("pub struct ")
+            .or_else(|| line.strip_prefix("struct "))
+        {
             let name = extract_name(body);
             items.push(ModuleItem::Struct(name));
-        } else if let Some(body) = line.strip_prefix("pub enum ").or_else(|| line.strip_prefix("enum ")) {
+        } else if let Some(body) = line
+            .strip_prefix("pub enum ")
+            .or_else(|| line.strip_prefix("enum "))
+        {
             let name = extract_name(body);
             items.push(ModuleItem::Enum(name));
-        } else if let Some(body) = line.strip_prefix("pub trait ").or_else(|| line.strip_prefix("trait ")) {
+        } else if let Some(body) = line
+            .strip_prefix("pub trait ")
+            .or_else(|| line.strip_prefix("trait "))
+        {
             let name = extract_name(body);
             items.push(ModuleItem::Trait(name));
-        } else if let Some(body) = line.strip_prefix("pub const ").or_else(|| line.strip_prefix("const ")) {
+        } else if let Some(body) = line
+            .strip_prefix("pub const ")
+            .or_else(|| line.strip_prefix("const "))
+        {
             let name = extract_name(body);
             items.push(ModuleItem::Const(name));
         } else if line.starts_with("type ") {
@@ -416,8 +470,10 @@ pub fn parse_module_from_source(source: &str, module_name: &str) -> ModuleDecl {
         }
     }
     ModuleDecl {
-        name: module_name.to_string(), visibility: Visibility::Private,
-        is_inline: false, items,
+        name: module_name.to_string(),
+        visibility: Visibility::Private,
+        is_inline: false,
+        items,
     }
 }
 
@@ -441,12 +497,19 @@ pub struct ModuleResolver {
 
 impl ModuleResolver {
     pub fn new(base_dir: PathBuf) -> Self {
-        Self { base_dir, loaded_modules: HashMap::new(), module_paths: HashMap::new() }
+        Self {
+            base_dir,
+            loaded_modules: HashMap::new(),
+            module_paths: HashMap::new(),
+        }
     }
 
     pub fn resolve(&mut self, module_name: &str) -> Result<&ModuleDecl, String> {
         if self.loaded_modules.contains_key(module_name) {
-            return self.loaded_modules.get(module_name).ok_or_else(|| format!("module '{}' not found in cache", module_name));
+            return self
+                .loaded_modules
+                .get(module_name)
+                .ok_or_else(|| format!("module '{}' not found in cache", module_name));
         }
         // Mock: create empty module declaration
         let decl = ModuleDecl {
@@ -458,7 +521,9 @@ impl ModuleResolver {
         let path = self.base_dir.join(format!("{}.dalin", module_name));
         self.loaded_modules.insert(module_name.to_string(), decl);
         self.module_paths.insert(module_name.to_string(), path);
-        self.loaded_modules.get(module_name).ok_or_else(|| format!("module '{}' not found after insert", module_name))
+        self.loaded_modules
+            .get(module_name)
+            .ok_or_else(|| format!("module '{}' not found after insert", module_name))
     }
 
     pub fn resolve_all(&mut self, module_name: &str) -> Result<Vec<String>, String> {
@@ -479,14 +544,17 @@ impl ModuleResolver {
         }
         let decl = self.resolve(module_name)?;
         // Collect sub-module names to resolve
-        let sub_names: Vec<String> = decl.items.iter()
+        let sub_names: Vec<String> = decl
+            .items
+            .iter()
             .filter_map(|item| {
                 if let ModuleItem::Module(sub) = item {
                     Some(sub.name.clone())
                 } else {
                     None
                 }
-            }).collect();
+            })
+            .collect();
         for sub_name in sub_names {
             self.resolve_recursive(&sub_name, order, visited)?;
         }
@@ -520,8 +588,10 @@ mod tests {
     fn test_insert_module() {
         let mut tree = ModuleTree::new("main");
         tree.insert(ModuleDecl {
-            name: "utils".to_string(), visibility: Visibility::Private,
-            is_inline: false, items: Vec::new(),
+            name: "utils".to_string(),
+            visibility: Visibility::Private,
+            is_inline: false,
+            items: Vec::new(),
         });
         assert_eq!(tree.root.items.len(), 1);
         assert!(tree.path_index.contains_key("utils"));
@@ -531,17 +601,22 @@ mod tests {
     fn test_register_function() {
         let mut tree = ModuleTree::new("main");
         tree.register_fn("add", &["main".to_string()]);
-        assert!(tree.root.items.iter().any(|item| {
-            matches!(item, ModuleItem::Function(name) if name == "add")
-        }));
+        assert!(
+            tree.root
+                .items
+                .iter()
+                .any(|item| { matches!(item, ModuleItem::Function(name) if name == "add") })
+        );
     }
 
     #[test]
     fn test_resolve_known_module() {
         let mut tree = ModuleTree::new("main");
         tree.insert(ModuleDecl {
-            name: "std".to_string(), visibility: Visibility::Pub,
-            is_inline: false, items: Vec::new(),
+            name: "std".to_string(),
+            visibility: Visibility::Pub,
+            is_inline: false,
+            items: Vec::new(),
         });
         let result = tree.resolve_path(&["std".to_string()]);
         assert!(matches!(result, ResolveResult::Resolved(_)));
@@ -580,10 +655,15 @@ mod tests {
     #[test]
     fn test_namespace_register_and_lookup() {
         let mut ns = Namespace::new();
-        ns.register("add", SymbolLocation {
-            module: "math".to_string(), item_type: "fn".to_string(),
-            visibility: Visibility::Private,
-        }).unwrap();
+        ns.register(
+            "add",
+            SymbolLocation {
+                module: "math".to_string(),
+                item_type: "fn".to_string(),
+                visibility: Visibility::Private,
+            },
+        )
+        .unwrap();
         let loc = ns.lookup("add");
         assert!(loc.is_some());
         assert_eq!(loc.unwrap().module, "math");
@@ -592,14 +672,23 @@ mod tests {
     #[test]
     fn test_namespace_conflict_detection() {
         let mut ns = Namespace::new();
-        ns.register("foo", SymbolLocation {
-            module: "a".to_string(), item_type: "fn".to_string(),
-            visibility: Visibility::Private,
-        }).unwrap();
-        let result = ns.register("foo", SymbolLocation {
-            module: "b".to_string(), item_type: "fn".to_string(),
-            visibility: Visibility::Private,
-        });
+        ns.register(
+            "foo",
+            SymbolLocation {
+                module: "a".to_string(),
+                item_type: "fn".to_string(),
+                visibility: Visibility::Private,
+            },
+        )
+        .unwrap();
+        let result = ns.register(
+            "foo",
+            SymbolLocation {
+                module: "b".to_string(),
+                item_type: "fn".to_string(),
+                visibility: Visibility::Private,
+            },
+        );
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("命名冲突"));
     }
@@ -607,15 +696,25 @@ mod tests {
     #[test]
     fn test_namespace_merge() {
         let mut ns1 = Namespace::new();
-        ns1.register("bar", SymbolLocation {
-            module: "module_x".to_string(), item_type: "fn".to_string(),
-            visibility: Visibility::Private,
-        }).unwrap();
+        ns1.register(
+            "bar",
+            SymbolLocation {
+                module: "module_x".to_string(),
+                item_type: "fn".to_string(),
+                visibility: Visibility::Private,
+            },
+        )
+        .unwrap();
         let mut ns2 = Namespace::new();
-        ns2.register("baz", SymbolLocation {
-            module: "module_y".to_string(), item_type: "fn".to_string(),
-            visibility: Visibility::Private,
-        }).unwrap();
+        ns2.register(
+            "baz",
+            SymbolLocation {
+                module: "module_y".to_string(),
+                item_type: "fn".to_string(),
+                visibility: Visibility::Private,
+            },
+        )
+        .unwrap();
         let conflicts = ns1.merge(&ns2);
         assert!(conflicts.is_empty());
         assert!(ns1.lookup("bar").is_some());
@@ -625,15 +724,25 @@ mod tests {
     #[test]
     fn test_namespace_merge_with_conflict() {
         let mut ns1 = Namespace::new();
-        ns1.register("shared", SymbolLocation {
-            module: "alpha".to_string(), item_type: "fn".to_string(),
-            visibility: Visibility::Private,
-        }).unwrap();
+        ns1.register(
+            "shared",
+            SymbolLocation {
+                module: "alpha".to_string(),
+                item_type: "fn".to_string(),
+                visibility: Visibility::Private,
+            },
+        )
+        .unwrap();
         let mut ns2 = Namespace::new();
-        ns2.register("shared", SymbolLocation {
-            module: "beta".to_string(), item_type: "fn".to_string(),
-            visibility: Visibility::Private,
-        }).unwrap();
+        ns2.register(
+            "shared",
+            SymbolLocation {
+                module: "beta".to_string(),
+                item_type: "fn".to_string(),
+                visibility: Visibility::Private,
+            },
+        )
+        .unwrap();
         let conflicts = ns1.merge(&ns2);
         assert!(conflicts.contains(&"shared".to_string()));
     }
@@ -644,15 +753,19 @@ mod tests {
 mod utils;\npub mod core;\nfn helper() { }\npub fn main() -> int { return 0 }\nstruct Point { x: int, y: int }\nenum Color { Red, Green, Blue }\n";
         let decl = parse_module_from_source(source, "my_mod");
         assert_eq!(decl.name, "my_mod");
-        assert!(decl.items.iter().any(|item| {
-            matches!(item, ModuleItem::Module(m) if m.name == "utils")
-        }));
+        assert!(
+            decl.items
+                .iter()
+                .any(|item| { matches!(item, ModuleItem::Module(m) if m.name == "utils") })
+        );
         assert!(decl.items.iter().any(|item| {
             matches!(item, ModuleItem::Module(m) if m.name == "core" && matches!(m.visibility, Visibility::Pub))
         }));
-        assert!(decl.items.iter().any(|item| {
-            matches!(item, ModuleItem::Function(name) if name == "helper")
-        }));
+        assert!(
+            decl.items
+                .iter()
+                .any(|item| { matches!(item, ModuleItem::Function(name) if name == "helper") })
+        );
     }
 
     #[test]
@@ -674,10 +787,14 @@ mod utils;\npub mod core;\nfn helper() { }\npub fn main() -> int { return 0 }\ns
     fn test_resolver_cached_module() {
         let mut resolver = ModuleResolver::new(PathBuf::from("/tmp/test"));
         let mock_decl = ModuleDecl {
-            name: "cached".to_string(), visibility: Visibility::Private,
-            is_inline: false, items: Vec::new(),
+            name: "cached".to_string(),
+            visibility: Visibility::Private,
+            is_inline: false,
+            items: Vec::new(),
         };
-        resolver.loaded_modules.insert("cached".to_string(), mock_decl);
+        resolver
+            .loaded_modules
+            .insert("cached".to_string(), mock_decl);
         let mods = resolver.list_modules();
         assert_eq!(mods, vec!["cached".to_string()]);
     }
@@ -698,8 +815,10 @@ mod utils;\npub mod core;\nfn helper() { }\npub fn main() -> int { return 0 }\ns
                 ModuleItem::Function("sub".to_string()),
                 ModuleItem::Struct("Point".to_string()),
                 ModuleItem::Module(ModuleDecl {
-                    name: "internal".to_string(), visibility: Visibility::Private,
-                    is_inline: false, items: vec![],
+                    name: "internal".to_string(),
+                    visibility: Visibility::Private,
+                    is_inline: false,
+                    items: vec![],
                 }),
             ],
             visibility: Visibility::Private,
@@ -723,7 +842,9 @@ mod utils;\npub mod core;\nfn helper() { }\npub fn main() -> int { return 0 }\ns
     fn test_skip_comments_and_empty_lines() {
         let source = "// comment\nfn foo() { }\n\nfn bar() { }";
         let decl = parse_module_from_source(source, "comment_test");
-        let fn_count = decl.items.iter()
+        let fn_count = decl
+            .items
+            .iter()
             .filter(|item| matches!(item, ModuleItem::Function(_)))
             .count();
         assert_eq!(fn_count, 2);

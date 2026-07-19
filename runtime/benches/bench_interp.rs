@@ -1,4 +1,4 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, black_box, criterion_group, criterion_main};
 use dalin_compiler::{lexer, parser};
 use dalin_runtime::interpreter::Interpreter;
 
@@ -59,5 +59,10 @@ fn sum(n: int) -> int {
     });
 }
 
-criterion_group!(benches, bench_interp_compile_and_run_simple, bench_interp_binary_ops, bench_interp_loops);
+criterion_group!(
+    benches,
+    bench_interp_compile_and_run_simple,
+    bench_interp_binary_ops,
+    bench_interp_loops
+);
 criterion_main!(benches);

@@ -8,24 +8,24 @@ use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 
 use futures_core::Stream;
-use tokio_stream::wrappers::BroadcastStream;
 use tokio_stream::StreamExt;
-use tonic::{async_trait, Request, Response, Status};
+use tokio_stream::wrappers::BroadcastStream;
+use tonic::{Request, Response, Status, async_trait};
 
 use crate::agent_registry::{AgentRegistryService, NodeRegistry};
 use crate::agent_registry_server::AgentRegistryServer;
 use crate::control_plane_server::{ControlPlane, ControlPlaneServer};
-use crate::dispatch::{build_dispatch_task, DispatchBroker};
+use crate::dispatch::{DispatchBroker, build_dispatch_task};
 use crate::effect_monitor::EffectMonitor;
+use crate::registry::{TaskEvent, TaskRecord, TaskStatus};
+use crate::scheduler::{Capability, CapabilityScheduler, Placement};
+use crate::store::TaskStore;
+use crate::transport::EventBus;
 use crate::{
     CancelTaskRequest, CancelTaskResponse, GetTaskRequest, GetTaskResponse, ListTasksRequest,
     ListTasksResponse, SubmitTaskRequest, SubmitTaskResponse, Task, TaskSpec as PbTaskSpec,
     TaskStatus as PbTaskStatus,
 };
-use crate::registry::{TaskEvent, TaskRecord, TaskStatus};
-use crate::scheduler::{Capability, CapabilityScheduler, Placement};
-use crate::store::TaskStore;
-use crate::transport::EventBus;
 
 pub struct ControlPlaneService {
     registry: Arc<dyn TaskStore>,
@@ -84,7 +84,11 @@ impl ControlPlane for ControlPlaneService {
         req: Request<SubmitTaskRequest>,
     ) -> Result<Response<SubmitTaskResponse>, Status> {
         let r = req.into_inner();
-        let effect = r.spec.as_ref().map(|s| s.effect.clone()).unwrap_or_default();
+        let effect = r
+            .spec
+            .as_ref()
+            .map(|s| s.effect.clone())
+            .unwrap_or_default();
         let capability = r
             .spec
             .as_ref()
@@ -104,10 +108,11 @@ impl ControlPlane for ControlPlaneService {
         // 效应检查：任务的效应必须在上下文允许范围内
         // pure 上下文禁 spawn/io/async，spawn 上下文允许 spawn
         let mut monitor = EffectMonitor::new();
-        monitor.set_context("spawn");  // 控制面上下文默认为 spawn（可派生任何子任务）
+        monitor.set_context("spawn"); // 控制面上下文默认为 spawn（可派生任何子任务）
         if let Err(v) = monitor.check_effect(&effect) {
             return Err(Status::failed_precondition(format!(
-                "效应违规: {v} (task={}, effect={})", r.name, effect
+                "效应违规: {v} (task={}, effect={})",
+                r.name, effect
             )));
         }
 
@@ -127,12 +132,18 @@ impl ControlPlane for ControlPlaneService {
             .await;
         if let Some(n) = &node {
             self.registry.assign_node(&rec.id, n).await;
-            self.registry.set_status(&rec.id, TaskStatus::Scheduled).await;
+            self.registry
+                .set_status(&rec.id, TaskStatus::Scheduled)
+                .await;
         }
 
         // 通过 DispatchBroker 派发任务
         let task_id = rec.id.clone();
-        let parent_opt = if r.parent.is_empty() { None } else { Some(r.parent.clone()) };
+        let parent_opt = if r.parent.is_empty() {
+            None
+        } else {
+            Some(r.parent.clone())
+        };
         let dt = build_dispatch_task(&task_id, &r.name, &effect, &capability, parent_opt);
         if let Err(e) = self.dispatch.dispatch(&dt).await {
             eprintln!("[cp] dispatch error: {e}");
@@ -187,10 +198,11 @@ impl ControlPlane for ControlPlaneService {
         // 释放被取消任务占用的节点并发槽
         if ok
             && let Some(rec) = self.registry.get(&id).await
-                && let Some(node) = &rec.node {
-                    let sched = self.scheduler.lock().unwrap();
-                    sched.release(node);
-                }
+            && let Some(node) = &rec.node
+        {
+            let sched = self.scheduler.lock().unwrap();
+            sched.release(node);
+        }
         Ok(Response::new(CancelTaskResponse { ok }))
     }
 

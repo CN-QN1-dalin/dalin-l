@@ -6,7 +6,7 @@
 
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::{broadcast, Mutex};
+use tokio::sync::{Mutex, broadcast};
 
 use crate::store::TaskStore;
 use async_trait::async_trait;
@@ -92,9 +92,10 @@ impl TaskStore for InMemoryTaskStore {
         let mut g = self.inner.lock().await;
         let idem_key = format!("{}/{}", parent.unwrap_or(""), idempotency_key);
         if let Some(id) = g.idem.get(&idem_key)
-            && let Some(existing) = g.tasks.get(id) {
-                return existing.clone();
-            }
+            && let Some(existing) = g.tasks.get(id)
+        {
+            return existing.clone();
+        }
         let id = uuid::Uuid::new_v4().to_string();
         let rec = TaskRecord {
             id: id.clone(),

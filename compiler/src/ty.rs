@@ -22,7 +22,9 @@ impl Default for TypeVar {
 impl TypeVar {
     pub fn new() -> Self {
         let n = TYPE_VAR_COUNTER.fetch_add(1, Ordering::SeqCst);
-        Self { id: format!("α{}", n) }
+        Self {
+            id: format!("α{}", n),
+        }
     }
 }
 
@@ -59,11 +61,17 @@ impl Default for TypeEnv {
 
 impl TypeEnv {
     pub fn new() -> Self {
-        Self { types: HashMap::new(), parent: None }
+        Self {
+            types: HashMap::new(),
+            parent: None,
+        }
     }
 
     pub fn child(&self) -> Self {
-        Self { types: HashMap::new(), parent: Some(Box::new(self.clone())) }
+        Self {
+            types: HashMap::new(),
+            parent: Some(Box::new(self.clone())),
+        }
     }
 
     pub fn declare(&mut self, name: &str, typ: TypeOrVar) {
@@ -96,12 +104,24 @@ impl std::fmt::Display for TypeError {
 
 // ── 内置类型常量 ──
 
-pub fn int_type() -> TypeRef { TypeRef::new(BaseType::Int) }
-pub fn float_type() -> TypeRef { TypeRef::new(BaseType::Float) }
-pub fn string_type() -> TypeRef { TypeRef::new(BaseType::String) }
-pub fn bool_type() -> TypeRef { TypeRef::new(BaseType::Bool) }
-pub fn none_type() -> TypeRef { TypeRef::new(BaseType::None) }
-pub fn unknown_type() -> TypeRef { TypeRef::new(BaseType::Unknown) }
+pub fn int_type() -> TypeRef {
+    TypeRef::new(BaseType::Int)
+}
+pub fn float_type() -> TypeRef {
+    TypeRef::new(BaseType::Float)
+}
+pub fn string_type() -> TypeRef {
+    TypeRef::new(BaseType::String)
+}
+pub fn bool_type() -> TypeRef {
+    TypeRef::new(BaseType::Bool)
+}
+pub fn none_type() -> TypeRef {
+    TypeRef::new(BaseType::None)
+}
+pub fn unknown_type() -> TypeRef {
+    TypeRef::new(BaseType::Unknown)
+}
 
 fn is_numeric(base: &BaseType) -> bool {
     matches!(base, BaseType::Int | BaseType::Float)
@@ -109,8 +129,13 @@ fn is_numeric(base: &BaseType) -> bool {
 
 #[allow(dead_code)] // HM 引擎预留：比较类算子的类型校验辅助
 fn can_compare(a: &TypeRef, b: &TypeRef) -> bool {
-    matches!(a.base, BaseType::Int | BaseType::Float | BaseType::String | BaseType::Bool | BaseType::Char) &&
-        matches!(b.base, BaseType::Int | BaseType::Float | BaseType::String | BaseType::Bool | BaseType::Char)
+    matches!(
+        a.base,
+        BaseType::Int | BaseType::Float | BaseType::String | BaseType::Bool | BaseType::Char
+    ) && matches!(
+        b.base,
+        BaseType::Int | BaseType::Float | BaseType::String | BaseType::Bool | BaseType::Char
+    )
 }
 
 // ── Unification ──
@@ -120,17 +145,29 @@ fn occurs_check(tv: &TypeVar, typ: &TypeOrVar) -> bool {
         TypeOrVar::Variable(other) => tv.id == other.id,
         TypeOrVar::Concrete(t) => {
             if let Some(arg) = &t.generic_arg
-                && occurs_check(tv, &TypeOrVar::Concrete(*arg.clone())) { return true; }
+                && occurs_check(tv, &TypeOrVar::Concrete(*arg.clone()))
+            {
+                return true;
+            }
             if let Some(err) = &t.result_err
-                && occurs_check(tv, &TypeOrVar::Concrete(*err.clone())) { return true; }
+                && occurs_check(tv, &TypeOrVar::Concrete(*err.clone()))
+            {
+                return true;
+            }
             false
         }
     }
 }
 
-fn bind(tv: &TypeVar, typ: &TypeOrVar, subst: &mut HashMap<String, TypeOrVar>) -> Result<(), TypeError> {
+fn bind(
+    tv: &TypeVar,
+    typ: &TypeOrVar,
+    subst: &mut HashMap<String, TypeOrVar>,
+) -> Result<(), TypeError> {
     if occurs_check(tv, typ) {
-        return Err(TypeError { message: format!("Infinite type: {} occurs in {}", tv.id, typ) });
+        return Err(TypeError {
+            message: format!("Infinite type: {} occurs in {}", tv.id, typ),
+        });
     }
     subst.insert(tv.id.clone(), typ.clone());
     Ok(())
@@ -146,22 +183,38 @@ fn apply_subst_local(subst: &HashMap<String, TypeOrVar>, typ: &TypeOrVar) -> Typ
             }
         }
         TypeOrVar::Concrete(t) => {
-            let new_generic = t.generic_arg.as_ref()
+            let new_generic = t
+                .generic_arg
+                .as_ref()
                 .map(|a| apply_subst_local(subst, &TypeOrVar::Concrete(*a.clone())));
-            let new_err = t.result_err.as_ref()
+            let new_err = t
+                .result_err
+                .as_ref()
                 .map(|e| apply_subst_local(subst, &TypeOrVar::Concrete(*e.clone())));
             match (new_generic, new_err) {
-                (Some(TypeOrVar::Concrete(g)), Some(TypeOrVar::Concrete(e))) =>
-                    TypeOrVar::Concrete(TypeRef { base: t.base.clone(), generic_arg: Some(Box::new(g)), result_err: Some(Box::new(e)) }),
-                (Some(TypeOrVar::Concrete(g)), None) =>
-                    TypeOrVar::Concrete(TypeRef { base: t.base.clone(), generic_arg: Some(Box::new(g)), result_err: None }),
+                (Some(TypeOrVar::Concrete(g)), Some(TypeOrVar::Concrete(e))) => {
+                    TypeOrVar::Concrete(TypeRef {
+                        base: t.base.clone(),
+                        generic_arg: Some(Box::new(g)),
+                        result_err: Some(Box::new(e)),
+                    })
+                }
+                (Some(TypeOrVar::Concrete(g)), None) => TypeOrVar::Concrete(TypeRef {
+                    base: t.base.clone(),
+                    generic_arg: Some(Box::new(g)),
+                    result_err: None,
+                }),
                 _ => typ.clone(),
             }
         }
     }
 }
 
-pub fn unify(t1: &TypeOrVar, t2: &TypeOrVar, subst: &mut HashMap<String, TypeOrVar>) -> Result<(), TypeError> {
+pub fn unify(
+    t1: &TypeOrVar,
+    t2: &TypeOrVar,
+    subst: &mut HashMap<String, TypeOrVar>,
+) -> Result<(), TypeError> {
     let t1 = apply_subst_local(subst, t1);
     let t2 = apply_subst_local(subst, t2);
 
@@ -170,15 +223,30 @@ pub fn unify(t1: &TypeOrVar, t2: &TypeOrVar, subst: &mut HashMap<String, TypeOrV
         (_, TypeOrVar::Variable(tv)) => bind(tv, &t1, subst),
         (TypeOrVar::Concrete(a), TypeOrVar::Concrete(b)) => {
             if a.base != b.base {
-                return Err(TypeError { message: format!("Type mismatch: expected {}, got {}", a, b) });
+                return Err(TypeError {
+                    message: format!("Type mismatch: expected {}, got {}", a, b),
+                });
             }
             match (&a.generic_arg, &b.generic_arg) {
-                (Some(ga), Some(gb)) => unify(&TypeOrVar::Concrete(*ga.clone()), &TypeOrVar::Concrete(*gb.clone()), subst)?,
-                (Some(_), None) | (None, Some(_)) =>
-                    return Err(TypeError { message: format!("Type mismatch: {} vs {}", a, b) }),
+                (Some(ga), Some(gb)) => unify(
+                    &TypeOrVar::Concrete(*ga.clone()),
+                    &TypeOrVar::Concrete(*gb.clone()),
+                    subst,
+                )?,
+                (Some(_), None) | (None, Some(_)) => {
+                    return Err(TypeError {
+                        message: format!("Type mismatch: {} vs {}", a, b),
+                    });
+                }
                 _ => {}
             }
-            if let (Some(ea), Some(eb)) = (&a.result_err, &b.result_err) { unify(&TypeOrVar::Concrete(*ea.clone()), &TypeOrVar::Concrete(*eb.clone()), subst)? }
+            if let (Some(ea), Some(eb)) = (&a.result_err, &b.result_err) {
+                unify(
+                    &TypeOrVar::Concrete(*ea.clone()),
+                    &TypeOrVar::Concrete(*eb.clone()),
+                    subst,
+                )?
+            }
             Ok(())
         }
     }
@@ -219,7 +287,12 @@ impl TypeInferencer {
 
     fn infer_stmt(&mut self, stmt: &Stmt) -> TypeOrVar {
         match stmt {
-            Stmt::Let { name, value, type_annotation, .. } => self.infer_let(name, value.as_deref(), type_annotation),
+            Stmt::Let {
+                name,
+                value,
+                type_annotation,
+                ..
+            } => self.infer_let(name, value.as_deref(), type_annotation),
             Stmt::Const { name, value, .. } => {
                 if let Some(v) = value {
                     let typ = self.infer_expr(v);
@@ -230,14 +303,29 @@ impl TypeInferencer {
                 }
                 TypeOrVar::Concrete(none_type())
             }
-            Stmt::Fn { name, params, return_type, body, .. } => self.infer_fn(name, params, return_type, body),
-            Stmt::If { condition, then_body, else_body } => self.infer_if(condition, then_body, else_body),
-            Stmt::For { target, iterable, body } => self.infer_for(target, iterable, body),
+            Stmt::Fn {
+                name,
+                params,
+                return_type,
+                body,
+                ..
+            } => self.infer_fn(name, params, return_type, body),
+            Stmt::If {
+                condition,
+                then_body,
+                else_body,
+            } => self.infer_if(condition, then_body, else_body),
+            Stmt::For {
+                target,
+                iterable,
+                body,
+            } => self.infer_for(target, iterable, body),
             Stmt::While { condition, body } => self.infer_while(condition, body),
             Stmt::Match { target, arms } => self.infer_match(target, arms),
-            Stmt::Return(v) => {
-                v.as_ref().map(|e| self.infer_expr(e)).unwrap_or(TypeOrVar::Concrete(none_type()))
-            }
+            Stmt::Return(v) => v
+                .as_ref()
+                .map(|e| self.infer_expr(e))
+                .unwrap_or(TypeOrVar::Concrete(none_type())),
             Stmt::Expr(e) => self.infer_expr(e),
             _ => TypeOrVar::Concrete(none_type()),
         }
@@ -258,7 +346,11 @@ impl TypeInferencer {
             Expr::Range { start, end, .. } => self.infer_range(start, end),
             Expr::Array(elems) => self.infer_array(elems),
             Expr::OptionValue { is_some, value } => self.infer_option(*is_some, value.as_deref()),
-            Expr::ResultValue { is_ok, value, error } => self.infer_result(*is_ok, value.as_deref(), error.as_deref()),
+            Expr::ResultValue {
+                is_ok,
+                value,
+                error,
+            } => self.infer_result(*is_ok, value.as_deref(), error.as_deref()),
             Expr::MemberAccess { .. } => TypeOrVar::Concrete(none_type()),
             Expr::Index { array, index } => self.infer_index(array, index),
             Expr::IfExpr(cond, then_expr, else_expr) => {
@@ -275,7 +367,10 @@ impl TypeInferencer {
                         arm_types.push(self.infer_stmt(s));
                     }
                 }
-                arm_types.into_iter().next().unwrap_or(TypeOrVar::Concrete(none_type()))
+                arm_types
+                    .into_iter()
+                    .next()
+                    .unwrap_or(TypeOrVar::Concrete(none_type()))
             }
             Expr::Interpolate { parts } => {
                 // String interpolation always yields string type
@@ -291,14 +386,17 @@ impl TypeInferencer {
                 let _ = self.infer_expr(expr);
                 TypeOrVar::Concrete(bool_type())
             }
-            Expr::Cast(_, target_type) => {
-                TypeOrVar::Concrete(target_type.clone())
-            }
+            Expr::Cast(_, target_type) => TypeOrVar::Concrete(target_type.clone()),
             Expr::NamedArg(_, expr) => self.infer_expr(expr),
         }
     }
 
-    fn infer_let(&mut self, name: &str, value: Option<&Expr>, type_annotation: &Option<TypeRef>) -> TypeOrVar {
+    fn infer_let(
+        &mut self,
+        name: &str,
+        value: Option<&Expr>,
+        type_annotation: &Option<TypeRef>,
+    ) -> TypeOrVar {
         if let Some(ann) = type_annotation {
             let ann_tov = TypeOrVar::Concrete(ann.clone());
             self.env.declare(name, ann_tov.clone());
@@ -322,30 +420,43 @@ impl TypeInferencer {
         }
     }
 
-    fn infer_fn(&mut self, name: &str, params: &[FnParam], return_type: &Option<TypeRef>, body: &[Stmt]) -> TypeOrVar {
+    fn infer_fn(
+        &mut self,
+        name: &str,
+        params: &[FnParam],
+        return_type: &Option<TypeRef>,
+        body: &[Stmt],
+    ) -> TypeOrVar {
         let mut child_env = self.env.child();
 
-        let param_types: Vec<TypeOrVar> = params.iter().map(|p| {
-            if let Some(ann) = &p.type_annotation {
-                let t = TypeOrVar::Concrete(ann.clone());
-                child_env.declare(&p.name, t.clone());
-                t
-            } else {
-                let tv = TypeOrVar::Variable(TypeVar::new());
-                child_env.declare(&p.name, tv.clone());
-                tv
-            }
-        }).collect();
+        let param_types: Vec<TypeOrVar> = params
+            .iter()
+            .map(|p| {
+                if let Some(ann) = &p.type_annotation {
+                    let t = TypeOrVar::Concrete(ann.clone());
+                    child_env.declare(&p.name, t.clone());
+                    t
+                } else {
+                    let tv = TypeOrVar::Variable(TypeVar::new());
+                    child_env.declare(&p.name, tv.clone());
+                    tv
+                }
+            })
+            .collect();
 
         let ret_tv = TypeOrVar::Variable(TypeVar::new());
 
         // Pre-declare for recursive calls
-        self.env.declare(name, TypeOrVar::Concrete(TypeRef::new(BaseType::Func)));
-        self.fn_signatures.insert(name.to_string(), (param_types.clone(), ret_tv.clone()));
+        self.env
+            .declare(name, TypeOrVar::Concrete(TypeRef::new(BaseType::Func)));
+        self.fn_signatures
+            .insert(name.to_string(), (param_types.clone(), ret_tv.clone()));
 
         // Infer body in child env
         let old_env = std::mem::replace(&mut self.env, child_env);
-        let body_type = body.iter().last()
+        let body_type = body
+            .iter()
+            .last()
             .map(|s| self.infer_stmt(s))
             .unwrap_or(TypeOrVar::Concrete(none_type()));
         self.env = old_env;
@@ -360,18 +471,26 @@ impl TypeInferencer {
             let resolved = apply_subst_local(&subst, &ann_tov);
             match &resolved {
                 TypeOrVar::Concrete(_) => {
-                    let _ = &self.fn_signatures.insert(name.to_string(), (param_types, resolved.clone()));
+                    let _ = &self
+                        .fn_signatures
+                        .insert(name.to_string(), (param_types, resolved.clone()));
                 }
-                _ => { let _ = &self.fn_signatures.insert(name.to_string(), (param_types, body_type.clone())); }
+                _ => {
+                    let _ = &self
+                        .fn_signatures
+                        .insert(name.to_string(), (param_types, body_type.clone()));
+                }
             }
             resolved
         } else {
             let typ = body_type;
-            self.fn_signatures.insert(name.to_string(), (param_types, typ.clone()));
+            self.fn_signatures
+                .insert(name.to_string(), (param_types, typ.clone()));
             typ
         };
 
-        self.env.declare(name, TypeOrVar::Concrete(TypeRef::new(BaseType::Func)));
+        self.env
+            .declare(name, TypeOrVar::Concrete(TypeRef::new(BaseType::Func)));
         final_ret
     }
 
@@ -395,23 +514,24 @@ impl TypeInferencer {
         let unified = apply_subst_local(&subst, &l);
 
         match op {
-            "+" | "-" | "*" | "/" | "%" => {
-                match &unified {
-                    TypeOrVar::Variable(_) => unified,
-                    TypeOrVar::Concrete(t) if is_numeric(&t.base) => {
-                        if op == "+" && (matches!(&l, TypeOrVar::Concrete(lt) if lt.base == BaseType::String)
-                            || matches!(&r, TypeOrVar::Concrete(rt) if rt.base == BaseType::String)) {
-                            return TypeOrVar::Concrete(string_type());
-                        }
-                        if matches!(&l, TypeOrVar::Concrete(lt) if lt.base == BaseType::Float)
-                            || matches!(&r, TypeOrVar::Concrete(rt) if rt.base == BaseType::Float) {
-                            return TypeOrVar::Concrete(float_type());
-                        }
-                        TypeOrVar::Concrete(int_type())
+            "+" | "-" | "*" | "/" | "%" => match &unified {
+                TypeOrVar::Variable(_) => unified,
+                TypeOrVar::Concrete(t) if is_numeric(&t.base) => {
+                    if op == "+"
+                        && (matches!(&l, TypeOrVar::Concrete(lt) if lt.base == BaseType::String)
+                            || matches!(&r, TypeOrVar::Concrete(rt) if rt.base == BaseType::String))
+                    {
+                        return TypeOrVar::Concrete(string_type());
                     }
-                    _ => TypeOrVar::Concrete(int_type()),
+                    if matches!(&l, TypeOrVar::Concrete(lt) if lt.base == BaseType::Float)
+                        || matches!(&r, TypeOrVar::Concrete(rt) if rt.base == BaseType::Float)
+                    {
+                        return TypeOrVar::Concrete(float_type());
+                    }
+                    TypeOrVar::Concrete(int_type())
                 }
-            }
+                _ => TypeOrVar::Concrete(int_type()),
+            },
             "==" | "!=" | "<" | ">" | "<=" | ">=" => TypeOrVar::Concrete(bool_type()),
             "&&" | "||" => TypeOrVar::Concrete(bool_type()),
             "=" => r,
@@ -422,13 +542,11 @@ impl TypeInferencer {
     fn infer_unary(&mut self, op: &str, operand: &Expr) -> TypeOrVar {
         let t = self.infer_expr(operand);
         match op {
-            "-" => {
-                match &t {
-                    TypeOrVar::Variable(_) => t,
-                    TypeOrVar::Concrete(ct) if is_numeric(&ct.base) => t,
-                    _ => TypeOrVar::Concrete(int_type()),
-                }
-            }
+            "-" => match &t {
+                TypeOrVar::Variable(_) => t,
+                TypeOrVar::Concrete(ct) if is_numeric(&ct.base) => t,
+                _ => TypeOrVar::Concrete(int_type()),
+            },
             "!" => TypeOrVar::Concrete(bool_type()),
             _ => TypeOrVar::Concrete(unknown_type()),
         }
@@ -438,10 +556,14 @@ impl TypeInferencer {
         // Try to get function name
         let func_name = match func {
             Expr::Ident(name) => name.clone(),
-            _ => return {
-                for a in args { self.infer_expr(a); }
-                TypeOrVar::Concrete(none_type())
-            },
+            _ => {
+                return {
+                    for a in args {
+                        self.infer_expr(a);
+                    }
+                    TypeOrVar::Concrete(none_type())
+                };
+            }
         };
 
         if let Some((param_types, return_type)) = self.fn_signatures.get(&func_name) {
@@ -469,15 +591,23 @@ impl TypeInferencer {
         }
 
         // Builtins
-        if ["println", "print", "len", "push", "assert", "int", "float", "str", "abs", "range"].contains(&func_name.as_str()) {
-            for a in args { self.infer_expr(a); }
+        if [
+            "println", "print", "len", "push", "assert", "int", "float", "str", "abs", "range",
+        ]
+        .contains(&func_name.as_str())
+        {
+            for a in args {
+                self.infer_expr(a);
+            }
             match func_name.as_str() {
                 "int" | "float" | "str" | "abs" => TypeOrVar::Concrete(int_type()),
                 "len" | "range" => TypeOrVar::Concrete(int_type()),
                 _ => TypeOrVar::Concrete(none_type()),
             }
         } else {
-            for a in args { self.infer_expr(a); }
+            for a in args {
+                self.infer_expr(a);
+            }
             TypeOrVar::Concrete(none_type())
         }
     }
@@ -516,7 +646,9 @@ impl TypeInferencer {
     }
 
     fn infer_array(&mut self, elems: &[Expr]) -> TypeOrVar {
-        if elems.is_empty() { return TypeOrVar::Concrete(TypeRef::new(BaseType::Array)); }
+        if elems.is_empty() {
+            return TypeOrVar::Concrete(TypeRef::new(BaseType::Array));
+        }
         let first = self.infer_expr(&elems[0]);
         for elem in &elems[1..] {
             let et = self.infer_expr(elem);
@@ -526,8 +658,11 @@ impl TypeInferencer {
             }
         }
         match &first {
-            TypeOrVar::Concrete(t) =>
-                TypeOrVar::Concrete(TypeRef { base: BaseType::Array, generic_arg: Some(Box::new(t.clone())), result_err: None }),
+            TypeOrVar::Concrete(t) => TypeOrVar::Concrete(TypeRef {
+                base: BaseType::Array,
+                generic_arg: Some(Box::new(t.clone())),
+                result_err: None,
+            }),
             _ => TypeOrVar::Concrete(TypeRef::new(BaseType::Array)),
         }
     }
@@ -537,8 +672,11 @@ impl TypeInferencer {
             if let Some(v) = value {
                 let inner = self.infer_expr(v);
                 match &inner {
-                    TypeOrVar::Concrete(t) =>
-                        TypeOrVar::Concrete(TypeRef { base: BaseType::Option, generic_arg: Some(Box::new(t.clone())), result_err: None }),
+                    TypeOrVar::Concrete(t) => TypeOrVar::Concrete(TypeRef {
+                        base: BaseType::Option,
+                        generic_arg: Some(Box::new(t.clone())),
+                        result_err: None,
+                    }),
                     _ => TypeOrVar::Concrete(TypeRef::new(BaseType::Option)),
                 }
             } else {
@@ -549,13 +687,21 @@ impl TypeInferencer {
         }
     }
 
-    fn infer_result(&mut self, is_ok: bool, value: Option<&Expr>, _error: Option<&Expr>) -> TypeOrVar {
+    fn infer_result(
+        &mut self,
+        is_ok: bool,
+        value: Option<&Expr>,
+        _error: Option<&Expr>,
+    ) -> TypeOrVar {
         if is_ok {
             if let Some(v) = value {
                 let inner = self.infer_expr(v);
                 match &inner {
-                    TypeOrVar::Concrete(t) =>
-                        TypeOrVar::Concrete(TypeRef { base: BaseType::Result, generic_arg: Some(Box::new(t.clone())), result_err: Some(Box::new(string_type())) }),
+                    TypeOrVar::Concrete(t) => TypeOrVar::Concrete(TypeRef {
+                        base: BaseType::Result,
+                        generic_arg: Some(Box::new(t.clone())),
+                        result_err: Some(Box::new(string_type())),
+                    }),
                     _ => TypeOrVar::Concrete(TypeRef::new(BaseType::Result)),
                 }
             } else {
@@ -583,10 +729,14 @@ impl TypeInferencer {
 
     fn infer_if(&mut self, condition: &Expr, then_body: &[Stmt], else_body: &[Stmt]) -> TypeOrVar {
         let _cond = self.infer_expr(condition);
-        let then_type = then_body.iter().last()
+        let then_type = then_body
+            .iter()
+            .last()
             .map(|s| self.infer_stmt(s))
             .unwrap_or(TypeOrVar::Concrete(none_type()));
-        let else_type = else_body.iter().last()
+        let else_type = else_body
+            .iter()
+            .last()
             .map(|s| self.infer_stmt(s))
             .unwrap_or(TypeOrVar::Concrete(none_type()));
 
@@ -600,14 +750,16 @@ impl TypeInferencer {
     fn infer_for(&mut self, target: &str, iterable: &Expr, body: &[Stmt]) -> TypeOrVar {
         let _iter = self.infer_expr(iterable);
         self.env.declare(target, TypeOrVar::Concrete(int_type()));
-        body.iter().last()
+        body.iter()
+            .last()
             .map(|s| self.infer_stmt(s))
             .unwrap_or(TypeOrVar::Concrete(none_type()))
     }
 
     fn infer_while(&mut self, condition: &Expr, body: &[Stmt]) -> TypeOrVar {
         let _cond = self.infer_expr(condition);
-        body.iter().last()
+        body.iter()
+            .last()
             .map(|s| self.infer_stmt(s))
             .unwrap_or(TypeOrVar::Concrete(none_type()))
     }
@@ -620,7 +772,10 @@ impl TypeInferencer {
                 arm_types.push(self.infer_stmt(s));
             }
         }
-        arm_types.into_iter().next().unwrap_or(TypeOrVar::Concrete(none_type()))
+        arm_types
+            .into_iter()
+            .next()
+            .unwrap_or(TypeOrVar::Concrete(none_type()))
     }
 
     pub fn print_report(&self) -> String {

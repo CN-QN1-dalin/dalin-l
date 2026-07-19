@@ -5,7 +5,7 @@
 /// 2. `macro_rules! foo { ... }` 声明式宏 — pattern → expansion 模板替换
 ///
 /// 宏展开发生在语义分析之前执行。
-use crate::ast::{Program, Stmt, Expr, MacroDecl};
+use crate::ast::{Expr, MacroDecl, Program, Stmt};
 use std::collections::HashMap;
 
 // ═══════════════════════════════
@@ -44,76 +44,85 @@ impl Default for DeriveExpander {
 
 impl DeriveExpander {
     pub fn new() -> Self {
-        Self { records: Vec::new() }
+        Self {
+            records: Vec::new(),
+        }
     }
 
     pub fn expand_derives(&mut self, stmts: &mut Vec<Stmt>) {
         // Collect struct indices with derives first
-        let struct_entries: Vec<(usize, String, Vec<String>, Vec<crate::ast::FieldDef>)> = stmts.iter().enumerate()
+        let struct_entries: Vec<(usize, String, Vec<String>, Vec<crate::ast::FieldDef>)> = stmts
+            .iter()
+            .enumerate()
             .filter_map(|(i, stmt)| {
-                if let Stmt::StructDef { name, derives, fields } = stmt
-                    && !derives.is_empty() {
-                        return Some((i, name.clone(), derives.clone(), fields.clone()));
-                    }
+                if let Stmt::StructDef {
+                    name,
+                    derives,
+                    fields,
+                } = stmt
+                    && !derives.is_empty()
+                {
+                    return Some((i, name.clone(), derives.clone(), fields.clone()));
+                }
                 None
-            }).collect();
+            })
+            .collect();
 
         for (_idx, name, derives, fields) in struct_entries.into_iter().rev() {
-            let gen_stmts: Vec<Stmt> = derives.iter()
-                .filter_map(|trait_name| {
-                    match trait_name.as_str() {
-                        "Debug" => {
-                            let stmt = self.generate_debug_impl(&name, &fields);
-                            self.records.push(ExpansionRecord {
-                                macro_name: "derive(Debug)".to_string(),
-                                target_type: "struct".to_string(),
-                                location: format!("struct {}", name),
-                                generated_stmts: 1,
-                            });
-                            Some(stmt)
-                        }
-                        "Clone" => {
-                            let stmt = self.generate_clone_impl(&name, &fields);
-                            self.records.push(ExpansionRecord {
-                                macro_name: "derive(Clone)".to_string(),
-                                target_type: "struct".to_string(),
-                                location: format!("struct {}", name),
-                                generated_stmts: 1,
-                            });
-                            Some(stmt)
-                        }
-                        "Copy" => {
-                            let stmt = self.generate_copy_impl(&name);
-                            self.records.push(ExpansionRecord {
-                                macro_name: "derive(Copy)".to_string(),
-                                target_type: "struct".to_string(),
-                                location: format!("struct {}", name),
-                                generated_stmts: 1,
-                            });
-                            Some(stmt)
-                        }
-                        "PartialEq" => {
-                            let stmt = self.generate_partialeq_impl(&name, &fields);
-                            self.records.push(ExpansionRecord {
-                                macro_name: "derive(PartialEq)".to_string(),
-                                target_type: "struct".to_string(),
-                                location: format!("struct {}", name),
-                                generated_stmts: 1,
-                            });
-                            Some(stmt)
-                        }
-                        "Default" => {
-                            let stmt = self.generate_default_impl(&name, &fields);
-                            self.records.push(ExpansionRecord {
-                                macro_name: "derive(Default)".to_string(),
-                                target_type: "struct".to_string(),
-                                location: format!("struct {}", name),
-                                generated_stmts: 1,
-                            });
-                            Some(stmt)
-                        }
-                        _ => None,
+            let gen_stmts: Vec<Stmt> = derives
+                .iter()
+                .filter_map(|trait_name| match trait_name.as_str() {
+                    "Debug" => {
+                        let stmt = self.generate_debug_impl(&name, &fields);
+                        self.records.push(ExpansionRecord {
+                            macro_name: "derive(Debug)".to_string(),
+                            target_type: "struct".to_string(),
+                            location: format!("struct {}", name),
+                            generated_stmts: 1,
+                        });
+                        Some(stmt)
                     }
+                    "Clone" => {
+                        let stmt = self.generate_clone_impl(&name, &fields);
+                        self.records.push(ExpansionRecord {
+                            macro_name: "derive(Clone)".to_string(),
+                            target_type: "struct".to_string(),
+                            location: format!("struct {}", name),
+                            generated_stmts: 1,
+                        });
+                        Some(stmt)
+                    }
+                    "Copy" => {
+                        let stmt = self.generate_copy_impl(&name);
+                        self.records.push(ExpansionRecord {
+                            macro_name: "derive(Copy)".to_string(),
+                            target_type: "struct".to_string(),
+                            location: format!("struct {}", name),
+                            generated_stmts: 1,
+                        });
+                        Some(stmt)
+                    }
+                    "PartialEq" => {
+                        let stmt = self.generate_partialeq_impl(&name, &fields);
+                        self.records.push(ExpansionRecord {
+                            macro_name: "derive(PartialEq)".to_string(),
+                            target_type: "struct".to_string(),
+                            location: format!("struct {}", name),
+                            generated_stmts: 1,
+                        });
+                        Some(stmt)
+                    }
+                    "Default" => {
+                        let stmt = self.generate_default_impl(&name, &fields);
+                        self.records.push(ExpansionRecord {
+                            macro_name: "derive(Default)".to_string(),
+                            target_type: "struct".to_string(),
+                            location: format!("struct {}", name),
+                            generated_stmts: 1,
+                        });
+                        Some(stmt)
+                    }
+                    _ => None,
                 })
                 .collect();
 
@@ -147,10 +156,19 @@ impl DeriveExpander {
                 type_annotation: Some(crate::ast::TypeRef::new(crate::ast::BaseType::String)),
                 default: None,
             }],
-            return_type: None, effect: None, capability: None, llm_prompt: None,
-            confidence: None, cognitive_loop: None, governance: None,
-            latency: None, timeout: None, throughput: None,
-            body: debug_body, async_: false, pub_: false,
+            return_type: None,
+            effect: None,
+            capability: None,
+            llm_prompt: None,
+            confidence: None,
+            cognitive_loop: None,
+            governance: None,
+            latency: None,
+            timeout: None,
+            throughput: None,
+            body: debug_body,
+            async_: false,
+            pub_: false,
         }
     }
 
@@ -163,20 +181,43 @@ impl DeriveExpander {
             Stmt::Return(Some(Box::new(Expr::IntLiteral(0)))),
         ];
         Stmt::Fn {
-            name: "clone".to_string(), type_params: vec![], params: vec![], return_type: None,
-            effect: None, capability: None, llm_prompt: None, confidence: None,
-            cognitive_loop: None, governance: None, latency: None, timeout: None,
-            throughput: None, body, async_: false, pub_: false,
+            name: "clone".to_string(),
+            type_params: vec![],
+            params: vec![],
+            return_type: None,
+            effect: None,
+            capability: None,
+            llm_prompt: None,
+            confidence: None,
+            cognitive_loop: None,
+            governance: None,
+            latency: None,
+            timeout: None,
+            throughput: None,
+            body,
+            async_: false,
+            pub_: false,
         }
     }
 
     fn generate_copy_impl(&self, _name: &str) -> Stmt {
         Stmt::Fn {
-            name: "copy".to_string(), type_params: vec![], params: vec![], return_type: None,
-            effect: None, capability: None, llm_prompt: None, confidence: None,
-            cognitive_loop: None, governance: None, latency: None, timeout: None,
-            throughput: None, body: vec![Stmt::Return(None)],
-            async_: false, pub_: false,
+            name: "copy".to_string(),
+            type_params: vec![],
+            params: vec![],
+            return_type: None,
+            effect: None,
+            capability: None,
+            llm_prompt: None,
+            confidence: None,
+            cognitive_loop: None,
+            governance: None,
+            latency: None,
+            timeout: None,
+            throughput: None,
+            body: vec![Stmt::Return(None)],
+            async_: false,
+            pub_: false,
         }
     }
 
@@ -196,10 +237,19 @@ impl DeriveExpander {
                 type_annotation: None,
                 default: None,
             }],
-            return_type: None, effect: None, capability: None, llm_prompt: None,
-            confidence: None, cognitive_loop: None, governance: None,
-            latency: None, timeout: None, throughput: None,
-            body, async_: false, pub_: false,
+            return_type: None,
+            effect: None,
+            capability: None,
+            llm_prompt: None,
+            confidence: None,
+            cognitive_loop: None,
+            governance: None,
+            latency: None,
+            timeout: None,
+            throughput: None,
+            body,
+            async_: false,
+            pub_: false,
         }
     }
 
@@ -216,15 +266,28 @@ impl DeriveExpander {
                     crate::ast::BaseType::Char => Expr::CharLiteral('\0'),
                     _ => Expr::IntLiteral(0),
                 })),
-                type_annotation: None, mutable: false,
+                type_annotation: None,
+                mutable: false,
             });
         }
         body.push(Stmt::Return(Some(Box::new(Expr::IntLiteral(0)))));
         Stmt::Fn {
-            name: "default".to_string(), type_params: vec![], params: vec![], return_type: None,
-            effect: None, capability: None, llm_prompt: None, confidence: None,
-            cognitive_loop: None, governance: None, latency: None, timeout: None,
-            throughput: None, body, async_: false, pub_: false,
+            name: "default".to_string(),
+            type_params: vec![],
+            params: vec![],
+            return_type: None,
+            effect: None,
+            capability: None,
+            llm_prompt: None,
+            confidence: None,
+            cognitive_loop: None,
+            governance: None,
+            latency: None,
+            timeout: None,
+            throughput: None,
+            body,
+            async_: false,
+            pub_: false,
         }
     }
 }
@@ -257,11 +320,17 @@ impl Default for MacroRegistry {
 
 impl MacroRegistry {
     pub fn new() -> Self {
-        Self { macros: HashMap::new() }
+        Self {
+            macros: HashMap::new(),
+        }
     }
 
-    pub fn len(&self) -> usize { self.macros.len() }
-    pub fn is_empty(&self) -> bool { self.macros.is_empty() }
+    pub fn len(&self) -> usize {
+        self.macros.len()
+    }
+    pub fn is_empty(&self) -> bool {
+        self.macros.is_empty()
+    }
 
     pub fn insert(&mut self, key: String, val: MacroDef) -> Option<MacroDef> {
         self.macros.insert(key, val)
@@ -276,12 +345,18 @@ pub fn register_macro_decls(registry: &mut MacroRegistry, macros: &[MacroDecl]) 
     for macro_decl in macros {
         match macro_decl {
             MacroDecl::Declarative { name, rules } => {
-                registry.insert(name.clone(), MacroDef {
-                    rules: rules.iter().map(|r| MacroPatternRule {
-                        patterns: r.pattern.clone(),
-                        expansion_templates: r.expansion.clone(),
-                    }).collect(),
-                });
+                registry.insert(
+                    name.clone(),
+                    MacroDef {
+                        rules: rules
+                            .iter()
+                            .map(|r| MacroPatternRule {
+                                patterns: r.pattern.clone(),
+                                expansion_templates: r.expansion.clone(),
+                            })
+                            .collect(),
+                    },
+                );
             }
             MacroDecl::Derive { .. } => {}
         }
@@ -325,19 +400,23 @@ impl MacroExpander {
     /// 执行完整的宏展开管线
     pub fn expand(&self, program: &Program) -> MacroExpansion {
         let mut expanded = program.clone();
-        
+
         // Clone the derive_expander, expand, then get records
         let mut expander = self.derive_expander.clone();
         expander.expand_derives(&mut expanded.statements);
         expander.expand_enum_derives(&mut expanded.statements);
-        
-        let expansions = expander.records.iter().map(|r| ExpansionRecord {
-            macro_name: r.macro_name.clone(),
-            target_type: r.target_type.clone(),
-            location: r.location.clone(),
-            generated_stmts: r.generated_stmts,
-        }).collect::<Vec<_>>();
-        
+
+        let expansions = expander
+            .records
+            .iter()
+            .map(|r| ExpansionRecord {
+                macro_name: r.macro_name.clone(),
+                target_type: r.target_type.clone(),
+                location: r.location.clone(),
+                generated_stmts: r.generated_stmts,
+            })
+            .collect::<Vec<_>>();
+
         MacroExpansion {
             original: program.clone(),
             expanded,
@@ -380,46 +459,65 @@ impl BuiltinMacros {
     pub fn new() -> Self {
         let mut macros = HashMap::new();
 
-        macros.insert("println".to_string(), BuiltinMacroDef {
-            name: "println!".to_string(), num_args: 1, is_variadic: true,
-            expand_fn: |args| vec![Stmt::Expr(Box::new(Expr::Call {
-                func: Box::new(Expr::Ident("io::println".to_string())),
-                args: args.to_vec(),
-            }))],
-        });
-
-        macros.insert("dbg".to_string(), BuiltinMacroDef {
-            name: "dbg!".to_string(), num_args: 1, is_variadic: true,
-            expand_fn: |args| vec![
-                Stmt::Expr(Box::new(Expr::Call {
-                    func: Box::new(Expr::Ident("io::print".to_string())),
-                    args: vec![Expr::StringLiteral("[dbg] ".to_string())],
-                })),
-                Stmt::Expr(Box::new(Expr::Call {
-                    func: Box::new(Expr::Ident("io::println".to_string())),
-                    args: args.to_vec(),
-                })),
-            ],
-        });
-
-        macros.insert("assert".to_string(), BuiltinMacroDef {
-            name: "assert!".to_string(), num_args: 1, is_variadic: false,
-            expand_fn: |args| {
-                if args.len() >= 2 {
-                    vec![Stmt::Assert {
-                        condition: Box::new(args[0].clone()),
-                        message: Some(Box::new(args[1].clone())),
-                    }]
-                } else if args.len() == 1 {
-                    vec![Stmt::Assert {
-                        condition: Box::new(args[0].clone()),
-                        message: None,
-                    }]
-                } else {
-                    Vec::new()
-                }
+        macros.insert(
+            "println".to_string(),
+            BuiltinMacroDef {
+                name: "println!".to_string(),
+                num_args: 1,
+                is_variadic: true,
+                expand_fn: |args| {
+                    vec![Stmt::Expr(Box::new(Expr::Call {
+                        func: Box::new(Expr::Ident("io::println".to_string())),
+                        args: args.to_vec(),
+                    }))]
+                },
             },
-        });
+        );
+
+        macros.insert(
+            "dbg".to_string(),
+            BuiltinMacroDef {
+                name: "dbg!".to_string(),
+                num_args: 1,
+                is_variadic: true,
+                expand_fn: |args| {
+                    vec![
+                        Stmt::Expr(Box::new(Expr::Call {
+                            func: Box::new(Expr::Ident("io::print".to_string())),
+                            args: vec![Expr::StringLiteral("[dbg] ".to_string())],
+                        })),
+                        Stmt::Expr(Box::new(Expr::Call {
+                            func: Box::new(Expr::Ident("io::println".to_string())),
+                            args: args.to_vec(),
+                        })),
+                    ]
+                },
+            },
+        );
+
+        macros.insert(
+            "assert".to_string(),
+            BuiltinMacroDef {
+                name: "assert!".to_string(),
+                num_args: 1,
+                is_variadic: false,
+                expand_fn: |args| {
+                    if args.len() >= 2 {
+                        vec![Stmt::Assert {
+                            condition: Box::new(args[0].clone()),
+                            message: Some(Box::new(args[1].clone())),
+                        }]
+                    } else if args.len() == 1 {
+                        vec![Stmt::Assert {
+                            condition: Box::new(args[0].clone()),
+                            message: None,
+                        }]
+                    } else {
+                        Vec::new()
+                    }
+                },
+            },
+        );
 
         Self { macros }
     }
@@ -442,7 +540,7 @@ impl BuiltinMacros {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ast::{FieldDef, TypeRef, BaseType};
+    use crate::ast::{BaseType, FieldDef, TypeRef};
 
     #[test]
     fn test_derive_expander_creation() {
@@ -452,16 +550,20 @@ mod tests {
 
     #[test]
     fn test_expand_struct_with_debug_derive() {
-        let mut stmts = vec![
-            Stmt::StructDef {
-                name: "Person".to_string(),
-                derives: vec!["Debug".to_string()],
-                fields: vec![
-                    FieldDef { name: "name".to_string(), type_annotation: TypeRef::new(BaseType::String) },
-                    FieldDef { name: "age".to_string(), type_annotation: TypeRef::new(BaseType::Int) },
-                ],
-            },
-        ];
+        let mut stmts = vec![Stmt::StructDef {
+            name: "Person".to_string(),
+            derives: vec!["Debug".to_string()],
+            fields: vec![
+                FieldDef {
+                    name: "name".to_string(),
+                    type_annotation: TypeRef::new(BaseType::String),
+                },
+                FieldDef {
+                    name: "age".to_string(),
+                    type_annotation: TypeRef::new(BaseType::Int),
+                },
+            ],
+        }];
         let mut expander = DeriveExpander::new();
         expander.expand_derives(&mut stmts);
         assert_eq!(stmts.len(), 2);
@@ -472,16 +574,20 @@ mod tests {
 
     #[test]
     fn test_expand_struct_with_clone_derive() {
-        let mut stmts = vec![
-            Stmt::StructDef {
-                name: "Point".to_string(),
-                derives: vec!["Clone".to_string()],
-                fields: vec![
-                    FieldDef { name: "x".to_string(), type_annotation: TypeRef::new(BaseType::Int) },
-                    FieldDef { name: "y".to_string(), type_annotation: TypeRef::new(BaseType::Int) },
-                ],
-            },
-        ];
+        let mut stmts = vec![Stmt::StructDef {
+            name: "Point".to_string(),
+            derives: vec!["Clone".to_string()],
+            fields: vec![
+                FieldDef {
+                    name: "x".to_string(),
+                    type_annotation: TypeRef::new(BaseType::Int),
+                },
+                FieldDef {
+                    name: "y".to_string(),
+                    type_annotation: TypeRef::new(BaseType::Int),
+                },
+            ],
+        }];
         let mut expander = DeriveExpander::new();
         expander.expand_derives(&mut stmts);
         assert_eq!(stmts.len(), 2);
@@ -490,16 +596,24 @@ mod tests {
 
     #[test]
     fn test_expand_struct_with_multiple_derives() {
-        let mut stmts = vec![
-            Stmt::StructDef {
-                name: "Rectangle".to_string(),
-                derives: vec!["Debug".to_string(), "Clone".to_string(), "Default".to_string()],
-                fields: vec![
-                    FieldDef { name: "width".to_string(), type_annotation: TypeRef::new(BaseType::Float) },
-                    FieldDef { name: "height".to_string(), type_annotation: TypeRef::new(BaseType::Float) },
-                ],
-            },
-        ];
+        let mut stmts = vec![Stmt::StructDef {
+            name: "Rectangle".to_string(),
+            derives: vec![
+                "Debug".to_string(),
+                "Clone".to_string(),
+                "Default".to_string(),
+            ],
+            fields: vec![
+                FieldDef {
+                    name: "width".to_string(),
+                    type_annotation: TypeRef::new(BaseType::Float),
+                },
+                FieldDef {
+                    name: "height".to_string(),
+                    type_annotation: TypeRef::new(BaseType::Float),
+                },
+            ],
+        }];
         let mut expander = DeriveExpander::new();
         expander.expand_derives(&mut stmts);
         assert_eq!(stmts.len(), 4);
@@ -508,13 +622,11 @@ mod tests {
 
     #[test]
     fn test_expand_struct_with_empty_derives() {
-        let mut stmts = vec![
-            Stmt::StructDef {
-                name: "Empty".to_string(),
-                derives: vec![],
-                fields: vec![],
-            },
-        ];
+        let mut stmts = vec![Stmt::StructDef {
+            name: "Empty".to_string(),
+            derives: vec![],
+            fields: vec![],
+        }];
         let mut expander = DeriveExpander::new();
         expander.expand_derives(&mut stmts);
         assert_eq!(stmts.len(), 1);
@@ -523,18 +635,24 @@ mod tests {
 
     #[test]
     fn test_expand_non_struct_stmts_noop() {
-        let mut stmts = vec![
-            Stmt::Fn {
-                name: "add".to_string(),
-                type_params: vec![],
-                params: vec![], return_type: None,
-                effect: None, capability: None, llm_prompt: None, confidence: None,
-                cognitive_loop: None, governance: None, latency: None, timeout: None,
-                throughput: None,
-                body: vec![Stmt::Return(Some(Box::new(Expr::IntLiteral(0))))],
-                async_: false, pub_: false,
-            },
-        ];
+        let mut stmts = vec![Stmt::Fn {
+            name: "add".to_string(),
+            type_params: vec![],
+            params: vec![],
+            return_type: None,
+            effect: None,
+            capability: None,
+            llm_prompt: None,
+            confidence: None,
+            cognitive_loop: None,
+            governance: None,
+            latency: None,
+            timeout: None,
+            throughput: None,
+            body: vec![Stmt::Return(Some(Box::new(Expr::IntLiteral(0))))],
+            async_: false,
+            pub_: false,
+        }];
         let mut expander = DeriveExpander::new();
         expander.expand_derives(&mut stmts);
         assert_eq!(stmts.len(), 1);
@@ -543,13 +661,11 @@ mod tests {
 
     #[test]
     fn test_expand_unknown_derive_trait_no_crash() {
-        let mut stmts = vec![
-            Stmt::StructDef {
-                name: "Weird".to_string(),
-                derives: vec!["SomeUnknownTrait".to_string()],
-                fields: vec![],
-            },
-        ];
+        let mut stmts = vec![Stmt::StructDef {
+            name: "Weird".to_string(),
+            derives: vec!["SomeUnknownTrait".to_string()],
+            fields: vec![],
+        }];
         let mut expander = DeriveExpander::new();
         expander.expand_derives(&mut stmts);
         assert!(!stmts.is_empty());
@@ -557,28 +673,30 @@ mod tests {
 
     #[test]
     fn test_expand_enum_derives_no_crash() {
-        let mut stmts = vec![
-            Stmt::EnumDef {
-                name: "Shape".to_string(),
-                variants: vec![
-                    crate::ast::EnumVariant { name: "Circle".to_string(), fields: vec![] },
-                    crate::ast::EnumVariant { name: "Rectangle".to_string(), fields: vec![] },
-                ],
-            },
-        ];
+        let mut stmts = vec![Stmt::EnumDef {
+            name: "Shape".to_string(),
+            variants: vec![
+                crate::ast::EnumVariant {
+                    name: "Circle".to_string(),
+                    fields: vec![],
+                },
+                crate::ast::EnumVariant {
+                    name: "Rectangle".to_string(),
+                    fields: vec![],
+                },
+            ],
+        }];
         let expander = DeriveExpander::new();
         expander.expand_enum_derives(&mut stmts);
     }
 
     #[test]
     fn test_expand_copy_derive() {
-        let mut stmts = vec![
-            Stmt::StructDef {
-                name: "Vec3".to_string(),
-                derives: vec!["Copy".to_string()],
-                fields: vec![],
-            },
-        ];
+        let mut stmts = vec![Stmt::StructDef {
+            name: "Vec3".to_string(),
+            derives: vec!["Copy".to_string()],
+            fields: vec![],
+        }];
         let mut expander = DeriveExpander::new();
         expander.expand_derives(&mut stmts);
         assert_eq!(stmts.len(), 2);
@@ -587,16 +705,20 @@ mod tests {
 
     #[test]
     fn test_expand_partialeq_derive() {
-        let mut stmts = vec![
-            Stmt::StructDef {
-                name: "Point".to_string(),
-                derives: vec!["PartialEq".to_string()],
-                fields: vec![
-                    FieldDef { name: "x".to_string(), type_annotation: TypeRef::new(BaseType::Int) },
-                    FieldDef { name: "y".to_string(), type_annotation: TypeRef::new(BaseType::Int) },
-                ],
-            },
-        ];
+        let mut stmts = vec![Stmt::StructDef {
+            name: "Point".to_string(),
+            derives: vec!["PartialEq".to_string()],
+            fields: vec![
+                FieldDef {
+                    name: "x".to_string(),
+                    type_annotation: TypeRef::new(BaseType::Int),
+                },
+                FieldDef {
+                    name: "y".to_string(),
+                    type_annotation: TypeRef::new(BaseType::Int),
+                },
+            ],
+        }];
         let mut expander = DeriveExpander::new();
         expander.expand_derives(&mut stmts);
         assert_eq!(stmts.len(), 2);
@@ -605,15 +727,14 @@ mod tests {
 
     #[test]
     fn test_expand_default_derive() {
-        let mut stmts = vec![
-            Stmt::StructDef {
-                name: "Config".to_string(),
-                derives: vec!["Default".to_string()],
-                fields: vec![
-                    FieldDef { name: "enabled".to_string(), type_annotation: TypeRef::new(BaseType::Bool) },
-                ],
-            },
-        ];
+        let mut stmts = vec![Stmt::StructDef {
+            name: "Config".to_string(),
+            derives: vec!["Default".to_string()],
+            fields: vec![FieldDef {
+                name: "enabled".to_string(),
+                type_annotation: TypeRef::new(BaseType::Bool),
+            }],
+        }];
         let mut expander = DeriveExpander::new();
         expander.expand_derives(&mut stmts);
         assert_eq!(stmts.len(), 2);
@@ -637,14 +758,13 @@ mod tests {
         let stmts = result.unwrap();
         assert_eq!(stmts.len(), 1);
         match &stmts[0] {
-            Stmt::Expr(expr) => {
-                match expr.as_ref() {
-                    Expr::Call { func, .. } => {
-                        match func.as_ref() { Expr::Ident(n) => assert_eq!(n, "io::println"), _ => panic!() }
-                    }
+            Stmt::Expr(expr) => match expr.as_ref() {
+                Expr::Call { func, .. } => match func.as_ref() {
+                    Expr::Ident(n) => assert_eq!(n, "io::println"),
                     _ => panic!(),
-                }
-            }
+                },
+                _ => panic!(),
+            },
             _ => panic!(),
         }
     }
@@ -712,15 +832,14 @@ mod tests {
     #[test]
     fn test_macro_expander_full_pipeline() {
         let program = Program {
-            statements: vec![
-                Stmt::StructDef {
-                    name: "TestItem".to_string(),
-                    derives: vec!["Debug".to_string(), "Clone".to_string()],
-                    fields: vec![
-                        FieldDef { name: "value".to_string(), type_annotation: TypeRef::new(BaseType::Int) },
-                    ],
-                },
-            ],
+            statements: vec![Stmt::StructDef {
+                name: "TestItem".to_string(),
+                derives: vec!["Debug".to_string(), "Clone".to_string()],
+                fields: vec![FieldDef {
+                    name: "value".to_string(),
+                    type_annotation: TypeRef::new(BaseType::Int),
+                }],
+            }],
             modules: Vec::new(),
             uses: Vec::new(),
             package_manifest: None,
@@ -730,25 +849,41 @@ mod tests {
 
         let expander = MacroExpander::new();
         let result = expander.expand(&program);
-        assert!(result.expansions.iter().any(|r| r.macro_name.contains("Debug")));
-        assert!(result.expansions.iter().any(|r| r.macro_name.contains("Clone")));
+        assert!(
+            result
+                .expansions
+                .iter()
+                .any(|r| r.macro_name.contains("Debug"))
+        );
+        assert!(
+            result
+                .expansions
+                .iter()
+                .any(|r| r.macro_name.contains("Clone"))
+        );
     }
 
     #[test]
     fn test_expand_program_without_derives() {
         let program = Program {
-            statements: vec![
-                Stmt::Fn {
-                    name: "simple".to_string(),
-                    type_params: vec![],
-                    params: vec![], return_type: None,
-                    effect: None, capability: None, llm_prompt: None, confidence: None,
-                    cognitive_loop: None, governance: None, latency: None, timeout: None,
-                    throughput: None,
-                    body: vec![Stmt::Return(Some(Box::new(Expr::IntLiteral(42))))],
-                    async_: false, pub_: false,
-                },
-            ],
+            statements: vec![Stmt::Fn {
+                name: "simple".to_string(),
+                type_params: vec![],
+                params: vec![],
+                return_type: None,
+                effect: None,
+                capability: None,
+                llm_prompt: None,
+                confidence: None,
+                cognitive_loop: None,
+                governance: None,
+                latency: None,
+                timeout: None,
+                throughput: None,
+                body: vec![Stmt::Return(Some(Box::new(Expr::IntLiteral(42))))],
+                async_: false,
+                pub_: false,
+            }],
             modules: Vec::new(),
             uses: Vec::new(),
             package_manifest: None,
@@ -765,31 +900,37 @@ mod tests {
     #[test]
     fn test_register_macro_decls() {
         let mut registry = MacroRegistry::new();
-        let decls = vec![
-            MacroDecl::Declarative {
-                name: "my_macro".to_string(),
-                rules: vec![crate::ast::MacroRule {
-                    pattern: vec!["$expr: expr".to_string()],
-                    expansion: vec!["{ $expr }".to_string()],
-                }],
-            },
-        ];
+        let decls = vec![MacroDecl::Declarative {
+            name: "my_macro".to_string(),
+            rules: vec![crate::ast::MacroRule {
+                pattern: vec!["$expr: expr".to_string()],
+                expansion: vec!["{ $expr }".to_string()],
+            }],
+        }];
         register_macro_decls(&mut registry, &decls);
         assert_eq!(registry.len(), 1);
     }
 
     #[test]
     fn test_extract_macro_decls_empty() {
-        let stmts: Vec<Stmt> = vec![
-            Stmt::Fn {
-                name: "no_macros".to_string(),
-                type_params: vec![],
-                params: vec![], return_type: None,
-                effect: None, capability: None, llm_prompt: None, confidence: None,
-                cognitive_loop: None, governance: None, latency: None, timeout: None,
-                throughput: None, body: vec![], async_: false, pub_: false,
-            },
-        ];
+        let stmts: Vec<Stmt> = vec![Stmt::Fn {
+            name: "no_macros".to_string(),
+            type_params: vec![],
+            params: vec![],
+            return_type: None,
+            effect: None,
+            capability: None,
+            llm_prompt: None,
+            confidence: None,
+            cognitive_loop: None,
+            governance: None,
+            latency: None,
+            timeout: None,
+            throughput: None,
+            body: vec![],
+            async_: false,
+            pub_: false,
+        }];
         let decls = extract_macro_decls(&stmts);
         assert!(decls.is_empty());
     }

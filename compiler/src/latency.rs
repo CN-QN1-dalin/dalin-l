@@ -29,7 +29,10 @@ impl Default for LatencyVerificationResult {
 
 impl LatencyVerificationResult {
     pub fn new() -> Self {
-        Self { errors: Vec::new(), fn_latencies: HashMap::new() }
+        Self {
+            errors: Vec::new(),
+            fn_latencies: HashMap::new(),
+        }
     }
 }
 
@@ -48,28 +51,38 @@ impl LatencyVerifier {
         let mut declared: HashMap<String, u64> = HashMap::new();
         for stmt in &prog.statements {
             if let Stmt::Fn { name, latency, .. } = stmt
-                && let Some(lat_str) = latency {
-                    // 解析 "50ms" → 50
-                    if let Ok(ms) = lat_str.trim_end_matches("ms").parse::<u64>() {
-                        declared.insert(name.clone(), ms);
-                        result.fn_latencies.insert(name.clone(), ms);
-                    }
+                && let Some(lat_str) = latency
+            {
+                // 解析 "50ms" → 50
+                if let Ok(ms) = lat_str.trim_end_matches("ms").parse::<u64>() {
+                    declared.insert(name.clone(), ms);
+                    result.fn_latencies.insert(name.clone(), ms);
                 }
+            }
         }
 
         // 第二步：对每个声明了 @latency 的函数，分析调用链
         for stmt in &prog.statements {
-            if let Stmt::Fn { name, latency, body, .. } = stmt
+            if let Stmt::Fn {
+                name,
+                latency,
+                body,
+                ..
+            } = stmt
                 && let Some(lat_str) = latency
-                    && let Ok(limit) = lat_str.trim_end_matches("ms").parse::<u64>() {
-                        let chain_latency = Self::analyze_call_chain(body, &declared);
-                        if chain_latency > limit {
-                            result.errors.push(format!(
-                                "延迟违规: {} 声明 {}ms，但调用链累计 {}ms（超限 {}ms）",
-                                name, limit, chain_latency, chain_latency - limit
-                            ));
-                        }
-                    }
+                && let Ok(limit) = lat_str.trim_end_matches("ms").parse::<u64>()
+            {
+                let chain_latency = Self::analyze_call_chain(body, &declared);
+                if chain_latency > limit {
+                    result.errors.push(format!(
+                        "延迟违规: {} 声明 {}ms，但调用链累计 {}ms（超限 {}ms）",
+                        name,
+                        limit,
+                        chain_latency,
+                        chain_latency - limit
+                    ));
+                }
+            }
         }
 
         result
@@ -91,10 +104,20 @@ impl LatencyVerifier {
         match stmt {
             Stmt::Expr(expr) => Self::expr_latency(expr, declared),
             Stmt::Return(Some(expr)) => Self::expr_latency(expr, declared),
-            Stmt::If { condition, then_body, else_body } => {
+            Stmt::If {
+                condition,
+                then_body,
+                else_body,
+            } => {
                 let cond = Self::expr_latency(condition, declared);
-                let then_lat: u64 = then_body.iter().map(|s| Self::stmt_latency(s, declared)).sum();
-                let else_lat: u64 = else_body.iter().map(|s| Self::stmt_latency(s, declared)).sum();
+                let then_lat: u64 = then_body
+                    .iter()
+                    .map(|s| Self::stmt_latency(s, declared))
+                    .sum();
+                let else_lat: u64 = else_body
+                    .iter()
+                    .map(|s| Self::stmt_latency(s, declared))
+                    .sum();
                 cond + then_lat.max(else_lat) // 取分支中的最大延迟（最坏情况）
             }
             Stmt::While { condition, body } => {
@@ -107,9 +130,12 @@ impl LatencyVerifier {
                 let body_lat: u64 = body.iter().map(|s| Self::stmt_latency(s, declared)).sum();
                 cond + body_lat
             }
-            Stmt::Let { value: Some(expr), .. } | Stmt::Const { value: Some(expr), .. } => {
-                Self::expr_latency(expr, declared)
+            Stmt::Let {
+                value: Some(expr), ..
             }
+            | Stmt::Const {
+                value: Some(expr), ..
+            } => Self::expr_latency(expr, declared),
             _ => 1, // 其他语句（assert、return、use 等）开销 1ms
         }
     }
@@ -118,9 +144,15 @@ impl LatencyVerifier {
     fn expr_latency(expr: &Expr, declared: &HashMap<String, u64>) -> u64 {
         match expr {
             // 字面量、标识符 → 0ms
-            Expr::IntLiteral(_) | Expr::FloatLiteral(_) | Expr::StringLiteral(_)
-            | Expr::BoolLiteral(_) | Expr::CharLiteral(_) | Expr::Ident(_)
-            | Expr::Array(_) | Expr::Range { .. } | Expr::OptionValue { .. }
+            Expr::IntLiteral(_)
+            | Expr::FloatLiteral(_)
+            | Expr::StringLiteral(_)
+            | Expr::BoolLiteral(_)
+            | Expr::CharLiteral(_)
+            | Expr::Ident(_)
+            | Expr::Array(_)
+            | Expr::Range { .. }
+            | Expr::OptionValue { .. }
             | Expr::ResultValue { .. } => 0,
 
             // 二元/一元运算 → 1ms
@@ -196,9 +228,11 @@ mod tests {
     #[test]
     fn test_simple_satisfies() {
         let mut prog = Program::new();
-        prog.add(fn_stmt("f", Some("30ms"), vec![
-            Stmt::Expr(Box::new(call_expr("g"))),
-        ]));
+        prog.add(fn_stmt(
+            "f",
+            Some("30ms"),
+            vec![Stmt::Expr(Box::new(call_expr("g")))],
+        ));
         prog.add(fn_stmt("g", Some("10ms"), vec![]));
         let result = LatencyVerifier::verify(&prog);
         assert!(result.errors.is_empty());
@@ -207,9 +241,11 @@ mod tests {
     #[test]
     fn test_latency_violation() {
         let mut prog = Program::new();
-        prog.add(fn_stmt("f", Some("20ms"), vec![
-            Stmt::Expr(Box::new(call_expr("g"))),
-        ]));
+        prog.add(fn_stmt(
+            "f",
+            Some("20ms"),
+            vec![Stmt::Expr(Box::new(call_expr("g")))],
+        ));
         prog.add(fn_stmt("g", Some("50ms"), vec![])); // 50ms > 20ms
         let result = LatencyVerifier::verify(&prog);
         assert!(!result.errors.is_empty());
@@ -220,10 +256,14 @@ mod tests {
     fn test_multi_call_chain() {
         let mut prog = Program::new();
         // f latency(30ms): calls g(10ms) + h(10ms) + overhead(5ms) = 25ms ≤ 30ms ✓
-        prog.add(fn_stmt("f", Some("30ms"), vec![
-            Stmt::Expr(Box::new(call_expr("g"))),
-            Stmt::Expr(Box::new(call_expr("h"))),
-        ]));
+        prog.add(fn_stmt(
+            "f",
+            Some("30ms"),
+            vec![
+                Stmt::Expr(Box::new(call_expr("g"))),
+                Stmt::Expr(Box::new(call_expr("h"))),
+            ],
+        ));
         prog.add(fn_stmt("g", Some("10ms"), vec![]));
         prog.add(fn_stmt("h", Some("10ms"), vec![]));
         let result = LatencyVerifier::verify(&prog);
@@ -234,14 +274,14 @@ mod tests {
     fn test_if_branch_max_path() {
         let mut prog = Program::new();
         // if 分支：取两条路径中的最大延迟（最坏情况）
-        let body = vec![
-            Stmt::If {
-                condition: Box::new(Expr::BoolLiteral(true)),
-                then_body: vec![Stmt::Expr(Box::new(call_expr("g")))], // 10ms
-                else_body: vec![Stmt::Expr(Box::new(call_expr("h"))),
-                               Stmt::Expr(Box::new(call_expr("h")))], // 10+10=20ms
-            },
-        ];
+        let body = vec![Stmt::If {
+            condition: Box::new(Expr::BoolLiteral(true)),
+            then_body: vec![Stmt::Expr(Box::new(call_expr("g")))], // 10ms
+            else_body: vec![
+                Stmt::Expr(Box::new(call_expr("h"))),
+                Stmt::Expr(Box::new(call_expr("h"))),
+            ], // 10+10=20ms
+        }];
         prog.add(fn_stmt("f", Some("30ms"), body));
         prog.add(fn_stmt("g", Some("10ms"), vec![]));
         prog.add(fn_stmt("h", Some("10ms"), vec![]));
@@ -254,11 +294,15 @@ mod tests {
     fn test_deep_chain_violation() {
         let mut prog = Program::new();
         // overhead(5) + g(10) + h(20) + i(30) = 65 > 50 ✗
-        prog.add(fn_stmt("f", Some("50ms"), vec![
-            Stmt::Expr(Box::new(call_expr("g"))),
-            Stmt::Expr(Box::new(call_expr("h"))),
-            Stmt::Expr(Box::new(call_expr("i"))),
-        ]));
+        prog.add(fn_stmt(
+            "f",
+            Some("50ms"),
+            vec![
+                Stmt::Expr(Box::new(call_expr("g"))),
+                Stmt::Expr(Box::new(call_expr("h"))),
+                Stmt::Expr(Box::new(call_expr("i"))),
+            ],
+        ));
         prog.add(fn_stmt("g", Some("10ms"), vec![]));
         prog.add(fn_stmt("h", Some("20ms"), vec![]));
         prog.add(fn_stmt("i", Some("30ms"), vec![]));
@@ -271,9 +315,11 @@ mod tests {
     fn test_no_latency_declared_default_10ms() {
         let mut prog = Program::new();
         // h 没有 @latency，默认 10ms
-        prog.add(fn_stmt("f", Some("20ms"), vec![
-            Stmt::Expr(Box::new(call_expr("h"))),
-        ]));
+        prog.add(fn_stmt(
+            "f",
+            Some("20ms"),
+            vec![Stmt::Expr(Box::new(call_expr("h")))],
+        ));
         prog.add(fn_stmt("h", None, vec![]));
         let result = LatencyVerifier::verify(&prog);
         // overhead(5) + h(10) = 15 ≤ 20 ✓

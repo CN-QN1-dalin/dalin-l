@@ -19,10 +19,10 @@ pub enum TokenType {
     KeywordCatch,
     KeywordUse,
     KeywordTrait,
-            KeywordAssert,
-            KeywordChannel,
+    KeywordAssert,
+    KeywordChannel,
 
-            // ── 扩展关键字 (12) ──
+    // ── 扩展关键字 (12) ──
     KeywordMut,
     KeywordOk,
     KeywordError,
@@ -35,16 +35,19 @@ pub enum TokenType {
     KeywordConst,
     KeywordMod,
 
+    // ── 关键字/字面量 ──
+    KeywordNull, // null — 空值关键字
+
     // ── 类型检查/转换 (Step 2: is/as) ──
-    KeywordIs,       // is — 类型检查 operator
-    KeywordAs,       // as — 类型转换 operator
+    KeywordIs, // is — 类型检查 operator
+    KeywordAs, // as — 类型转换 operator
 
     // ── 字面量 ──
     Ident,
     IntLiteral,
     FloatLiteral,
-    StringLiteral,       // 纯字符串字面量 "hello world"
-    InterpolateToken,    // 含 $ident 的插值字符串 "hello $name!"
+    StringLiteral,    // 纯字符串字面量 "hello world"
+    InterpolateToken, // 含 $ident 的插值字符串 "hello $name!"
     CharLiteral,
     BoolLiteral,
 
@@ -68,20 +71,20 @@ pub enum TokenType {
     MinusEqual,
     StarEqual,
     SlashEqual,
-    Arrow,         // ->
-    DoubleArrow,   // =>
-    Pipe,          // |> or <|
-    QuestionMark,  // ?
+    Arrow,              // ->
+    DoubleArrow,        // =>
+    Pipe,               // |> or <|
+    QuestionMark,       // ?
     DoubleQuestionMark, // ??
-    ColonQuestion,   // ?:
-    At,            // @
-    Dollar,        // $
+    ColonQuestion,      // ?:
+    At,                 // @
+    Dollar,             // $
 
     // ── 分隔符 ──
     Comma,
     Semicolon,
     Colon,
-    DoubleColon,   // ::
+    DoubleColon, // ::
     LeftParen,
     RightParen,
     LeftBracket,
@@ -89,12 +92,12 @@ pub enum TokenType {
     LeftBrace,
     RightBrace,
     Dot,
-    DoubleDot,     // ..
+    DoubleDot, // ..
 
     // ── 特殊 ──
     Eof,
     Newline,
-    Attribute,     // #[...]
+    Attribute, // #[...]
 
     // ── 注释 ──
     Comment,
@@ -133,6 +136,7 @@ impl TokenType {
             Self::KeywordMod => "KEYWORD_MOD",
             Self::KeywordIs => "KEYWORD_IS",
             Self::KeywordAs => "KEYWORD_AS",
+            Self::KeywordNull => "KEYWORD_NULL",
             Self::Ident => "IDENT",
             Self::IntLiteral => "INT_LITERAL",
             Self::FloatLiteral => "FLOAT_LITERAL",
@@ -197,12 +201,24 @@ pub struct Token {
 
 impl Token {
     pub fn new(token_type: TokenType, value: String, line: usize, column: usize) -> Self {
-        Self { token_type, value, line, column }
+        Self {
+            token_type,
+            value,
+            line,
+            column,
+        }
     }
 }
 
 impl fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}:{} {:25} {:?}", self.line, self.column, self.token_type.name(), self.value)
+        write!(
+            f,
+            "{}:{} {:25} {:?}",
+            self.line,
+            self.column,
+            self.token_type.name(),
+            self.value
+        )
     }
 }

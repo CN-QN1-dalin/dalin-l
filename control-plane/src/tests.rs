@@ -10,7 +10,12 @@ mod scheduler_tests {
 
     #[allow(dead_code)] // helper for test nodes
     fn make_node(id: &str, caps: &[Capability]) -> Node {
-        Node::new(id, caps.iter().copied().collect::<std::collections::HashSet<_>>())
+        Node::new(
+            id,
+            caps.iter()
+                .copied()
+                .collect::<std::collections::HashSet<_>>(),
+        )
     }
 
     #[test]
@@ -25,15 +30,26 @@ mod scheduler_tests {
 
     #[test]
     fn gpu_task_cannot_go_to_cpu_only() {
-        let s = crate::scheduler::CapabilityScheduler::new(vec![make_node("cpu-only", &[Capability::Cpu])]);
-        assert!(s.place(&Capability::Gpu).is_none(), "仅 Cpu 节点不能调度 Gpu");
+        let s = crate::scheduler::CapabilityScheduler::new(vec![make_node(
+            "cpu-only",
+            &[Capability::Cpu],
+        )]);
+        assert!(
+            s.place(&Capability::Gpu).is_none(),
+            "仅 Cpu 节点不能调度 Gpu"
+        );
     }
 
     #[test]
     fn net_capable_node_cover_all_capabilities() {
         let s = crate::scheduler::CapabilityScheduler::new(vec![make_node(
             "net-full",
-            &[Capability::Cpu, Capability::Gpu, Capability::Sfa, Capability::Net],
+            &[
+                Capability::Cpu,
+                Capability::Gpu,
+                Capability::Sfa,
+                Capability::Net,
+            ],
         )]);
         assert!(s.place(&Capability::Cpu).is_some());
         assert!(s.place(&Capability::Gpu).is_some());
@@ -43,9 +59,18 @@ mod scheduler_tests {
 
     #[test]
     fn sfa_task_requires_sfa_or_higher() {
-        let s = crate::scheduler::CapabilityScheduler::new(vec![make_node("gpu-node", &[Capability::Cpu, Capability::Gpu])]);
-        assert!(s.place(&Capability::Sfa).is_none(), "Gpu 节点不能执行 Sfa 任务");
-        let s2 = crate::scheduler::CapabilityScheduler::new(vec![make_node("sfa-node", &[Capability::Sfa])]);
+        let s = crate::scheduler::CapabilityScheduler::new(vec![make_node(
+            "gpu-node",
+            &[Capability::Cpu, Capability::Gpu],
+        )]);
+        assert!(
+            s.place(&Capability::Sfa).is_none(),
+            "Gpu 节点不能执行 Sfa 任务"
+        );
+        let s2 = crate::scheduler::CapabilityScheduler::new(vec![make_node(
+            "sfa-node",
+            &[Capability::Sfa],
+        )]);
         assert!(s2.place(&Capability::Sfa).is_some());
     }
 
@@ -62,15 +87,23 @@ mod scheduler_tests {
 
     #[test]
     fn breaker_opens_after_threshold_failures() {
-        let s = crate::scheduler::CapabilityScheduler::new(vec![make_node("failing", &[Capability::Cpu, Capability::Gpu]).with_quota(100)]);
-        for _ in 0..3 { s.mark_failure("failing"); }
+        let s = crate::scheduler::CapabilityScheduler::new(vec![
+            make_node("failing", &[Capability::Cpu, Capability::Gpu]).with_quota(100),
+        ]);
+        for _ in 0..3 {
+            s.mark_failure("failing");
+        }
         assert!(s.place(&Capability::Cpu).is_none(), "熔断打开后应拒绝调度");
     }
 
     #[test]
     fn success_resets_breaker() {
-        let s = crate::scheduler::CapabilityScheduler::new(vec![make_node("unstable", &[Capability::Cpu]).with_quota(100)]);
-        for _ in 0..3 { s.mark_failure("unstable"); }
+        let s = crate::scheduler::CapabilityScheduler::new(vec![
+            make_node("unstable", &[Capability::Cpu]).with_quota(100),
+        ]);
+        for _ in 0..3 {
+            s.mark_failure("unstable");
+        }
         assert!(s.place(&Capability::Cpu).is_none());
         s.mark_success("unstable");
         assert!(s.place(&Capability::Cpu).is_some(), "成功上报后熔断应关闭");
@@ -82,14 +115,18 @@ mod scheduler_tests {
             make_node("broken", &[Capability::Cpu]).with_quota(100),
             make_node("healthy", &[Capability::Cpu]).with_quota(100),
         ]);
-        for _ in 0..3 { s.mark_failure("broken"); }
+        for _ in 0..3 {
+            s.mark_failure("broken");
+        }
         let p = s.place(&Capability::Cpu).unwrap();
         assert_eq!(p.node_id, "healthy");
     }
 
     #[test]
     fn quota_exhaustion_triggers_backpressure() {
-        let s = crate::scheduler::CapabilityScheduler::new(vec![make_node("limited", &[Capability::Cpu]).with_quota(2)]);
+        let s = crate::scheduler::CapabilityScheduler::new(vec![
+            make_node("limited", &[Capability::Cpu]).with_quota(2),
+        ]);
         assert!(s.place(&Capability::Cpu).is_some());
         assert!(s.place(&Capability::Cpu).is_some());
         assert!(s.place(&Capability::Cpu).is_none(), "配额耗尽应触发背压");
@@ -97,7 +134,9 @@ mod scheduler_tests {
 
     #[test]
     fn release_frees_capacity() {
-        let s = crate::scheduler::CapabilityScheduler::new(vec![make_node("pool", &[Capability::Cpu]).with_quota(2)]);
+        let s = crate::scheduler::CapabilityScheduler::new(vec![
+            make_node("pool", &[Capability::Cpu]).with_quota(2),
+        ]);
         let _ = s.place(&Capability::Cpu);
         let _ = s.place(&Capability::Cpu);
         assert!(s.place(&Capability::Cpu).is_none());
@@ -107,15 +146,21 @@ mod scheduler_tests {
 
     #[test]
     fn load_counter_tracks_placements() {
-        let s = crate::scheduler::CapabilityScheduler::new(vec![make_node("counter", &[Capability::Cpu]).with_quota(100)]);
-        for _ in 0..5 { assert!(s.place(&Capability::Cpu).is_some()); }
+        let s = crate::scheduler::CapabilityScheduler::new(vec![
+            make_node("counter", &[Capability::Cpu]).with_quota(100),
+        ]);
+        for _ in 0..5 {
+            assert!(s.place(&Capability::Cpu).is_some());
+        }
         let snaps = s.load_snapshot();
         assert_eq!(snaps[0].1, 5, "负载计数器应为 5");
     }
 
     #[test]
     fn add_node_dynamically() {
-        let mut sched = crate::scheduler::CapabilityScheduler::new(vec![make_node("a", &[Capability::Cpu]).with_quota(10)]);
+        let mut sched = crate::scheduler::CapabilityScheduler::new(vec![
+            make_node("a", &[Capability::Cpu]).with_quota(10),
+        ]);
         assert_eq!(sched.node_count(), 1);
         sched.add_node(make_node("b", &[Capability::Gpu]).with_quota(10));
         assert_eq!(sched.node_count(), 2);
@@ -125,7 +170,9 @@ mod scheduler_tests {
 
     #[test]
     fn sync_replaces_nodes() {
-        let mut sched = crate::scheduler::CapabilityScheduler::new(vec![make_node("old", &[Capability::Cpu]).with_quota(10)]);
+        let mut sched = crate::scheduler::CapabilityScheduler::new(vec![
+            make_node("old", &[Capability::Cpu]).with_quota(10),
+        ]);
         let _ = sched.place(&Capability::Cpu);
         sched.sync_nodes(vec![make_node("new", &[Capability::Gpu]).with_quota(20)]);
         assert_eq!(sched.node_count(), 1);
@@ -134,14 +181,18 @@ mod scheduler_tests {
 
     #[test]
     fn place_by_spec_parses_gpu() {
-        let s = crate::scheduler::CapabilityScheduler::new(vec![make_node("gpu-node", &[Capability::Gpu]).with_quota(10)]);
+        let s = crate::scheduler::CapabilityScheduler::new(vec![
+            make_node("gpu-node", &[Capability::Gpu]).with_quota(10),
+        ]);
         let p = s.place_by_spec("gpu").unwrap();
         assert_eq!(p.node_id, "gpu-node");
     }
 
     #[test]
     fn place_by_spec_unknown_defaults_to_cpu() {
-        let s = crate::scheduler::CapabilityScheduler::new(vec![make_node("cpu-only", &[Capability::Cpu]).with_quota(10)]);
+        let s = crate::scheduler::CapabilityScheduler::new(vec![
+            make_node("cpu-only", &[Capability::Cpu]).with_quota(10),
+        ]);
         assert!(s.place_by_spec("xyz-cap").is_some(), "未知能力应回落为 Cpu");
     }
 
@@ -183,7 +234,9 @@ mod store_tests {
     async fn parent_child_relationship() {
         let store = InMemoryTaskStore::new();
         let root = store.register("root", None, "spawn", "cpu", "kp").await;
-        let child = store.register("child", Some(&root.id), "spawn", "cpu", "kc").await;
+        let child = store
+            .register("child", Some(&root.id), "spawn", "cpu", "kc")
+            .await;
         let kids = store.children_of(&root.id).await;
         assert_eq!(kids.len(), 1);
         assert_eq!(kids[0].id, child.id);
@@ -193,9 +246,15 @@ mod store_tests {
     async fn list_all_vs_filtered() {
         let store = InMemoryTaskStore::new();
         let parent = store.register("parent", None, "spawn", "cpu", "kp").await;
-        let _ = store.register("c1", Some(&parent.id), "spawn", "cpu", "kc1").await;
-        let _ = store.register("c2", Some(&parent.id), "spawn", "cpu", "kc2").await;
-        let _ = store.register("orphan", None, "spawn", "cpu", "korphan").await;
+        let _ = store
+            .register("c1", Some(&parent.id), "spawn", "cpu", "kc1")
+            .await;
+        let _ = store
+            .register("c2", Some(&parent.id), "spawn", "cpu", "kc2")
+            .await;
+        let _ = store
+            .register("orphan", None, "spawn", "cpu", "korphan")
+            .await;
         assert_eq!(store.list(None).await.len(), 4);
         assert_eq!(store.children_of(&parent.id).await.len(), 2);
         assert_eq!(store.list(Some(&parent.id)).await.len(), 2);
@@ -211,9 +270,15 @@ mod store_tests {
     async fn status_transitions() {
         let store = InMemoryTaskStore::new();
         let rec = store.register("st", None, "spawn", "cpu", "ks").await;
-        store.set_status(&rec.id, crate::registry::TaskStatus::Scheduled).await;
-        store.set_status(&rec.id, crate::registry::TaskStatus::Running).await;
-        store.set_status(&rec.id, crate::registry::TaskStatus::Succeeded).await;
+        store
+            .set_status(&rec.id, crate::registry::TaskStatus::Scheduled)
+            .await;
+        store
+            .set_status(&rec.id, crate::registry::TaskStatus::Running)
+            .await;
+        store
+            .set_status(&rec.id, crate::registry::TaskStatus::Succeeded)
+            .await;
         let final_ = store.get(&rec.id).await.unwrap();
         assert_eq!(final_.status, crate::registry::TaskStatus::Succeeded);
     }
@@ -225,7 +290,10 @@ mod store_tests {
         assert!(store.cancel(&rec.id).await);
         // 第二次取消：任务已处于 Canceled，状态机仍允许（幂等），不会 panic
         let _ = store.cancel(&rec.id).await;
-        assert_eq!(store.get(&rec.id).await.unwrap().status, crate::registry::TaskStatus::Canceled);
+        assert_eq!(
+            store.get(&rec.id).await.unwrap().status,
+            crate::registry::TaskStatus::Canceled
+        );
     }
 
     #[tokio::test]
@@ -246,7 +314,10 @@ mod store_tests {
         let mut found_running = false;
         while let Ok(ev) = rx.try_recv() {
             if let crate::registry::TaskEvent::StatusChanged(r) = ev
-                && r.status == TaskStatus::Running { found_running = true; }
+                && r.status == TaskStatus::Running
+            {
+                found_running = true;
+            }
         }
         assert!(found_running, "应收到 Running 状态的 StatusChanged 事件");
     }
@@ -280,7 +351,7 @@ mod store_tests {
 // ═══════════════════════════════════════════════════════════
 
 mod transport_tests {
-    use crate::dispatch::{InMemoryDispatchBroker, DispatchTask, DispatchBroker};
+    use crate::dispatch::{DispatchBroker, DispatchTask, InMemoryDispatchBroker};
     use crate::registry;
     use crate::transport::{EventBus, InMemoryEventBus};
 
@@ -304,10 +375,10 @@ mod transport_tests {
         let bus = InMemoryEventBus::new();
         let mut rx = bus.subscribe();
         bus.publish(&sample_event()).await;
-        let ev = tokio::time::timeout(
-            std::time::Duration::from_millis(500),
-            rx.recv()
-        ).await.unwrap().unwrap();
+        let ev = tokio::time::timeout(std::time::Duration::from_millis(500), rx.recv())
+            .await
+            .unwrap()
+            .unwrap();
         match ev {
             registry::TaskEvent::Submitted(r) => assert_eq!(r.id, "bus-t1"),
             _ => panic!("unexpected event type"),

@@ -57,7 +57,7 @@ impl GcPtr {
 #[derive(Debug, Clone)]
 pub struct GcObject {
     pub id: usize,
-    pub kind: String, // "int", "string", "array", "struct"
+    pub kind: String,     // "int", "string", "array", "struct"
     pub refs: Vec<usize>, // 引用的其他对象 ID
     pub marked: bool,
 }

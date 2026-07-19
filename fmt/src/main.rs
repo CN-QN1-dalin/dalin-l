@@ -13,7 +13,9 @@ use dalin_compiler::parser::Parser;
 fn format_source(src: &str) -> Result<String, String> {
     let mut lex = Lexer::new(src);
     let tokens = lex.tokenize().map_err(|e| format!("lex error: {e}"))?;
-    let prog = Parser::new(tokens).parse().map_err(|e| format!("parse error: {e}"))?;
+    let prog = Parser::new(tokens)
+        .parse()
+        .map_err(|e| format!("parse error: {e}"))?;
 
     let mut out = String::new();
     let indent = 0u8;
@@ -37,20 +39,28 @@ fn format_stmt(stmt: &dalin_compiler::ast::Stmt, indent: u8) -> String {
                 format!("{}let {}", pad, name)
             }
         }
-        dalin_compiler::ast::Stmt::Fn { name, params, body, .. } => {
+        dalin_compiler::ast::Stmt::Fn {
+            name, params, body, ..
+        } => {
             let params_str: Vec<String> = params.iter().map(|p| p.name.clone()).collect();
-            let body_str: String = body.iter()
+            let body_str: String = body
+                .iter()
                 .map(|s| format_stmt(s, indent + 1))
                 .collect::<Vec<_>>()
                 .join("\n");
-            format!("{}fn {}({}) {{\n{}\n{}}}", pad, name, params_str.join(", "), body_str, pad)
+            format!(
+                "{}fn {}({}) {{\n{}\n{}}}",
+                pad,
+                name,
+                params_str.join(", "),
+                body_str,
+                pad
+            )
         }
-        dalin_compiler::ast::Stmt::Return(val) => {
-            match val {
-                Some(v) => format!("{}return {}", pad, format_expr(v, indent)),
-                None => format!("{}return", pad),
-            }
-        }
+        dalin_compiler::ast::Stmt::Return(val) => match val {
+            Some(v) => format!("{}return {}", pad, format_expr(v, indent)),
+            None => format!("{}return", pad),
+        },
         dalin_compiler::ast::Stmt::Expr(e) => {
             format!("{}{}", pad, format_expr(e, indent))
         }
@@ -66,17 +76,24 @@ fn format_expr(expr: &dalin_compiler::ast::Expr, _indent: u8) -> String {
         dalin_compiler::ast::Expr::BoolLiteral(b) => format!("{b}"),
         dalin_compiler::ast::Expr::Ident(name) => name.clone(),
         dalin_compiler::ast::Expr::BinaryOp { left, op, right } => {
-            format!("{} {} {}", format_expr(left, _indent), op, format_expr(right, _indent))
+            format!(
+                "{} {} {}",
+                format_expr(left, _indent),
+                op,
+                format_expr(right, _indent)
+            )
         }
         dalin_compiler::ast::Expr::Call { func, args } => {
             let args_str: Vec<String> = args.iter().map(|a| format_expr(a, _indent)).collect();
             format!("{}({})", format_expr(func, _indent), args_str.join(", "))
         }
         dalin_compiler::ast::Expr::IfExpr(cond, then, else_) => {
-            format!("if {} {{ {} }} else {{ {} }}",
+            format!(
+                "if {} {{ {} }} else {{ {} }}",
                 format_expr(cond, _indent),
                 format_expr(then, _indent),
-                format_expr(else_, _indent))
+                format_expr(else_, _indent)
+            )
         }
         _ => "?expr".to_string(),
     }

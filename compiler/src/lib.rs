@@ -1,24 +1,24 @@
+pub mod ast;
+pub mod error;
+pub mod latency;
+pub mod lexer;
+pub mod llm;
+pub mod parser;
+pub mod qn1;
+pub mod runtime;
+pub mod task_spec;
 /// Dalin L 3.0 — 编译器工具链 crate
 ///
 /// 把源码落到七通道类型系统的"可执行单元" (TaskSpec)：
 /// token → lexer → parser → LLM 扩展 (llm_expand) → ty2 七通道推断 → task_spec。
 /// 纯编译期，无运行时并发依赖，可作为独立库被 runtime / control-plane 复用。
 pub mod token;
-pub mod ast;
-pub mod lexer;
-pub mod parser;
 pub mod ty;
 pub mod ty2;
-pub mod task_spec;
-pub mod error;
-pub mod llm;
-pub mod latency;
-pub mod qn1;
-pub mod runtime;
 // Phase H: 模块/包系统 + 宏系统
+pub mod macro_expand;
 pub mod module;
 pub mod package;
-pub mod macro_expand;
 // Phase H+: 标准库加载器
 pub mod stdlib_loader;
 // Phase J: 自进化闭环
@@ -76,10 +76,20 @@ pub fn compile_with_llm(src: &str) -> CompileResult {
         program: expanded,
         report,
         specs,
-        errors: latency_result.errors.iter().map(|e| ChannelError::LatencyViolation {
-            location: crate::error::SourceLocation { line: 0, column: 0, filename: "compile".into() },
-            declared_ms: 0, actual_ms: 0, detail: e.clone(),
-        }).collect::<Vec<_>>(),
+        errors: latency_result
+            .errors
+            .iter()
+            .map(|e| ChannelError::LatencyViolation {
+                location: crate::error::SourceLocation {
+                    line: 0,
+                    column: 0,
+                    filename: "compile".into(),
+                },
+                declared_ms: 0,
+                actual_ms: 0,
+                detail: e.clone(),
+            })
+            .collect::<Vec<_>>(),
     }
 }
 
@@ -99,7 +109,12 @@ impl std::fmt::Display for CompileResult {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             CompileResult::Err(e) => write!(f, "Compile error: {}", e),
-            CompileResult::Ok { program, report, specs, errors } => {
+            CompileResult::Ok {
+                program,
+                report,
+                specs,
+                errors,
+            } => {
                 writeln!(f, "Compiled {} statements", program.statements.len())?;
                 write!(f, "{}", report)?;
                 for err in errors {
@@ -122,12 +137,32 @@ impl std::fmt::Display for CompileResult {
 fn expand_llm(prog: &Program) -> Program {
     let mut stmts = Vec::new();
     for stmt in &prog.statements {
-        if let Stmt::Fn { name, params, return_type, effect, capability, llm_prompt, confidence: _, cognitive_loop, governance, latency, timeout, throughput, body: _, async_, pub_, .. } = stmt {
+        if let Stmt::Fn {
+            name,
+            params,
+            return_type,
+            effect,
+            capability,
+            llm_prompt,
+            confidence: _,
+            cognitive_loop,
+            governance,
+            latency,
+            timeout,
+            throughput,
+            body: _,
+            async_,
+            pub_,
+            ..
+        } = stmt
+        {
             if let Some(prompt) = llm_prompt.clone() {
                 // 调用 LLM 引擎生成代码
                 let r_gen = llm::LlmEngine::process_directive(&prompt, Some(name));
                 // 如果生成的语句中有 Fn，提取其 body 作为当前函数的 body；否则用生成语句本身
-                let new_body = if !r_gen.statements.is_empty() && matches!(&r_gen.statements[0], Stmt::Fn { .. }) {
+                let new_body = if !r_gen.statements.is_empty()
+                    && matches!(&r_gen.statements[0], Stmt::Fn { .. })
+                {
                     match &r_gen.statements[0] {
                         Stmt::Fn { body, .. } => body.clone(),
                         _ => vec![],
@@ -160,7 +195,14 @@ fn expand_llm(prog: &Program) -> Program {
             stmts.push(stmt.clone());
         }
     }
-    Program { statements: stmts, modules: Vec::new(), uses: Vec::new(), package_manifest: None, macros: Vec::new(), derive_attrs: Vec::new() }
+    Program {
+        statements: stmts,
+        modules: Vec::new(),
+        uses: Vec::new(),
+        package_manifest: None,
+        macros: Vec::new(),
+        derive_attrs: Vec::new(),
+    }
 }
 
 // ═══════════════════════════════
@@ -176,7 +218,12 @@ mod tests {
         let src = "fn add(x: int, y: int) -> int { return x + y }";
         let result = compile_with_llm(src);
         match result {
-            CompileResult::Ok { program, report, specs, errors } => {
+            CompileResult::Ok {
+                program,
+                report,
+                specs,
+                errors,
+            } => {
                 assert_eq!(program.statements.len(), 1, "one function");
                 assert_eq!(specs.len(), 1, "one TaskSpec");
                 assert_eq!(specs[0].fn_id, "add");
@@ -195,7 +242,12 @@ fn sensor_read() @ io @ cpu @ perceive @ gov(prepare) @ latency(50ms) {
 }";
         let result = compile_with_llm(src);
         match result {
-            CompileResult::Ok { program, specs, errors, report } => {
+            CompileResult::Ok {
+                program,
+                specs,
+                errors,
+                report,
+            } => {
                 assert_eq!(program.statements.len(), 1, "one function");
                 assert_eq!(specs.len(), 1, "one TaskSpec");
                 // 验证 TaskSpec 的正确保留
@@ -203,7 +255,10 @@ fn sensor_read() @ io @ cpu @ perceive @ gov(prepare) @ latency(50ms) {
                 // 验证报告包含所有通道
                 assert!(report.contains("@ io"), "report shows effect");
                 assert!(report.contains("@ cpu"), "report shows capability");
-                assert!(report.contains("loop(perceive)"), "report shows cognitive loop");
+                assert!(
+                    report.contains("loop(perceive)"),
+                    "report shows cognitive loop"
+                );
                 assert!(report.contains("gov(prepare)"), "report shows governance");
                 // latency 可能不在 Display 中，但 time_constraint 在
                 assert!(errors.is_empty(), "no errors for valid multi-channel fn");
@@ -219,8 +274,11 @@ fn sensor_read() @ io @ cpu @ perceive @ gov(prepare) @ latency(50ms) {
         match result {
             CompileResult::Ok { report, errors, .. } => {
                 // 验证置信度出现在报告中
-                assert!(report.contains("@ verified"),
-                    "report should show confidence @ verified, got: {}", report);
+                assert!(
+                    report.contains("@ verified"),
+                    "report should show confidence @ verified, got: {}",
+                    report
+                );
                 assert!(errors.is_empty(), "no errors for verified fn");
             }
             CompileResult::Err(e) => panic!("compile failed: {}", e),
@@ -252,21 +310,29 @@ fn f() @ latency(20ms) { return g() }";
         match &result {
             CompileResult::Ok { errors, .. } => {
                 assert!(!errors.is_empty(), "should report latency violation");
-                let has_latency = errors.iter().any(|e| matches!(e, ChannelError::LatencyViolation { .. }));
+                let has_latency = errors
+                    .iter()
+                    .any(|e| matches!(e, ChannelError::LatencyViolation { .. }));
                 assert!(has_latency, "at least one LatencyViolation error");
             }
             CompileResult::Err(e) => panic!("compile failed: {}", e),
         }
         // Display 输出应包含延迟违规
         let display = format!("{}", result);
-        assert!(display.contains("延迟违规") || display.contains("Latency"), "display should mention latency");
+        assert!(
+            display.contains("延迟违规") || display.contains("Latency"),
+            "display should mention latency"
+        );
     }
 
     #[test]
     fn test_e2e_syntax_error_returns_err() {
         let src = "fn broken( { return } ";
         let result = compile_with_llm(src);
-        assert!(matches!(result, CompileResult::Err(_)), "broken syntax should return Err");
+        assert!(
+            matches!(result, CompileResult::Err(_)),
+            "broken syntax should return Err"
+        );
     }
 
     #[test]
@@ -274,7 +340,12 @@ fn f() @ latency(20ms) { return g() }";
         let src = "";
         let result = compile_with_llm(src);
         match result {
-            CompileResult::Ok { program, specs, errors, report } => {
+            CompileResult::Ok {
+                program,
+                specs,
+                errors,
+                report,
+            } => {
                 assert!(program.is_empty(), "empty program");
                 assert!(specs.is_empty(), "no specs");
                 assert!(errors.is_empty(), "no errors");
@@ -304,16 +375,32 @@ fn f() @ latency(20ms) { return g() }";
         use std::path::PathBuf;
 
         let project_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .parent().unwrap()
+            .parent()
+            .unwrap()
             .to_path_buf();
         let mut loader = StdLibLoader::new(project_root)
             .expect("StdLibLoader should initialize with project root");
 
         let result = loader.load_all();
-        assert!(result.is_ok(), "load_all() should succeed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "load_all() should succeed: {:?}",
+            result.err()
+        );
         let modules = result.unwrap();
-        assert!(modules.len() >= 2, "Should load at least prelude and core_types, got {} modules: {:?}", modules.len(), modules);
-        assert!(modules.contains(&"prelude".to_string()), "prelude should be loaded");
-        assert!(modules.contains(&"core_types".to_string()), "core_types should be loaded");
+        assert!(
+            modules.len() >= 2,
+            "Should load at least prelude and core_types, got {} modules: {:?}",
+            modules.len(),
+            modules
+        );
+        assert!(
+            modules.contains(&"prelude".to_string()),
+            "prelude should be loaded"
+        );
+        assert!(
+            modules.contains(&"core_types".to_string()),
+            "core_types should be loaded"
+        );
     }
 }

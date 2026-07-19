@@ -25,7 +25,9 @@ pub struct PackageRegistry {
 
 impl PackageRegistry {
     pub fn new() -> Self {
-        Self { packages: HashMap::new() }
+        Self {
+            packages: HashMap::new(),
+        }
     }
 
     pub fn publish(&mut self, pkg: Package) -> Result<(), String> {
@@ -55,12 +57,17 @@ impl PackageRegistry {
         self.packages
             .values()
             .flat_map(|pkgs| pkgs.iter())
-            .filter(|p| p.name.to_lowercase().contains(&q) || p.description.to_lowercase().contains(&q))
+            .filter(|p| {
+                p.name.to_lowercase().contains(&q) || p.description.to_lowercase().contains(&q)
+            })
             .collect()
     }
 
     pub fn list(&self) -> Vec<&Package> {
-        self.packages.values().flat_map(|pkgs| pkgs.iter()).collect()
+        self.packages
+            .values()
+            .flat_map(|pkgs| pkgs.iter())
+            .collect()
     }
 }
 

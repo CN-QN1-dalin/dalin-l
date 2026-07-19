@@ -49,8 +49,16 @@ pub struct TestCoverage {
 impl TestCoverage {
     fn fmt(&self) -> String {
         let ui = if self.unit { "\u{2705}" } else { "\u{274C}" };
-        let ii = if self.integration { "\u{2705}" } else { "\u{274C}" };
-        let ei = if self.e2e { "\u{2705}" } else { "\u{26a0}\u{fe0f}" };
+        let ii = if self.integration {
+            "\u{2705}"
+        } else {
+            "\u{274C}"
+        };
+        let ei = if self.e2e {
+            "\u{2705}"
+        } else {
+            "\u{26a0}\u{fe0f}"
+        };
         format!("Unit {} Integration {} E2E {}", ui, ii, ei)
     }
 }
@@ -101,26 +109,48 @@ fn fetch_j1_clusters() -> Vec<EvolutionChange> {
         (5, "governance", "unauthorized access denied by policy"),
     ] {
         engine.add_error(ErrorRecord {
-            id, timestamp: "2026-07-17T12:00:00Z".into(), error_type: etype.into(),
-            message: msg.into(), source_location: None, stack_trace: None,
-            recovery_applied: None, recovery_success: false,
+            id,
+            timestamp: "2026-07-17T12:00:00Z".into(),
+            error_type: etype.into(),
+            message: msg.into(),
+            source_location: None,
+            stack_trace: None,
+            recovery_applied: None,
+            recovery_success: false,
         });
     }
     let clusters = engine.cluster(0.5, 2);
     let templates = engine.extract_templates(&clusters);
 
-    templates.into_iter().enumerate().map(|(i, tmpl)| {
-        EvolutionChange {
+    templates
+        .into_iter()
+        .enumerate()
+        .map(|(i, tmpl)| EvolutionChange {
             id: (30 + i as u64),
             module: "j1_pattern".into(),
-            description: format!("错误聚类模板: {}", tmpl.error_pattern.chars().take(40).collect::<String>()),
+            description: format!(
+                "错误聚类模板: {}",
+                tmpl.error_pattern.chars().take(40).collect::<String>()
+            ),
             diff: tmpl.root_causes.join(", "),
             impact: format!("{} 条相似错误归为一类", tmpl.regression_count),
-            expected_benefit: tmpl.fix_strategy.first().cloned().unwrap_or("标准化修复".into()),
-            risk_level: if tmpl.confidence > 0.8 { RiskLevel::Low } else { RiskLevel::Medium },
-            test_coverage: TestCoverage { unit: true, integration: tmpl.tested, e2e: false },
-        }
-    }).collect()
+            expected_benefit: tmpl
+                .fix_strategy
+                .first()
+                .cloned()
+                .unwrap_or("标准化修复".into()),
+            risk_level: if tmpl.confidence > 0.8 {
+                RiskLevel::Low
+            } else {
+                RiskLevel::Medium
+            },
+            test_coverage: TestCoverage {
+                unit: true,
+                integration: tmpl.tested,
+                e2e: false,
+            },
+        })
+        .collect()
 }
 
 /// 从 J2 StrategyGenerator 提取策略数据
@@ -129,35 +159,53 @@ fn fetch_j2_strategies() -> Vec<EvolutionChange> {
     // 注入成功修复记录
     for i in 0..6 {
         strategy_gen.record_fix(FixRecord {
-            error_id: i, applied_rule: RecoveryMode::Fallback, success: true,
-            confidence_before: 0.4, confidence_after: 0.9,
+            error_id: i,
+            applied_rule: RecoveryMode::Fallback,
+            success: true,
+            confidence_before: 0.4,
+            confidence_after: 0.9,
         });
     }
     strategy_gen.record_fix(FixRecord {
-        error_id: 6, applied_rule: RecoveryMode::RetryWithDefault, success: true,
-        confidence_before: 0.3, confidence_after: 0.85,
+        error_id: 6,
+        applied_rule: RecoveryMode::RetryWithDefault,
+        success: true,
+        confidence_before: 0.3,
+        confidence_after: 0.85,
     });
     let rules = strategy_gen.infer_new_rules();
     let weights = strategy_gen.update_calibrator_weights();
 
-    let weight_summary: String = weights.iter()
+    let weight_summary: String = weights
+        .iter()
         .take(3)
         .map(|(k, v)| format!("{k}={v:.3}"))
         .collect::<Vec<_>>()
         .join(", ");
 
-    rules.into_iter().map(|rule| {
-        EvolutionChange {
+    rules
+        .into_iter()
+        .map(|rule| EvolutionChange {
             id: 40 + (rule.usage_count % 10),
             module: "j2_strategy".into(),
-            description: format!("恢复策略: {}", rule.triggers_on.chars().take(50).collect::<String>()),
-            diff: format!("applies_mode={}, confidence={:.2}", rule.applies_mode, rule.confidence),
+            description: format!(
+                "恢复策略: {}",
+                rule.triggers_on.chars().take(50).collect::<String>()
+            ),
+            diff: format!(
+                "applies_mode={}, confidence={:.2}",
+                rule.applies_mode, rule.confidence
+            ),
             impact: "七通道权重动态更新".into(),
             expected_benefit: format!("权重摘要: {weight_summary}"),
             risk_level: RiskLevel::Trivial,
-            test_coverage: TestCoverage { unit: rule.tested, integration: true, e2e: false },
-        }
-    }).collect()
+            test_coverage: TestCoverage {
+                unit: rule.tested,
+                integration: true,
+                e2e: false,
+            },
+        })
+        .collect()
 }
 
 /// 从 J3 EvolutionVerificationEngine 提取验证结果
@@ -168,8 +216,11 @@ fn fetch_j3_results() -> Result<Vec<EvolutionChange>, String> {
         ("exp_j1_vs_v1", "旧聚类", "新J1聚类", 0.72, 0.89),
         ("exp_j2_vs_v1", "旧策略", "新J2策略", 0.65, 0.82),
         ("exp_j3_vs_v1", "基线", "完整验证", 0.78, 0.94),
-    ].into_iter().map(|(id, a_name, b_name, a_score, b_score)| {
-        let _ = engine.run_experiment(id, a_name, b_name, a_score, b_score)
+    ]
+    .into_iter()
+    .map(|(id, a_name, b_name, a_score, b_score)| {
+        let _ = engine
+            .run_experiment(id, a_name, b_name, a_score, b_score)
             .map_err(|e| format!("Experiment failed: {e}"))?;
 
         Ok::<EvolutionChange, String>(EvolutionChange {
@@ -180,9 +231,14 @@ fn fetch_j3_results() -> Result<Vec<EvolutionChange>, String> {
             impact: format!("experiment {}", id),
             expected_benefit: "新策略胜出".into(),
             risk_level: RiskLevel::Low,
-            test_coverage: TestCoverage { unit: true, integration: true, e2e: true },
+            test_coverage: TestCoverage {
+                unit: true,
+                integration: true,
+                e2e: true,
+            },
         })
-    }).collect::<Result<_, _>>()?;
+    })
+    .collect::<Result<_, _>>()?;
 
     Ok(results)
 }
@@ -222,9 +278,14 @@ pub fn j_status_report() -> Result<String, String> {
     ];
     for (i, &(etype, msg)) in test_errors.iter().enumerate() {
         engine.add_error(ErrorRecord {
-            id: i as u64, timestamp: "2026-07-17T12:00:00Z".into(), error_type: etype.into(),
-            message: msg.into(), source_location: None, stack_trace: None,
-            recovery_applied: None, recovery_success: false,
+            id: i as u64,
+            timestamp: "2026-07-17T12:00:00Z".into(),
+            error_type: etype.into(),
+            message: msg.into(),
+            source_location: None,
+            stack_trace: None,
+            recovery_applied: None,
+            recovery_success: false,
         });
     }
     let clusters = engine.cluster(0.5, 2);
@@ -233,8 +294,11 @@ pub fn j_status_report() -> Result<String, String> {
     let mut strat_gen = StrategyGenerator::new();
     for i in 0..4 {
         strat_gen.record_fix(FixRecord {
-            error_id: i, applied_rule: RecoveryMode::Fallback, success: true,
-            confidence_before: 0.4, confidence_after: 0.9,
+            error_id: i,
+            applied_rule: RecoveryMode::Fallback,
+            success: true,
+            confidence_before: 0.4,
+            confidence_after: 0.9,
         });
     }
     let rules = strat_gen.infer_new_rules();
@@ -245,7 +309,10 @@ pub fn j_status_report() -> Result<String, String> {
 
     let total_weight_keys = weights.len();
     let win_rate = match eng3.last_result() {
-        Some(r) => format!("B scored {:.2} vs A {:.2}", r.group_b_score, r.group_a_score),
+        Some(r) => format!(
+            "B scored {:.2} vs A {:.2}",
+            r.group_b_score, r.group_a_score
+        ),
         None => "N/A".into(),
     };
 
@@ -253,8 +320,12 @@ pub fn j_status_report() -> Result<String, String> {
         "J1 Pattern Engine: {} errors clustered into {} groups, {} templates extracted\n\
          J2 Strategy Gen: {} known rules, {} weight channels updated\n\
          J3 Verification: 1 experiment run — {}",
-        engine.error_count(), clusters.iter().map(|c| c.len()).sum::<usize>(), templates.len(),
-        rules.len(), total_weight_keys, win_rate
+        engine.error_count(),
+        clusters.iter().map(|c| c.len()).sum::<usize>(),
+        templates.len(),
+        rules.len(),
+        total_weight_keys,
+        win_rate
     ))
 }
 
@@ -271,11 +342,16 @@ fn mock_changes() -> Vec<EvolutionChange> {
                 "-    deadline.saturating_sub(now)\n",
                 "+    let buffer = if is_async { 10ms } else { 5ms };\n",
                 "+    deadline.saturating_sub(now).saturating_sub(buffer)\n"
-            ).into(),
+            )
+            .into(),
             impact: "3个 TaskSpec 生成逻辑".into(),
             expected_benefit: "延迟违规减少 15%".into(),
             risk_level: RiskLevel::Low,
-            test_coverage: TestCoverage { unit: true, integration: true, e2e: false },
+            test_coverage: TestCoverage {
+                unit: true,
+                integration: true,
+                e2e: false,
+            },
         },
         EvolutionChange {
             id: 43,
@@ -287,11 +363,16 @@ fn mock_changes() -> Vec<EvolutionChange> {
                 "+    let base = infer_expr(ty_env, expr, Type::Any);\n",
                 "+    unify_backwards(ty_env, expr, &base);\n",
                 "+    base\n"
-            ).into(),
+            )
+            .into(),
             impact: "ty2 模块全部推断路径".into(),
             expected_benefit: "类型推导覆盖率提升 10%".into(),
             risk_level: RiskLevel::Medium,
-            test_coverage: TestCoverage { unit: true, integration: true, e2e: true },
+            test_coverage: TestCoverage {
+                unit: true,
+                integration: true,
+                e2e: true,
+            },
         },
         EvolutionChange {
             id: 44,
@@ -301,11 +382,16 @@ fn mock_changes() -> Vec<EvolutionChange> {
                 "@@ -12,7 +12,7 @@\n",
                 "-    let key = format!(\"{}\", macro_name);\n",
                 "+    let key = canonicalize(&macro_name);\n"
-            ).into(),
+            )
+            .into(),
             impact: "宏缓存命中率".into(),
             expected_benefit: "编译速度提升 5%".into(),
             risk_level: RiskLevel::Trivial,
-            test_coverage: TestCoverage { unit: true, integration: false, e2e: false },
+            test_coverage: TestCoverage {
+                unit: true,
+                integration: false,
+                e2e: false,
+            },
         },
         EvolutionChange {
             id: 45,
@@ -319,11 +405,16 @@ fn mock_changes() -> Vec<EvolutionChange> {
                 "+    } else {\n",
                 "+        emit_store(reg, slot)\n",
                 "+    }\n"
-            ).into(),
+            )
+            .into(),
             impact: "全部代码生成路径".into(),
             expected_benefit: "运行时性能提升 12%".into(),
             risk_level: RiskLevel::High,
-            test_coverage: TestCoverage { unit: true, integration: true, e2e: true },
+            test_coverage: TestCoverage {
+                unit: true,
+                integration: true,
+                e2e: true,
+            },
         },
         EvolutionChange {
             id: 46,
@@ -334,11 +425,16 @@ fn mock_changes() -> Vec<EvolutionChange> {
                 "+    if name.starts_with('_') && !name.starts_with(\"__\") {\n",
                 "+        warn!(\"Single underscore prefix reserved\");\n",
                 "     }\n"
-            ).into(),
+            )
+            .into(),
             impact: "词法分析后处理".into(),
             expected_benefit: "代码风格一致性".into(),
             risk_level: RiskLevel::Trivial,
-            test_coverage: TestCoverage { unit: false, integration: false, e2e: false },
+            test_coverage: TestCoverage {
+                unit: false,
+                integration: false,
+                e2e: false,
+            },
         },
     ]
 }
@@ -359,9 +455,10 @@ fn ensure_audit_dir() -> Result<(), String> {
 fn load_audit_log() -> AuditLog {
     let path = audit_log_dir().join("_index.json");
     if let Ok(content) = fs::read_to_string(&path)
-        && let Ok(log) = serde_json::from_str(&content) {
-            return log;
-        }
+        && let Ok(log) = serde_json::from_str(&content)
+    {
+        return log;
+    }
     AuditLog { entries: vec![] }
 }
 
@@ -388,14 +485,18 @@ fn record_entry(change_id: u64, action: &str, reason: Option<String>) -> Result<
     let day = now.format("%d").to_string();
     let ym = now.format("%Y-%m").to_string();
     let padded = format!("{:03}", change_id);
-    let file_path = audit_log_dir().join(&ym).join(format!("{}_{}_{}.json", day, action, padded));
+    let file_path = audit_log_dir()
+        .join(&ym)
+        .join(format!("{}_{}_{}.json", day, action, padded));
     if let Some(parent) = file_path.parent() {
         fs::create_dir_all(parent).map_err(|e| format!("Cannot create dir: {}", e))?;
     }
     let content = serde_json::to_string_pretty(&entry).map_err(|e| format!("JSON error: {}", e))?;
     fs::write(&file_path, content).map_err(|e| format!("Cannot write file: {}", e))?;
 
-    let mut updated = AuditLog { entries: log.entries };
+    let mut updated = AuditLog {
+        entries: log.entries,
+    };
     updated.entries.push(entry);
     save_audit_log(&updated)?;
     Ok(file_path)
@@ -419,8 +520,13 @@ fn do_revert(target_epoch: u64, current: &[EvolutionChange]) -> Result<String, S
 
     let applied_count = current.iter().filter(|c| c.id > target_epoch).count();
     let changes_json = serde_json::to_string_pretty(
-        &current.iter().filter(|c| c.id <= target_epoch).cloned().collect::<Vec<_>>()
-    ).map_err(|e| format!("JSON error: {}", e))?;
+        &current
+            .iter()
+            .filter(|c| c.id <= target_epoch)
+            .cloned()
+            .collect::<Vec<_>>(),
+    )
+    .map_err(|e| format!("JSON error: {}", e))?;
     fs::write(snapshot_path.join("baseline.json"), changes_json)
         .map_err(|e| format!("Cannot write snapshot: {}", e))?;
 
@@ -445,13 +551,28 @@ pub struct EvolveStats {
 
 fn compute_stats(changes: &[EvolutionChange], audit: &AuditLog) -> EvolveStats {
     let total = changes.len() as u64;
-    let accepted = audit.entries.iter().filter(|e| e.action == "accept").count() as u64;
-    let rejected = audit.entries.iter().filter(|e| e.action == "reject").count() as u64;
-    let reverted = audit.entries.iter().filter(|e| e.action == "revert").count() as u64;
+    let accepted = audit
+        .entries
+        .iter()
+        .filter(|e| e.action == "accept")
+        .count() as u64;
+    let rejected = audit
+        .entries
+        .iter()
+        .filter(|e| e.action == "reject")
+        .count() as u64;
+    let reverted = audit
+        .entries
+        .iter()
+        .filter(|e| e.action == "revert")
+        .count() as u64;
     let now = Local::now();
     let cur_month = now.format("%Y-%m").to_string();
-    let monthly = audit.entries.iter()
-        .filter(|e| e.timestamp.contains(&cur_month)).count() as u64;
+    let monthly = audit
+        .entries
+        .iter()
+        .filter(|e| e.timestamp.contains(&cur_month))
+        .count() as u64;
     EvolveStats {
         total_submissions: total,
         accepted,
@@ -465,7 +586,11 @@ fn compute_stats(changes: &[EvolutionChange], audit: &AuditLog) -> EvolveStats {
 
 #[allow(dead_code)]
 fn auto_assign_risk(change: &EvolutionChange) -> RiskLevel {
-    match (change.test_coverage.unit, change.test_coverage.integration, change.test_coverage.e2e) {
+    match (
+        change.test_coverage.unit,
+        change.test_coverage.integration,
+        change.test_coverage.e2e,
+    ) {
         (true, true, true) => RiskLevel::Trivial,
         (true, true, false) => RiskLevel::Low,
         (true, false, false) => RiskLevel::Medium,
@@ -500,15 +625,18 @@ fn cmd_review(json: bool) -> Result<(), String> {
     let changes = fetch_real_evolutions();
 
     if json {
-        let summary: Vec<serde_json::Value> = changes.iter().map(|c| {
-            serde_json::json!({
-                "id": c.id, "module": c.module,
-                "risk_level": format!("{}", c.risk_level),
-                "expected_benefit": c.expected_benefit,
-                "description": c.description,
-                "test_coverage": c.test_coverage,
+        let summary: Vec<serde_json::Value> = changes
+            .iter()
+            .map(|c| {
+                serde_json::json!({
+                    "id": c.id, "module": c.module,
+                    "risk_level": format!("{}", c.risk_level),
+                    "expected_benefit": c.expected_benefit,
+                    "description": c.description,
+                    "test_coverage": c.test_coverage,
+                })
             })
-        }).collect();
+            .collect();
         println!("{}", serde_json::to_string_pretty(&summary).unwrap());
         return Ok(());
     }
@@ -517,11 +645,17 @@ fn cmd_review(json: bool) -> Result<(), String> {
     let mut changes = changes;
     changes.sort_by_key(|c| c.id);
 
-    println!("\n  \u{2554}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2557}");
+    println!(
+        "\n  \u{2554}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2557}"
+    );
     println!("  \u{2551}  \u{1f9b2} 进化审查面板                              \u{2551}");
-    println!("  \u{2551}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2551}");
+    println!(
+        "  \u{2551}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2551}"
+    );
     println!("  \u{2551} #ID    Module              Risk      Benefit    \u{2551}");
-    println!("  \u{2551}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2551}");
+    println!(
+        "  \u{2551}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2551}"
+    );
     for c in &changes {
         let mod_short = if c.module.len() > 18 {
             format!("{}..", &c.module[..15])
@@ -534,9 +668,14 @@ fn cmd_review(json: bool) -> Result<(), String> {
             RiskLevel::Medium => "[!!]",
             RiskLevel::High => "[XX]",
         };
-        println!("  \u{2551} #{}     {}  {}  {}     \u{2551}", c.id, mod_short, risk, c.expected_benefit);
+        println!(
+            "  \u{2551} #{}     {}  {}  {}     \u{2551}",
+            c.id, mod_short, risk, c.expected_benefit
+        );
     }
-    println!("  \u{255a}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{255d}");
+    println!(
+        "  \u{255a}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{255d}"
+    );
 
     println!("\n  [H]elp  [Q]uit");
     print!("  请输入变更编号或命令> ");
@@ -557,7 +696,9 @@ fn cmd_review(json: bool) -> Result<(), String> {
 fn cmd_view(change_id: Option<u64>, json: bool) -> Result<(), String> {
     let changes = fetch_real_evolutions();
     let target_id = change_id.unwrap_or(30);
-    let change = changes.iter().find(|c| c.id == target_id)
+    let change = changes
+        .iter()
+        .find(|c| c.id == target_id)
         .ok_or_else(|| format!("Evolution change #{} not found", target_id))?;
     if json {
         println!("{}", serde_json::to_string_pretty(&change).unwrap());
@@ -568,13 +709,21 @@ fn cmd_view(change_id: Option<u64>, json: bool) -> Result<(), String> {
 
 fn handle_view(change_id: u64, _interactive: bool) -> Result<(), String> {
     let changes = mock_changes();
-    let change = changes.iter().find(|c| c.id == change_id)
+    let change = changes
+        .iter()
+        .find(|c| c.id == change_id)
         .ok_or_else(|| format!("Evolution change #{} not found", change_id))?;
-    println!("\n{}", fmt_divider(&format!("进化变更 #{} — {}", change.id, change.module)));
+    println!(
+        "\n{}",
+        fmt_divider(&format!("进化变更 #{} — {}", change.id, change.module))
+    );
     println!("{}", fmt_section("变更内容", &change.description));
     println!("{}", fmt_section("影响范围", &change.impact));
     println!("{}", fmt_section("预期收益", &change.expected_benefit));
-    println!("{}", fmt_section("风险等级", &format!("{}", change.risk_level)));
+    println!(
+        "{}",
+        fmt_section("风险等级", &format!("{}", change.risk_level))
+    );
     println!("{}", fmt_section("测试覆盖", &change.test_coverage.fmt()));
     println!("\n  --- Diff ---");
     for line in change.diff.lines() {
@@ -610,7 +759,11 @@ fn cmd_revert(to_epoch: u64) -> Result<(), String> {
     let result = do_revert(to_epoch, &changes)?;
     println!("  \u{23ea} {}", result);
     let max_id = changes.iter().map(|c| c.id).max().unwrap_or(0);
-    record_entry(max_id, "revert", Some(format!("reverted to epoch {}", to_epoch)))?;
+    record_entry(
+        max_id,
+        "revert",
+        Some(format!("reverted to epoch {}", to_epoch)),
+    )?;
     Ok(())
 }
 
@@ -623,13 +776,25 @@ fn cmd_stats(json: bool) -> Result<(), String> {
         return Ok(());
     }
     println!("\n{}", fmt_divider("进化统计面板"));
-    println!("{}", fmt_section("总提交数", &stats.total_submissions.to_string()));
+    println!(
+        "{}",
+        fmt_section("总提交数", &stats.total_submissions.to_string())
+    );
     println!("{}", fmt_section("已审批", &stats.accepted.to_string()));
     println!("{}", fmt_section("已拒绝", &stats.rejected.to_string()));
     println!("{}", fmt_section("已回滚", &stats.reverted.to_string()));
-    println!("{}", fmt_section("本月新增", &stats.monthly_new.to_string()));
-    println!("{}", fmt_section("知识库条目", &stats.knowledge_entries.to_string()));
-    println!("{}", fmt_section("恢复模板", &stats.recovery_templates.to_string()));
+    println!(
+        "{}",
+        fmt_section("本月新增", &stats.monthly_new.to_string())
+    );
+    println!(
+        "{}",
+        fmt_section("知识库条目", &stats.knowledge_entries.to_string())
+    );
+    println!(
+        "{}",
+        fmt_section("恢复模板", &stats.recovery_templates.to_string())
+    );
     println!("{}", fmt_divider(""));
     Ok(())
 }
@@ -656,7 +821,8 @@ pub fn run(subcmd: &str, args: &HashMap<String, String>) -> Result<(), String> {
             cmd_reject(id, reason)
         }
         "revert" => {
-            let to = args.get("to")
+            let to = args
+                .get("to")
                 .and_then(|s| s.parse::<u64>().ok())
                 .ok_or_else(|| "revert requires --to=<epoch>".to_string())?;
             cmd_revert(to)
@@ -678,7 +844,12 @@ pub fn run(subcmd: &str, args: &HashMap<String, String>) -> Result<(), String> {
             let clusters = fetch_j1_clusters();
             println!("[J1] 聚类结果: {} 条进化变更", clusters.len());
             for c in &clusters {
-                println!("  #{} {} — {}", c.id, c.module, c.description.chars().take(60).collect::<String>());
+                println!(
+                    "  #{} {} — {}",
+                    c.id,
+                    c.module,
+                    c.description.chars().take(60).collect::<String>()
+                );
             }
             Ok(())
         }
@@ -686,7 +857,12 @@ pub fn run(subcmd: &str, args: &HashMap<String, String>) -> Result<(), String> {
             let strategies = fetch_j2_strategies();
             println!("[J2] 策略结果: {} 条进化变更", strategies.len());
             for s in &strategies {
-                println!("  #{} {} — {}", s.id, s.module, s.description.chars().take(60).collect::<String>());
+                println!(
+                    "  #{} {} — {}",
+                    s.id,
+                    s.module,
+                    s.description.chars().take(60).collect::<String>()
+                );
             }
             Ok(())
         }
@@ -724,7 +900,8 @@ mod tests {
         };
         fs::write(&log_path, serde_json::to_string_pretty(&entry).unwrap()).unwrap();
         assert!(log_path.exists());
-        let read_entry: AuditEntry = serde_json::from_str(&fs::read_to_string(&log_path).unwrap()).unwrap();
+        let read_entry: AuditEntry =
+            serde_json::from_str(&fs::read_to_string(&log_path).unwrap()).unwrap();
         assert_eq!(read_entry.change_id, 99);
         assert_eq!(read_entry.action, "accept");
         let _ = fs::remove_dir_all(&tmp_dir);
@@ -733,10 +910,18 @@ mod tests {
     #[test]
     fn test_evolution_change_serialization() {
         let c = EvolutionChange {
-            id: 1, module: "t.rs".into(), description: "d".into(),
-            diff: "diff".into(), impact: "all".into(), expected_benefit: "+10%".into(),
+            id: 1,
+            module: "t.rs".into(),
+            description: "d".into(),
+            diff: "diff".into(),
+            impact: "all".into(),
+            expected_benefit: "+10%".into(),
             risk_level: RiskLevel::Low,
-            test_coverage: TestCoverage { unit: true, integration: false, e2e: false },
+            test_coverage: TestCoverage {
+                unit: true,
+                integration: false,
+                e2e: false,
+            },
         };
         let s = serde_json::to_string(&c).expect("serialize");
         let d: EvolutionChange = serde_json::from_str(&s).expect("deserialize");
@@ -759,8 +944,20 @@ mod tests {
     fn test_stats_aggregation() {
         let changes = mock_changes();
         let mut log = AuditLog { entries: vec![] };
-        log.entries.push(AuditEntry { timestamp: "2026-07-15T10:00:00+08:00".into(), change_id: 1, action: "accept".into(), reason: None, user: "test".into() });
-        log.entries.push(AuditEntry { timestamp: "2026-07-15T11:00:00+08:00".into(), change_id: 2, action: "reject".into(), reason: Some("too risky".into()), user: "test".into() });
+        log.entries.push(AuditEntry {
+            timestamp: "2026-07-15T10:00:00+08:00".into(),
+            change_id: 1,
+            action: "accept".into(),
+            reason: None,
+            user: "test".into(),
+        });
+        log.entries.push(AuditEntry {
+            timestamp: "2026-07-15T11:00:00+08:00".into(),
+            change_id: 2,
+            action: "reject".into(),
+            reason: Some("too risky".into()),
+            user: "test".into(),
+        });
         let stats = compute_stats(&changes, &log);
         assert_eq!(stats.total_submissions, 5);
         assert_eq!(stats.accepted, 1);
@@ -771,26 +968,50 @@ mod tests {
     #[test]
     fn test_risk_level_auto_assign() {
         let c_full = EvolutionChange {
-            id: 1, module: "a".into(), description: "d".into(), diff: "d".into(),
-            impact: "i".into(), expected_benefit: "b".into(),
+            id: 1,
+            module: "a".into(),
+            description: "d".into(),
+            diff: "d".into(),
+            impact: "i".into(),
+            expected_benefit: "b".into(),
             risk_level: RiskLevel::Low,
-            test_coverage: TestCoverage { unit: true, integration: true, e2e: true },
+            test_coverage: TestCoverage {
+                unit: true,
+                integration: true,
+                e2e: true,
+            },
         };
         assert_eq!(auto_assign_risk(&c_full), RiskLevel::Trivial);
 
         let c_partial = EvolutionChange {
-            id: 2, module: "a".into(), description: "d".into(), diff: "d".into(),
-            impact: "i".into(), expected_benefit: "b".into(),
+            id: 2,
+            module: "a".into(),
+            description: "d".into(),
+            diff: "d".into(),
+            impact: "i".into(),
+            expected_benefit: "b".into(),
             risk_level: RiskLevel::Low,
-            test_coverage: TestCoverage { unit: true, integration: true, e2e: false },
+            test_coverage: TestCoverage {
+                unit: true,
+                integration: true,
+                e2e: false,
+            },
         };
         assert_eq!(auto_assign_risk(&c_partial), RiskLevel::Low);
 
         let c_unit_only = EvolutionChange {
-            id: 3, module: "a".into(), description: "d".into(), diff: "d".into(),
-            impact: "i".into(), expected_benefit: "b".into(),
+            id: 3,
+            module: "a".into(),
+            description: "d".into(),
+            diff: "d".into(),
+            impact: "i".into(),
+            expected_benefit: "b".into(),
             risk_level: RiskLevel::Medium,
-            test_coverage: TestCoverage { unit: true, integration: false, e2e: false },
+            test_coverage: TestCoverage {
+                unit: true,
+                integration: false,
+                e2e: false,
+            },
         };
         assert_eq!(auto_assign_risk(&c_unit_only), RiskLevel::Medium);
     }
@@ -810,42 +1031,69 @@ mod tests {
             (4, "latency", "latency violated timeout threshold"),
         ] {
             j1_engine.add_error(ErrorRecord {
-                id, timestamp: "2026-07-17T12:00:00Z".into(), error_type: etype.into(),
-                message: msg.into(), source_location: None, stack_trace: None,
-                recovery_applied: None, recovery_success: false,
+                id,
+                timestamp: "2026-07-17T12:00:00Z".into(),
+                error_type: etype.into(),
+                message: msg.into(),
+                source_location: None,
+                stack_trace: None,
+                recovery_applied: None,
+                recovery_success: false,
             });
         }
         let clusters = j1_engine.cluster(0.5, 2);
         let templates = j1_engine.extract_templates(&clusters);
 
         // Step 2: 聚类结果至少产生一些模板
-        assert!(!clusters.is_empty(), "J1 should produce clusters from similar errors");
-        assert!(!templates.is_empty(), "J1 should extract at least 1 template from clusters");
+        assert!(
+            !clusters.is_empty(),
+            "J1 should produce clusters from similar errors"
+        );
+        assert!(
+            !templates.is_empty(),
+            "J1 should extract at least 1 template from clusters"
+        );
 
         // Step 3: J2 — 注入修复记录并生成策略
         let mut j2_gen = StrategyGenerator::new();
         for i in 0..5 {
             j2_gen.record_fix(FixRecord {
-                error_id: i, applied_rule: RecoveryMode::Fallback, success: true,
-                confidence_before: 0.4, confidence_after: 0.9,
+                error_id: i,
+                applied_rule: RecoveryMode::Fallback,
+                success: true,
+                confidence_before: 0.4,
+                confidence_after: 0.9,
             });
         }
         let _j2_rules = j2_gen.infer_new_rules();
         let j2_weights = j2_gen.update_calibrator_weights();
 
-        assert!(j2_gen.history_len() == 5, "J2 history should have 5 records");
-        assert!(j2_weights.len() == 7, "J2 should update all 7 channel weights");
+        assert!(
+            j2_gen.history_len() == 5,
+            "J2 history should have 5 records"
+        );
+        assert!(
+            j2_weights.len() == 7,
+            "J2 should update all 7 channel weights"
+        );
 
         // Step 4: J3 — 验证引擎评分和 AB 实验
         let mut j3_engine = EvolutionVerificationEngine::new();
         let result = j3_engine.run_experiment("e2e_exp_001", "baseline", "optimized", 0.72, 0.89);
         assert!(result.is_ok(), "J3 experiment should succeed");
         let res = result.unwrap();
-        assert_eq!(res.winner, Group::Treatment, "New strategy should win with higher score");
+        assert_eq!(
+            res.winner,
+            Group::Treatment,
+            "New strategy should win with higher score"
+        );
 
         // Step 5: J4 — 四通道串联数据 → evolve review 面板输出有效
         let evolutions = fetch_real_evolutions();
-        assert!(!evolutions.is_empty(), "fetch_real_evolutions should return non-empty Vec");
+        assert!(
+            !evolutions.is_empty(),
+            "fetch_real_evolutions should return non-empty Vec"
+        );
 
         // 验证数据完整性
         for c in &evolutions {
@@ -861,35 +1109,48 @@ mod tests {
         // 注入 20 条错误：10 条 latency 相关 + 10 条 panic 相关
         for i in 0..10 {
             engine.add_error(ErrorRecord {
-                id: i, timestamp: "2026-07-17T12:00:00Z".into(),
+                id: i,
+                timestamp: "2026-07-17T12:00:00Z".into(),
                 error_type: "latency".into(),
                 message: format!("latency constraint violation #{}", i),
-                source_location: None, stack_trace: None,
-                recovery_applied: None, recovery_success: false,
+                source_location: None,
+                stack_trace: None,
+                recovery_applied: None,
+                recovery_success: false,
             });
         }
         for i in 10..20 {
             engine.add_error(ErrorRecord {
-                id: i, timestamp: "2026-07-17T12:00:00Z".into(),
+                id: i,
+                timestamp: "2026-07-17T12:00:00Z".into(),
                 error_type: "panic".into(),
                 message: format!("panic runtime error #{}", i - 10),
-                source_location: None, stack_trace: None,
-                recovery_applied: None, recovery_success: false,
+                source_location: None,
+                stack_trace: None,
+                recovery_applied: None,
+                recovery_success: false,
             });
         }
         let clusters = engine.cluster(0.5, 2);
         // 应该至少有 1 个簇包含多个元素
         let max_cluster_size = clusters.iter().map(|c| c.len()).max().unwrap_or(0);
-        assert!(max_cluster_size >= 2, "Should cluster similar errors, max_cluster_size={}", max_cluster_size);
+        assert!(
+            max_cluster_size >= 2,
+            "Should cluster similar errors, max_cluster_size={}",
+            max_cluster_size
+        );
 
         let templates = engine.extract_templates(&clusters);
-        assert!(!templates.is_empty(), "Should produce templates from clustered errors");
+        assert!(
+            !templates.is_empty(),
+            "Should produce templates from clustered errors"
+        );
     }
 
     #[test]
     fn test_j2_strategy_inference_from_fixes() {
         let mut strategy_gen = StrategyGenerator::new();
-        
+
         // 注入大量同类型成功修复，确保模式能被识别
         for i in 0..10 {
             strategy_gen.record_fix(FixRecord {
@@ -903,11 +1164,18 @@ mod tests {
         let rules = strategy_gen.infer_new_rules();
 
         // Fallback 模式出现 10 次，应该被识别为有效规则
-        assert!(!rules.is_empty(), "Should infer rules from repeated successful fixes");
-        let fallback_rules: Vec<_> = rules.iter()
+        assert!(
+            !rules.is_empty(),
+            "Should infer rules from repeated successful fixes"
+        );
+        let fallback_rules: Vec<_> = rules
+            .iter()
             .filter(|r| matches!(r.applies_mode, RecoveryMode::Fallback))
             .collect();
-        assert!(!fallback_rules.is_empty(), "Fallback mode should be recognized as a rule");
+        assert!(
+            !fallback_rules.is_empty(),
+            "Fallback mode should be recognized as a rule"
+        );
 
         // 验证权重更新
         let weights = strategy_gen.update_calibrator_weights();
@@ -950,7 +1218,10 @@ mod tests {
             coverage_impact: 1.0,
             governance_compliance: true,
         };
-        assert!(good_score.passes_threshold(0.8), "Good score should pass threshold 0.8");
+        assert!(
+            good_score.passes_threshold(0.8),
+            "Good score should pass threshold 0.8"
+        );
 
         let bad_score = EvolutionScore {
             regression_pass_rate: 0.5,
@@ -959,60 +1230,107 @@ mod tests {
             coverage_impact: -0.3,
             governance_compliance: false,
         };
-        assert!(!bad_score.passes_threshold(0.8), "Bad score should fail threshold 0.8");
+        assert!(
+            !bad_score.passes_threshold(0.8),
+            "Bad score should fail threshold 0.8"
+        );
     }
 
     #[test]
     fn test_j4_evolve_status_output() {
         let report = j_status_report().expect("j_status_report should succeed");
-        
+
         // Verify all three channels are represented in output
-        assert!(report.contains("J1") || report.contains("Pattern"), "Report should mention J1");
-        assert!(report.contains("J2") || report.contains("Strategy"), "Report should mention J2");
-        assert!(report.contains("J3") || report.contains("Verification"), "Report should mention J3");
-        
+        assert!(
+            report.contains("J1") || report.contains("Pattern"),
+            "Report should mention J1"
+        );
+        assert!(
+            report.contains("J2") || report.contains("Strategy"),
+            "Report should mention J2"
+        );
+        assert!(
+            report.contains("J3") || report.contains("Verification"),
+            "Report should mention J3"
+        );
+
         // Verify numerical data is present
-        assert!(report.contains("errors") || report.contains("clustered"), "Report should mention error clustering");
-        assert!(report.contains("rules") || report.contains("weight"), "Report should mention strategy rules");
+        assert!(
+            report.contains("errors") || report.contains("clustered"),
+            "Report should mention error clustering"
+        );
+        assert!(
+            report.contains("rules") || report.contains("weight"),
+            "Report should mention strategy rules"
+        );
     }
 
     #[test]
     fn test_review_panel_data_integrity() {
         let evolutions = fetch_real_evolutions();
-        
+
         // Should have at least some entries
-        assert!(!evolutions.is_empty(), "Review panel should have data from real engines");
+        assert!(
+            !evolutions.is_empty(),
+            "Review panel should have data from real engines"
+        );
 
         // Each evolution change must satisfy basic integrity constraints
         for c in &evolutions {
             // Module name should identify source
-            assert!(!c.module.is_empty(), "Module must not be empty for #{}", c.id);
-            
+            assert!(
+                !c.module.is_empty(),
+                "Module must not be empty for #{}",
+                c.id
+            );
+
             // Description should be human-readable
-            assert!(!c.description.is_empty(), "Description must not be empty for #{}", c.id);
-            
+            assert!(
+                !c.description.is_empty(),
+                "Description must not be empty for #{}",
+                c.id
+            );
+
             // Impact should be non-trivial
-            assert!(c.impact.chars().count() > 2, "Impact too short for #{}", c.id);
-            
+            assert!(
+                c.impact.chars().count() > 2,
+                "Impact too short for #{}",
+                c.id
+            );
+
             // Expected benefit should indicate some value
-            assert!(!c.expected_benefit.is_empty(), "Expected benefit must not be empty for #{}", c.id);
-            
+            assert!(
+                !c.expected_benefit.is_empty(),
+                "Expected benefit must not be empty for #{}",
+                c.id
+            );
+
             // Risk level must be valid
             match c.risk_level {
                 RiskLevel::Trivial | RiskLevel::Low | RiskLevel::Medium | RiskLevel::High => {}
             }
-            
+
             // Test coverage must have at least one field set
-            assert!(c.test_coverage.unit || c.test_coverage.integration || c.test_coverage.e2e,
-                "Test coverage must have at least one flag set for #{}", c.id);
+            assert!(
+                c.test_coverage.unit || c.test_coverage.integration || c.test_coverage.e2e,
+                "Test coverage must have at least one flag set for #{}",
+                c.id
+            );
         }
 
         // Verify IDs are unique within the same module type
-        let j1_changes: Vec<_> = evolutions.iter().filter(|c| c.module.contains("j1")).collect();
+        let j1_changes: Vec<_> = evolutions
+            .iter()
+            .filter(|c| c.module.contains("j1"))
+            .collect();
         let mut j1_ids: Vec<u64> = j1_changes.iter().map(|c| c.id).collect();
         j1_ids.sort();
         j1_ids.dedup();
-        assert_eq!(j1_ids.len(), j1_changes.len(), "J1 module IDs must be unique");
+        assert_eq!(
+            j1_ids.len(),
+            j1_changes.len(),
+            "J1 module IDs must be unique"
+        );
     }
 
     #[test]
@@ -1021,14 +1339,24 @@ mod tests {
 
         let mut engine = ErrorClusteringEngine::new();
         engine.add_error(ErrorRecord {
-            id: 1, timestamp: "2026-07-17T12:00:00Z".into(), error_type: "latency".into(),
-            message: "latency exceeded".into(), source_location: None, stack_trace: None,
-            recovery_applied: None, recovery_success: false,
+            id: 1,
+            timestamp: "2026-07-17T12:00:00Z".into(),
+            error_type: "latency".into(),
+            message: "latency exceeded".into(),
+            source_location: None,
+            stack_trace: None,
+            recovery_applied: None,
+            recovery_success: false,
         });
         engine.add_error(ErrorRecord {
-            id: 2, timestamp: "2026-07-17T12:00:00Z".into(), error_type: "latency".into(),
-            message: "latency exceeded".into(), source_location: None, stack_trace: None,
-            recovery_applied: None, recovery_success: false,
+            id: 2,
+            timestamp: "2026-07-17T12:00:00Z".into(),
+            error_type: "latency".into(),
+            message: "latency exceeded".into(),
+            source_location: None,
+            stack_trace: None,
+            recovery_applied: None,
+            recovery_success: false,
         });
 
         let output = "/tmp/.dalib_test_export.jsonl";
@@ -1041,26 +1369,33 @@ mod tests {
     #[test]
     fn test_j2_suggest_hot_recompile() {
         let mut strategy = StrategyGenerator::new();
-        
+
         // Generate enough successful fixes to trigger rule creation
         for i in 0..15 {
             strategy.record_fix(FixRecord {
                 error_id: i,
-                applied_rule: if i % 2 == 0 { RecoveryMode::Fallback } else { RecoveryMode::RetryWithDefault },
+                applied_rule: if i % 2 == 0 {
+                    RecoveryMode::Fallback
+                } else {
+                    RecoveryMode::RetryWithDefault
+                },
                 success: true,
                 confidence_before: 0.3,
                 confidence_after: 0.9,
             });
         }
-        
+
         strategy.infer_new_rules();
-        
+
         // Threshold 3: should suggest recompile when many untested rules accumulated
         let _suggestion = strategy.suggest_hot_recompile(3);
-        
+
         // Either suggests recompilation or has rules worth tracking
         // The key assertion: strategy generation produced rules
-        assert!(!strategy.known_rules().is_empty(), "Should track known rules");
+        assert!(
+            !strategy.known_rules().is_empty(),
+            "Should track known rules"
+        );
         assert!(strategy.history_len() >= 15, "Should record all fixes");
     }
 
@@ -1068,22 +1403,28 @@ mod tests {
     fn test_four_channel_data_flow_j1_to_j2_to_j3() {
         // Simulate real-world data flow through J1 → J2 → J3 pipeline
         // This mirrors how the actual evolution system operates
-        
+
         // J1: Collect errors, cluster them, generate fix templates
         let mut j1 = ErrorClusteringEngine::new();
         for i in 0..8 {
             j1.add_error(ErrorRecord {
-                id: i, timestamp: "2026-07-17T12:00:00Z".into(),
-                error_type: if i < 4 { "latency".to_string() } else { "governance".to_string() },
+                id: i,
+                timestamp: "2026-07-17T12:00:00Z".into(),
+                error_type: if i < 4 {
+                    "latency".to_string()
+                } else {
+                    "governance".to_string()
+                },
                 message: format!("error pattern group {}", i / 4),
-                source_location: None, stack_trace: None,
+                source_location: None,
+                stack_trace: None,
                 recovery_applied: Some("recovery_fallback".into()),
                 recovery_success: i < 4,
             });
         }
         let clusters = j1.cluster(0.5, 2);
         let templates = j1.extract_templates(&clusters);
-        
+
         // J2: Use templates as input signal for strategy generation
         let mut j2 = StrategyGenerator::new();
         for t in &templates {
@@ -1099,12 +1440,12 @@ mod tests {
         }
         let rules = j2.infer_new_rules();
         let weights = j2.update_calibrator_weights();
-        
+
         // J3: Score the combined improvement
         let total_j1_clusters = clusters.iter().map(|c| c.len()).sum::<usize>();
         let total_j2_rules = rules.len();
         let avg_weight = weights.values().sum::<f64>() / weights.len() as f64;
-        
+
         let score = EvolutionScore {
             regression_pass_rate: if total_j1_clusters >= 2 { 1.0 } else { 0.7 },
             performance_delta: avg_weight.clamp(-0.2, 0.5),
@@ -1112,11 +1453,18 @@ mod tests {
             coverage_impact: (total_j2_rules as f64 / 10.0).min(1.0) * 2.0 - 1.0,
             governance_compliance: total_j2_rules > 0,
         };
-        
+
         let composite = score.composite();
-        assert!(composite > 0.0, "Pipeline should produce positive composite score, got {}", composite);
-        
+        assert!(
+            composite > 0.0,
+            "Pipeline should produce positive composite score, got {}",
+            composite
+        );
+
         // Verify intermediate results make sense
-        assert!(total_j1_clusters >= 2, "J1 should cluster at least 2 errors");
+        assert!(
+            total_j1_clusters >= 2,
+            "J1 should cluster at least 2 errors"
+        );
     }
 }

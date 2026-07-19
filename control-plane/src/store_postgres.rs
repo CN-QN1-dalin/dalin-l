@@ -86,12 +86,13 @@ impl TaskStore for PostgresTaskStore {
                 &[&parent_val, &idem],
             )
             .await
-            && let Some(row) = rows.into_iter().next() {
-                let existing_id: String = row.get("id");
-                if let Some(rec) = self.get_record(&existing_id).await {
-                    return rec;
-                }
+            && let Some(row) = rows.into_iter().next()
+        {
+            let existing_id: String = row.get("id");
+            if let Some(rec) = self.get_record(&existing_id).await {
+                return rec;
             }
+        }
 
         let id = uuid::Uuid::new_v4().to_string();
         let rec = TaskRecord {
@@ -147,10 +148,7 @@ impl TaskStore for PostgresTaskStore {
             rec.node = Some(node.to_string());
             let _ = self
                 .client
-                .execute(
-                    "UPDATE tasks SET node=$1 WHERE id=$2",
-                    &[&rec.node, &id],
-                )
+                .execute("UPDATE tasks SET node=$1 WHERE id=$2", &[&rec.node, &id])
                 .await;
         }
     }

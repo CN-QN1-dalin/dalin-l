@@ -50,6 +50,7 @@ fn build_keywords() -> HashMap<&'static str, TokenType> {
     m.insert("mod", KeywordMod);
     m.insert("is", KeywordIs);
     m.insert("as", KeywordAs);
+    m.insert("null", KeywordNull);
     m.insert("true", BoolLiteral);
     m.insert("false", BoolLiteral);
     m
@@ -114,8 +115,12 @@ impl Lexer {
                 None => return,
             };
             match ch {
-                ' ' | '\t' | '\r' => { self.advance(); }
-                '\n' => { self.advance(); }
+                ' ' | '\t' | '\r' => {
+                    self.advance();
+                }
+                '\n' => {
+                    self.advance();
+                }
                 '/' if self.peek(1) == Some('/') => self.skip_line_comment(),
                 '/' if self.peek(1) == Some('*') => self.skip_block_comment(),
                 _ => break,
@@ -127,7 +132,9 @@ impl Lexer {
         self.advance(); // /
         self.advance(); // /
         while let Some(ch) = self.current() {
-            if ch == '\n' { break; }
+            if ch == '\n' {
+                break;
+            }
             self.advance();
         }
     }
@@ -165,7 +172,9 @@ impl Lexer {
             if ch.is_ascii_digit() {
                 self.advance();
             } else if ch == '.' && !has_dot {
-                if self.peek(1) == Some('.') { break; }
+                if self.peek(1) == Some('.') {
+                    break;
+                }
                 has_dot = true;
                 self.advance();
             } else {
@@ -188,17 +197,19 @@ impl Lexer {
 
     fn read_string(&mut self, quote: char) -> Result<(String, bool), LexerError> {
         self.advance(); // skip opening quote
-        let mut raw = String::new();  // 保留原始文本（含 $ 和标识符）
-        let mut result = String::new();  // 处理转义后的结果
+        let mut raw = String::new(); // 保留原始文本（含 $ 和标识符）
+        let mut result = String::new(); // 处理转义后的结果
         let mut has_interp = false;
 
         loop {
             match self.current() {
-                None => return Err(LexerError {
-                    message: "Unterminated string".into(),
-                    line: self.line,
-                    column: self.column,
-                }),
+                None => {
+                    return Err(LexerError {
+                        message: "Unterminated string".into(),
+                        line: self.line,
+                        column: self.column,
+                    });
+                }
                 Some('\\') => {
                     self.advance();
                     let esc = self.current().unwrap_or('\\');
@@ -245,6 +256,7 @@ impl Lexer {
                     // 已经确认有插值了，只需保存 $ 和标识符
                     match self.peek(1) {
                         Some(c) if is_ident_start(c) => {
+                            result.push('$');
                             raw.push('$');
                             self.advance(); // consume $
                             while let Some(ch) = self.current() {
@@ -305,12 +317,10 @@ impl Lexer {
         if ch == '"' || ch == '\'' {
             let s = self.read_string(ch)?;
             let tt = if ch == '"' {
-                if s.1 {
-                    InterpolateToken
-                } else {
-                    StringLiteral
-                }
-            } else { CharLiteral };
+                if s.1 { InterpolateToken } else { StringLiteral }
+            } else {
+                CharLiteral
+            };
             return Ok(Token::new(tt, s.0, line, col));
         }
 
@@ -334,12 +344,28 @@ impl Lexer {
         // Multi-char operators
         let two_char: String = [ch, self.peek(1).unwrap_or('\0')].iter().collect();
         let double_map: HashMap<&str, TokenType> = [
-            ("->", Arrow), ("=>", DoubleArrow), ("|>", Pipe), ("<|", Pipe),
-            ("==", DoubleEqual), ("!=", NotEqual), ("<=", LessEqual), (">=", GreaterEqual),
-            ("&&", And), ("||", Or), ("..", DoubleDot), ("::", DoubleColon),
-            ("+=", PlusEqual), ("-=", MinusEqual), ("*=", StarEqual), ("/=", SlashEqual),
-            ("??", DoubleQuestionMark), ("?:", ColonQuestion),
-        ].iter().cloned().collect();
+            ("->", Arrow),
+            ("=>", DoubleArrow),
+            ("|>", Pipe),
+            ("<|", Pipe),
+            ("==", DoubleEqual),
+            ("!=", NotEqual),
+            ("<=", LessEqual),
+            (">=", GreaterEqual),
+            ("&&", And),
+            ("||", Or),
+            ("..", DoubleDot),
+            ("::", DoubleColon),
+            ("+=", PlusEqual),
+            ("-=", MinusEqual),
+            ("*=", StarEqual),
+            ("/=", SlashEqual),
+            ("??", DoubleQuestionMark),
+            ("?:", ColonQuestion),
+        ]
+        .iter()
+        .cloned()
+        .collect();
 
         if let Some(&tt) = double_map.get(two_char.as_str()) {
             self.advance();
@@ -349,15 +375,32 @@ impl Lexer {
 
         // Single-char operators
         let single_map: HashMap<char, TokenType> = [
-            ('+', Plus), ('-', Minus), ('*', Star), ('/', Slash), ('%', Modulo),
-            ('=', Equal), ('<', Less), ('>', Greater), ('!', Not),
-            ('?', QuestionMark), ('@', At), ('$', Dollar),
-            (',', Comma), (';', Semicolon), (':', Colon),
-            ('(', LeftParen), (')', RightParen),
-            ('[', LeftBracket), (']', RightBracket),
-            ('{', LeftBrace), ('}', RightBrace),
+            ('+', Plus),
+            ('-', Minus),
+            ('*', Star),
+            ('/', Slash),
+            ('%', Modulo),
+            ('=', Equal),
+            ('<', Less),
+            ('>', Greater),
+            ('!', Not),
+            ('?', QuestionMark),
+            ('@', At),
+            ('$', Dollar),
+            (',', Comma),
+            (';', Semicolon),
+            (':', Colon),
+            ('(', LeftParen),
+            (')', RightParen),
+            ('[', LeftBracket),
+            (']', RightBracket),
+            ('{', LeftBrace),
+            ('}', RightBrace),
             ('.', Dot),
-        ].iter().cloned().collect();
+        ]
+        .iter()
+        .cloned()
+        .collect();
 
         if let Some(&tt) = single_map.get(&ch) {
             self.advance();
@@ -383,7 +426,9 @@ impl Lexer {
             let tok = self.next_token()?;
             let is_eof = tok.token_type == Eof;
             tokens.push(tok);
-            if is_eof { break; }
+            if is_eof {
+                break;
+            }
         }
         Ok(tokens)
     }
@@ -427,7 +472,8 @@ mod tests {
     fn test_operators() {
         let mut lex = Lexer::new("a + b - c * d / e");
         let toks = lex.tokenize().unwrap();
-        let ops: Vec<&str> = toks.iter()
+        let ops: Vec<&str> = toks
+            .iter()
             .filter(|t| matches!(t.token_type, Plus | Minus | Star | Slash))
             .map(|t| t.value.as_str())
             .collect();
@@ -476,17 +522,44 @@ mod tests {
 
     #[test]
     fn test_all_keywords() {
-        let mut lex = Lexer::new("let fn return if else match for in while spawn async channel try catch use trait assert mut const type struct enum impl pub export ok error");
+        let mut lex = Lexer::new(
+            "let fn return if else match for in while spawn async channel try catch use trait assert mut const type struct enum impl pub export ok error",
+        );
         let toks = lex.tokenize().unwrap();
-        let kw_count = toks.iter()
-            .filter(|t| matches!(t.token_type,
-                KeywordLet | KeywordFn | KeywordReturn | KeywordIf | KeywordElse |
-                KeywordMatch | KeywordFor | KeywordIn | KeywordWhile | KeywordSpawn |
-                KeywordAsync | KeywordChannel | KeywordTry | KeywordCatch | KeywordUse |
-                KeywordTrait | KeywordAssert | KeywordMut | KeywordConst | KeywordType |
-                KeywordStruct | KeywordEnum | KeywordImpl | KeywordPub | KeywordExport |
-                KeywordOk | KeywordError
-            ))
+        let kw_count = toks
+            .iter()
+            .filter(|t| {
+                matches!(
+                    t.token_type,
+                    KeywordLet
+                        | KeywordFn
+                        | KeywordReturn
+                        | KeywordIf
+                        | KeywordElse
+                        | KeywordMatch
+                        | KeywordFor
+                        | KeywordIn
+                        | KeywordWhile
+                        | KeywordSpawn
+                        | KeywordAsync
+                        | KeywordChannel
+                        | KeywordTry
+                        | KeywordCatch
+                        | KeywordUse
+                        | KeywordTrait
+                        | KeywordAssert
+                        | KeywordMut
+                        | KeywordConst
+                        | KeywordType
+                        | KeywordStruct
+                        | KeywordEnum
+                        | KeywordImpl
+                        | KeywordPub
+                        | KeywordExport
+                        | KeywordOk
+                        | KeywordError
+                )
+            })
             .count();
         assert_eq!(kw_count, 27);
     }

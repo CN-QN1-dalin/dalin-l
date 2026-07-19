@@ -4,8 +4,8 @@
 /// 内置七通道运行时检查：效应、能力、置信度、认知循环、治理、时间约束。
 use crate::ast::{BaseType, Expr, FnParam, Program, Stmt};
 use crate::ty2::{
-    parse_capability, parse_cognitive_loop, parse_confidence, parse_effect, parse_governance,
     Capability, CognitiveLoop, Confidence, Effect, GovernanceLevel, TimeConstraint,
+    parse_capability, parse_cognitive_loop, parse_confidence, parse_effect, parse_governance,
 };
 use std::collections::HashMap;
 use std::fmt;
@@ -101,16 +101,45 @@ impl fmt::Display for RuntimeValue {
 pub enum RuntimeError {
     UndefinedVariable(String),
     UndefinedFunction(String),
-    TypeError { expected: String, actual: String, detail: String },
+    TypeError {
+        expected: String,
+        actual: String,
+        detail: String,
+    },
     DivisionByZero,
-    EffectViolation { declared: Effect, required: Effect, fn_name: String },
-    CognitiveLoopViolation { declared: CognitiveLoop, required: CognitiveLoop, fn_name: String },
-    GovernanceViolation { declared: GovernanceLevel, required: GovernanceLevel, fn_name: String },
-    TimeoutExceeded { constraint_ms: u64, elapsed_ms: u64, fn_name: String },
-    LatencyViolation { declared_ms: u64, actual_ms: u64, fn_name: String },
-    AssertionFailed { message: String },
+    EffectViolation {
+        declared: Effect,
+        required: Effect,
+        fn_name: String,
+    },
+    CognitiveLoopViolation {
+        declared: CognitiveLoop,
+        required: CognitiveLoop,
+        fn_name: String,
+    },
+    GovernanceViolation {
+        declared: GovernanceLevel,
+        required: GovernanceLevel,
+        fn_name: String,
+    },
+    TimeoutExceeded {
+        constraint_ms: u64,
+        elapsed_ms: u64,
+        fn_name: String,
+    },
+    LatencyViolation {
+        declared_ms: u64,
+        actual_ms: u64,
+        fn_name: String,
+    },
+    AssertionFailed {
+        message: String,
+    },
     RuntimePanic(String),
-    StepBudgetExceeded { step_count: u64, max_steps: u64 },
+    StepBudgetExceeded {
+        step_count: u64,
+        max_steps: u64,
+    },
 }
 
 impl fmt::Display for RuntimeError {
@@ -118,31 +147,86 @@ impl fmt::Display for RuntimeError {
         match self {
             RuntimeError::UndefinedVariable(name) => write!(f, "undefined variable: {}", name),
             RuntimeError::UndefinedFunction(name) => write!(f, "undefined function: {}", name),
-            RuntimeError::TypeError { expected, actual, detail } => {
-                write!(f, "type error: expected {}, got {} — {}", expected, actual, detail)
+            RuntimeError::TypeError {
+                expected,
+                actual,
+                detail,
+            } => {
+                write!(
+                    f,
+                    "type error: expected {}, got {} — {}",
+                    expected, actual, detail
+                )
             }
             RuntimeError::DivisionByZero => write!(f, "division by zero"),
-            RuntimeError::EffectViolation { declared, required, fn_name } => {
-                write!(f, "effect violation in '{}': declared {:?} but {:?} required", fn_name, declared, required)
+            RuntimeError::EffectViolation {
+                declared,
+                required,
+                fn_name,
+            } => {
+                write!(
+                    f,
+                    "effect violation in '{}': declared {:?} but {:?} required",
+                    fn_name, declared, required
+                )
             }
-            RuntimeError::CognitiveLoopViolation { declared, required, fn_name } => {
-                write!(f, "cognitive loop violation in '{}': declared {:?} but {:?} required", fn_name, declared, required)
+            RuntimeError::CognitiveLoopViolation {
+                declared,
+                required,
+                fn_name,
+            } => {
+                write!(
+                    f,
+                    "cognitive loop violation in '{}': declared {:?} but {:?} required",
+                    fn_name, declared, required
+                )
             }
-            RuntimeError::GovernanceViolation { declared, required, fn_name } => {
-                write!(f, "governance violation in '{}': declared {:?} but {:?} required", fn_name, declared, required)
+            RuntimeError::GovernanceViolation {
+                declared,
+                required,
+                fn_name,
+            } => {
+                write!(
+                    f,
+                    "governance violation in '{}': declared {:?} but {:?} required",
+                    fn_name, declared, required
+                )
             }
-            RuntimeError::TimeoutExceeded { constraint_ms, elapsed_ms, fn_name } => {
-                write!(f, "timeout in '{}': limit {}ms, elapsed {}ms", fn_name, constraint_ms, elapsed_ms)
+            RuntimeError::TimeoutExceeded {
+                constraint_ms,
+                elapsed_ms,
+                fn_name,
+            } => {
+                write!(
+                    f,
+                    "timeout in '{}': limit {}ms, elapsed {}ms",
+                    fn_name, constraint_ms, elapsed_ms
+                )
             }
-            RuntimeError::LatencyViolation { declared_ms, actual_ms, fn_name } => {
-                write!(f, "latency violation in '{}': declared {}ms but took {}ms", fn_name, declared_ms, actual_ms)
+            RuntimeError::LatencyViolation {
+                declared_ms,
+                actual_ms,
+                fn_name,
+            } => {
+                write!(
+                    f,
+                    "latency violation in '{}': declared {}ms but took {}ms",
+                    fn_name, declared_ms, actual_ms
+                )
             }
             RuntimeError::AssertionFailed { message } => {
                 write!(f, "assertion failed: {}", message)
             }
             RuntimeError::RuntimePanic(msg) => write!(f, "runtime panic: {}", msg),
-            RuntimeError::StepBudgetExceeded { step_count, max_steps } => {
-                write!(f, "step budget exceeded: {} steps (max {})", step_count, max_steps)
+            RuntimeError::StepBudgetExceeded {
+                step_count,
+                max_steps,
+            } => {
+                write!(
+                    f,
+                    "step budget exceeded: {} steps (max {})",
+                    step_count, max_steps
+                )
             }
         }
     }
@@ -300,11 +384,7 @@ impl CognitiveLoopMachine {
     }
 
     /// 检查调用方的认知阶段是否满足声明的阶段要求
-    pub fn check_phase(
-        &self,
-        declared: &CognitiveLoop,
-        fn_name: &str,
-    ) -> RuntimeResult<()> {
+    pub fn check_phase(&self, declared: &CognitiveLoop, fn_name: &str) -> RuntimeResult<()> {
         let required_phase = cognitive_loop_to_phase(declared);
         // 如果当前为 Idle，任何认知循环都是合法的
         if self.current_phase == CognitiveLoopPhase::Idle {
@@ -322,13 +402,14 @@ impl CognitiveLoopMachine {
         let required_idx = phase_order.iter().position(|p| *p == required_phase);
 
         if let (Some(ci), Some(ri)) = (current_idx, required_idx)
-            && ri > ci {
-                return Err(RuntimeError::CognitiveLoopViolation {
-                    declared: declared.clone(),
-                    required: CognitiveLoop::Perceive,
-                    fn_name: fn_name.to_string(),
-                });
-            }
+            && ri > ci
+        {
+            return Err(RuntimeError::CognitiveLoopViolation {
+                declared: declared.clone(),
+                required: CognitiveLoop::Perceive,
+                fn_name: fn_name.to_string(),
+            });
+        }
         Ok(())
     }
 }
@@ -409,8 +490,7 @@ impl TimeMonitor {
 
     /// 记录函数执行耗时
     pub fn record(&mut self, fn_name: &str, elapsed_ms: u64) {
-        self.fn_timings
-            .push((fn_name.to_string(), elapsed_ms));
+        self.fn_timings.push((fn_name.to_string(), elapsed_ms));
     }
 
     /// 检查时间约束
@@ -422,21 +502,23 @@ impl TimeMonitor {
     ) -> Vec<RuntimeError> {
         let mut errors = Vec::new();
         if let Some(latency) = constraint.latency_ms
-            && actual_ms > latency {
-                errors.push(RuntimeError::LatencyViolation {
-                    declared_ms: latency,
-                    actual_ms,
-                    fn_name: fn_name.to_string(),
-                });
-            }
+            && actual_ms > latency
+        {
+            errors.push(RuntimeError::LatencyViolation {
+                declared_ms: latency,
+                actual_ms,
+                fn_name: fn_name.to_string(),
+            });
+        }
         if let Some(timeout) = constraint.timeout_ms
-            && actual_ms > timeout {
-                errors.push(RuntimeError::TimeoutExceeded {
-                    constraint_ms: timeout,
-                    elapsed_ms: actual_ms,
-                    fn_name: fn_name.to_string(),
-                });
-            }
+            && actual_ms > timeout
+        {
+            errors.push(RuntimeError::TimeoutExceeded {
+                constraint_ms: timeout,
+                elapsed_ms: actual_ms,
+                fn_name: fn_name.to_string(),
+            });
+        }
         errors
     }
 }
@@ -544,23 +626,14 @@ impl Runtime {
             ..
         } = stmt
         {
-            let eff = effect
-                .as_deref()
-                .map(parse_effect)
-                .unwrap_or(Effect::Pure);
+            let eff = effect.as_deref().map(parse_effect).unwrap_or(Effect::Pure);
             let cap = capability
                 .as_deref()
                 .map(parse_capability)
                 .unwrap_or(Capability::Cpu);
-            let conf = confidence
-                .as_deref()
-                .map(parse_confidence);
-            let cl = cognitive_loop
-                .as_deref()
-                .map(parse_cognitive_loop);
-            let gov = governance
-                .as_deref()
-                .map(parse_governance);
+            let conf = confidence.as_deref().map(parse_confidence);
+            let cl = cognitive_loop.as_deref().map(parse_cognitive_loop);
+            let gov = governance.as_deref().map(parse_governance);
             let tc = {
                 let mut t = TimeConstraint::new();
                 if let Some(l) = latency {
@@ -635,8 +708,11 @@ impl Runtime {
                 Effect::Io | Effect::Async => CognitiveLoopPhase::Acting,
                 _ => CognitiveLoopPhase::Reasoning,
             });
-        self.cognitive
-            .advance(phase.clone(), &fn_def.name, fn_start.elapsed().as_micros() as u64);
+        self.cognitive.advance(
+            phase.clone(),
+            &fn_def.name,
+            fn_start.elapsed().as_micros() as u64,
+        );
 
         self.events.push(RuntimeEvent::FnCall {
             name: fn_def.name.clone(),
@@ -657,11 +733,9 @@ impl Runtime {
         // 6. 治理日志
         if let Some(gov) = &fn_def.governance {
             let permitted = true; // 通过了上面的检查
-            self.governance.check_log.push((
-                fn_def.name.clone(),
-                gov.clone(),
-                permitted,
-            ));
+            self.governance
+                .check_log
+                .push((fn_def.name.clone(), gov.clone(), permitted));
         }
 
         self.env.pop_scope();
@@ -670,7 +744,9 @@ impl Runtime {
         let elapsed_ms = fn_start.elapsed().as_millis() as u64;
         self.time_monitor.record(&fn_def.name, elapsed_ms);
         if let Some(tc) = &fn_def.time_constraint {
-            let time_errors = self.time_monitor.check_constraint(tc, &fn_def.name, elapsed_ms);
+            let time_errors = self
+                .time_monitor
+                .check_constraint(tc, &fn_def.name, elapsed_ms);
             for err in &time_errors {
                 self.events.push(RuntimeEvent::TimeWarning {
                     fn_name: fn_def.name.clone(),
@@ -789,11 +865,10 @@ impl Runtime {
                 let iter_val = self.eval_expr(iterable)?;
                 let items = match &iter_val {
                     RuntimeValue::Array(arr) => arr.clone(),
-                    RuntimeValue::String(s) => {
-                        s.chars()
-                            .map(|c| RuntimeValue::String(c.to_string()))
-                            .collect()
-                    }
+                    RuntimeValue::String(s) => s
+                        .chars()
+                        .map(|c| RuntimeValue::String(c.to_string()))
+                        .collect(),
                     other => {
                         return Err(RuntimeError::TypeError {
                             expected: "array or string".to_string(),
@@ -880,11 +955,16 @@ impl Runtime {
             Stmt::Spawn { fn_decl } => {
                 // Spawn: 在当前作用域定义函数但标记为 async
                 // 简化版：直接注册函数
-                if let Stmt::Fn { name, params, body, effect, capability, .. } = fn_decl.as_ref() {
-                    let eff = effect
-                        .as_deref()
-                        .map(parse_effect)
-                        .unwrap_or(Effect::Spawn);
+                if let Stmt::Fn {
+                    name,
+                    params,
+                    body,
+                    effect,
+                    capability,
+                    ..
+                } = fn_decl.as_ref()
+                {
+                    let eff = effect.as_deref().map(parse_effect).unwrap_or(Effect::Spawn);
                     let cap = capability
                         .as_deref()
                         .map(parse_capability)
@@ -963,7 +1043,10 @@ impl Runtime {
                             detail: "logical not".to_string(),
                         }),
                     },
-                    _ => Err(RuntimeError::RuntimePanic(format!("unknown unary op: {}", op))),
+                    _ => Err(RuntimeError::RuntimePanic(format!(
+                        "unknown unary op: {}",
+                        op
+                    ))),
                 }
             }
             Expr::Call { func, args } => {
@@ -1107,7 +1190,11 @@ impl Runtime {
                 }
                 Ok(val)
             }
-            Expr::Range { start, end, inclusive } => {
+            Expr::Range {
+                start,
+                end,
+                inclusive,
+            } => {
                 let s = self.eval_expr(start)?;
                 let e = self.eval_expr(end)?;
                 match (&s, &e) {
@@ -1133,7 +1220,7 @@ impl Runtime {
             }
             Expr::OptionValue { is_some, value } => {
                 if *is_some {
-                    let v = if let Some( expr) = value {
+                    let v = if let Some(expr) = value {
                         Some(Box::new(self.eval_expr(expr)?))
                     } else {
                         None
@@ -1143,16 +1230,20 @@ impl Runtime {
                     Ok(RuntimeValue::Option(false, None))
                 }
             }
-            Expr::ResultValue { is_ok, value, error } => {
+            Expr::ResultValue {
+                is_ok,
+                value,
+                error,
+            } => {
                 if *is_ok {
-                    let v = if let Some( expr) = value {
+                    let v = if let Some(expr) = value {
                         Some(Box::new(self.eval_expr(expr)?))
                     } else {
                         None
                     };
                     Ok(RuntimeValue::Result(true, v, None))
                 } else {
-                    let e = if let Some( expr) = error {
+                    let e = if let Some(expr) = error {
                         Some(Box::new(self.eval_expr(expr)?))
                     } else {
                         None
@@ -1167,15 +1258,15 @@ impl Runtime {
             Expr::IsCheck(expr, type_ref) => {
                 let val = self.eval_expr(expr)?;
                 let expected_base = &type_ref.base;
-                let matches = match (&val, expected_base) {
-                    (RuntimeValue::Int(_), BaseType::Int) => true,
-                    (RuntimeValue::Float(_), BaseType::Float) => true,
-                    (RuntimeValue::String(_), BaseType::String) => true,
-                    (RuntimeValue::Bool(_), BaseType::Bool) => true,
-                    (RuntimeValue::Array(_), BaseType::Array) => true,
-                    (RuntimeValue::None, BaseType::None) => true,
-                    _ => false,
-                };
+                let matches = matches!(
+                    (&val, expected_base),
+                    (RuntimeValue::Int(_), BaseType::Int)
+                        | (RuntimeValue::Float(_), BaseType::Float)
+                        | (RuntimeValue::String(_), BaseType::String)
+                        | (RuntimeValue::Bool(_), BaseType::Bool)
+                        | (RuntimeValue::Array(_), BaseType::Array)
+                        | (RuntimeValue::None, BaseType::None)
+                );
                 Ok(RuntimeValue::Bool(matches))
             }
             Expr::Cast(expr, type_ref) => {
@@ -1184,24 +1275,22 @@ impl Runtime {
                 match (&val, target_base) {
                     (RuntimeValue::Int(i), BaseType::Float) => Ok(RuntimeValue::Float((*i) as f64)),
                     (RuntimeValue::Float(f), BaseType::Int) => Ok(RuntimeValue::Int((*f) as i64)),
-                    (RuntimeValue::String(s), BaseType::Int) => {
-                        s.parse::<i64>()
-                            .map(RuntimeValue::Int)
-                            .map_err(|_| RuntimeError::TypeError {
-                                expected: "int".to_string(),
-                                actual: format!("{}", val),
-                                detail: "cast from string to int failed".to_string(),
-                            })
-                    }
-                    (RuntimeValue::String(s), BaseType::Float) => {
-                        s.parse::<f64>()
-                            .map(RuntimeValue::Float)
-                            .map_err(|_| RuntimeError::TypeError {
-                                expected: "float".to_string(),
-                                actual: format!("{}", val),
-                                detail: "cast from string to float failed".to_string(),
-                            })
-                    }
+                    (RuntimeValue::String(s), BaseType::Int) => s
+                        .parse::<i64>()
+                        .map(RuntimeValue::Int)
+                        .map_err(|_| RuntimeError::TypeError {
+                            expected: "int".to_string(),
+                            actual: format!("{}", val),
+                            detail: "cast from string to int failed".to_string(),
+                        }),
+                    (RuntimeValue::String(s), BaseType::Float) => s
+                        .parse::<f64>()
+                        .map(RuntimeValue::Float)
+                        .map_err(|_| RuntimeError::TypeError {
+                            expected: "float".to_string(),
+                            actual: format!("{}", val),
+                            detail: "cast from string to float failed".to_string(),
+                        }),
                     _ => Ok(val), // 同类型或不可转换 → 返回原值
                 }
             }
@@ -1227,7 +1316,9 @@ impl Runtime {
                 if *b == 0 {
                     Err(RuntimeError::DivisionByZero)
                 } else if *a == i64::MIN && *b == -1 {
-                    Err(RuntimeError::RuntimePanic("integer overflow in division".into()))
+                    Err(RuntimeError::RuntimePanic(
+                        "integer overflow in division".into(),
+                    ))
                 } else {
                     Ok(RuntimeValue::Int(a / b))
                 }
@@ -1236,20 +1327,16 @@ impl Runtime {
                 if *b == 0 {
                     Err(RuntimeError::DivisionByZero)
                 } else if *b == -1 {
-                    Err(RuntimeError::RuntimePanic("integer overflow in modulo".into()))
+                    Err(RuntimeError::RuntimePanic(
+                        "integer overflow in modulo".into(),
+                    ))
                 } else {
                     Ok(RuntimeValue::Int(a % b))
                 }
             }
-            (RuntimeValue::Float(a), "+", RuntimeValue::Float(b)) => {
-                Ok(RuntimeValue::Float(a + b))
-            }
-            (RuntimeValue::Float(a), "-", RuntimeValue::Float(b)) => {
-                Ok(RuntimeValue::Float(a - b))
-            }
-            (RuntimeValue::Float(a), "*", RuntimeValue::Float(b)) => {
-                Ok(RuntimeValue::Float(a * b))
-            }
+            (RuntimeValue::Float(a), "+", RuntimeValue::Float(b)) => Ok(RuntimeValue::Float(a + b)),
+            (RuntimeValue::Float(a), "-", RuntimeValue::Float(b)) => Ok(RuntimeValue::Float(a - b)),
+            (RuntimeValue::Float(a), "*", RuntimeValue::Float(b)) => Ok(RuntimeValue::Float(a * b)),
             (RuntimeValue::Float(a), "/", RuntimeValue::Float(b)) => {
                 if *b == 0.0 {
                     Err(RuntimeError::DivisionByZero)
@@ -1259,22 +1346,14 @@ impl Runtime {
             }
 
             // 比较
-            (RuntimeValue::Int(a), "==", RuntimeValue::Int(b)) => {
-                Ok(RuntimeValue::Bool(a == b))
-            }
-            (RuntimeValue::Int(a), "!=", RuntimeValue::Int(b)) => {
-                Ok(RuntimeValue::Bool(a != b))
-            }
+            (RuntimeValue::Int(a), "==", RuntimeValue::Int(b)) => Ok(RuntimeValue::Bool(a == b)),
+            (RuntimeValue::Int(a), "!=", RuntimeValue::Int(b)) => Ok(RuntimeValue::Bool(a != b)),
             (RuntimeValue::Int(a), "<", RuntimeValue::Int(b)) => Ok(RuntimeValue::Bool(a < b)),
             (RuntimeValue::Int(a), ">", RuntimeValue::Int(b)) => Ok(RuntimeValue::Bool(a > b)),
             (RuntimeValue::Int(a), "<=", RuntimeValue::Int(b)) => Ok(RuntimeValue::Bool(a <= b)),
             (RuntimeValue::Int(a), ">=", RuntimeValue::Int(b)) => Ok(RuntimeValue::Bool(a >= b)),
-            (RuntimeValue::Float(a), "<", RuntimeValue::Float(b)) => {
-                Ok(RuntimeValue::Bool(a < b))
-            }
-            (RuntimeValue::Float(a), ">", RuntimeValue::Float(b)) => {
-                Ok(RuntimeValue::Bool(a > b))
-            }
+            (RuntimeValue::Float(a), "<", RuntimeValue::Float(b)) => Ok(RuntimeValue::Bool(a < b)),
+            (RuntimeValue::Float(a), ">", RuntimeValue::Float(b)) => Ok(RuntimeValue::Bool(a > b)),
             (RuntimeValue::Float(a), "<=", RuntimeValue::Float(b)) => {
                 Ok(RuntimeValue::Bool(a <= b))
             }
@@ -1293,12 +1372,8 @@ impl Runtime {
             (RuntimeValue::String(a), "!=", RuntimeValue::String(b)) => {
                 Ok(RuntimeValue::Bool(a != b))
             }
-            (RuntimeValue::Bool(a), "==", RuntimeValue::Bool(b)) => {
-                Ok(RuntimeValue::Bool(a == b))
-            }
-            (RuntimeValue::Bool(a), "!=", RuntimeValue::Bool(b)) => {
-                Ok(RuntimeValue::Bool(a != b))
-            }
+            (RuntimeValue::Bool(a), "==", RuntimeValue::Bool(b)) => Ok(RuntimeValue::Bool(a == b)),
+            (RuntimeValue::Bool(a), "!=", RuntimeValue::Bool(b)) => Ok(RuntimeValue::Bool(a != b)),
             // 字符串拼接
             (RuntimeValue::String(a), "+", RuntimeValue::String(b)) => {
                 Ok(RuntimeValue::String(format!("{}{}", a, b)))
@@ -1436,7 +1511,7 @@ impl SelfHealingRuntime {
         args: &[RuntimeValue],
     ) -> RuntimeResult<RuntimeValue> {
         let result = self.inner.call(fn_name, args);
-        
+
         match &result {
             Err(err) => {
                 // 根据恢复策略进行处理
@@ -1520,18 +1595,18 @@ impl SelfHealingRuntime {
                         if matches!(err, RuntimeError::GovernanceViolation { .. }) {
                             let _seq = self.recovery_seq;
                             self.recovery_seq += 1;
-                            
+
                             let new_level = match self.inner.governance.session_level {
                                 GovernanceLevel::Execute => GovernanceLevel::Approve,
                                 GovernanceLevel::Approve => GovernanceLevel::Suggest,
                                 GovernanceLevel::Suggest => GovernanceLevel::Prepare,
                                 GovernanceLevel::Prepare => return Err(err.clone()), // 已最低
                             };
-                            
+
                             self.inner.governance.session_level = new_level;
                             let retry_result = self.inner.call(fn_name, args);
                             let success = retry_result.is_ok();
-                            
+
                             self.recovery_log.push(RecoveryEvent {
                                 fn_name: fn_name.to_string(),
                                 error: err.clone(),
@@ -1539,7 +1614,7 @@ impl SelfHealingRuntime {
                                 success_after_recovery: success,
                                 timestamp_us: self.start_time.elapsed().as_micros() as u64,
                             });
-                            
+
                             if success {
                                 retry_result
                             } else {
@@ -1577,8 +1652,16 @@ impl ConfidenceCalibrator {
     }
 
     /// 记录执行结果
-    pub fn record_outcome(&mut self, fn_name: &str, expected_confidence: f64, actual_success: bool) {
-        let entry = self.calibration_table.entry(fn_name.to_string()).or_default();
+    pub fn record_outcome(
+        &mut self,
+        fn_name: &str,
+        expected_confidence: f64,
+        actual_success: bool,
+    ) {
+        let entry = self
+            .calibration_table
+            .entry(fn_name.to_string())
+            .or_default();
         entry.push((expected_confidence, actual_success));
     }
 
@@ -1588,7 +1671,8 @@ impl ConfidenceCalibrator {
             if entries.is_empty() {
                 return 0.85; // 默认
             }
-            let successes: f64 = entries.iter().filter(|(_, s)| *s).count() as f64 / entries.len() as f64;
+            let successes: f64 =
+                entries.iter().filter(|(_, s)| *s).count() as f64 / entries.len() as f64;
             // 根据实际成功率调整
             successes.clamp(0.1, 1.0)
         } else {
@@ -1628,11 +1712,7 @@ impl RuntimeSelfEvolution {
     }
 
     /// 进化指定函数：调用 QN1 生成新代码并热替换
-    pub fn evolve(
-        &mut self,
-        fn_name: &str,
-        prompt: &str,
-    ) -> crate::qn1::Qn1GeneratedCode {
+    pub fn evolve(&mut self, fn_name: &str, prompt: &str) -> crate::qn1::Qn1GeneratedCode {
         use std::collections::HashMap;
         let ctx = crate::qn1::GenerationContext {
             fn_name: Some(fn_name.to_string()),
@@ -1640,7 +1720,7 @@ impl RuntimeSelfEvolution {
             annotations: HashMap::new(),
         };
         let result = self.qn1_generator.generate(prompt, &ctx);
-        
+
         // 记录进化事件
         let new_code = format!("{:?}", result.statements);
         self.evolution_log.push(EvolutionEvent {
@@ -1650,7 +1730,7 @@ impl RuntimeSelfEvolution {
             new_body_len: result.statements.len(),
             new_code,
         });
-        
+
         result
     }
 }
@@ -1675,8 +1755,8 @@ pub fn run_with_healing(
 mod tests {
     use super::*;
     use crate::ast::{Expr, FnParam, Program, Stmt};
-    use crate::parser::Parser;
     use crate::lexer::Lexer;
+    use crate::parser::Parser;
 
     // ── Test Helpers ──
 
@@ -1746,18 +1826,14 @@ mod tests {
     #[test]
     fn test_eval_int_literal() {
         let mut rt = Runtime::new(GovernanceLevel::Execute);
-        assert_eq!(
-            rt.eval_expr(&int_expr(42)).unwrap(),
-            RuntimeValue::Int(42)
-        );
+        assert_eq!(rt.eval_expr(&int_expr(42)).unwrap(), RuntimeValue::Int(42));
     }
 
     #[test]
     fn test_eval_binary_arith() {
         let mut rt = Runtime::new(GovernanceLevel::Execute);
         assert_eq!(
-            rt.eval_expr(&binop(int_expr(3), "+", int_expr(4)))
-                .unwrap(),
+            rt.eval_expr(&binop(int_expr(3), "+", int_expr(4))).unwrap(),
             RuntimeValue::Int(7)
         );
         assert_eq!(
@@ -1766,8 +1842,7 @@ mod tests {
             RuntimeValue::Int(7)
         );
         assert_eq!(
-            rt.eval_expr(&binop(int_expr(6), "*", int_expr(7)))
-                .unwrap(),
+            rt.eval_expr(&binop(int_expr(6), "*", int_expr(7))).unwrap(),
             RuntimeValue::Int(42)
         );
         assert_eq!(
@@ -1781,13 +1856,11 @@ mod tests {
     fn test_eval_comparison() {
         let mut rt = Runtime::new(GovernanceLevel::Execute);
         assert_eq!(
-            rt.eval_expr(&binop(int_expr(3), "<", int_expr(4)))
-                .unwrap(),
+            rt.eval_expr(&binop(int_expr(3), "<", int_expr(4))).unwrap(),
             RuntimeValue::Bool(true)
         );
         assert_eq!(
-            rt.eval_expr(&binop(int_expr(5), ">", int_expr(3)))
-                .unwrap(),
+            rt.eval_expr(&binop(int_expr(5), ">", int_expr(3))).unwrap(),
             RuntimeValue::Bool(true)
         );
         assert_eq!(
@@ -1965,9 +2038,15 @@ fn main() @ pure @ cpu @ decide { return perceive_fn() }";
         // 验证认知循环历史：main 先进入 decide 阶段，perceive_fn 后进入 perceive 阶段
         assert!(rt.cognitive.phase_history.len() >= 2);
         assert_eq!(rt.cognitive.phase_history[0].1, "main");
-        assert_eq!(rt.cognitive.phase_history[0].0, CognitiveLoopPhase::Deciding);
+        assert_eq!(
+            rt.cognitive.phase_history[0].0,
+            CognitiveLoopPhase::Deciding
+        );
         assert_eq!(rt.cognitive.phase_history[1].1, "perceive_fn");
-        assert_eq!(rt.cognitive.phase_history[1].0, CognitiveLoopPhase::Perceiving);
+        assert_eq!(
+            rt.cognitive.phase_history[1].0,
+            CognitiveLoopPhase::Perceiving
+        );
     }
 
     // ── Governance Tests ──
@@ -1992,7 +2071,10 @@ fn main() @ pure @ cpu @ decide { return perceive_fn() }";
         let mut rt = Runtime::new(GovernanceLevel::Prepare);
         rt.load_program(&prog);
         let result = rt.call("exec_fn", &[]);
-        assert!(matches!(result, Err(RuntimeError::GovernanceViolation { .. })));
+        assert!(matches!(
+            result,
+            Err(RuntimeError::GovernanceViolation { .. })
+        ));
     }
 
     // ── Time Constraint Tests ──
@@ -2127,7 +2209,10 @@ fn main() @ pure @ cpu @ decide @ gov(approve) { return sensor() }";
         let mut rt = Runtime::new(GovernanceLevel::Execute);
         rt.load_program(&prog);
         let result = rt.call("main", &[]);
-        assert!(result.is_ok(), "cognitive+governance should pass with Execute level");
+        assert!(
+            result.is_ok(),
+            "cognitive+governance should pass with Execute level"
+        );
     }
 
     #[test]
@@ -2152,9 +2237,9 @@ fn main() @ gov(suggest) { return approve_action() }";
         let prog = parse(src);
         let events = run_compiled(&prog, "main").unwrap();
         assert!(!events.is_empty());
-        let has_main_return = events.iter().any(|e| {
-            matches!(e, RuntimeEvent::FnReturn { name, .. } if name == "main")
-        });
+        let has_main_return = events
+            .iter()
+            .any(|e| matches!(e, RuntimeEvent::FnReturn { name, .. } if name == "main"));
         assert!(has_main_return, "should have main return event");
     }
 
@@ -2176,8 +2261,14 @@ fn main() @ decide { return reasoner() }";
             .iter()
             .map(|(p, n, _)| format!("{}:{}", n, p))
             .collect();
-        assert!(phases.iter().any(|p| p.contains("sensor:perceive")), "sensor in perceive phase");
-        assert!(phases.iter().any(|p| p.contains("reasoner:reason")), "reasoner in reason phase");
+        assert!(
+            phases.iter().any(|p| p.contains("sensor:perceive")),
+            "sensor in perceive phase"
+        );
+        assert!(
+            phases.iter().any(|p| p.contains("reasoner:reason")),
+            "reasoner in reason phase"
+        );
     }
 
     #[test]
@@ -2205,7 +2296,10 @@ fn main() @ pure @ cpu {
         let result = rt.call("slow", &[]);
         assert_eq!(result.unwrap(), RuntimeValue::Int(42));
         // 检查是否有时间警告事件
-        let _has_warning = rt.events.iter().any(|e| matches!(e, RuntimeEvent::TimeWarning { .. }));
+        let _has_warning = rt
+            .events
+            .iter()
+            .any(|e| matches!(e, RuntimeEvent::TimeWarning { .. }));
         // 可能因 CPU 太快没触发，但至少不阻塞
     }
 
@@ -2227,7 +2321,9 @@ fn main() @ pure @ cpu {
         let mut rt = Runtime::new(GovernanceLevel::Execute);
         rt.load_program(&prog);
         let result = rt.call("recurse", &[]);
-        assert!(matches!(result, Err(RuntimeError::RuntimePanic( msg)) if msg.contains("stack overflow")));
+        assert!(
+            matches!(result, Err(RuntimeError::RuntimePanic( msg)) if msg.contains("stack overflow"))
+        );
     }
 
     #[test]
@@ -2238,7 +2334,10 @@ fn main() @ pure @ cpu {
             op: "+".to_string(),
             right: Box::new(Expr::StringLiteral("World!".to_string())),
         });
-        assert_eq!(result.unwrap(), RuntimeValue::String("Hello, World!".to_string()));
+        assert_eq!(
+            result.unwrap(),
+            RuntimeValue::String("Hello, World!".to_string())
+        );
     }
 
     // ═══════════════════════════════════════════
@@ -2264,10 +2363,10 @@ fn main() @ pure @ cpu {
         cal.record_outcome("sort_data", 0.85, true);
         cal.record_outcome("sort_data", 0.85, true);
         cal.record_outcome("sort_data", 0.85, true);
-        
+
         let confidence = cal.calibrated_confidence("sort_data");
         assert!((confidence - 1.0).abs() < 0.01); // 3/3 成功 → 100%
-        
+
         let stats = cal.stats("sort_data").unwrap();
         assert_eq!(stats.0, 3); // 3 次调用
         assert!((stats.1 - 1.0).abs() < 0.01); // 100% 成功率
@@ -2280,10 +2379,10 @@ fn main() @ pure @ cpu {
         cal.record_outcome("complex_query", 0.95, true);
         cal.record_outcome("complex_query", 0.95, false);
         cal.record_outcome("complex_query", 0.95, false);
-        
+
         let confidence = cal.calibrated_confidence("complex_query");
         assert!(confidence < 0.7); // 2/3 失败 → 低置信度
-        
+
         let stats = cal.stats("complex_query").unwrap();
         assert_eq!(stats.1, (1.0 / 3.0)); // 33% 成功率
     }
@@ -2293,7 +2392,7 @@ fn main() @ pure @ cpu {
         // DivisionByZero → 回退策略，返回 0
         let mut rt = SelfHealingRuntime::new(GovernanceLevel::Execute);
         rt.recovery_mode = RecoveryMode::RetryWithDefault;
-        
+
         // 当前 runtime 不支持直接除零的 eval，所以这里测试逻辑是否正确
         // 我们实际测试 recovery_log 的写入
         let _result = rt.call_with_healing("fake_fn", &[int_value(10), int_value(0)]);
@@ -2305,7 +2404,7 @@ fn main() @ pure @ cpu {
         // 使用 Mock QN1 进行演化测试
         let mut evolution = RuntimeSelfEvolution::new_mock();
         let result = evolution.evolve("test_fn", "generate fibonacci function");
-        
+
         assert!(!result.statements.is_empty());
         assert!(!evolution.evolution_log.is_empty());
         assert_eq!(evolution.evolution_log[0].fn_name, "test_fn");

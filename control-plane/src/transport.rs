@@ -90,7 +90,10 @@ impl EventBus for NatsEventBus {
     async fn publish(&self, event: &TaskEvent) {
         if let Ok(payload) = serde_json::to_vec(event) {
             // fire-and-forget；若需 At-Least-Once，可在 NATS 侧启用 JetStream 并 await publish ack
-            let _ = self.client.publish(self.subject.clone(), payload.into()).await;
+            let _ = self
+                .client
+                .publish(self.subject.clone(), payload.into())
+                .await;
         }
     }
 }

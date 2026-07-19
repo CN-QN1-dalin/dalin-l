@@ -4,10 +4,7 @@ pub fn banner(title: &str) -> String {
     let width = 60;
     let sep = "=".repeat(width);
     let date = Local::now().format("%Y-%m-%d %H:%M");
-    format!(
-        "{}\n  Dalin L 3.0 — {} | {}\n{}",
-        sep, title, date, sep
-    )
+    format!("{}\n  Dalin L 3.0 — {} | {}\n{}", sep, title, date, sep)
 }
 
 pub fn ok(label: &str, msg: &str) -> Result<(), String> {

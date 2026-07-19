@@ -13,12 +13,12 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use control_plane::agent_registry::{spawn_cleanup_task, NodeRegistry};
+use control_plane::agent_registry::{NodeRegistry, spawn_cleanup_task};
 use control_plane::dispatch::InMemoryDispatchBroker;
 use control_plane::scheduler::{CapabilityScheduler, Node};
 use control_plane::server;
 use control_plane::store::TaskStore;
-use control_plane::store_factory::{backend_name, build_task_store, StoreFactoryError};
+use control_plane::store_factory::{StoreFactoryError, backend_name, build_task_store};
 use control_plane::transport::{EventBus, InMemoryEventBus, NatsEventBus};
 
 /// 节点表同步间隔
@@ -29,10 +29,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let addr: std::net::SocketAddr = "127.0.0.1:50051".parse()?;
     let nats_urls =
         std::env::var("NATS_URLS").unwrap_or_else(|_| "nats://localhost:4222".to_string());
-    let task_store_url =
-        std::env::var("TASK_STORE").unwrap_or_else(|_| "memory://".to_string());
-    let node_id = std::env::var("NODE_ID")
-        .unwrap_or_else(|_| format!("cpd-{}", uuid::Uuid::new_v4()));
+    let task_store_url = std::env::var("TASK_STORE").unwrap_or_else(|_| "memory://".to_string());
+    let node_id =
+        std::env::var("NODE_ID").unwrap_or_else(|_| format!("cpd-{}", uuid::Uuid::new_v4()));
 
     // Agent Registry（节点注册/心跳）
     let node_registry = Arc::new(NodeRegistry::new());
@@ -71,7 +70,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             std::process::exit(2);
         }
         Err(e) => {
-            eprintln!("❌ 存储后端初始化失败（{}）：{}", backend_name(&task_store_url), e);
+            eprintln!(
+                "❌ 存储后端初始化失败（{}）：{}",
+                backend_name(&task_store_url),
+                e
+            );
             std::process::exit(2);
         }
     };
@@ -90,7 +93,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!(
         "🌐 控制面 daemon 启动：addr={} node_id={} store={} nats_seeds=[{}]",
-        addr, node_id, backend_name(&task_store_url), nats_urls
+        addr,
+        node_id,
+        backend_name(&task_store_url),
+        nats_urls
     );
     server::serve(addr, store, scheduler, bus, node_registry, dispatch_broker).await?;
     Ok(())

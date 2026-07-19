@@ -4,7 +4,7 @@
 // ============================================================
 
 use crate::k8s::operator_types::*;
-use serde_json::{json, Map as JsonMap};
+use serde_json::{Map as JsonMap, json};
 
 // Re-import error type for method signatures
 use crate::k8s::operator_types::OperatorError as OpErr;
@@ -13,7 +13,10 @@ use crate::k8s::operator_types::OperatorError as OpErr;
 
 #[derive(Debug, Clone)]
 pub enum ReconcileResult {
-    Scheduled { deployment_name: String, replicas: usize },
+    Scheduled {
+        deployment_name: String,
+        replicas: usize,
+    },
     Failed(String),
     NoOp,
 }
@@ -32,7 +35,11 @@ impl SchedulerController {
     }
 
     /// Main reconciliation entry point.
-    pub fn reconcile(&self, task_name: &str, spec: &DalinTaskSpec) -> Result<ReconcileResult, OpErr> {
+    pub fn reconcile(
+        &self,
+        task_name: &str,
+        spec: &DalinTaskSpec,
+    ) -> Result<ReconcileResult, OpErr> {
         Self::validate_spec(spec)?;
 
         let _resources = ResourceResolver::resolve(spec)?;
@@ -42,7 +49,10 @@ impl SchedulerController {
         let _pod_labels = ResourceResolver::pod_labels(spec);
         let dep_name = ResourceResolver::deployment_name(task_name);
 
-        Ok(ReconcileResult::Scheduled { deployment_name: dep_name, replicas })
+        Ok(ReconcileResult::Scheduled {
+            deployment_name: dep_name,
+            replicas,
+        })
     }
 
     fn validate_spec(spec: &DalinTaskSpec) -> Result<(), OpErr> {
@@ -89,31 +99,64 @@ impl DeploymentDesire {
         let dn = ResourceResolver::deployment_name(&spec.function_id);
 
         Self {
-            name: dn, namespace: namespace.to_string(),
+            name: dn,
+            namespace: namespace.to_string(),
             function_id: spec.function_id.clone(),
             replicas: spec.replicas as usize,
-            resources, node_selector: ns, pod_labels: pl,
+            resources,
+            node_selector: ns,
+            pod_labels: pl,
             timeout: spec.timeout_seconds,
             retry_attempts: spec.retry_attempts,
-            effect: spec.effect, confidence: spec.confidence,
+            effect: spec.effect,
+            confidence: spec.confidence,
         }
     }
 
     pub fn to_json(&self) -> serde_json::Value {
         // defaults
-        let req_cpu = self.resources.requests.as_ref().and_then(|r| r.cpu.as_deref()).unwrap_or("100m");
-        let req_mem = self.resources.requests.as_ref().and_then(|r| r.memory.as_deref()).unwrap_or("128Mi");
-        let lim_cpu = self.resources.limits.as_ref().and_then(|l| l.cpu.as_deref()).unwrap_or("200m");
-        let lim_mem = self.resources.limits.as_ref().and_then(|l| l.memory.as_deref()).unwrap_or("256Mi");
+        let req_cpu = self
+            .resources
+            .requests
+            .as_ref()
+            .and_then(|r| r.cpu.as_deref())
+            .unwrap_or("100m");
+        let req_mem = self
+            .resources
+            .requests
+            .as_ref()
+            .and_then(|r| r.memory.as_deref())
+            .unwrap_or("128Mi");
+        let lim_cpu = self
+            .resources
+            .limits
+            .as_ref()
+            .and_then(|l| l.cpu.as_deref())
+            .unwrap_or("200m");
+        let lim_mem = self
+            .resources
+            .limits
+            .as_ref()
+            .and_then(|l| l.memory.as_deref())
+            .unwrap_or("256Mi");
 
         let mut container = JsonMap::new();
         container.insert("name".into(), json!(self.function_id.clone()));
-        container.insert("image".into(), json!("ghcr.io/cn-qn1-dalin/dalin-l-runtime:latest"));
-        container.insert("command".into(), json!(["/usr/local/bin/dalib", "cpd", "--mode", "runner"]));
-        container.insert("env".into(), json!([
-            {"name": "DALIN_TASK_ID", "value": self.function_id.clone()},
-            {"name": "DALIN_LOG_LEVEL", "value": "info"},
-        ]));
+        container.insert(
+            "image".into(),
+            json!("ghcr.io/cn-qn1-dalin/dalin-l-runtime:latest"),
+        );
+        container.insert(
+            "command".into(),
+            json!(["/usr/local/bin/dalib", "cpd", "--mode", "runner"]),
+        );
+        container.insert(
+            "env".into(),
+            json!([
+                {"name": "DALIN_TASK_ID", "value": self.function_id.clone()},
+                {"name": "DALIN_LOG_LEVEL", "value": "info"},
+            ]),
+        );
 
         // resources
         let mut res_map = JsonMap::new();
@@ -234,7 +277,10 @@ mod tests {
     #[test]
     fn validate_fails_empty_function_id() {
         let c = SchedulerController::new("default".into());
-        let bad = DalinTaskSpec { function_id: "".into(), ..sample_spec() };
+        let bad = DalinTaskSpec {
+            function_id: "".into(),
+            ..sample_spec()
+        };
         assert!(c.reconcile("bad", &bad).is_err());
     }
 
@@ -243,7 +289,10 @@ mod tests {
         let c = SchedulerController::new("default".into());
         let r = c.reconcile("test-agent", &sample_spec()).unwrap();
         match r {
-            ReconcileResult::Scheduled { deployment_name, replicas } => {
+            ReconcileResult::Scheduled {
+                deployment_name,
+                replicas,
+            } => {
                 assert_eq!(deployment_name, "dalin-task-test-agent");
                 assert_eq!(replicas, 2);
             }
@@ -259,11 +308,14 @@ mod tests {
             effect: Effect::Spawn,
             capability: Capability::Gpu,
             confidence: ConfidenceLevel::High,
-            replicas: 1, ..Default::default()
+            replicas: 1,
+            ..Default::default()
         };
         let r = c.reconcile("gpu-agent", &gpu).unwrap();
         match r {
-            ReconcileResult::Scheduled { deployment_name, .. } => {
+            ReconcileResult::Scheduled {
+                deployment_name, ..
+            } => {
                 assert_eq!(deployment_name, "dalin-task-gpu-agent");
             }
             _ => panic!("Expected Scheduled"),
@@ -278,7 +330,8 @@ mod tests {
             effect: Effect::Async,
             capability: Capability::Cpu,
             confidence: ConfidenceLevel::AutoRecover,
-            replicas: 1, ..Default::default()
+            replicas: 1,
+            ..Default::default()
         };
         let r = c.reconcile("critical", &spec).unwrap();
         match r {
@@ -292,6 +345,9 @@ mod tests {
         let desire = DeploymentDesire::from_spec(&sample_spec(), "default");
         let j = desire.to_json();
         assert_eq!(j["spec"]["replicas"], 2);
-        assert_eq!(j["spec"]["template"]["spec"]["containers"][0]["name"], "test-agent");
+        assert_eq!(
+            j["spec"]["template"]["spec"]["containers"][0]["name"],
+            "test-agent"
+        );
     }
 }

@@ -56,10 +56,10 @@ pub fn parse_capability(s: &str) -> Capability {
 /// 偏序关系：pure < io < async, pure < spawn
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Effect {
-    Pure,     // 纯计算，无副作用
-    Io,       // 文件/网络 I/O（同步）
-    Async,    // 异步 I/O
-    Spawn,    // 并发派生
+    Pure,  // 纯计算，无副作用
+    Io,    // 文件/网络 I/O（同步）
+    Async, // 异步 I/O
+    Spawn, // 并发派生
 }
 
 impl Effect {
@@ -67,8 +67,8 @@ impl Effect {
     pub fn leq(&self, other: &Effect) -> bool {
         use Effect::*;
         match (self, other) {
-            (Pure, _) => true,          // pure 可以出现在任何上下文中
-            (_, Pure) => false,         // 非 pure 不能出现在 pure 上下文中
+            (Pure, _) => true,  // pure 可以出现在任何上下文中
+            (_, Pure) => false, // 非 pure 不能出现在 pure 上下文中
             (Io, Io) | (Io, Async) => true,
             (Async, Async) => true,
             (Spawn, Spawn) => true,
@@ -86,7 +86,7 @@ impl Effect {
             (Io, Async) | (Async, Io) => Some(Async),
             (Async, Async) => Some(Async),
             (Spawn, Spawn) => Some(Spawn),
-            (Io, Spawn) | (Spawn, Io) => None,    // io 和 spawn 不可比
+            (Io, Spawn) | (Spawn, Io) => None, // io 和 spawn 不可比
             (Async, Spawn) | (Spawn, Async) => None, // async 和 spawn 不可比
         }
     }
@@ -111,18 +111,18 @@ impl fmt::Display for Effect {
 /// 偏序关系：cpu < gpu, cpu < sfa, cpu < net
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Capability {
-    Cpu,    // 本地 CPU 执行
-    Gpu,    // GPU/Metal/CUDA 后端
-    Sfa,    // SFA 注意力路由
-    Net,    // 远程节点执行
+    Cpu, // 本地 CPU 执行
+    Gpu, // GPU/Metal/CUDA 后端
+    Sfa, // SFA 注意力路由
+    Net, // 远程节点执行
 }
 
 impl Capability {
     pub fn leq(&self, other: &Capability) -> bool {
         use Capability::*;
         match (self, other) {
-            (Cpu, _) => true,          // cpu 可以出现在任何执行上下文中
-            (_, Cpu) => false,         // 非 cpu 不能出现在 cpu 上下文中
+            (Cpu, _) => true,  // cpu 可以出现在任何执行上下文中
+            (_, Cpu) => false, // 非 cpu 不能出现在 cpu 上下文中
             (Gpu, Gpu) => true,
             (Sfa, Sfa) => true,
             (Net, Net) => true,
@@ -138,7 +138,7 @@ impl Capability {
             (Gpu, Gpu) => Some(Gpu),
             (Sfa, Sfa) => Some(Sfa),
             (Net, Net) => Some(Net),
-            _ => None,  // 不同加速器不可比
+            _ => None, // 不同加速器不可比
         }
     }
 }
@@ -183,7 +183,11 @@ impl Confidence {
         match (self, other) {
             (Uncertain, _) => true,
             (_, Uncertain) => false,
-            (Generated, x) if *x == Generated || *x == Inferred || *x == Verified || *x == Proven => true,
+            (Generated, x)
+                if *x == Generated || *x == Inferred || *x == Verified || *x == Proven =>
+            {
+                true
+            }
             (Generated, _) => false,
             (Inferred, x) if *x == Inferred || *x == Verified || *x == Proven => true,
             (Inferred, _) => false,
@@ -206,7 +210,11 @@ impl Confidence {
                 Uncertain => 0,
             }
         };
-        if order(a) <= order(b) { a.clone() } else { b.clone() }
+        if order(a) <= order(b) {
+            a.clone()
+        } else {
+            b.clone()
+        }
     }
 
     /// 置信度的数值表达（用于报告和接口消费）
@@ -270,9 +278,19 @@ impl CognitiveLoop {
     pub fn join(a: &CognitiveLoop, b: &CognitiveLoop) -> CognitiveLoop {
         use CognitiveLoop::*;
         let order = |c: &CognitiveLoop| -> u8 {
-            match c { Perceive => 0, Reason => 1, Decide => 2, Act => 3, Loop => 4 }
+            match c {
+                Perceive => 0,
+                Reason => 1,
+                Decide => 2,
+                Act => 3,
+                Loop => 4,
+            }
         };
-        if order(a) >= order(b) { a.clone() } else { b.clone() }
+        if order(a) >= order(b) {
+            a.clone()
+        } else {
+            b.clone()
+        }
     }
 }
 
@@ -306,8 +324,8 @@ impl GovernanceLevel {
     pub fn leq(&self, other: &GovernanceLevel) -> bool {
         use GovernanceLevel::*;
         match (self, other) {
-            (Prepare, _) => true,         // prepare 可以出现在任何上下文
-            (_, Prepare) => false,        // 非 prepare 不能出现在 prepare 上下文
+            (Prepare, _) => true,  // prepare 可以出现在任何上下文
+            (_, Prepare) => false, // 非 prepare 不能出现在 prepare 上下文
             (Suggest, x) if *x == Suggest || *x == Approve || *x == Execute => true,
             (_, Suggest) => false,
             (Approve, x) if *x == Approve || *x == Execute => true,
@@ -321,9 +339,18 @@ impl GovernanceLevel {
     pub fn join(a: &GovernanceLevel, b: &GovernanceLevel) -> GovernanceLevel {
         use GovernanceLevel::*;
         let order = |g: &GovernanceLevel| -> u8 {
-            match g { Prepare => 0, Suggest => 1, Approve => 2, Execute => 3 }
+            match g {
+                Prepare => 0,
+                Suggest => 1,
+                Approve => 2,
+                Execute => 3,
+            }
         };
-        if order(a) >= order(b) { a.clone() } else { b.clone() }
+        if order(a) >= order(b) {
+            a.clone()
+        } else {
+            b.clone()
+        }
     }
 }
 
@@ -361,7 +388,11 @@ impl Default for TimeConstraint {
 
 impl TimeConstraint {
     pub fn new() -> Self {
-        Self { latency_ms: None, timeout_ms: None, throughput: None }
+        Self {
+            latency_ms: None,
+            timeout_ms: None,
+            throughput: None,
+        }
     }
 
     /// 合并两个约束：取最严格的值（最小值）
@@ -393,13 +424,22 @@ impl TimeConstraint {
     pub fn satisfies(&self, required: &TimeConstraint) -> bool {
         if let Some(req_lat) = required.latency_ms
             && let Some(act_lat) = self.latency_ms
-                && act_lat > req_lat { return false; }
+            && act_lat > req_lat
+        {
+            return false;
+        }
         if let Some(req_timeout) = required.timeout_ms
             && let Some(act_timeout) = self.timeout_ms
-                && act_timeout > req_timeout { return false; }
+            && act_timeout > req_timeout
+        {
+            return false;
+        }
         if let Some(req_tput) = required.throughput
             && let Some(act_tput) = self.throughput
-                && act_tput < req_tput { return false; }
+            && act_tput < req_tput
+        {
+            return false;
+        }
         true
     }
 }
@@ -435,7 +475,12 @@ pub fn parse_time_constraint(key: &str, value: &str) -> TimeConstraint {
         "timeout" => {
             // "5s" → 5000, "500ms" → 500
             if value.ends_with("s") && !value.ends_with("ms") {
-                tc.timeout_ms = value.trim_end_matches("s").trim().parse::<u64>().ok().map(|x| x * 1000);
+                tc.timeout_ms = value
+                    .trim_end_matches("s")
+                    .trim()
+                    .parse::<u64>()
+                    .ok()
+                    .map(|x| x * 1000);
             } else {
                 tc.timeout_ms = value.trim_end_matches("ms").trim().parse::<u64>().ok();
             }
@@ -483,12 +528,18 @@ impl TimeConstraintInferencer {
             | crate::ast::Expr::BinaryOp { .. }
             | crate::ast::Expr::UnaryOp { .. }
             | crate::ast::Expr::IfExpr { .. }
-            | crate::ast::Expr::MatchExpr { .. } => {
-                TimeConstraint { latency_ms: Some(0), timeout_ms: None, throughput: None }
-            }
+            | crate::ast::Expr::MatchExpr { .. } => TimeConstraint {
+                latency_ms: Some(0),
+                timeout_ms: None,
+                throughput: None,
+            },
             // 函数调用 → 需要函数级注解
             crate::ast::Expr::Call { .. } => {
-                TimeConstraint { latency_ms: Some(10), timeout_ms: None, throughput: None } // 默认 10ms
+                TimeConstraint {
+                    latency_ms: Some(10),
+                    timeout_ms: None,
+                    throughput: None,
+                } // 默认 10ms
             }
             _ => TimeConstraint::new(),
         }
@@ -559,11 +610,11 @@ impl ConfidenceInferencer {
             crate::ast::Expr::Range { .. } => Confidence::Proven,
             crate::ast::Expr::OptionValue { .. } => Confidence::Inferred,
             crate::ast::Expr::ResultValue { .. } => Confidence::Inferred,
-            crate::ast::Expr::Array(items) => {
-                items.iter().map(|e| self.infer_expr(e))
-                    .reduce(|a, b| Confidence::join(&a, &b))
-                    .unwrap_or(Confidence::Proven)
-            }
+            crate::ast::Expr::Array(items) => items
+                .iter()
+                .map(|e| self.infer_expr(e))
+                .reduce(|a, b| Confidence::join(&a, &b))
+                .unwrap_or(Confidence::Proven),
             // 标识符 → 上下文不确定（由 SevenChannelInferencer 覆盖）
             crate::ast::Expr::Ident(_) => Confidence::Uncertain,
 
@@ -632,7 +683,11 @@ impl ConfidenceInferencer {
         if !required.leq(actual) {
             self.errors.push(format!(
                 "置信度不足: {} 需要 {}，但实际只有 {}（score: {} < {}）",
-                location, required, actual, actual.score(), required.score()
+                location,
+                required,
+                actual,
+                actual.score(),
+                required.score()
             ));
         }
     }
@@ -641,7 +696,7 @@ impl ConfidenceInferencer {
 /// 七通道类型（值 × 效应 × 能力 × 置信度）
 #[derive(Debug, Clone)]
 pub struct SevenChannelType {
-    pub value: Option<TypeRef>,       // None = 尚未推断
+    pub value: Option<TypeRef>, // None = 尚未推断
     pub effect: Option<Effect>,
     pub capability: Option<Capability>,
     pub confidence: Option<Confidence>,
@@ -661,11 +716,27 @@ impl Default for SevenChannelType {
 
 impl SevenChannelType {
     pub fn new() -> Self {
-        Self { value: None, effect: None, capability: None, confidence: None, cognitive_loop: None, governance: None, time_constraint: None }
+        Self {
+            value: None,
+            effect: None,
+            capability: None,
+            confidence: None,
+            cognitive_loop: None,
+            governance: None,
+            time_constraint: None,
+        }
     }
 
     pub fn value(typ: TypeRef) -> Self {
-        Self { value: Some(typ), effect: None, capability: None, confidence: None, cognitive_loop: None, governance: None, time_constraint: None }
+        Self {
+            value: Some(typ),
+            effect: None,
+            capability: None,
+            confidence: None,
+            cognitive_loop: None,
+            governance: None,
+            time_constraint: None,
+        }
     }
 }
 
@@ -737,8 +808,7 @@ impl EffectInferencer {
             | crate::ast::Expr::OptionValue { .. }
             | crate::ast::Expr::ResultValue { .. } => Effect::Pure,
 
-            crate::ast::Expr::BinaryOp { .. }
-            | crate::ast::Expr::UnaryOp { .. } => Effect::Pure,
+            crate::ast::Expr::BinaryOp { .. } | crate::ast::Expr::UnaryOp { .. } => Effect::Pure,
 
             crate::ast::Expr::Call { func, args } => {
                 // 函数调用的效应 = 参数的效应的 join + 函数自身的效应
@@ -749,9 +819,10 @@ impl EffectInferencer {
                 }
                 // 如果是内置函数，大部分是 pure
                 if let crate::ast::Expr::Ident(name) = func.as_ref()
-                    && (name == "println" || name == "print") {
-                        eff = Effect::join(&eff, &Effect::Io).unwrap_or(Effect::Io);
-                    }
+                    && (name == "println" || name == "print")
+                {
+                    eff = Effect::join(&eff, &Effect::Io).unwrap_or(Effect::Io);
+                }
                 eff
             }
 
@@ -766,8 +837,7 @@ impl EffectInferencer {
                 for arm in arms {
                     for s in &arm.body {
                         if let crate::ast::Stmt::Expr(e) = s {
-                            eff = Effect::join(&eff, &self.infer_expr(e))
-                                .unwrap_or(Effect::Async);
+                            eff = Effect::join(&eff, &self.infer_expr(e)).unwrap_or(Effect::Async);
                         }
                     }
                 }
@@ -832,9 +902,7 @@ impl CapabilityInferencer {
             | crate::ast::Expr::OptionValue { .. }
             | crate::ast::Expr::ResultValue { .. } => Capability::Cpu,
 
-            crate::ast::Expr::BinaryOp { .. } | crate::ast::Expr::UnaryOp { .. } => {
-                Capability::Cpu
-            }
+            crate::ast::Expr::BinaryOp { .. } | crate::ast::Expr::UnaryOp { .. } => Capability::Cpu,
 
             crate::ast::Expr::Call { func, args } => {
                 // 参数能力上界
@@ -845,7 +913,8 @@ impl CapabilityInferencer {
                 }
                 // 按函数名查能力
                 if let crate::ast::Expr::Ident(name) = func.as_ref() {
-                    let fn_cap = self.builtin_capability(name)
+                    let fn_cap = self
+                        .builtin_capability(name)
                         .or_else(|| self.fn_annotations.get(name).cloned())
                         .unwrap_or(Capability::Cpu);
                     cap = Capability::join(&cap, &fn_cap).unwrap_or(Capability::Cpu);
@@ -1099,15 +1168,35 @@ impl SevenChannelInferencer {
     }
 
     pub fn infer_program(&mut self, prog: &crate::ast::Program) {
-        let value_types: std::collections::HashMap<String, TypeRef> = self.value.infer_program(prog).iter().map(|(k, v)| (k.clone(), v.clone())).collect();
+        let value_types: std::collections::HashMap<String, TypeRef> = self
+            .value
+            .infer_program(prog)
+            .iter()
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect();
         // value_types 已转为独立所有权，self 不再被借用
 
         // 单次遍历 AST：解析注解 → 填充推断器 → 生成结果
         for stmt in &prog.statements {
-            if let Stmt::Fn { name, effect, capability, confidence, cognitive_loop, governance, latency, timeout, throughput, body, async_, .. } = stmt {
-                let eff = effect.as_deref().map(parse_effect).unwrap_or_else(|| {
-                    if *async_ { Effect::Async } else { Effect::Pure }
-                });
+            if let Stmt::Fn {
+                name,
+                effect,
+                capability,
+                confidence,
+                cognitive_loop,
+                governance,
+                latency,
+                timeout,
+                throughput,
+                body,
+                async_,
+                ..
+            } = stmt
+            {
+                let eff = effect
+                    .as_deref()
+                    .map(parse_effect)
+                    .unwrap_or_else(|| if *async_ { Effect::Async } else { Effect::Pure });
                 let cap = capability
                     .as_deref()
                     .map(parse_capability)
@@ -1117,24 +1206,36 @@ impl SevenChannelInferencer {
                 let gov = governance.as_deref().map(parse_governance);
                 let tc = {
                     let mut t = TimeConstraint::new();
-                    if let Some(l) = latency { t.latency_ms = l.trim_end_matches("ms").parse::<u64>().ok(); }
-                    if let Some(to) = timeout {
-                        t.timeout_ms = if to.ends_with("ms") { to.trim_end_matches("ms").parse::<u64>().ok() }
-                                       else { to.trim_end_matches("s").parse::<u64>().ok().map(|x| x * 1000) };
+                    if let Some(l) = latency {
+                        t.latency_ms = l.trim_end_matches("ms").parse::<u64>().ok();
                     }
-                    if let Some(tp) = throughput { t.throughput = tp.trim_end_matches("/s").parse::<u64>().ok(); }
+                    if let Some(to) = timeout {
+                        t.timeout_ms = if to.ends_with("ms") {
+                            to.trim_end_matches("ms").parse::<u64>().ok()
+                        } else {
+                            to.trim_end_matches("s")
+                                .parse::<u64>()
+                                .ok()
+                                .map(|x| x * 1000)
+                        };
+                    }
+                    if let Some(tp) = throughput {
+                        t.throughput = tp.trim_end_matches("/s").parse::<u64>().ok();
+                    }
                     t
                 };
 
                 // 喂给能力/置信度/认知/治理/时间推断器（用于函数调用时的查表）
-                self.capability.fn_annotations.insert(name.clone(), cap.clone());
+                self.capability
+                    .fn_annotations
+                    .insert(name.clone(), cap.clone());
 
                 // 值层结果
                 let value_typ = value_types.get(name).cloned();
                 let (val, seven_conf) = if let Some(vt) = value_typ {
-                    (Some(vt), conf)  // 值层推断的置信度
+                    (Some(vt), conf) // 值层推断的置信度
                 } else {
-                    (Some(TypeRef::new(BaseType::Func)), conf)  // 函数本身
+                    (Some(TypeRef::new(BaseType::Func)), conf) // 函数本身
                 };
 
                 self.results.push((
@@ -1146,7 +1247,14 @@ impl SevenChannelInferencer {
                         confidence: seven_conf,
                         cognitive_loop: cl.clone(),
                         governance: gov.clone(),
-                        time_constraint: if tc.latency_ms.is_some() || tc.timeout_ms.is_some() || tc.throughput.is_some() { Some(tc.clone()) } else { None },
+                        time_constraint: if tc.latency_ms.is_some()
+                            || tc.timeout_ms.is_some()
+                            || tc.throughput.is_some()
+                        {
+                            Some(tc.clone())
+                        } else {
+                            None
+                        },
                     },
                 ));
 
@@ -1170,8 +1278,13 @@ impl SevenChannelInferencer {
     ) {
         for stmt in body {
             self.walk_stmt_for_check(
-                stmt, fn_name, declared_effect, declared_capability,
-                declared_cognitive_loop, declared_governance, declared_time_constraint,
+                stmt,
+                fn_name,
+                declared_effect,
+                declared_capability,
+                declared_cognitive_loop,
+                declared_governance,
+                declared_time_constraint,
             );
         }
     }
@@ -1190,95 +1303,183 @@ impl SevenChannelInferencer {
         match stmt {
             Stmt::Expr(expr) => {
                 self.walk_expr_check(
-                    expr, fn_name, declared_effect, declared_capability,
-                    declared_cognitive_loop, declared_governance, declared_time_constraint,
+                    expr,
+                    fn_name,
+                    declared_effect,
+                    declared_capability,
+                    declared_cognitive_loop,
+                    declared_governance,
+                    declared_time_constraint,
                 );
             }
             Stmt::Return(Some(expr)) => {
                 self.walk_expr_check(
-                    expr, fn_name, declared_effect, declared_capability,
-                    declared_cognitive_loop, declared_governance, declared_time_constraint,
+                    expr,
+                    fn_name,
+                    declared_effect,
+                    declared_capability,
+                    declared_cognitive_loop,
+                    declared_governance,
+                    declared_time_constraint,
                 );
             }
-            Stmt::Let { value: Some(expr), .. } | Stmt::Const { value: Some(expr), .. } => {
+            Stmt::Let {
+                value: Some(expr), ..
+            }
+            | Stmt::Const {
+                value: Some(expr), ..
+            } => {
                 self.walk_expr_check(
-                    expr, fn_name, declared_effect, declared_capability,
-                    declared_cognitive_loop, declared_governance, declared_time_constraint,
+                    expr,
+                    fn_name,
+                    declared_effect,
+                    declared_capability,
+                    declared_cognitive_loop,
+                    declared_governance,
+                    declared_time_constraint,
                 );
             }
-            Stmt::If { condition, then_body, else_body } => {
+            Stmt::If {
+                condition,
+                then_body,
+                else_body,
+            } => {
                 self.walk_expr_check(
-                    condition, fn_name, declared_effect, declared_capability,
-                    declared_cognitive_loop, declared_governance, declared_time_constraint,
+                    condition,
+                    fn_name,
+                    declared_effect,
+                    declared_capability,
+                    declared_cognitive_loop,
+                    declared_governance,
+                    declared_time_constraint,
                 );
                 for s in then_body {
                     self.walk_stmt_for_check(
-                        s, fn_name, declared_effect, declared_capability,
-                        declared_cognitive_loop, declared_governance, declared_time_constraint,
+                        s,
+                        fn_name,
+                        declared_effect,
+                        declared_capability,
+                        declared_cognitive_loop,
+                        declared_governance,
+                        declared_time_constraint,
                     );
                 }
                 for s in else_body {
                     self.walk_stmt_for_check(
-                        s, fn_name, declared_effect, declared_capability,
-                        declared_cognitive_loop, declared_governance, declared_time_constraint,
+                        s,
+                        fn_name,
+                        declared_effect,
+                        declared_capability,
+                        declared_cognitive_loop,
+                        declared_governance,
+                        declared_time_constraint,
                     );
                 }
             }
             Stmt::While { condition, body } => {
                 self.walk_expr_check(
-                    condition, fn_name, declared_effect, declared_capability,
-                    declared_cognitive_loop, declared_governance, declared_time_constraint,
+                    condition,
+                    fn_name,
+                    declared_effect,
+                    declared_capability,
+                    declared_cognitive_loop,
+                    declared_governance,
+                    declared_time_constraint,
                 );
                 for s in body {
                     self.walk_stmt_for_check(
-                        s, fn_name, declared_effect, declared_capability,
-                        declared_cognitive_loop, declared_governance, declared_time_constraint,
+                        s,
+                        fn_name,
+                        declared_effect,
+                        declared_capability,
+                        declared_cognitive_loop,
+                        declared_governance,
+                        declared_time_constraint,
                     );
                 }
             }
             Stmt::For { iterable, body, .. } => {
                 self.walk_expr_check(
-                    iterable, fn_name, declared_effect, declared_capability,
-                    declared_cognitive_loop, declared_governance, declared_time_constraint,
+                    iterable,
+                    fn_name,
+                    declared_effect,
+                    declared_capability,
+                    declared_cognitive_loop,
+                    declared_governance,
+                    declared_time_constraint,
                 );
                 for s in body {
                     self.walk_stmt_for_check(
-                        s, fn_name, declared_effect, declared_capability,
-                        declared_cognitive_loop, declared_governance, declared_time_constraint,
+                        s,
+                        fn_name,
+                        declared_effect,
+                        declared_capability,
+                        declared_cognitive_loop,
+                        declared_governance,
+                        declared_time_constraint,
                     );
                 }
             }
             Stmt::Assert { condition, .. } => {
                 self.walk_expr_check(
-                    condition, fn_name, declared_effect, declared_capability,
-                    declared_cognitive_loop, declared_governance, declared_time_constraint,
+                    condition,
+                    fn_name,
+                    declared_effect,
+                    declared_capability,
+                    declared_cognitive_loop,
+                    declared_governance,
+                    declared_time_constraint,
                 );
             }
             Stmt::Match { target, arms } => {
                 self.walk_expr_check(
-                    target, fn_name, declared_effect, declared_capability,
-                    declared_cognitive_loop, declared_governance, declared_time_constraint,
+                    target,
+                    fn_name,
+                    declared_effect,
+                    declared_capability,
+                    declared_cognitive_loop,
+                    declared_governance,
+                    declared_time_constraint,
                 );
                 for arm in arms {
                     for s in &arm.body {
                         self.walk_stmt_for_check(
-                            s, fn_name, declared_effect, declared_capability,
-                            declared_cognitive_loop, declared_governance, declared_time_constraint,
+                            s,
+                            fn_name,
+                            declared_effect,
+                            declared_capability,
+                            declared_cognitive_loop,
+                            declared_governance,
+                            declared_time_constraint,
                         );
                     }
                 }
             }
-            Stmt::TryCatch { try_body, catch_body, .. } => {
+            Stmt::TryCatch {
+                try_body,
+                catch_body,
+                ..
+            } => {
                 for s in try_body {
                     self.walk_stmt_for_check(
-                        s, fn_name, declared_effect, declared_capability,
-                        declared_cognitive_loop, declared_governance, declared_time_constraint,
+                        s,
+                        fn_name,
+                        declared_effect,
+                        declared_capability,
+                        declared_cognitive_loop,
+                        declared_governance,
+                        declared_time_constraint,
                     );
                 }
                 for s in catch_body {
                     self.walk_stmt_for_check(
-                        s, fn_name, declared_effect, declared_capability,
-                        declared_cognitive_loop, declared_governance, declared_time_constraint,
+                        s,
+                        fn_name,
+                        declared_effect,
+                        declared_capability,
+                        declared_cognitive_loop,
+                        declared_governance,
+                        declared_time_constraint,
                     );
                 }
             }
@@ -1306,7 +1507,8 @@ impl SevenChannelInferencer {
 
         // 能力检查
         let expr_cap = self.capability.infer_expr(expr);
-        self.capability.check(declared_capability, &expr_cap, &location);
+        self.capability
+            .check(declared_capability, &expr_cap, &location);
 
         // 认知循环检查
         if let Some(declared_cl) = declared_cognitive_loop {
@@ -1330,7 +1532,8 @@ impl SevenChannelInferencer {
             // 这里只做 TimeConstraint 的 satisfy 检查
             let inferred_tc = self.time_constraint.infer_expr(expr);
             if !inferred_tc.satisfies(declared_time_constraint) {
-                self.time_constraint.check(&inferred_tc, declared_time_constraint, &location);
+                self.time_constraint
+                    .check(&inferred_tc, declared_time_constraint, &location);
             }
         }
 
@@ -1338,40 +1541,75 @@ impl SevenChannelInferencer {
         match expr {
             crate::ast::Expr::BinaryOp { left, right, .. } => {
                 self.walk_expr_check(
-                    left, fn_name, declared_effect, declared_capability,
-                    declared_cognitive_loop, declared_governance, declared_time_constraint,
+                    left,
+                    fn_name,
+                    declared_effect,
+                    declared_capability,
+                    declared_cognitive_loop,
+                    declared_governance,
+                    declared_time_constraint,
                 );
                 self.walk_expr_check(
-                    right, fn_name, declared_effect, declared_capability,
-                    declared_cognitive_loop, declared_governance, declared_time_constraint,
+                    right,
+                    fn_name,
+                    declared_effect,
+                    declared_capability,
+                    declared_cognitive_loop,
+                    declared_governance,
+                    declared_time_constraint,
                 );
             }
             crate::ast::Expr::UnaryOp { operand, .. } => {
                 self.walk_expr_check(
-                    operand, fn_name, declared_effect, declared_capability,
-                    declared_cognitive_loop, declared_governance, declared_time_constraint,
+                    operand,
+                    fn_name,
+                    declared_effect,
+                    declared_capability,
+                    declared_cognitive_loop,
+                    declared_governance,
+                    declared_time_constraint,
                 );
             }
             crate::ast::Expr::Call { args, .. } => {
                 for arg in args {
                     self.walk_expr_check(
-                        arg, fn_name, declared_effect, declared_capability,
-                        declared_cognitive_loop, declared_governance, declared_time_constraint,
+                        arg,
+                        fn_name,
+                        declared_effect,
+                        declared_capability,
+                        declared_cognitive_loop,
+                        declared_governance,
+                        declared_time_constraint,
                     );
                 }
             }
             crate::ast::Expr::IfExpr(cond, then_e, else_e) => {
                 self.walk_expr_check(
-                    cond, fn_name, declared_effect, declared_capability,
-                    declared_cognitive_loop, declared_governance, declared_time_constraint,
+                    cond,
+                    fn_name,
+                    declared_effect,
+                    declared_capability,
+                    declared_cognitive_loop,
+                    declared_governance,
+                    declared_time_constraint,
                 );
                 self.walk_expr_check(
-                    then_e, fn_name, declared_effect, declared_capability,
-                    declared_cognitive_loop, declared_governance, declared_time_constraint,
+                    then_e,
+                    fn_name,
+                    declared_effect,
+                    declared_capability,
+                    declared_cognitive_loop,
+                    declared_governance,
+                    declared_time_constraint,
                 );
                 self.walk_expr_check(
-                    else_e, fn_name, declared_effect, declared_capability,
-                    declared_cognitive_loop, declared_governance, declared_time_constraint,
+                    else_e,
+                    fn_name,
+                    declared_effect,
+                    declared_capability,
+                    declared_cognitive_loop,
+                    declared_governance,
+                    declared_time_constraint,
                 );
             }
             _ => {}
@@ -1420,9 +1658,12 @@ impl SevenChannelInferencer {
                 lines.push(format!("  {}", err));
             }
         }
-        if self.value.errors.is_empty() && self.effect.errors.is_empty()
-            && self.capability.errors.is_empty() && self.confidence.errors.is_empty()
-            && self.cognitive_loop.errors.is_empty() && self.governance.errors.is_empty()
+        if self.value.errors.is_empty()
+            && self.effect.errors.is_empty()
+            && self.capability.errors.is_empty()
+            && self.confidence.errors.is_empty()
+            && self.cognitive_loop.errors.is_empty()
+            && self.governance.errors.is_empty()
             && self.time_constraint.errors.is_empty()
         {
             lines.push("\nNo type errors!".into());
@@ -1448,8 +1689,14 @@ mod tests {
     #[test]
     fn test_effect_join() {
         assert_eq!(Effect::join(&Effect::Pure, &Effect::Io), Some(Effect::Io));
-        assert_eq!(Effect::join(&Effect::Io, &Effect::Async), Some(Effect::Async));
-        assert_eq!(Effect::join(&Effect::Spawn, &Effect::Pure), Some(Effect::Spawn));
+        assert_eq!(
+            Effect::join(&Effect::Io, &Effect::Async),
+            Some(Effect::Async)
+        );
+        assert_eq!(
+            Effect::join(&Effect::Spawn, &Effect::Pure),
+            Some(Effect::Spawn)
+        );
         assert_eq!(Effect::join(&Effect::Io, &Effect::Spawn), None);
         assert_eq!(Effect::join(&Effect::Async, &Effect::Spawn), None);
     }
@@ -1464,9 +1711,18 @@ mod tests {
 
     #[test]
     fn test_capability_join() {
-        assert_eq!(Capability::join(&Capability::Cpu, &Capability::Gpu), Some(Capability::Gpu));
-        assert_eq!(Capability::join(&Capability::Cpu, &Capability::Sfa), Some(Capability::Sfa));
-        assert_eq!(Capability::join(&Capability::Gpu, &Capability::Gpu), Some(Capability::Gpu));
+        assert_eq!(
+            Capability::join(&Capability::Cpu, &Capability::Gpu),
+            Some(Capability::Gpu)
+        );
+        assert_eq!(
+            Capability::join(&Capability::Cpu, &Capability::Sfa),
+            Some(Capability::Sfa)
+        );
+        assert_eq!(
+            Capability::join(&Capability::Gpu, &Capability::Gpu),
+            Some(Capability::Gpu)
+        );
         assert_eq!(Capability::join(&Capability::Gpu, &Capability::Sfa), None);
     }
 
@@ -1513,8 +1769,7 @@ mod tests {
         });
         let mut inf = SevenChannelInferencer::new();
         inf.infer_program(&prog);
-        let by_name: std::collections::HashMap<_, _> =
-            inf.results.iter().cloned().collect();
+        let by_name: std::collections::HashMap<_, _> = inf.results.iter().cloned().collect();
         let remote = by_name.get("remote").expect("remote fn present");
         assert_eq!(remote.effect, Some(Effect::Async));
         assert_eq!(remote.capability, Some(Capability::Net));
@@ -1537,17 +1792,35 @@ mod tests {
 
     #[test]
     fn test_confidence_join() {
-        assert_eq!(Confidence::join(&Confidence::Proven, &Confidence::Uncertain), Confidence::Uncertain);
-        assert_eq!(Confidence::join(&Confidence::Generated, &Confidence::Inferred), Confidence::Generated);
-        assert_eq!(Confidence::join(&Confidence::Verified, &Confidence::Proven), Confidence::Verified);
-        assert_eq!(Confidence::join(&Confidence::Proven, &Confidence::Proven), Confidence::Proven);
+        assert_eq!(
+            Confidence::join(&Confidence::Proven, &Confidence::Uncertain),
+            Confidence::Uncertain
+        );
+        assert_eq!(
+            Confidence::join(&Confidence::Generated, &Confidence::Inferred),
+            Confidence::Generated
+        );
+        assert_eq!(
+            Confidence::join(&Confidence::Verified, &Confidence::Proven),
+            Confidence::Verified
+        );
+        assert_eq!(
+            Confidence::join(&Confidence::Proven, &Confidence::Proven),
+            Confidence::Proven
+        );
     }
 
     #[test]
     fn test_confidence_inference_literals() {
         let mut inf = ConfidenceInferencer::new();
-        assert_eq!(inf.infer_expr(&crate::ast::Expr::IntLiteral(42)), Confidence::Proven);
-        assert_eq!(inf.infer_expr(&crate::ast::Expr::StringLiteral("hello".into())), Confidence::Proven);
+        assert_eq!(
+            inf.infer_expr(&crate::ast::Expr::IntLiteral(42)),
+            Confidence::Proven
+        );
+        assert_eq!(
+            inf.infer_expr(&crate::ast::Expr::StringLiteral("hello".into())),
+            Confidence::Proven
+        );
     }
 
     #[test]
@@ -1573,7 +1846,11 @@ mod tests {
     #[test]
     fn test_confidence_check_rejects_low() {
         let mut inf = ConfidenceInferencer::new();
-        inf.check(&Confidence::Generated, &Confidence::Verified, "test_location");
+        inf.check(
+            &Confidence::Generated,
+            &Confidence::Verified,
+            "test_location",
+        );
         assert!(!inf.errors.is_empty());
         assert!(inf.errors[0].contains("置信度不足"));
     }
@@ -1595,7 +1872,10 @@ mod tests {
         let toks = lex.tokenize().expect("lex ok");
         let prog = Parser::new(toks).parse().expect("parse ok");
         for stmt in &prog.statements {
-            if let Stmt::Fn { effect, capability, .. } = stmt {
+            if let Stmt::Fn {
+                effect, capability, ..
+            } = stmt
+            {
                 return (effect.clone(), capability.clone());
             }
         }
@@ -1644,17 +1924,35 @@ mod tests {
 
     #[test]
     fn test_cognitive_loop_join() {
-        assert_eq!(CognitiveLoop::join(&CognitiveLoop::Perceive, &CognitiveLoop::Loop), CognitiveLoop::Loop);
-        assert_eq!(CognitiveLoop::join(&CognitiveLoop::Reason, &CognitiveLoop::Decide), CognitiveLoop::Decide);
-        assert_eq!(CognitiveLoop::join(&CognitiveLoop::Perceive, &CognitiveLoop::Perceive), CognitiveLoop::Perceive);
-        assert_eq!(CognitiveLoop::join(&CognitiveLoop::Act, &CognitiveLoop::Perceive), CognitiveLoop::Act);
+        assert_eq!(
+            CognitiveLoop::join(&CognitiveLoop::Perceive, &CognitiveLoop::Loop),
+            CognitiveLoop::Loop
+        );
+        assert_eq!(
+            CognitiveLoop::join(&CognitiveLoop::Reason, &CognitiveLoop::Decide),
+            CognitiveLoop::Decide
+        );
+        assert_eq!(
+            CognitiveLoop::join(&CognitiveLoop::Perceive, &CognitiveLoop::Perceive),
+            CognitiveLoop::Perceive
+        );
+        assert_eq!(
+            CognitiveLoop::join(&CognitiveLoop::Act, &CognitiveLoop::Perceive),
+            CognitiveLoop::Act
+        );
     }
 
     #[test]
     fn test_cognitive_loop_infer_perceive() {
         let mut inf = CognitiveLoopInferencer::new();
-        assert_eq!(inf.infer_expr(&crate::ast::Expr::IntLiteral(42)), CognitiveLoop::Perceive);
-        assert_eq!(inf.infer_expr(&crate::ast::Expr::Ident("x".into())), CognitiveLoop::Perceive);
+        assert_eq!(
+            inf.infer_expr(&crate::ast::Expr::IntLiteral(42)),
+            CognitiveLoop::Perceive
+        );
+        assert_eq!(
+            inf.infer_expr(&crate::ast::Expr::Ident("x".into())),
+            CognitiveLoop::Perceive
+        );
     }
 
     #[test]
@@ -1731,16 +2029,31 @@ mod tests {
 
     #[test]
     fn test_governance_join() {
-        assert_eq!(GovernanceLevel::join(&GovernanceLevel::Prepare, &GovernanceLevel::Execute), GovernanceLevel::Execute);
-        assert_eq!(GovernanceLevel::join(&GovernanceLevel::Suggest, &GovernanceLevel::Approve), GovernanceLevel::Approve);
-        assert_eq!(GovernanceLevel::join(&GovernanceLevel::Prepare, &GovernanceLevel::Prepare), GovernanceLevel::Prepare);
+        assert_eq!(
+            GovernanceLevel::join(&GovernanceLevel::Prepare, &GovernanceLevel::Execute),
+            GovernanceLevel::Execute
+        );
+        assert_eq!(
+            GovernanceLevel::join(&GovernanceLevel::Suggest, &GovernanceLevel::Approve),
+            GovernanceLevel::Approve
+        );
+        assert_eq!(
+            GovernanceLevel::join(&GovernanceLevel::Prepare, &GovernanceLevel::Prepare),
+            GovernanceLevel::Prepare
+        );
     }
 
     #[test]
     fn test_governance_infer_prepare() {
         let mut inf = GovernanceInferencer::new();
-        assert_eq!(inf.infer_expr(&crate::ast::Expr::IntLiteral(42)), GovernanceLevel::Prepare);
-        assert_eq!(inf.infer_expr(&crate::ast::Expr::Ident("x".into())), GovernanceLevel::Prepare);
+        assert_eq!(
+            inf.infer_expr(&crate::ast::Expr::IntLiteral(42)),
+            GovernanceLevel::Prepare
+        );
+        assert_eq!(
+            inf.infer_expr(&crate::ast::Expr::Ident("x".into())),
+            GovernanceLevel::Prepare
+        );
     }
 
     #[test]
@@ -1795,7 +2108,17 @@ mod tests {
 
     /// Parse function annotation values from a `Stmt::Fn`. Returns a 7-tuple of optional strings.
     #[allow(clippy::type_complexity)] // 7-option tuple for phase C parser tests
-    fn parse_fn_all_annotations(src: &str) -> (Option<String>, Option<String>, Option<String>, Option<String>, Option<String>, Option<String>, Option<String>) {
+    fn parse_fn_all_annotations(
+        src: &str,
+    ) -> (
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+    ) {
         use crate::ast::Stmt;
         use crate::lexer::Lexer;
         use crate::parser::Parser;
@@ -1803,8 +2126,26 @@ mod tests {
         let toks = lex.tokenize().expect("lex ok");
         let prog = Parser::new(toks).parse().expect("parse ok");
         for stmt in &prog.statements {
-            if let Stmt::Fn { effect, capability, cognitive_loop, governance, latency, timeout, throughput, .. } = stmt {
-                return (effect.clone(), capability.clone(), cognitive_loop.clone(), governance.clone(), latency.clone(), timeout.clone(), throughput.clone());
+            if let Stmt::Fn {
+                effect,
+                capability,
+                cognitive_loop,
+                governance,
+                latency,
+                timeout,
+                throughput,
+                ..
+            } = stmt
+            {
+                return (
+                    effect.clone(),
+                    capability.clone(),
+                    cognitive_loop.clone(),
+                    governance.clone(),
+                    latency.clone(),
+                    timeout.clone(),
+                    throughput.clone(),
+                );
             }
         }
         panic!("no fn found in source: {}", src);
@@ -1812,7 +2153,8 @@ mod tests {
 
     #[test]
     fn test_cognitive_loop_annotation_parsed() {
-        let (effect, cap, cl, gov, _, _, _) = parse_fn_all_annotations("fn f(x) @ perceive { return x }");
+        let (effect, cap, cl, gov, _, _, _) =
+            parse_fn_all_annotations("fn f(x) @ perceive { return x }");
         assert_eq!(cl, Some("perceive".to_string()));
         assert_eq!(effect, None);
         assert_eq!(cap, None);
@@ -1821,7 +2163,8 @@ mod tests {
 
     #[test]
     fn test_governance_annotation_parsed() {
-        let (effect, cap, cl, gov, _, _, _) = parse_fn_all_annotations("fn f(x) @ gov(approve) { return x }");
+        let (effect, cap, cl, gov, _, _, _) =
+            parse_fn_all_annotations("fn f(x) @ gov(approve) { return x }");
         assert_eq!(gov, Some("approve".to_string()));
         assert_eq!(effect, None);
         assert_eq!(cap, None);
@@ -1830,7 +2173,8 @@ mod tests {
 
     #[test]
     fn test_mixed_cognitive_and_governance() {
-        let (_, _, cl, gov, _, _, _) = parse_fn_all_annotations("fn f(x) @ decide @ gov(execute) @ io { return x }");
+        let (_, _, cl, gov, _, _, _) =
+            parse_fn_all_annotations("fn f(x) @ decide @ gov(execute) @ io { return x }");
         assert_eq!(cl, Some("decide".to_string()));
         assert_eq!(gov, Some("execute".to_string()));
     }
@@ -1838,7 +2182,7 @@ mod tests {
     #[test]
     fn test_cognitive_loop_with_llm_and_effect() {
         let (effect, cap, cl, gov, _, _, _) = parse_fn_all_annotations(
-            "fn f(x) @ reason @ pure @ llm(\"analyze data\") { return x }"
+            "fn f(x) @ reason @ pure @ llm(\"analyze data\") { return x }",
         );
         assert_eq!(cl, Some("reason".to_string()));
         assert_eq!(effect, Some("pure".to_string()));
@@ -1932,18 +2276,34 @@ mod tests {
 
     #[test]
     fn test_time_constraint_meet_both_some() {
-        let a = TimeConstraint { latency_ms: Some(50), timeout_ms: Some(5000), throughput: Some(100) };
-        let b = TimeConstraint { latency_ms: Some(100), timeout_ms: Some(3000), throughput: Some(200) };
+        let a = TimeConstraint {
+            latency_ms: Some(50),
+            timeout_ms: Some(5000),
+            throughput: Some(100),
+        };
+        let b = TimeConstraint {
+            latency_ms: Some(100),
+            timeout_ms: Some(3000),
+            throughput: Some(200),
+        };
         let m = TimeConstraint::meet(&a, &b);
-        assert_eq!(m.latency_ms, Some(50));   // 取更严格（更小）
+        assert_eq!(m.latency_ms, Some(50)); // 取更严格（更小）
         assert_eq!(m.timeout_ms, Some(3000)); // 取更严格（更小）
-        assert_eq!(m.throughput, Some(100));  // 取更严格（更小）
+        assert_eq!(m.throughput, Some(100)); // 取更严格（更小）
     }
 
     #[test]
     fn test_time_constraint_meet_none() {
-        let a = TimeConstraint { latency_ms: Some(50), timeout_ms: None, throughput: None };
-        let b = TimeConstraint { latency_ms: None, timeout_ms: Some(5000), throughput: None };
+        let a = TimeConstraint {
+            latency_ms: Some(50),
+            timeout_ms: None,
+            throughput: None,
+        };
+        let b = TimeConstraint {
+            latency_ms: None,
+            timeout_ms: Some(5000),
+            throughput: None,
+        };
         let m = TimeConstraint::meet(&a, &b);
         assert_eq!(m.latency_ms, Some(50));
         assert_eq!(m.timeout_ms, Some(5000));
@@ -1952,19 +2312,43 @@ mod tests {
 
     #[test]
     fn test_time_constraint_satisfies_latency() {
-        let actual = TimeConstraint { latency_ms: Some(30), timeout_ms: None, throughput: None };
-        let required = TimeConstraint { latency_ms: Some(50), timeout_ms: None, throughput: None };
+        let actual = TimeConstraint {
+            latency_ms: Some(30),
+            timeout_ms: None,
+            throughput: None,
+        };
+        let required = TimeConstraint {
+            latency_ms: Some(50),
+            timeout_ms: None,
+            throughput: None,
+        };
         assert!(actual.satisfies(&required)); // 30ms < 50ms ✓
-        let actual2 = TimeConstraint { latency_ms: Some(60), timeout_ms: None, throughput: None };
+        let actual2 = TimeConstraint {
+            latency_ms: Some(60),
+            timeout_ms: None,
+            throughput: None,
+        };
         assert!(!actual2.satisfies(&required)); // 60ms > 50ms ✗
     }
 
     #[test]
     fn test_time_constraint_satisfies_throughput() {
-        let actual = TimeConstraint { latency_ms: None, timeout_ms: None, throughput: Some(200) };
-        let required = TimeConstraint { latency_ms: None, timeout_ms: None, throughput: Some(100) };
+        let actual = TimeConstraint {
+            latency_ms: None,
+            timeout_ms: None,
+            throughput: Some(200),
+        };
+        let required = TimeConstraint {
+            latency_ms: None,
+            timeout_ms: None,
+            throughput: Some(100),
+        };
         assert!(actual.satisfies(&required)); // 200/s > 100/s ✓
-        let actual2 = TimeConstraint { latency_ms: None, timeout_ms: None, throughput: Some(50) };
+        let actual2 = TimeConstraint {
+            latency_ms: None,
+            timeout_ms: None,
+            throughput: Some(50),
+        };
         assert!(!actual2.satisfies(&required)); // 50/s < 100/s ✗
     }
 
@@ -1989,8 +2373,16 @@ mod tests {
     #[test]
     fn test_time_constraint_inferencer_check() {
         let mut inf = TimeConstraintInferencer::new();
-        let actual = TimeConstraint { latency_ms: Some(60), timeout_ms: None, throughput: None };
-        let required = TimeConstraint { latency_ms: Some(50), timeout_ms: None, throughput: None };
+        let actual = TimeConstraint {
+            latency_ms: Some(60),
+            timeout_ms: None,
+            throughput: None,
+        };
+        let required = TimeConstraint {
+            latency_ms: Some(50),
+            timeout_ms: None,
+            throughput: None,
+        };
         inf.check(&actual, &required, "test_fn");
         assert!(!inf.errors.is_empty());
         assert!(inf.errors[0].contains("时间约束违规"));
@@ -1998,7 +2390,8 @@ mod tests {
 
     #[test]
     fn test_parser_latency_annotation() {
-        let (_, _, _, _, latency, timeout, throughput) = parse_fn_all_annotations("fn f(x) @ latency(50ms) { return x }");
+        let (_, _, _, _, latency, timeout, throughput) =
+            parse_fn_all_annotations("fn f(x) @ latency(50ms) { return x }");
         assert_eq!(latency, Some("50ms".to_string()));
         assert_eq!(timeout, None);
         assert_eq!(throughput, None);
@@ -2007,7 +2400,7 @@ mod tests {
     #[test]
     fn test_parser_all_time_annotations() {
         let (_, _, _, _, latency, timeout, throughput) = parse_fn_all_annotations(
-            "fn f(x) @ latency(30ms) @ timeout(5s) @ throughput(100/s) { return x }"
+            "fn f(x) @ latency(30ms) @ timeout(5s) @ throughput(100/s) { return x }",
         );
         assert_eq!(latency, Some("30ms".to_string()));
         assert_eq!(timeout, Some("5s".to_string()));
@@ -2016,9 +2409,8 @@ mod tests {
 
     #[test]
     fn test_parser_time_with_effect_and_capability() {
-        let (effect, cap, _, _, latency, _, _) = parse_fn_all_annotations(
-            "fn f(x) @ io @ sfa @ latency(50ms) { return x }"
-        );
+        let (effect, cap, _, _, latency, _, _) =
+            parse_fn_all_annotations("fn f(x) @ io @ sfa @ latency(50ms) { return x }");
         assert_eq!(effect, Some("io".to_string()));
         assert_eq!(cap, Some("sfa".to_string()));
         assert_eq!(latency, Some("50ms".to_string()));
@@ -2030,18 +2422,16 @@ mod tests {
 
     #[allow(dead_code)] // helper for body-level violation tests
     fn make_body_with_call(called_fn: &str) -> Vec<crate::ast::Stmt> {
-        vec![
-            crate::ast::Stmt::Expr(Box::new(crate::ast::Expr::Call {
-                func: Box::new(crate::ast::Expr::Ident(called_fn.to_string())),
-                args: vec![],
-            }))
-        ]
+        vec![crate::ast::Stmt::Expr(Box::new(crate::ast::Expr::Call {
+            func: Box::new(crate::ast::Expr::Ident(called_fn.to_string())),
+            args: vec![],
+        }))]
     }
 
     #[test]
     fn test_body_walk_detects_effect_violation() {
         // pure 声明的函数体内调用了 println (io 效应) → 应报效应违规
-        use crate::ast::{Program, Stmt, Expr};
+        use crate::ast::{Expr, Program, Stmt};
         let mut prog = Program::new();
         prog.add(Stmt::Fn {
             name: "bad".to_string(),
@@ -2057,26 +2447,26 @@ mod tests {
             latency: None,
             timeout: None,
             throughput: None,
-            body: vec![
-                Stmt::Expr(Box::new(Expr::Call {
-                    func: Box::new(Expr::Ident("println".to_string())),
-                    args: vec![Expr::StringLiteral("hello".to_string())],
-                }))
-            ],
+            body: vec![Stmt::Expr(Box::new(Expr::Call {
+                func: Box::new(Expr::Ident("println".to_string())),
+                args: vec![Expr::StringLiteral("hello".to_string())],
+            }))],
             async_: false,
             pub_: false,
         });
         let mut inf = SevenChannelInferencer::new();
         inf.infer_program(&prog);
         // println 是 Io 效应，但函数声明 pure → 应有违规
-        assert!(!inf.effect.errors.is_empty(),
-            "Expected effect violation: pure fn body calls println (IO)");
+        assert!(
+            !inf.effect.errors.is_empty(),
+            "Expected effect violation: pure fn body calls println (IO)"
+        );
     }
 
     #[test]
     fn test_body_walk_detects_cognitive_loop_violation() {
         // perceive 声明的函数体内调用了 do_something (act) → 应报认知循环违规
-        use crate::ast::{Program, Stmt, Expr};
+        use crate::ast::{Expr, Program, Stmt};
         let mut prog = Program::new();
         prog.add(Stmt::Fn {
             name: "bad_cl".to_string(),
@@ -2092,26 +2482,26 @@ mod tests {
             latency: None,
             timeout: None,
             throughput: None,
-            body: vec![
-                Stmt::Expr(Box::new(Expr::Call {
-                    func: Box::new(Expr::Ident("do_something".to_string())),
-                    args: vec![],
-                }))
-            ],
+            body: vec![Stmt::Expr(Box::new(Expr::Call {
+                func: Box::new(Expr::Ident("do_something".to_string())),
+                args: vec![],
+            }))],
             async_: false,
             pub_: false,
         });
         let mut inf = SevenChannelInferencer::new();
         inf.infer_program(&prog);
         // do_something 是 Act，但函数声明 perceive → 应有违规
-        assert!(!inf.cognitive_loop.errors.is_empty(),
-            "Expected cognitive loop violation: perceive fn body calls do_something (act)");
+        assert!(
+            !inf.cognitive_loop.errors.is_empty(),
+            "Expected cognitive loop violation: perceive fn body calls do_something (act)"
+        );
     }
 
     #[test]
     fn test_body_walk_detects_governance_violation() {
         // prepare 声明的函数体内调用了 deploy (execute) → 应报治理违规
-        use crate::ast::{Program, Stmt, Expr};
+        use crate::ast::{Expr, Program, Stmt};
         let mut prog = Program::new();
         prog.add(Stmt::Fn {
             name: "bad_gov".to_string(),
@@ -2127,28 +2517,27 @@ mod tests {
             latency: None,
             timeout: None,
             throughput: None,
-            body: vec![
-                Stmt::Expr(Box::new(Expr::Call {
-                    func: Box::new(Expr::Ident("deploy".to_string())),
-                    args: vec![],
-                }))
-            ],
+            body: vec![Stmt::Expr(Box::new(Expr::Call {
+                func: Box::new(Expr::Ident("deploy".to_string())),
+                args: vec![],
+            }))],
             async_: false,
             pub_: false,
         });
         let mut inf = SevenChannelInferencer::new();
         inf.infer_program(&prog);
         // deploy 是 Execute，但函数声明 prepare → 应有违规
-        assert!(!inf.governance.errors.is_empty(),
-            "Expected governance violation: prepare fn body calls deploy (execute)");
+        assert!(
+            !inf.governance.errors.is_empty(),
+            "Expected governance violation: prepare fn body calls deploy (execute)"
+        );
     }
 
     #[test]
     fn test_confidence_annotation_parsed() {
         // 验证 @ proven 注解被正确解析为 confidence
-        let (effect, cap, _, _, _, _, _) = parse_fn_all_annotations(
-            "fn f(x) @ proven { return x }"
-        );
+        let (effect, cap, _, _, _, _, _) =
+            parse_fn_all_annotations("fn f(x) @ proven { return x }");
         // proven 是置信度 token，不应落到 effect 或 capability
         assert_eq!(effect, None);
         assert_eq!(cap, None);
@@ -2157,9 +2546,8 @@ mod tests {
     #[test]
     fn test_confidence_annotation_with_pure() {
         // 混合注解: @ proven @ pure
-        let (effect, cap, _, _, _, _, _) = parse_fn_all_annotations(
-            "fn f(x) @ proven @ pure { return x }"
-        );
+        let (effect, cap, _, _, _, _, _) =
+            parse_fn_all_annotations("fn f(x) @ proven @ pure { return x }");
         assert_eq!(effect, Some("pure".to_string()));
         assert_eq!(cap, None);
     }
@@ -2190,9 +2578,15 @@ mod tests {
         let mut inf = SevenChannelInferencer::new();
         inf.infer_program(&prog);
         let r = &inf.results[0].1;
-        assert_eq!(r.confidence, Some(Confidence::Verified),
-            "confidence should come from the confidence field, not capability");
-        assert_eq!(r.capability, Some(Capability::Cpu),
-            "capability should remain Cpu from the capability field");
+        assert_eq!(
+            r.confidence,
+            Some(Confidence::Verified),
+            "confidence should come from the confidence field, not capability"
+        );
+        assert_eq!(
+            r.capability,
+            Some(Capability::Cpu),
+            "capability should remain Cpu from the capability field"
+        );
     }
 }

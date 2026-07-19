@@ -135,9 +135,7 @@ impl ConfidenceLevel {
             ConfidenceLevel::Verified if requested >= 2 => {
                 ReplicaStrategy::Quorum(requested, requested * 2)
             }
-            ConfidenceLevel::AutoRecover => {
-                ReplicaStrategy::SelfHealing(3, 1000)
-            }
+            ConfidenceLevel::AutoRecover => ReplicaStrategy::SelfHealing(3, 1000),
             ConfidenceLevel::High => ReplicaStrategy::Minimum(1),
             _ => ReplicaStrategy::Fixed(requested as usize),
         }
@@ -313,7 +311,6 @@ pub enum TaskPhase {
     Unknown,
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TaskCondition {
     pub r#type: String,
@@ -427,9 +424,20 @@ impl ResourceResolver {
     pub fn pod_labels(spec: &DalinTaskSpec) -> std::collections::HashMap<String, String> {
         let mut labels = std::collections::HashMap::new();
         labels.insert("app.dalin.ai/task".into(), spec.function_id.clone());
-        labels.insert("app.dalin.ai/effect".into(), format!("{:?}", spec.effect).to_lowercase());
-        labels.insert("app.dalin.ai/capability".into(), format!("{:?}", spec.capability).to_lowercase());
-        labels.insert("app.dalin.ai/confidence".into(), format!("{:?}", spec.confidence).to_lowercase().replace("_", "-"));
+        labels.insert(
+            "app.dalin.ai/effect".into(),
+            format!("{:?}", spec.effect).to_lowercase(),
+        );
+        labels.insert(
+            "app.dalin.ai/capability".into(),
+            format!("{:?}", spec.capability).to_lowercase(),
+        );
+        labels.insert(
+            "app.dalin.ai/confidence".into(),
+            format!("{:?}", spec.confidence)
+                .to_lowercase()
+                .replace("_", "-"),
+        );
         for tag in &spec.tags {
             labels.insert(format!("tag/{}", tag.replace('/', "-")), "true".into());
         }
@@ -483,8 +491,14 @@ mod tests {
     fn resource_resolver_basic() {
         let spec = sample_spec();
         let resolved = ResourceResolver::resolve(&spec).unwrap();
-        assert_eq!(resolved.requests.as_ref().unwrap().cpu.as_deref(), Some("250m"));
-        assert_eq!(resolved.requests.as_ref().unwrap().memory.as_deref(), Some("256Mi"));
+        assert_eq!(
+            resolved.requests.as_ref().unwrap().cpu.as_deref(),
+            Some("250m")
+        );
+        assert_eq!(
+            resolved.requests.as_ref().unwrap().memory.as_deref(),
+            Some("256Mi")
+        );
     }
 
     #[test]
@@ -496,7 +510,10 @@ mod tests {
             ..Default::default()
         };
         let resolved = ResourceResolver::resolve(&spec).unwrap();
-        assert_eq!(resolved.requests.as_ref().unwrap().gpu.as_deref(), Some("1"));
+        assert_eq!(
+            resolved.requests.as_ref().unwrap().gpu.as_deref(),
+            Some("1")
+        );
     }
 
     #[test]
@@ -517,14 +534,20 @@ mod tests {
             replicas: 3,
             ..Default::default()
         };
-        assert!(matches!(ResourceResolver::replica_strategy(&spec), ReplicaStrategy::Quorum(_, _)));
+        assert!(matches!(
+            ResourceResolver::replica_strategy(&spec),
+            ReplicaStrategy::Quorum(_, _)
+        ));
 
         let spec2 = DalinTaskSpec {
             confidence: ConfidenceLevel::AutoRecover,
             replicas: 1,
             ..Default::default()
         };
-        assert!(matches!(ResourceResolver::replica_strategy(&spec2), ReplicaStrategy::SelfHealing(..)));
+        assert!(matches!(
+            ResourceResolver::replica_strategy(&spec2),
+            ReplicaStrategy::SelfHealing(..)
+        ));
     }
 
     #[test]
@@ -535,6 +558,12 @@ mod tests {
         status.transition(TaskPhase::Compiling);
         assert_eq!(status.phase, TaskPhase::Compiling);
         assert_eq!(status.conditions.len(), 1);
-        assert!(status.conditions[0].message.as_ref().unwrap().contains("Compiling"));
+        assert!(
+            status.conditions[0]
+                .message
+                .as_ref()
+                .unwrap()
+                .contains("Compiling")
+        );
     }
 }

@@ -117,7 +117,11 @@ fn embed_error(error: &ErrorRecord, dim: usize) -> Vec<f32> {
 
     // L2 normalize
     let norm: f32 = vec.iter().map(|v| v * v).sum::<f32>().sqrt();
-    if norm > 0.0 { vec.iter().map(|v| v / norm).collect() } else { vec }
+    if norm > 0.0 {
+        vec.iter().map(|v| v / norm).collect()
+    } else {
+        vec
+    }
 }
 
 fn djb2_hash(s: &str) -> u64 {
@@ -148,11 +152,7 @@ fn cosine_distance(a: &[f32], b: &[f32]) -> f32 {
 // ── DBSCAN ───────────────────────────────────────────────────────
 
 /// 简易 DBSCAN（基于余弦距离）。返回每个簇的索引列表。
-fn dbscan(
-    embeddings: &[Vec<f32>],
-    eps: f32,
-    min_points: usize,
-) -> Vec<Vec<usize>> {
+fn dbscan(embeddings: &[Vec<f32>], eps: f32, min_points: usize) -> Vec<Vec<usize>> {
     let n = embeddings.len();
     let mut visited = vec![false; n];
     let mut assigned = vec![false; n];
@@ -237,15 +237,9 @@ impl ErrorClusteringEngine {
         let keywords = tokenize(&error.message);
         // 也加入 error_type
         let et = error.error_type.clone();
-        self.index
-            .entry(et)
-            .or_default()
-            .push(idx);
+        self.index.entry(et).or_default().push(idx);
         for kw in &keywords {
-            self.index
-                .entry(kw.clone())
-                .or_default()
-                .push(idx);
+            self.index.entry(kw.clone()).or_default().push(idx);
         }
 
         self.errors.push(error);
@@ -274,8 +268,7 @@ impl ErrorClusteringEngine {
             return Vec::new();
         }
 
-        let embeddings: Vec<Vec<f32>> =
-            self.errors.iter().map(|e| self.embed(e)).collect();
+        let embeddings: Vec<Vec<f32>> = self.errors.iter().map(|e| self.embed(e)).collect();
         dbscan(&embeddings, eps, min_points)
     }
 
@@ -310,10 +303,8 @@ impl ErrorClusteringEngine {
                     .iter()
                     .map(|&i| self.errors[i].error_type.as_str())
                     .collect();
-                let error_type_summary: Vec<String> = error_types
-                    .into_iter()
-                    .map(String::from)
-                    .collect();
+                let error_type_summary: Vec<String> =
+                    error_types.into_iter().map(String::from).collect();
 
                 // 基于共有词构建修复策略
                 let mut fix_strategy: Vec<String> = common_vec
@@ -333,11 +324,7 @@ impl ErrorClusteringEngine {
                 };
 
                 Template {
-                    template_id: format!(
-                        "fix_{}_{}",
-                        error_type_summary.join("_"),
-                        ci
-                    ),
+                    template_id: format!("fix_{}_{}", error_type_summary.join("_"), ci),
                     error_pattern: cluster
                         .iter()
                         .map(|&i| self.errors[i].message.clone())
@@ -357,8 +344,7 @@ impl ErrorClusteringEngine {
     /// 将集群导出为 JSON Lines 修复模板，写入指定路径
     pub fn export_templates_json(&self, output_path: &str) -> Result<(), String> {
         let clusters = if self.errors.len() >= 2 {
-            let embeddings: Vec<Vec<f32>> =
-                self.errors.iter().map(|e| self.embed(e)).collect();
+            let embeddings: Vec<Vec<f32>> = self.errors.iter().map(|e| self.embed(e)).collect();
             dbscan(&embeddings, 0.5, 2)
         } else {
             Vec::new()
@@ -369,8 +355,7 @@ impl ErrorClusteringEngine {
         let dir = Path::new(output_path).parent().unwrap_or(Path::new("."));
         fs::create_dir_all(dir).map_err(|e| format!("创建目录失败: {}", e))?;
 
-        let mut file =
-            fs::File::create(output_path).map_err(|e| format!("创建文件失败: {}", e))?;
+        let mut file = fs::File::create(output_path).map_err(|e| format!("创建文件失败: {}", e))?;
         use std::io::Write;
         for tmpl in &templates {
             let line = format!(
@@ -442,8 +427,11 @@ mod tests {
     #[test]
     fn test_embed_has_correct_dimension() {
         let mut engine = ErrorClusteringEngine::new();
-        engine
-            .add_error(make_error(1, "latency", "latency constraint exceeded by 50ms"));
+        engine.add_error(make_error(
+            1,
+            "latency",
+            "latency constraint exceeded by 50ms",
+        ));
         let emb = engine.embed(&engine.errors[0]);
         assert_eq!(emb.len(), EMBED_DIM);
     }
@@ -451,10 +439,8 @@ mod tests {
     #[test]
     fn test_embed_same_message_same_vector() {
         let mut engine = ErrorClusteringEngine::new();
-        engine
-            .add_error(make_error(1, "latency", "latency exceeded 50ms"));
-        engine
-            .add_error(make_error(2, "latency", "latency exceeded 50ms"));
+        engine.add_error(make_error(1, "latency", "latency exceeded 50ms"));
+        engine.add_error(make_error(2, "latency", "latency exceeded 50ms"));
         let emb1 = engine.embed(&engine.errors[0]);
         let emb2 = engine.embed(&engine.errors[1]);
         assert_eq!(emb1, emb2, "same message should have same embedding");
@@ -546,7 +532,8 @@ mod tests {
         assert!(
             total_in_clusters >= 3,
             "at least 3 similar errors should be clustered, got {} from {:?}",
-            total_in_clusters, clusters
+            total_in_clusters,
+            clusters
         );
     }
 
@@ -564,17 +551,22 @@ mod tests {
     #[test]
     fn test_single_error_no_cluster() {
         let mut engine = ErrorClusteringEngine::new();
-        engine
-            .add_error(make_error(1, "panic", "single error only"));
+        engine.add_error(make_error(1, "panic", "single error only"));
         let clusters = engine.cluster(0.3, 2);
-        assert!(clusters.is_empty(), "single error should produce no clusters");
+        assert!(
+            clusters.is_empty(),
+            "single error should produce no clusters"
+        );
     }
 
     #[test]
     fn test_add_error_updates_index() {
         let mut engine = ErrorClusteringEngine::new();
         engine.add_error(make_error(1, "latency", "latency exceeded"));
-        assert!(engine.index.contains_key("latency"),
-            "index should contain 'latency', keys: {:?}", engine.index.keys().collect::<Vec<_>>());
+        assert!(
+            engine.index.contains_key("latency"),
+            "index should contain 'latency', keys: {:?}",
+            engine.index.keys().collect::<Vec<_>>()
+        );
     }
 }

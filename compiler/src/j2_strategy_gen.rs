@@ -78,7 +78,13 @@ pub enum RecompilePriority {
 
 /// 七通道权重（与 ty2 中的通道对应）
 const CHANNEL_NAMES: [&str; 7] = [
-    "value", "effect", "capability", "governance", "latency", "confidence", "qn",
+    "value",
+    "effect",
+    "capability",
+    "governance",
+    "latency",
+    "confidence",
+    "qn",
 ];
 const WEIGHT_MIN: f64 = 0.05;
 const WEIGHT_MAX: f64 = 0.5;
@@ -87,14 +93,17 @@ const LEARNING_RATE: f64 = 0.01;
 /// 权重状态
 struct ChannelWeights {
     weights: HashMap<String, f64>,
-    success_counts: HashMap<String, usize>,  // 每个通道的成功次数
-    total_counts: HashMap<String, usize>,    // 总执行次数
+    success_counts: HashMap<String, usize>, // 每个通道的成功次数
+    total_counts: HashMap<String, usize>,   // 总执行次数
 }
 
 impl ChannelWeights {
     fn new() -> Self {
         Self {
-            weights: CHANNEL_NAMES.iter().map(|n| (n.to_string(), 1.0 / 7.0)).collect(),
+            weights: CHANNEL_NAMES
+                .iter()
+                .map(|n| (n.to_string(), 1.0 / 7.0))
+                .collect(),
             success_counts: HashMap::new(),
             total_counts: HashMap::new(),
         }
@@ -120,7 +129,8 @@ impl ChannelWeights {
             // gradient = current - success_rate
             let gradient = current - success_rate;
             let new_w = current - LEARNING_RATE * gradient;
-            self.weights.insert(key, new_w.clamp(WEIGHT_MIN, WEIGHT_MAX));
+            self.weights
+                .insert(key, new_w.clamp(WEIGHT_MIN, WEIGHT_MAX));
         }
     }
 
@@ -176,14 +186,13 @@ impl StrategyGenerator {
     /// 对最近的成功修复按 RecoveryMode 分组，统计出现频率最高的模式作为新规则。
     /// 只有出现 >= 2 次的模式才会被生成为规则。
     pub fn infer_new_rules(&mut self) -> Vec<RecoveryRule> {
-        let successful: Vec<&FixRecord> =
-            self.fix_history.iter().filter(|r| r.success).collect();
+        let successful: Vec<&FixRecord> = self.fix_history.iter().filter(|r| r.success).collect();
 
         if successful.is_empty() {
             return Vec::new();
         }
 
-                let mut mode_counts: HashMap<RecoveryMode, usize> = HashMap::new();
+        let mut mode_counts: HashMap<RecoveryMode, usize> = HashMap::new();
         for r in &successful {
             *mode_counts.entry(r.applied_rule.clone()).or_default() += 1;
         }
@@ -232,7 +241,11 @@ impl StrategyGenerator {
         // 移除同 ID 的旧规则
         self.known_rules.retain(|r| !new_ids.contains(&r.rule_id));
         for new_rule in &new_rules {
-            if let Some(existing) = self.known_rules.iter_mut().find(|r| r.rule_id == new_rule.rule_id) {
+            if let Some(existing) = self
+                .known_rules
+                .iter_mut()
+                .find(|r| r.rule_id == new_rule.rule_id)
+            {
                 existing.usage_count = new_rule.usage_count;
                 existing.confidence = new_rule.confidence;
             } else {
@@ -253,9 +266,7 @@ impl StrategyGenerator {
 
     /// 当知识库中有 N+ 条未测试的新规则时触发热编译建议
     pub fn suggest_hot_recompile(&self, threshold: u64) -> Option<HotRecompilePlan> {
-        let new_rules = self.known_rules.iter()
-            .filter(|r| !r.tested)
-            .count() as u64;
+        let new_rules = self.known_rules.iter().filter(|r| !r.tested).count() as u64;
 
         if new_rules >= threshold {
             let priority = match new_rules {
@@ -340,13 +351,20 @@ mod tests {
         generator.record_fix(make_fix(4, RecoveryMode::Fallback, true));
 
         let rules = generator.infer_new_rules();
-        assert!(!rules.is_empty(), "should produce rules with multiple successes");
+        assert!(
+            !rules.is_empty(),
+            "should produce rules with multiple successes"
+        );
 
         // Fallback 模式出现了 3 次，应该被识别为独立规则
-        let fallback_rules: Vec<_> = rules.iter()
+        let fallback_rules: Vec<_> = rules
+            .iter()
             .filter(|r| matches!(r.applies_mode, RecoveryMode::Fallback))
             .collect();
-        assert!(!fallback_rules.is_empty(), "Fallback mode should be in the rules");
+        assert!(
+            !fallback_rules.is_empty(),
+            "Fallback mode should be in the rules"
+        );
     }
 
     #[test]
@@ -364,7 +382,10 @@ mod tests {
             assert!(
                 *w >= WEIGHT_MIN - 0.001 && *w <= WEIGHT_MAX + 0.001,
                 "weight for '{}' = {} should be in [{}, {}]",
-                ch, w, WEIGHT_MIN, WEIGHT_MAX
+                ch,
+                w,
+                WEIGHT_MIN,
+                WEIGHT_MAX
             );
         }
     }
@@ -391,7 +412,10 @@ mod tests {
 
         if let Some(plan) = suggestion {
             assert!(plan.new_rules_count >= 3);
-            assert!(matches!(plan.priority, RecompilePriority::High | RecompilePriority::Medium));
+            assert!(matches!(
+                plan.priority,
+                RecompilePriority::High | RecompilePriority::Medium
+            ));
         }
     }
 
@@ -402,7 +426,10 @@ mod tests {
         generator.record_fix(make_fix(2, RecoveryMode::Fallback, true));
         generator.infer_new_rules();
 
-        assert!(!generator.known_rules().is_empty(), "rules should be persisted");
+        assert!(
+            !generator.known_rules().is_empty(),
+            "rules should be persisted"
+        );
         assert_eq!(generator.history_len(), 2, "history length preserved");
     }
 
@@ -415,15 +442,22 @@ mod tests {
         generator.record_fix(make_fix(4, RecoveryMode::DegradeGovernance, true));
         generator.infer_new_rules();
 
-        let modes: HashSet<RecoveryMode> = generator.known_rules()
+        let modes: HashSet<RecoveryMode> = generator
+            .known_rules()
             .iter()
             .map(|r| r.applies_mode.clone())
             .collect();
 
-        assert!(modes.contains(&RecoveryMode::RetryWithDefault),
-            "RetryWithDefault should be in rules, got modes: {:?}", modes);
-        assert!(modes.contains(&RecoveryMode::DegradeGovernance),
-            "DegradeGovernance should be in rules, got modes: {:?}", modes);
+        assert!(
+            modes.contains(&RecoveryMode::RetryWithDefault),
+            "RetryWithDefault should be in rules, got modes: {:?}",
+            modes
+        );
+        assert!(
+            modes.contains(&RecoveryMode::DegradeGovernance),
+            "DegradeGovernance should be in rules, got modes: {:?}",
+            modes
+        );
     }
 
     #[test]
@@ -433,6 +467,9 @@ mod tests {
         let rules = generator.infer_new_rules();
         // 单一修复不应产生模式规则（因为 < 2 次）
         // 但通用规则可能被创建
-        assert!(rules.is_empty() || rules.len() <= 1, "single fix should not produce many rules");
+        assert!(
+            rules.is_empty() || rules.len() <= 1,
+            "single fix should not produce many rules"
+        );
     }
 }

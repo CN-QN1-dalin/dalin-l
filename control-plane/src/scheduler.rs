@@ -11,8 +11,8 @@
 //!   - 调度器内部用原子计数 + 短临界区维护运行时状态，`place/release/mark_*` 均为 `&self`。
 
 use std::collections::HashSet;
-use std::sync::atomic::{AtomicU8, AtomicUsize, Ordering};
 use std::sync::Mutex as StdMutex;
+use std::sync::atomic::{AtomicU8, AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
 
 /// 能力通道（与三通道类型系统的 capability 对齐）
@@ -187,9 +187,10 @@ impl CapabilityScheduler {
                 continue; // 熔断中
             }
             if let Some(q) = n.quota
-                && n.load.load(Ordering::SeqCst) >= q {
-                    continue; // 配额耗尽（背压）
-                }
+                && n.load.load(Ordering::SeqCst) >= q
+            {
+                continue; // 配额耗尽（背压）
+            }
             match best {
                 None => best = Some(n),
                 Some(b) => {
@@ -284,11 +285,7 @@ mod tests {
 
     fn nodes() -> Vec<Node> {
         vec![
-            Node::new(
-                "cpu-only",
-                [Capability::Cpu].into_iter().collect(),
-            )
-            .with_quota(4),
+            Node::new("cpu-only", [Capability::Cpu].into_iter().collect()).with_quota(4),
             Node::new(
                 "gpu-rich",
                 [Capability::Cpu, Capability::Gpu, Capability::Sfa]

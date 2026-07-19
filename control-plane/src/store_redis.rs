@@ -16,8 +16,8 @@
 
 use async_trait::async_trait;
 use futures_util::StreamExt;
-use redis::aio::ConnectionManager;
 use redis::AsyncCommands;
+use redis::aio::ConnectionManager;
 use tokio::sync::broadcast;
 
 use crate::registry::{TaskEvent, TaskRecord, TaskStatus};
@@ -77,9 +77,10 @@ impl RedisTaskStore {
                     Err(_) => continue,
                 };
                 if let Ok(we) = serde_json::from_slice::<WireEvent>(&payload)
-                    && we.origin != node_id {
-                        let _ = tx.send(we.event);
-                    }
+                    && we.origin != node_id
+                {
+                    let _ = tx.send(we.event);
+                }
             }
         });
         Ok(())
@@ -119,10 +120,15 @@ impl TaskStore for RedisTaskStore {
         let mut conn = self.conn();
         let idem_key = format!("{}/{}", parent.unwrap_or(""), idempotency_key);
         let idem_redis = format!("{}:idem:{}", PREFIX, idem_key);
-        if let Some(existing_id) = conn.get::<_, Option<String>>(&idem_redis).await.ok().flatten()
-            && let Some(rec) = self.get_record(&existing_id).await {
-                return rec; // 幂等复用
-            }
+        if let Some(existing_id) = conn
+            .get::<_, Option<String>>(&idem_redis)
+            .await
+            .ok()
+            .flatten()
+            && let Some(rec) = self.get_record(&existing_id).await
+        {
+            return rec; // 幂等复用
+        }
         let id = uuid::Uuid::new_v4().to_string();
         let rec = TaskRecord {
             id: id.clone(),
@@ -141,9 +147,8 @@ impl TaskStore for RedisTaskStore {
             .await;
         let _: redis::RedisResult<()> = conn.set(&idem_redis, &id).await;
         if let Some(p) = parent {
-            let _: redis::RedisResult<()> = conn
-                .sadd(format!("{}:children:{}", PREFIX, p), &id)
-                .await;
+            let _: redis::RedisResult<()> =
+                conn.sadd(format!("{}:children:{}", PREFIX, p), &id).await;
         }
         let _: redis::RedisResult<()> = conn.sadd(format!("{}:tasks", PREFIX), &id).await;
         self.publish_event(TaskEvent::Submitted(rec.clone())).await;
@@ -183,7 +188,8 @@ impl TaskStore for RedisTaskStore {
                 let _: redis::RedisResult<()> = conn
                     .set(&task_key, serde_json::to_string(&rec).unwrap())
                     .await;
-                self.publish_event(TaskEvent::Canceled(id.to_string())).await;
+                self.publish_event(TaskEvent::Canceled(id.to_string()))
+                    .await;
                 true
             }
             None => false,
@@ -251,7 +257,11 @@ mod tests {
     }
 
     /// 在超时内等待订阅者收到满足谓词的事件（broadcast 可能 lag，超时即失败）。
-    async fn wait_for_event<F>(rx: &mut broadcast::Receiver<TaskEvent>, mut pred: F, ms: u64) -> bool
+    async fn wait_for_event<F>(
+        rx: &mut broadcast::Receiver<TaskEvent>,
+        mut pred: F,
+        ms: u64,
+    ) -> bool
     where
         F: FnMut(TaskEvent) -> bool,
     {

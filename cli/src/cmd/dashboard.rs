@@ -1,6 +1,6 @@
-use std::net::TcpListener;
-use std::io::{Read, Write};
 use crate::util;
+use std::io::{Read, Write};
+use std::net::TcpListener;
 
 pub fn run() -> Result<(), String> {
     let banner = util::banner("DASHBOARD");
@@ -8,8 +8,8 @@ pub fn run() -> Result<(), String> {
     println!("\n  Starting dashboard on http://127.0.0.1:9898 ...");
     println!("  Ctrl+C to stop");
 
-    let listener = TcpListener::bind("127.0.0.1:9898")
-        .map_err(|e| format!("Cannot bind :9898: {}", e))?;
+    let listener =
+        TcpListener::bind("127.0.0.1:9898").map_err(|e| format!("Cannot bind :9898: {}", e))?;
 
     println!("\n  ✅ Dashboard listening on :9898\n");
 
@@ -26,7 +26,13 @@ pub fn run() -> Result<(), String> {
                     } else {
                         (404, "<h1>Not Found</h1>".into(), "text/html")
                     };
-                    let resp = format!("HTTP/1.1 {} OK\r\nContent-Type: {}\r\nContent-Length: {}\r\n\r\n{}", code, ct, body.len(), body);
+                    let resp = format!(
+                        "HTTP/1.1 {} OK\r\nContent-Type: {}\r\nContent-Length: {}\r\n\r\n{}",
+                        code,
+                        ct,
+                        body.len(),
+                        body
+                    );
                     let _ = s.write(resp.as_bytes());
                 }
             }

@@ -12,7 +12,7 @@ use dalin_compiler::ast::{Program, Stmt};
 use dalin_compiler::lexer;
 use dalin_compiler::parser;
 use dalin_compiler::ty2::SevenChannelInferencer;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use std::collections::{HashMap, HashSet};
 use std::io::{self, BufRead, BufReader, Read, Write};
@@ -28,15 +28,19 @@ struct DocumentManager {
 
 impl DocumentManager {
     fn new() -> Self {
-        Self { documents: HashMap::new() }
+        Self {
+            documents: HashMap::new(),
+        }
     }
 
     fn open(&mut self, uri: &str, version: i32, content: &str) {
-        self.documents.insert(uri.to_string(), (version, content.to_string()));
+        self.documents
+            .insert(uri.to_string(), (version, content.to_string()));
     }
 
     fn change(&mut self, uri: &str, version: i32, content: &str) {
-        self.documents.insert(uri.to_string(), (version, content.to_string()));
+        self.documents
+            .insert(uri.to_string(), (version, content.to_string()));
     }
 
     fn close(&mut self, uri: &str) {
@@ -78,10 +82,10 @@ impl LspCompiler {
             None => return vec![],
         };
 
-    let stmts = extract_statements(&content);
-    _ = stmts; // used for positioning, tracked via program
+        let stmts = extract_statements(&content);
+        _ = stmts; // used for positioning, tracked via program
 
-    // Step 1: Lexer
+        // Step 1: Lexer
         let mut lex = lexer::Lexer::new(&content);
         let tokens = match lex.tokenize() {
             Ok(t) => t,
@@ -113,16 +117,32 @@ impl LspCompiler {
         self.collect_errors_to_diags(&mut diags, &infer.effect.errors, "效应违规", "E001");
         self.collect_errors_to_diags(&mut diags, &infer.capability.errors, "能力违规", "E002");
         self.collect_errors_to_diags(&mut diags, &infer.confidence.errors, "置信度不足", "E005");
-        self.collect_errors_to_diags(&mut diags, &infer.cognitive_loop.errors, "认知循环违规", "E006");
+        self.collect_errors_to_diags(
+            &mut diags,
+            &infer.cognitive_loop.errors,
+            "认知循环违规",
+            "E006",
+        );
         self.collect_errors_to_diags(&mut diags, &infer.governance.errors, "治理违规", "E007");
-        self.collect_errors_to_diags(&mut diags, &infer.time_constraint.errors, "延迟/超时违规", "E008");
+        self.collect_errors_to_diags(
+            &mut diags,
+            &infer.time_constraint.errors,
+            "延迟/超时违规",
+            "E008",
+        );
 
         self.last_diagnostics.insert(uri.to_string(), diags.clone());
         diags
     }
 
     /// Helper: collect channel errors into diagnostic JSON objects
-    fn collect_errors_to_diags(&self, diags: &mut Vec<Value>, errors: &[String], prefix: &str, _code: &str) {
+    fn collect_errors_to_diags(
+        &self,
+        diags: &mut Vec<Value>,
+        errors: &[String],
+        prefix: &str,
+        _code: &str,
+    ) {
         for err in errors {
             let msg = format!("{}: {}", prefix, err);
             let line = extract_line(&msg);
@@ -147,14 +167,21 @@ fn extract_line(error_msg: &str) -> usize {
     if let Some(start) = error_msg.find('[') {
         if let Some(end) = error_msg.find(':') {
             if start + 1 < end {
-                return error_msg[start+1..end].parse().unwrap_or(1);
+                return error_msg[start + 1..end].parse().unwrap_or(1);
             }
         }
     }
     1
 }
 
-fn json_diagnostic(msg: &str, severity: u32, start_line: usize, start_char: usize, end_line: usize, end_char: usize) -> Value {
+fn json_diagnostic(
+    msg: &str,
+    severity: u32,
+    start_line: usize,
+    start_char: usize,
+    end_line: usize,
+    end_char: usize,
+) -> Value {
     json!({
         "range": {
             "start": { "line": start_line - 1, "character": start_char },
@@ -168,7 +195,10 @@ fn json_diagnostic(msg: &str, severity: u32, start_line: usize, start_char: usiz
 
 fn extract_statements(content: &str) -> Vec<Stmt> {
     // For simple positioning we just count lines; detailed extraction isn't needed yet
-    content.lines().filter(|l| l.contains("fn ") || l.contains("let ")).count();
+    content
+        .lines()
+        .filter(|l| l.contains("fn ") || l.contains("let "))
+        .count();
     Vec::new()
 }
 
@@ -186,12 +216,34 @@ impl CompletionEngine {
         Self {
             defined_identifiers: HashSet::new(),
             keywords: vec![
-                "let".into(), "fn".into(), "return".into(), "if".into(), "else".into(),
-                "match".into(), "for".into(), "in".into(), "while".into(), "spawn".into(),
-                "async".into(), "try".into(), "catch".into(), "use".into(), "trait".into(),
-                "assert".into(), "channel".into(), "mut".into(), "ok".into(), "error".into(),
-                "export".into(), "pub".into(), "impl".into(), "struct".into(), "enum".into(),
-                "type".into(), "const".into(), "mod".into(),
+                "let".into(),
+                "fn".into(),
+                "return".into(),
+                "if".into(),
+                "else".into(),
+                "match".into(),
+                "for".into(),
+                "in".into(),
+                "while".into(),
+                "spawn".into(),
+                "async".into(),
+                "try".into(),
+                "catch".into(),
+                "use".into(),
+                "trait".into(),
+                "assert".into(),
+                "channel".into(),
+                "mut".into(),
+                "ok".into(),
+                "error".into(),
+                "export".into(),
+                "pub".into(),
+                "impl".into(),
+                "struct".into(),
+                "enum".into(),
+                "type".into(),
+                "const".into(),
+                "mod".into(),
             ],
         }
     }
@@ -242,11 +294,33 @@ impl CompletionEngine {
         }
 
         // @ attributes (seven-channel annotations)
-        let attrs = ["@pure", "@io", "@async", "@spawn", "@cpu", "@gpu", "@sfa", "@net",
-                      "@proven", "@verified", "@inferred", "@generated", "@uncertain",
-                      "@latency(ms)", "@timeout(s)", "@throughput(/s)",
-                      "@perceive", "@reason", "@decide", "@act", "@loop",
-                      "@gov(none)", "@gov(prepare)", "@gov(approve)", "@gov(execute)"];
+        let attrs = [
+            "@pure",
+            "@io",
+            "@async",
+            "@spawn",
+            "@cpu",
+            "@gpu",
+            "@sfa",
+            "@net",
+            "@proven",
+            "@verified",
+            "@inferred",
+            "@generated",
+            "@uncertain",
+            "@latency(ms)",
+            "@timeout(s)",
+            "@throughput(/s)",
+            "@perceive",
+            "@reason",
+            "@decide",
+            "@act",
+            "@loop",
+            "@gov(none)",
+            "@gov(prepare)",
+            "@gov(approve)",
+            "@gov(execute)",
+        ];
         for attr in attrs {
             items.push(json!({
                 "label": attr,
@@ -274,8 +348,14 @@ impl HoverProvider {
         }
 
         let current_line = lines[line];
-        let word_start = current_line[..character].rfind(|c: char| c.is_alphanumeric() || c == '_').map(|i| i + 1).unwrap_or(0);
-        let word_end = current_line[character..].find(|c: char| !c.is_alphanumeric() && c != '_').map(|i| i + character).unwrap_or(character);
+        let word_start = current_line[..character]
+            .rfind(|c: char| c.is_alphanumeric() || c == '_')
+            .map(|i| i + 1)
+            .unwrap_or(0);
+        let word_end = current_line[character..]
+            .find(|c: char| !c.is_alphanumeric() && c != '_')
+            .map(|i| i + character)
+            .unwrap_or(character);
 
         if word_start == word_end {
             return None;
@@ -294,7 +374,11 @@ impl HoverProvider {
         }
 
         // Keywords
-        let keywords = ["fn", "let", "return", "if", "else", "match", "for", "in", "while", "spawn", "async", "try", "catch", "use", "trait", "assert", "channel", "mut", "ok", "error", "export", "pub", "impl", "struct", "enum", "type", "const", "mod"];
+        let keywords = [
+            "fn", "let", "return", "if", "else", "match", "for", "in", "while", "spawn", "async",
+            "try", "catch", "use", "trait", "assert", "channel", "mut", "ok", "error", "export",
+            "pub", "impl", "struct", "enum", "type", "const", "mod",
+        ];
         if keywords.contains(&word) {
             return Some(json!({
                 "contents": {
@@ -334,7 +418,11 @@ impl SignatureHelpProvider {
 
                     if let Some(paren_end) = trimmed.rfind(')') {
                         let params_str = &trimmed[paren_start + 1..paren_end];
-                        let params: Vec<String> = params_str.split(',').map(|p| p.trim().to_string()).filter(|s| !s.is_empty()).collect();
+                        let params: Vec<String> = params_str
+                            .split(',')
+                            .map(|p| p.trim().to_string())
+                            .filter(|s| !s.is_empty())
+                            .collect();
 
                         let sig = format!("{}({})", func_name, params.join(", "));
                         signatures.push(json!({
@@ -442,7 +530,8 @@ fn main() {
                     if let Some(doc) = params {
                         let uri = doc.get("uri").and_then(|u| u.as_str()).unwrap_or("");
                         let text = doc.get("text").and_then(|t| t.as_str()).unwrap_or("");
-                        let version = doc.get("version").and_then(|v| v.as_i64()).unwrap_or(1) as i32;
+                        let version =
+                            doc.get("version").and_then(|v| v.as_i64()).unwrap_or(1) as i32;
 
                         compiler.doc_manager.open(uri, version, text);
 
@@ -461,15 +550,22 @@ fn main() {
                     let params = req.get("params").and_then(|p| p.get("textDocument"));
                     if let Some(doc) = params {
                         let uri = doc.get("uri").and_then(|u| u.as_str()).unwrap_or("");
-                        let changes = req.get("params").and_then(|p| p.get("contentChanges")).and_then(|c| c.as_array());
+                        let changes = req
+                            .get("params")
+                            .and_then(|p| p.get("contentChanges"))
+                            .and_then(|c| c.as_array());
                         let changes = match changes {
                             Some(c) => c,
                             None => &vec![],
                         };
 
                         if let Some(last_change) = changes.last() {
-                            let text = last_change.get("text").and_then(|t| t.as_str()).unwrap_or("");
-                            let version = doc.get("version").and_then(|v| v.as_i64()).unwrap_or(1) as i32;
+                            let text = last_change
+                                .get("text")
+                                .and_then(|t| t.as_str())
+                                .unwrap_or("");
+                            let version =
+                                doc.get("version").and_then(|v| v.as_i64()).unwrap_or(1) as i32;
                             compiler.doc_manager.change(uri, version, text);
 
                             // Push updated diagnostics
@@ -487,7 +583,9 @@ fn main() {
                 "textDocument/didClose" => {
                     let params = req.get("params");
                     let text_doc = params.and_then(|p| p.get("textDocument"));
-                    let uri = text_doc.and_then(|d| d.get("uri").and_then(|u| u.as_str())).unwrap_or("");
+                    let uri = text_doc
+                        .and_then(|d| d.get("uri").and_then(|u| u.as_str()))
+                        .unwrap_or("");
                     compiler.doc_manager.close(uri);
                     compiler.last_diagnostics.remove(uri);
                 }
@@ -496,13 +594,18 @@ fn main() {
                 "textDocument/completion" => {
                     let params = req.get("params");
                     let text_doc = params.and_then(|p| p.get("textDocument"));
-                    let uri = text_doc.and_then(|d| d.get("uri").and_then(|u| u.as_str())).unwrap_or("");
+                    let uri = text_doc
+                        .and_then(|d| d.get("uri").and_then(|u| u.as_str()))
+                        .unwrap_or("");
                     let _position = text_doc.and_then(|d| d.get("position"));
 
                     let content = match compiler.doc_manager.get_content(uri) {
                         Some(c) => c.to_string(),
                         None => {
-                            send_response(&mut stdout, &json!({"jsonrpc": "2.0", "id": req.get("id"), "result": json!([])}));
+                            send_response(
+                                &mut stdout,
+                                &json!({"jsonrpc": "2.0", "id": req.get("id"), "result": json!([])}),
+                            );
                             continue;
                         }
                     };
@@ -511,47 +614,74 @@ fn main() {
                     let _ = compiler.compile_file(uri);
 
                     let completions = completion_engine.provide_completions(&content, 0);
-                    send_response(&mut stdout, &json!({"jsonrpc": "2.0", "id": req.get("id"), "result": completions}));
+                    send_response(
+                        &mut stdout,
+                        &json!({"jsonrpc": "2.0", "id": req.get("id"), "result": completions}),
+                    );
                 }
 
                 // --- Hover ---
                 "textDocument/hover" => {
                     let params = req.get("params");
                     let text_doc = params.and_then(|p| p.get("textDocument"));
-                    let uri = text_doc.and_then(|d| d.get("uri").and_then(|u| u.as_str())).unwrap_or("");
+                    let uri = text_doc
+                        .and_then(|d| d.get("uri").and_then(|u| u.as_str()))
+                        .unwrap_or("");
                     let position = text_doc.and_then(|d| d.get("position"));
-                    let line = position.as_ref().and_then(|l| l.get("line")).and_then(|l| l.as_u64()).unwrap_or(0) as usize;
-                    let character = position.as_ref().and_then(|c| c.get("character")).and_then(|c| c.as_u64()).unwrap_or(0) as usize;
+                    let line = position
+                        .as_ref()
+                        .and_then(|l| l.get("line"))
+                        .and_then(|l| l.as_u64())
+                        .unwrap_or(0) as usize;
+                    let character = position
+                        .as_ref()
+                        .and_then(|c| c.get("character"))
+                        .and_then(|c| c.as_u64())
+                        .unwrap_or(0) as usize;
 
                     let content = match compiler.doc_manager.get_content(uri) {
                         Some(c) => c.to_string(),
                         None => {
-                            send_response(&mut stdout, &json!({"jsonrpc": "2.0", "id": req.get("id"), "result": null}));
+                            send_response(
+                                &mut stdout,
+                                &json!({"jsonrpc": "2.0", "id": req.get("id"), "result": null}),
+                            );
                             continue;
                         }
                     };
 
                     let hover = hover_provider.provide_hover(&content, line, character);
                     let result_value = hover.map(|h| h);
-                    send_response(&mut stdout, &json!({"jsonrpc": "2.0", "id": req.get("id"), "result": result_value}));
+                    send_response(
+                        &mut stdout,
+                        &json!({"jsonrpc": "2.0", "id": req.get("id"), "result": result_value}),
+                    );
                 }
 
                 // --- Signature Help ---
                 "textDocument/signatureHelp" => {
                     let params = req.get("params");
                     let text_doc = params.and_then(|p| p.get("textDocument"));
-                    let uri = text_doc.and_then(|d| d.get("uri").and_then(|u| u.as_str())).unwrap_or("");
+                    let uri = text_doc
+                        .and_then(|d| d.get("uri").and_then(|u| u.as_str()))
+                        .unwrap_or("");
 
                     let content = match compiler.doc_manager.get_content(uri) {
                         Some(c) => c.to_string(),
                         None => {
-                            send_response(&mut stdout, &json!({"jsonrpc": "2.0", "id": req.get("id"), "result": null}));
+                            send_response(
+                                &mut stdout,
+                                &json!({"jsonrpc": "2.0", "id": req.get("id"), "result": null}),
+                            );
                             continue;
                         }
                     };
 
                     let sig_help = signature_helper.provide_signature_help(&content);
-                    send_response(&mut stdout, &json!({"jsonrpc": "2.0", "id": req.get("id"), "result": sig_help}));
+                    send_response(
+                        &mut stdout,
+                        &json!({"jsonrpc": "2.0", "id": req.get("id"), "result": sig_help}),
+                    );
                 }
 
                 // --- Shutdown / Exit ---
@@ -571,7 +701,10 @@ fn main() {
 
                 // --- Unknown methods ---
                 _ => {
-                    send_response(&mut stdout, &json!({"jsonrpc": "2.0", "id": req.get("id"), "result": null}));
+                    send_response(
+                        &mut stdout,
+                        &json!({"jsonrpc": "2.0", "id": req.get("id"), "result": null}),
+                    );
                 }
             }
         }
@@ -587,7 +720,11 @@ fn send_response(stdout: &mut std::io::Stdout, resp: &Value) {
 
 /// Send a notification back to the LSP client
 fn send_notification(stdout: &mut std::io::Stdout, notif: &Value) {
-    let msg = format!("Content-Length: {}\r\n\r\n{}", notif.to_string().len(), notif);
+    let msg = format!(
+        "Content-Length: {}\r\n\r\n{}",
+        notif.to_string().len(),
+        notif
+    );
     let _ = stdout.write_all(msg.as_bytes());
     let _ = stdout.flush();
 }

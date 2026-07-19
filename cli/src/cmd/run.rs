@@ -1,6 +1,6 @@
+use crate::util;
 use std::thread;
 use std::time::Duration;
-use crate::util;
 
 pub fn run(input: &str, watch: bool, verbose: bool) -> Result<(), String> {
     let banner = util::banner("RUN");
@@ -22,36 +22,50 @@ pub fn run(input: &str, watch: bool, verbose: bool) -> Result<(), String> {
 
         use dalin_compiler::{lexer, parser};
 
-        let src = std::fs::read_to_string(input).map_err(|e| format!("Cannot read '{}': {}", input, e))?;
-        
+        let src = std::fs::read_to_string(input)
+            .map_err(|e| format!("Cannot read '{}': {}", input, e))?;
+
         let mut lex = lexer::Lexer::new(&src);
         match lex.tokenize() {
             Ok(tokens) => {
                 let mut p = parser::Parser::new(tokens);
                 match p.parse() {
                     Ok(prog) => {
-                        let _ = util::ok("compile", &format!("{} statements", prog.statements.len()));
-                        
+                        let _ =
+                            util::ok("compile", &format!("{} statements", prog.statements.len()));
+
                         use dalin_runtime::interpreter;
                         match interpreter::run_source(&src) {
-                            Ok(_) => { if verbose { println!("\n  Runtime execution completed."); } }
+                            Ok(_) => {
+                                if verbose {
+                                    println!("\n  Runtime execution completed.");
+                                }
+                            }
                             Err(e) => {
                                 println!("\n  ❌ Runtime error: {}", e);
-                                if !watch { return Err(format!("{}", e)); }
+                                if !watch {
+                                    return Err(format!("{}", e));
+                                }
                             }
                         }
                     }
                     Err(e) => {
-                        if !watch { return Err(format!("{}", e)); }
+                        if !watch {
+                            return Err(format!("{}", e));
+                        }
                     }
                 }
             }
             Err(e) => {
-                if !watch { return Err(format!("{}", e)); }
+                if !watch {
+                    return Err(format!("{}", e));
+                }
             }
         }
 
-        if !watch { break; }
+        if !watch {
+            break;
+        }
     }
 
     println!("\n  ╔═══════════════════════════════════╗");

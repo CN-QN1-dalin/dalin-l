@@ -19,12 +19,20 @@ fn is_ident_continue(ch: char) -> bool {
     ch.is_alphanumeric() || ch == '_' || is_chinese_char(ch)
 }
 /// Nine annotation fields returned by parse_channel_annotations.
-pub type AnnotationResult = Result<(
-    Option<String>, Option<String>, Option<String>, // effect, capability, llm_prompt
-    Option<String>, Option<String>, Option<String>, // cognitive_loop, governance, latency
-    Option<String>, Option<String>,                 // timeout, throughput
-    Option<String>,                                  // confidence
-), ParseError>;
+pub type AnnotationResult = Result<
+    (
+        Option<String>,
+        Option<String>,
+        Option<String>, // effect, capability, llm_prompt
+        Option<String>,
+        Option<String>,
+        Option<String>, // cognitive_loop, governance, latency
+        Option<String>,
+        Option<String>, // timeout, throughput
+        Option<String>, // confidence
+    ),
+    ParseError,
+>;
 
 #[derive(Debug)]
 pub struct ParseError {
@@ -49,7 +57,11 @@ const MAX_RECURSION_DEPTH: usize = 128;
 
 impl Parser {
     pub fn new(tokens: Vec<Token>) -> Self {
-        Self { tokens, pos: 0, recursion_depth: 0 }
+        Self {
+            tokens,
+            pos: 0,
+            recursion_depth: 0,
+        }
     }
 
     fn current(&self) -> &Token {
@@ -106,7 +118,12 @@ impl Parser {
             Ok(self.advance())
         } else {
             Err(ParseError {
-                message: format!("Expected {} but got {} ({:?})", name, self.current().token_type.name(), self.current().value),
+                message: format!(
+                    "Expected {} but got {} ({:?})",
+                    name,
+                    self.current().token_type.name(),
+                    self.current().value
+                ),
                 line: self.current().line,
                 column: self.current().column,
             })
@@ -149,27 +166,90 @@ impl Parser {
 
     fn parse_statement_inner(&mut self) -> Result<Option<Stmt>, ParseError> {
         match self.current().token_type {
-            KeywordLet => { self.advance(); Ok(Some(self.parse_let()?)) }
-            KeywordMut => { self.advance(); Ok(Some(self.parse_mut_let()?)) }
-            KeywordFn => { self.advance(); Ok(Some(self.parse_fn()?)) }
-            KeywordIf => { self.advance(); Ok(Some(self.parse_if()?)) }
-            KeywordWhile => { self.advance(); Ok(Some(self.parse_while()?)) }
-            KeywordFor => { self.advance(); Ok(Some(self.parse_for()?)) }
-            KeywordMatch => { self.advance(); Ok(Some(self.parse_match()?)) }
-            KeywordStruct => { self.advance(); Ok(Some(self.parse_struct()?)) }
-            KeywordEnum => { self.advance(); Ok(Some(self.parse_enum()?)) }
-            KeywordTrait => { self.advance(); Ok(Some(self.parse_trait()?)) }
-            KeywordImpl => { self.advance(); Ok(Some(self.parse_impl()?)) }
-            KeywordReturn => { self.advance(); Ok(Some(self.parse_return()?)) }
-            KeywordUse => { self.advance(); Ok(Some(self.parse_use()?)) }
-            KeywordExport => { self.advance(); Ok(Some(self.parse_export()?)) }
-            KeywordSpawn => { self.advance(); Ok(Some(self.parse_spawn()?)) }
-            KeywordAssert => { self.advance(); Ok(Some(self.parse_assert()?)) }
-            KeywordChannel => { self.advance(); Ok(Some(self.parse_channel()?)) }
-            KeywordAsync => { self.advance(); Ok(Some(self.parse_async_fn()?)) }
-            KeywordTry => { self.advance(); Ok(Some(self.parse_try_catch()?)) }
-            KeywordConst => { self.advance(); Ok(Some(self.parse_const()?)) }
-            KeywordType => { self.advance(); Ok(Some(self.parse_type_alias()?)) }
+            KeywordLet => {
+                self.advance();
+                Ok(Some(self.parse_let()?))
+            }
+            KeywordMut => {
+                self.advance();
+                Ok(Some(self.parse_mut_let()?))
+            }
+            KeywordFn => {
+                self.advance();
+                Ok(Some(self.parse_fn()?))
+            }
+            KeywordIf => {
+                self.advance();
+                Ok(Some(self.parse_if()?))
+            }
+            KeywordWhile => {
+                self.advance();
+                Ok(Some(self.parse_while()?))
+            }
+            KeywordFor => {
+                self.advance();
+                Ok(Some(self.parse_for()?))
+            }
+            KeywordMatch => {
+                self.advance();
+                Ok(Some(self.parse_match()?))
+            }
+            KeywordStruct => {
+                self.advance();
+                Ok(Some(self.parse_struct()?))
+            }
+            KeywordEnum => {
+                self.advance();
+                Ok(Some(self.parse_enum()?))
+            }
+            KeywordTrait => {
+                self.advance();
+                Ok(Some(self.parse_trait()?))
+            }
+            KeywordImpl => {
+                self.advance();
+                Ok(Some(self.parse_impl()?))
+            }
+            KeywordReturn => {
+                self.advance();
+                Ok(Some(self.parse_return()?))
+            }
+            KeywordUse => {
+                self.advance();
+                Ok(Some(self.parse_use()?))
+            }
+            KeywordExport => {
+                self.advance();
+                Ok(Some(self.parse_export()?))
+            }
+            KeywordSpawn => {
+                self.advance();
+                Ok(Some(self.parse_spawn()?))
+            }
+            KeywordAssert => {
+                self.advance();
+                Ok(Some(self.parse_assert()?))
+            }
+            KeywordChannel => {
+                self.advance();
+                Ok(Some(self.parse_channel()?))
+            }
+            KeywordAsync => {
+                self.advance();
+                Ok(Some(self.parse_async_fn()?))
+            }
+            KeywordTry => {
+                self.advance();
+                Ok(Some(self.parse_try_catch()?))
+            }
+            KeywordConst => {
+                self.advance();
+                Ok(Some(self.parse_const()?))
+            }
+            KeywordType => {
+                self.advance();
+                Ok(Some(self.parse_type_alias()?))
+            }
             _ => {
                 let expr = self.parse_expression()?;
                 self.match_token(Semicolon);
@@ -185,42 +265,89 @@ impl Parser {
     fn parse_let(&mut self) -> Result<Stmt, ParseError> {
         let mutable = self.match_token(KeywordMut);
         let name = self.expect(Ident, "identifier")?.value.clone();
-        let type_ann = if self.match_token(Colon) { Some(self.parse_type()?) } else { None };
-        let value = if self.match_token(Equal) { Some(Box::new(self.parse_expression()?)) } else { None };
-        Ok(Stmt::Let { name, value, type_annotation: type_ann, mutable })
+        let type_ann = if self.match_token(Colon) {
+            Some(self.parse_nullable_type()?)
+        } else {
+            None
+        };
+        let value = if self.match_token(Equal) {
+            Some(Box::new(self.parse_expression()?))
+        } else {
+            None
+        };
+        Ok(Stmt::Let {
+            name,
+            value,
+            type_annotation: type_ann,
+            mutable,
+        })
     }
 
     fn parse_mut_let(&mut self) -> Result<Stmt, ParseError> {
         let name = self.expect(Ident, "identifier")?.value.clone();
-        let type_ann = if self.match_token(Colon) { Some(self.parse_type()?) } else { None };
-        let value = if self.match_token(Equal) { Some(Box::new(self.parse_expression()?)) } else { None };
-        Ok(Stmt::Let { name, value, type_annotation: type_ann, mutable: true })
+        let type_ann = if self.match_token(Colon) {
+            Some(self.parse_type()?)
+        } else {
+            None
+        };
+        let value = if self.match_token(Equal) {
+            Some(Box::new(self.parse_expression()?))
+        } else {
+            None
+        };
+        Ok(Stmt::Let {
+            name,
+            value,
+            type_annotation: type_ann,
+            mutable: true,
+        })
     }
 
     /// 解析效应/能力类型关键字（Dalin L 3.0）
     /// `pure` | `io` | `async` | `spawn` | `cpu` | `gpu` | `sfa` | `net`
     fn parse_effect_or_cap(&mut self) -> Result<String, ParseError> {
         let tok = self.current().clone();
-        let valid = ["pure", "io", "async", "spawn", "cpu", "gpu", "sfa", "net",
-                      "perceive", "reason", "decide", "act", "loop", "gov",
-                      "latency", "timeout", "throughput",
-                      "proven", "verified", "inferred", "generated", "uncertain"];
-        let text = if tok.token_type == Ident || matches!(tok.token_type, KeywordAsync | KeywordSpawn) {
-            self.advance();
-            tok.value.clone()
-        } else {
-            let val = tok.value.clone();
-            if valid.contains(&val.as_str()) {
+        let valid = [
+            "pure",
+            "io",
+            "async",
+            "spawn",
+            "cpu",
+            "gpu",
+            "sfa",
+            "net",
+            "perceive",
+            "reason",
+            "decide",
+            "act",
+            "loop",
+            "gov",
+            "latency",
+            "timeout",
+            "throughput",
+            "proven",
+            "verified",
+            "inferred",
+            "generated",
+            "uncertain",
+        ];
+        let text =
+            if tok.token_type == Ident || matches!(tok.token_type, KeywordAsync | KeywordSpawn) {
                 self.advance();
-                val
+                tok.value.clone()
             } else {
-                return Err(ParseError {
-                    message: format!("Invalid annotation token: {:?}", tok.value),
-                    line: tok.line,
-                    column: tok.column,
-                });
-            }
-        };
+                let val = tok.value.clone();
+                if valid.contains(&val.as_str()) {
+                    self.advance();
+                    val
+                } else {
+                    return Err(ParseError {
+                        message: format!("Invalid annotation token: {:?}", tok.value),
+                        line: tok.line,
+                        column: tok.column,
+                    });
+                }
+            };
         if valid.contains(&text.as_str()) {
             Ok(text)
         } else {
@@ -259,7 +386,10 @@ impl Parser {
 
     /// 置信度 token 集合：proven | verified | inferred | generated | uncertain
     fn is_confidence_token(s: &str) -> bool {
-        matches!(s, "proven" | "verified" | "inferred" | "generated" | "uncertain")
+        matches!(
+            s,
+            "proven" | "verified" | "inferred" | "generated" | "uncertain"
+        )
     }
 
     /// 解析 0..n 个多通道注解 `@X` / `@X(...)` / `@ llm("...")`。
@@ -269,10 +399,7 @@ impl Parser {
     ///   @ llm("...") — LLM 编译指令
     ///   @ gov(level) — 治理级别（带括号值）
     ///   @ latency(Nms) @ timeout(Ns|Nms) @ throughput(N/s) — 时间约束
-    fn parse_channel_annotations(
-        &mut self,
-        preset_effect: Option<String>,
-    ) -> AnnotationResult {
+    fn parse_channel_annotations(&mut self, preset_effect: Option<String>) -> AnnotationResult {
         let mut effect = preset_effect;
         let mut capability: Option<String> = None;
         let mut llm_prompt: Option<String> = None;
@@ -283,14 +410,19 @@ impl Parser {
         let mut throughput: Option<String> = None;
         let mut confidence: Option<String> = None;
         loop {
-            if !matches!(self.current().token_type, At) { break; }
+            if !matches!(self.current().token_type, At) {
+                break;
+            }
 
             // @ llm("...")
             if self.peek_token_value(1) == Some("llm") {
                 self.advance(); // consume @
                 self.advance(); // consume llm
                 self.expect(LeftParen, "'('")?;
-                let prompt = self.expect(StringLiteral, "LLM prompt string")?.value.clone();
+                let prompt = self
+                    .expect(StringLiteral, "LLM prompt string")?
+                    .value
+                    .clone();
                 self.expect(RightParen, "')'")?;
                 llm_prompt = Some(prompt);
                 continue;
@@ -315,7 +447,10 @@ impl Parser {
                     }
                     _ => {
                         return Err(ParseError {
-                            message: format!("Unknown governance level: {}. Expected: prepare, suggest, approve, execute", level),
+                            message: format!(
+                                "Unknown governance level: {}. Expected: prepare, suggest, approve, execute",
+                                level
+                            ),
                             line: self.current().line,
                             column: self.current().column,
                         });
@@ -355,17 +490,58 @@ impl Parser {
                 });
             }
         }
-        Ok((effect, capability, llm_prompt, cognitive_loop, governance, latency, timeout, throughput, confidence))
+        Ok((
+            effect,
+            capability,
+            llm_prompt,
+            cognitive_loop,
+            governance,
+            latency,
+            timeout,
+            throughput,
+            confidence,
+        ))
     }
 
     fn parse_fn(&mut self) -> Result<Stmt, ParseError> {
         let name = self.expect(Ident, "function name")?.value.clone();
         let type_params = self.parse_type_params()?;
         let params = self.parse_fn_params()?;
-        let return_type = if self.match_token(Arrow) { Some(self.parse_type()?) } else { None };
-        let (effect, capability, llm_prompt, cognitive_loop, governance, latency, timeout, throughput, confidence) = self.parse_channel_annotations(None)?;
+        let return_type = if self.match_token(Arrow) {
+            Some(self.parse_type()?)
+        } else {
+            None
+        };
+        let (
+            effect,
+            capability,
+            llm_prompt,
+            cognitive_loop,
+            governance,
+            latency,
+            timeout,
+            throughput,
+            confidence,
+        ) = self.parse_channel_annotations(None)?;
         let body = self.parse_block()?;
-        Ok(Stmt::Fn { name, type_params, params, return_type, effect, capability, llm_prompt, confidence, cognitive_loop, governance, latency, timeout, throughput, body, async_: false, pub_: false })
+        Ok(Stmt::Fn {
+            name,
+            type_params,
+            params,
+            return_type,
+            effect,
+            capability,
+            llm_prompt,
+            confidence,
+            cognitive_loop,
+            governance,
+            latency,
+            timeout,
+            throughput,
+            body,
+            async_: false,
+            pub_: false,
+        })
     }
 
     fn parse_async_fn(&mut self) -> Result<Stmt, ParseError> {
@@ -373,10 +549,41 @@ impl Parser {
         let name = self.expect(Ident, "function name")?.value.clone();
         let type_params = self.parse_type_params()?;
         let params = self.parse_fn_params()?;
-        let return_type = if self.match_token(Arrow) { Some(self.parse_type()?) } else { None };
-        let (effect, capability, llm_prompt, cognitive_loop, governance, latency, timeout, throughput, confidence) = self.parse_channel_annotations(Some("async".to_string()))?;
+        let return_type = if self.match_token(Arrow) {
+            Some(self.parse_type()?)
+        } else {
+            None
+        };
+        let (
+            effect,
+            capability,
+            llm_prompt,
+            cognitive_loop,
+            governance,
+            latency,
+            timeout,
+            throughput,
+            confidence,
+        ) = self.parse_channel_annotations(Some("async".to_string()))?;
         let body = self.parse_block()?;
-        Ok(Stmt::Fn { name, type_params, params, return_type, effect, capability, llm_prompt, confidence, cognitive_loop, governance, latency, timeout, throughput, body, async_: true, pub_: false })
+        Ok(Stmt::Fn {
+            name,
+            type_params,
+            params,
+            return_type,
+            effect,
+            capability,
+            llm_prompt,
+            confidence,
+            cognitive_loop,
+            governance,
+            latency,
+            timeout,
+            throughput,
+            body,
+            async_: true,
+            pub_: false,
+        })
     }
 
     fn parse_fn_params(&mut self) -> Result<Vec<FnParam>, ParseError> {
@@ -385,10 +592,24 @@ impl Parser {
         if !self.check(RightParen) {
             loop {
                 let name = self.expect(Ident, "parameter name")?.value.clone();
-                let type_ann = if self.match_token(Colon) { Some(self.parse_type()?) } else { None };
-                let default = if self.match_token(Equal) { Some(Box::new(self.parse_expression()?)) } else { None };
-                params.push(FnParam { name, type_annotation: type_ann, default });
-                if !self.match_token(Comma) { break; }
+                let type_ann = if self.match_token(Colon) {
+                    Some(self.parse_nullable_type()?)
+                } else {
+                    None
+                };
+                let default = if self.match_token(Equal) {
+                    Some(Box::new(self.parse_expression()?))
+                } else {
+                    None
+                };
+                params.push(FnParam {
+                    name,
+                    type_annotation: type_ann,
+                    default,
+                });
+                if !self.match_token(Comma) {
+                    break;
+                }
             }
         }
         self.expect(RightParen, "')'")?;
@@ -414,20 +635,23 @@ impl Parser {
                 if self.is_named_arg() {
                     seen_named = true;
                     let name = self.advance().value.clone(); // 消费 Ident
-                    self.expect(Colon, "':'")?;              // 消费 :
+                    self.expect(Colon, "':'")?; // 消费 :
                     let value = self.parse_expression()?;
                     args.push(Expr::NamedArg(name, Box::new(value)));
                 } else {
                     if seen_named {
                         return Err(ParseError {
-                            message: "positional argument after named argument is not allowed".to_string(),
+                            message: "positional argument after named argument is not allowed"
+                                .to_string(),
                             line: self.current().line,
                             column: self.current().column,
                         });
                     }
                     args.push(self.parse_expression()?);
                 }
-                if !self.match_token(Comma) { break; }
+                if !self.match_token(Comma) {
+                    break;
+                }
             }
         }
 
@@ -448,14 +672,18 @@ impl Parser {
                 while self.current().token_type == Ident {
                     let bound = self.advance().value.clone();
                     b.push(bound);
-                    if !self.match_token(Plus) { break; }
+                    if !self.match_token(Plus) {
+                        break;
+                    }
                 }
                 b
             } else {
                 vec![]
             };
             params.push(TypeParam { name, bounds });
-            if !self.match_token(Comma) { break; }
+            if !self.match_token(Comma) {
+                break;
+            }
         }
         self.expect(Greater, "'>'")?;
         Ok(params)
@@ -474,7 +702,11 @@ impl Parser {
         } else {
             Vec::new()
         };
-        Ok(Stmt::If { condition, then_body, else_body })
+        Ok(Stmt::If {
+            condition,
+            then_body,
+            else_body,
+        })
     }
 
     fn parse_while(&mut self) -> Result<Stmt, ParseError> {
@@ -488,7 +720,11 @@ impl Parser {
         self.expect(KeywordIn, "'in'")?;
         let iterable = Box::new(self.parse_expression()?);
         let body = self.parse_block()?;
-        Ok(Stmt::For { target, iterable, body })
+        Ok(Stmt::For {
+            target,
+            iterable,
+            body,
+        })
     }
 
     fn parse_match(&mut self) -> Result<Stmt, ParseError> {
@@ -497,11 +733,22 @@ impl Parser {
         let mut arms = Vec::new();
         while !self.check(RightBrace) && !self.check(Eof) {
             let pat = self.parse_pattern()?;
-            let guard = if self.match_token(KeywordIf) { Some(Box::new(self.parse_expression()?)) } else { None };
+            let guard = if self.match_token(KeywordIf) {
+                Some(Box::new(self.parse_expression()?))
+            } else {
+                None
+            };
             self.expect(DoubleArrow, "'=>'")?;
-            let body = vec![self.parse_statement()?.unwrap_or(Stmt::Expr(Box::new(Expr::IntLiteral(0))))];
+            let body = vec![
+                self.parse_statement()?
+                    .unwrap_or(Stmt::Expr(Box::new(Expr::IntLiteral(0)))),
+            ];
             self.match_token(Comma);
-            arms.push(MatchArm { pattern: pat, guard, body });
+            arms.push(MatchArm {
+                pattern: pat,
+                guard,
+                body,
+            });
         }
         self.expect(RightBrace, "'}'")?;
         Ok(Stmt::Match { target, arms })
@@ -516,11 +763,18 @@ impl Parser {
             let fname = self.expect(Ident, "field name")?.value.clone();
             self.expect(Colon, "':'")?;
             let ftype = self.parse_type()?;
-            fields.push(FieldDef { name: fname, type_annotation: ftype });
+            fields.push(FieldDef {
+                name: fname,
+                type_annotation: ftype,
+            });
             self.match_token(Comma);
         }
         self.expect(RightBrace, "'}'")?;
-        Ok(Stmt::StructDef { name, derives, fields })
+        Ok(Stmt::StructDef {
+            name,
+            derives,
+            fields,
+        })
     }
 
     fn parse_enum(&mut self) -> Result<Stmt, ParseError> {
@@ -530,7 +784,10 @@ impl Parser {
         while !self.check(RightBrace) && !self.check(Eof) {
             let vname = self.expect(Ident, "variant name")?.value.clone();
             let fields = Vec::new();
-            variants.push(EnumVariant { name: vname, fields });
+            variants.push(EnumVariant {
+                name: vname,
+                fields,
+            });
             self.match_token(Comma);
         }
         self.expect(RightBrace, "'}'")?;
@@ -547,11 +804,24 @@ impl Parser {
             let mname = self.expect(Ident, "method name")?.value.clone();
             let method_type_params = self.parse_type_params()?;
             let params = self.parse_fn_params()?;
-            let return_type = if self.match_token(Arrow) { Some(self.parse_type()?) } else { None };
-            methods.push(TraitMethod { name: mname, type_params: method_type_params, return_type, params });
+            let return_type = if self.match_token(Arrow) {
+                Some(self.parse_type()?)
+            } else {
+                None
+            };
+            methods.push(TraitMethod {
+                name: mname,
+                type_params: method_type_params,
+                return_type,
+                params,
+            });
         }
         self.expect(RightBrace, "'}'")?;
-        Ok(Stmt::TraitDef { name, type_params, methods })
+        Ok(Stmt::TraitDef {
+            name,
+            type_params,
+            methods,
+        })
     }
 
     fn parse_impl(&mut self) -> Result<Stmt, ParseError> {
@@ -563,12 +833,24 @@ impl Parser {
             self.expect(KeywordFn, "'fn'")?;
             let mname = self.expect(Ident, "method name")?.value.clone();
             let _params = self.parse_fn_params()?;
-            let return_type = if self.match_token(Arrow) { Some(self.parse_type()?) } else { None };
+            let return_type = if self.match_token(Arrow) {
+                Some(self.parse_type()?)
+            } else {
+                None
+            };
             let _body = self.parse_block()?;
-            methods.push(FnParam { name: mname, type_annotation: return_type, default: None });
+            methods.push(FnParam {
+                name: mname,
+                type_annotation: return_type,
+                default: None,
+            });
         }
         self.expect(RightBrace, "'}'")?;
-        Ok(Stmt::ImplBlock { trait_name, type_name, methods })
+        Ok(Stmt::ImplBlock {
+            trait_name,
+            type_name,
+            methods,
+        })
     }
 
     fn parse_return(&mut self) -> Result<Stmt, ParseError> {
@@ -593,7 +875,9 @@ impl Parser {
     fn parse_spawn(&mut self) -> Result<Stmt, ParseError> {
         self.expect(KeywordFn, "'fn'")?;
         let fn_stmt = self.parse_fn()?;
-        Ok(Stmt::Spawn { fn_decl: Box::new(fn_stmt) })
+        Ok(Stmt::Spawn {
+            fn_decl: Box::new(fn_stmt),
+        })
     }
 
     fn parse_channel(&mut self) -> Result<Stmt, ParseError> {
@@ -606,12 +890,21 @@ impl Parser {
             crate::ast::TypeRef::new(crate::ast::BaseType::Unknown)
         };
         // 容量语法（`cap N`）留待后续；Phase 0 使用无界通道。
-        Ok(Stmt::Channel { send_name, recv_name, elem_type, capacity: 0 })
+        Ok(Stmt::Channel {
+            send_name,
+            recv_name,
+            elem_type,
+            capacity: 0,
+        })
     }
 
     fn parse_assert(&mut self) -> Result<Stmt, ParseError> {
         let condition = Box::new(self.parse_expression()?);
-        let message = if self.match_token(Comma) { Some(Box::new(self.parse_expression()?)) } else { None };
+        let message = if self.match_token(Comma) {
+            Some(Box::new(self.parse_expression()?))
+        } else {
+            None
+        };
         Ok(Stmt::Assert { condition, message })
     }
 
@@ -626,19 +919,39 @@ impl Parser {
         } else {
             (None, self.parse_block()?)
         };
-        Ok(Stmt::TryCatch { try_body, catch_param, catch_body })
+        Ok(Stmt::TryCatch {
+            try_body,
+            catch_param,
+            catch_body,
+        })
     }
 
     fn parse_const(&mut self) -> Result<Stmt, ParseError> {
         let name = self.expect(Ident, "constant name")?.value.clone();
-        let type_ann = if self.match_token(Colon) { Some(self.parse_type()?) } else { None };
-        let value = if self.match_token(Equal) { Some(Box::new(self.parse_expression()?)) } else { None };
-        Ok(Stmt::Const { name, value, type_annotation: type_ann })
+        let type_ann = if self.match_token(Colon) {
+            Some(self.parse_type()?)
+        } else {
+            None
+        };
+        let value = if self.match_token(Equal) {
+            Some(Box::new(self.parse_expression()?))
+        } else {
+            None
+        };
+        Ok(Stmt::Const {
+            name,
+            value,
+            type_annotation: type_ann,
+        })
     }
 
     fn parse_type_alias(&mut self) -> Result<Stmt, ParseError> {
         let name = self.expect(Ident, "type name")?.value.clone();
-        let aliased_type = if self.match_token(Equal) { Some(self.parse_type()?) } else { None };
+        let aliased_type = if self.match_token(Equal) {
+            Some(self.parse_type()?)
+        } else {
+            None
+        };
         Ok(Stmt::TypeAlias { name, aliased_type })
     }
 
@@ -646,7 +959,9 @@ impl Parser {
         self.expect(LeftBrace, "'{'")?;
         let mut stmts = Vec::new();
         while !self.check(RightBrace) && !self.check(Eof) {
-            if let Some(s) = self.parse_statement()? { stmts.push(s) }
+            if let Some(s) = self.parse_statement()? {
+                stmts.push(s)
+            }
         }
         self.expect(RightBrace, "'}'")?;
         Ok(stmts)
@@ -662,7 +977,14 @@ impl Parser {
         // Wildcard
         if tok.token_type == Ident && tok.value == "_" {
             self.advance();
-            return Ok(Pattern { kind: "wild".into(), name: String::new(), binding: None, inner: Vec::new(), fields: Vec::new(), value: None });
+            return Ok(Pattern {
+                kind: "wild".into(),
+                name: String::new(),
+                binding: None,
+                inner: Vec::new(),
+                fields: Vec::new(),
+                value: None,
+            });
         }
 
         // Ident pattern (constructor or binding)
@@ -674,7 +996,14 @@ impl Parser {
             if self.match_token(LeftParen) {
                 let inner_pat = self.parse_pattern()?;
                 self.expect(RightParen, "')'")?;
-                return Ok(Pattern { kind: "ctor".into(), name, binding: Some(inner_pat.name.clone()), inner: vec![inner_pat], fields: Vec::new(), value: None });
+                return Ok(Pattern {
+                    kind: "ctor".into(),
+                    name,
+                    binding: Some(inner_pat.name.clone()),
+                    inner: vec![inner_pat],
+                    fields: Vec::new(),
+                    value: None,
+                });
             }
 
             // Struct pattern: Box { x, y }
@@ -691,15 +1020,32 @@ impl Parser {
                     self.match_token(Comma);
                 }
                 self.expect(RightBrace, "'}'")?;
-                return Ok(Pattern { kind: "struct".into(), name, binding: None, inner: Vec::new(), fields, value: None });
+                return Ok(Pattern {
+                    kind: "struct".into(),
+                    name,
+                    binding: None,
+                    inner: Vec::new(),
+                    fields,
+                    value: None,
+                });
             }
 
             // Bare constructor (enum variant): Red, Green, Blue, None
-            return Ok(Pattern { kind: "ctor".into(), name, binding: None, inner: Vec::new(), fields: Vec::new(), value: None });
+            return Ok(Pattern {
+                kind: "ctor".into(),
+                name,
+                binding: None,
+                inner: Vec::new(),
+                fields: Vec::new(),
+                value: None,
+            });
         }
 
         // Literal pattern
-        if matches!(tok.token_type, IntLiteral | FloatLiteral | StringLiteral | BoolLiteral | CharLiteral) {
+        if matches!(
+            tok.token_type,
+            IntLiteral | FloatLiteral | StringLiteral | BoolLiteral | CharLiteral
+        ) {
             self.advance();
             let lit_expr = match tok.token_type {
                 IntLiteral => Expr::IntLiteral(tok.value.parse().unwrap_or(0)),
@@ -709,7 +1055,14 @@ impl Parser {
                 CharLiteral => Expr::CharLiteral(tok.value.chars().next().unwrap_or('\0')),
                 _ => unreachable!(),
             };
-            return Ok(Pattern { kind: "lit".into(), name: String::new(), binding: None, inner: Vec::new(), fields: Vec::new(), value: Some(Box::new(lit_expr)) });
+            return Ok(Pattern {
+                kind: "lit".into(),
+                name: String::new(),
+                binding: None,
+                inner: Vec::new(),
+                fields: Vec::new(),
+                value: Some(Box::new(lit_expr)),
+            });
         }
 
         Err(ParseError {
@@ -748,10 +1101,23 @@ impl Parser {
                 None
             };
             self.expect(Greater, "'>'")?;
-            return Ok(TypeRef { base, generic_arg: Some(Box::new(arg)), result_err: err.map(Box::new) });
+            return Ok(TypeRef {
+                base,
+                generic_arg: Some(Box::new(arg)),
+                result_err: err.map(Box::new),
+            });
         }
 
         Ok(TypeRef::new(base))
+    }
+
+    fn parse_nullable_type(&mut self) -> Result<TypeRef, ParseError> {
+        let mut ty = self.parse_type()?;
+        // Optional ? suffix for nullable types: int? → Option<int>
+        if self.match_token(QuestionMark) {
+            ty.base = BaseType::Option;
+        }
+        Ok(ty)
     }
 
     // ═══════════════════════════════
@@ -802,7 +1168,10 @@ impl Parser {
         if ops.is_empty() {
             Ok(left)
         } else {
-            Ok(Expr::Pipe { input: Box::new(left), ops })
+            Ok(Expr::Pipe {
+                input: Box::new(left),
+                ops,
+            })
         }
     }
 
@@ -825,26 +1194,47 @@ impl Parser {
         loop {
             let op_tt = self.current().token_type;
             let prec = Self::op_precedence(op_tt);
-            if prec < min_prec { break; }
-            if prec == 0 { break; }
+            if prec < min_prec {
+                break;
+            }
+            if prec == 0 {
+                break;
+            }
 
             self.advance(); // consume operator
             let op = match op_tt {
-                Plus => "+", Minus => "-", Star => "*", Slash => "/", Modulo => "%",
-                Equal => "=", DoubleEqual => "==", NotEqual => "!=",
-                Less => "<", Greater => ">", LessEqual => "<=", GreaterEqual => ">=",
-                And => "&&", Or => "||",
+                Plus => "+",
+                Minus => "-",
+                Star => "*",
+                Slash => "/",
+                Modulo => "%",
+                Equal => "=",
+                DoubleEqual => "==",
+                NotEqual => "!=",
+                Less => "<",
+                Greater => ">",
+                LessEqual => "<=",
+                GreaterEqual => ">=",
+                And => "&&",
+                Or => "||",
                 DoubleQuestionMark => "??",
                 ColonQuestion => "?:",
-                _ => return Err(ParseError {
-                    message: format!("Unknown binary operator: {:?}", self.current().value),
-                    line: self.current().line,
-                    column: self.current().column,
-                }),
-            }.to_string();
+                _ => {
+                    return Err(ParseError {
+                        message: format!("Unknown binary operator: {:?}", self.current().value),
+                        line: self.current().line,
+                        column: self.current().column,
+                    });
+                }
+            }
+            .to_string();
 
             let right = self.parse_binary(prec + 1)?;
-            left = Expr::BinaryOp { left: Box::new(left), op, right: Box::new(right) };
+            left = Expr::BinaryOp {
+                left: Box::new(left),
+                op,
+                right: Box::new(right),
+            };
         }
 
         Ok(left)
@@ -856,12 +1246,18 @@ impl Parser {
             Minus => {
                 self.advance();
                 let operand = self.parse_unary()?;
-                Ok(Expr::UnaryOp { op: "-".into(), operand: Box::new(operand) })
+                Ok(Expr::UnaryOp {
+                    op: "-".into(),
+                    operand: Box::new(operand),
+                })
             }
             Not => {
                 self.advance();
                 let operand = self.parse_unary()?;
-                Ok(Expr::UnaryOp { op: "!".into(), operand: Box::new(operand) })
+                Ok(Expr::UnaryOp {
+                    op: "!".into(),
+                    operand: Box::new(operand),
+                })
             }
             _ => self.parse_primary(),
         }
@@ -870,7 +1266,7 @@ impl Parser {
     /// 解析插值字符串，如 "hello $name, you are $age years old"
     /// tokenizer 已经将 $ident 原样保留在 value 中（如 "hello $name, you are $age years old"）
     fn parse_interpolate(&self, s: &str) -> Expr {
-        use crate::ast::{InterpolatePart, Expr};
+        use crate::ast::{Expr, InterpolatePart};
         let mut parts = Vec::new();
         let chars: Vec<char> = s.chars().collect();
         let len = chars.len();
@@ -943,38 +1339,76 @@ impl Parser {
 
         // Literals
         match tok.token_type {
-            IntLiteral => { self.advance(); return Ok(Expr::IntLiteral(tok.value.parse().unwrap_or(0))); }
-            FloatLiteral => { self.advance(); return Ok(Expr::FloatLiteral(tok.value.parse().unwrap_or(0.0))); }
-            StringLiteral => { self.advance(); return Ok(Expr::StringLiteral(tok.value.clone())); }
-            BoolLiteral => { self.advance(); return Ok(Expr::BoolLiteral(tok.value == "true")); }
-            CharLiteral => { self.advance(); return Ok(Expr::CharLiteral(tok.value.chars().next().unwrap_or('\0'))); }
+            IntLiteral => {
+                self.advance();
+                return Ok(Expr::IntLiteral(tok.value.parse().unwrap_or(0)));
+            }
+            FloatLiteral => {
+                self.advance();
+                return Ok(Expr::FloatLiteral(tok.value.parse().unwrap_or(0.0)));
+            }
+            StringLiteral => {
+                self.advance();
+                return Ok(Expr::StringLiteral(tok.value.clone()));
+            }
+            BoolLiteral => {
+                self.advance();
+                return Ok(Expr::BoolLiteral(tok.value == "true"));
+            }
+            CharLiteral => {
+                self.advance();
+                return Ok(Expr::CharLiteral(tok.value.chars().next().unwrap_or('\0')));
+            }
+            KeywordNull => {
+                self.advance();
+                return Ok(Expr::OptionValue { is_some: false, value: None });
+            }
             _ => {}
         }
 
         // Option/Result literal
-        if tok.token_type == Ident && (tok.value == "Some" || tok.value == "None" || tok.value == "Ok" || tok.value == "Err") {
+        if tok.token_type == Ident
+            && (tok.value == "Some"
+                || tok.value == "None"
+                || tok.value == "Ok"
+                || tok.value == "Err")
+        {
             self.advance();
             return match tok.value.as_str() {
                 "Some" => {
                     self.expect(LeftParen, "'('")?;
                     let val = self.parse_expression()?;
                     self.expect(RightParen, "')'")?;
-                    Ok(Expr::OptionValue { is_some: true, value: Some(Box::new(val)) })
+                    Ok(Expr::OptionValue {
+                        is_some: true,
+                        value: Some(Box::new(val)),
+                    })
                 }
-                "None" => Ok(Expr::OptionValue { is_some: false, value: None }),
+                "None" => Ok(Expr::OptionValue {
+                    is_some: false,
+                    value: None,
+                }),
                 "Ok" => {
                     self.expect(LeftParen, "'('")?;
                     let val = self.parse_expression()?;
                     self.expect(RightParen, "')'")?;
-                    Ok(Expr::ResultValue { is_ok: true, value: Some(Box::new(val)), error: None })
+                    Ok(Expr::ResultValue {
+                        is_ok: true,
+                        value: Some(Box::new(val)),
+                        error: None,
+                    })
                 }
                 "Err" => {
                     self.expect(LeftParen, "'('")?;
                     let val = self.parse_expression()?;
                     self.expect(RightParen, "')'")?;
-                    Ok(Expr::ResultValue { is_ok: false, value: None, error: Some(Box::new(val)) })
+                    Ok(Expr::ResultValue {
+                        is_ok: false,
+                        value: None,
+                        error: Some(Box::new(val)),
+                    })
                 }
-                _ => { Ok(Expr::Ident(tok.value.clone())) }
+                _ => Ok(Expr::Ident(tok.value.clone())),
             };
         }
 
@@ -1003,7 +1437,10 @@ impl Parser {
         // Block as expression
         if tok.token_type == LeftBrace {
             let stmts = self.parse_block()?;
-            let last = stmts.into_iter().last().unwrap_or(Stmt::Expr(Box::new(Expr::IntLiteral(0))));
+            let last = stmts
+                .into_iter()
+                .last()
+                .unwrap_or(Stmt::Expr(Box::new(Expr::IntLiteral(0))));
             return Ok(self.stmt_to_expr(last));
         }
 
@@ -1016,21 +1453,31 @@ impl Parser {
                 // Member access: obj.field
                 if self.match_token(Dot) {
                     let member = self.expect(Ident, "field name")?.value.clone();
-                    obj = Expr::MemberAccess { object: Box::new(obj), member };
+                    obj = Expr::MemberAccess {
+                        object: Box::new(obj),
+                        member,
+                    };
                 }
                 // Call: obj(args) — 支持命名参数 name: expr
                 else if self.match_token(LeftParen) {
                     let args = self.parse_call_args()?;
                     self.expect(RightParen, "')'")?;
-                    obj = Expr::Call { func: Box::new(obj), args };
+                    obj = Expr::Call {
+                        func: Box::new(obj),
+                        args,
+                    };
                 }
                 // Index: obj[index]
                 else if self.match_token(LeftBracket) {
                     let idx = self.parse_expression()?;
                     self.expect(RightBracket, "']'")?;
-                    obj = Expr::Index { array: Box::new(obj), index: Box::new(idx) };
+                    obj = Expr::Index {
+                        array: Box::new(obj),
+                        index: Box::new(idx),
+                    };
+                } else {
+                    break;
                 }
-                else { break; }
             }
 
             return Ok(obj);
@@ -1045,16 +1492,22 @@ impl Parser {
 
     fn stmt_to_expr(&self, stmt: Stmt) -> Expr {
         match stmt {
-            Stmt::If { condition, then_body, else_body } => {
+            Stmt::If {
+                condition,
+                then_body,
+                else_body,
+            } => {
                 let cond_expr = *condition;
                 // Convert last statement of each block to expression
                 let then_expr = stmts_to_expr(then_body);
                 let else_expr = stmts_to_expr(else_body);
-                Expr::IfExpr(Box::new(cond_expr), Box::new(then_expr), Box::new(else_expr))
+                Expr::IfExpr(
+                    Box::new(cond_expr),
+                    Box::new(then_expr),
+                    Box::new(else_expr),
+                )
             }
-            Stmt::Match { target, arms } => {
-                Expr::MatchExpr(Box::new(*target), arms)
-            }
+            Stmt::Match { target, arms } => Expr::MatchExpr(Box::new(*target), arms),
             other => stmt_to_expr_single(other),
         }
     }
@@ -1094,29 +1547,56 @@ pub fn ast_to_string(node: &Program) -> String {
 fn stmt_to_string(stmt: &Stmt, indent: usize) -> String {
     let p = "  ".repeat(indent);
     match stmt {
-        Stmt::Let { name, value, type_annotation, mutable } => {
+        Stmt::Let {
+            name,
+            value,
+            type_annotation,
+            mutable,
+        } => {
             let mut s = format!("{}{}Let({}", p, if *mutable { "mut " } else { "" }, name);
-            if let Some(t) = type_annotation { s.push_str(&format!(": {}", t)); }
-            if let Some(v) = value { s.push_str(&format!(" = {}", expr_to_string(v, 0))); }
+            if let Some(t) = type_annotation {
+                s.push_str(&format!(": {}", t));
+            }
+            if let Some(v) = value {
+                s.push_str(&format!(" = {}", expr_to_string(v, 0)));
+            }
             s.push(')');
             s
         }
-        Stmt::Fn { name, params, return_type, .. } => {
+        Stmt::Fn {
+            name,
+            params,
+            return_type,
+            ..
+        } => {
             let params_str: Vec<String> = params.iter().map(|p| p.name.clone()).collect();
-            let ret = return_type.as_ref().map(|t| format!(" -> {}", t)).unwrap_or_default();
+            let ret = return_type
+                .as_ref()
+                .map(|t| format!(" -> {}", t))
+                .unwrap_or_default();
             format!("{p}Fn({name}({:?}){ret})", params_str)
         }
-        Stmt::If { condition, then_body, else_body } => {
+        Stmt::If {
+            condition,
+            then_body,
+            else_body,
+        } => {
             let then_s = stmts_to_string(then_body, indent + 1);
-            let else_s = if else_body.is_empty() { String::new() } else { format!(" else {}", stmts_to_string(else_body, indent + 1)) };
-            format!("{p}If({} => {}{else_s})", expr_to_string(condition, 0), then_s)
+            let else_s = if else_body.is_empty() {
+                String::new()
+            } else {
+                format!(" else {}", stmts_to_string(else_body, indent + 1))
+            };
+            format!(
+                "{p}If({} => {}{else_s})",
+                expr_to_string(condition, 0),
+                then_s
+            )
         }
-        Stmt::Return(v) => {
-            match v {
-                Some(e) => format!("{p}Return({})", expr_to_string(e, 0)),
-                None => format!("{p}Return(None)"),
-            }
-        }
+        Stmt::Return(v) => match v {
+            Some(e) => format!("{p}Return({})", expr_to_string(e, 0)),
+            None => format!("{p}Return(None)"),
+        },
         _ => format!("{p}{}", stmt_name(stmt)),
     }
 }
@@ -1148,7 +1628,11 @@ fn stmt_name(stmt: &Stmt) -> &'static str {
 }
 
 fn stmts_to_string(stmts: &[Stmt], indent: usize) -> String {
-    stmts.iter().map(|s| stmt_to_string(s, indent)).collect::<Vec<_>>().join("\n")
+    stmts
+        .iter()
+        .map(|s| stmt_to_string(s, indent))
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 fn expr_to_string(expr: &Expr, _indent: usize) -> String {
@@ -1159,44 +1643,93 @@ fn expr_to_string(expr: &Expr, _indent: usize) -> String {
         Expr::BoolLiteral(v) => format!("Bool({})", v),
         Expr::CharLiteral(v) => format!("Char({:?})", v),
         Expr::Ident(v) => format!("Ident({})", v),
-        Expr::BinaryOp { left, op, right } => format!("Bin({}, {}, {})", expr_to_string(left, 0), op, expr_to_string(right, 0)),
+        Expr::BinaryOp { left, op, right } => format!(
+            "Bin({}, {}, {})",
+            expr_to_string(left, 0),
+            op,
+            expr_to_string(right, 0)
+        ),
         Expr::UnaryOp { op, operand } => format!("Unary({}, {})", op, expr_to_string(operand, 0)),
         Expr::Call { func, args } => {
             let args_str: Vec<String> = args.iter().map(|a| expr_to_string(a, 0)).collect();
             format!("Call({}({}))", expr_to_string(func, 0), args_str.join(", "))
         }
-        Expr::Pipe { input, ops } => format!("Pipe({}, {:?})", expr_to_string(input, 0), ops.iter().map(|(n, _)| n.clone()).collect::<Vec<_>>()),
-        Expr::Range { start, end, .. } => format!("Range({}..{})", expr_to_string(start, 0), expr_to_string(end, 0)),
+        Expr::Pipe { input, ops } => format!(
+            "Pipe({}, {:?})",
+            expr_to_string(input, 0),
+            ops.iter().map(|(n, _)| n.clone()).collect::<Vec<_>>()
+        ),
+        Expr::Range { start, end, .. } => format!(
+            "Range({}..{})",
+            expr_to_string(start, 0),
+            expr_to_string(end, 0)
+        ),
         Expr::Array(elems) => {
             let elems_str: Vec<String> = elems.iter().map(|e| expr_to_string(e, 0)).collect();
             format!("[{}]", elems_str.join(", "))
         }
         Expr::OptionValue { is_some, value } => {
             if *is_some {
-                format!("Some({})", value.as_ref().map(|v| expr_to_string(v, 0)).unwrap_or_default())
+                format!(
+                    "Some({})",
+                    value
+                        .as_ref()
+                        .map(|v| expr_to_string(v, 0))
+                        .unwrap_or_default()
+                )
             } else {
                 "None".into()
             }
         }
-        Expr::ResultValue { is_ok, value, error } => {
+        Expr::ResultValue {
+            is_ok,
+            value,
+            error,
+        } => {
             if *is_ok {
-                format!("Ok({})", value.as_ref().map(|v| expr_to_string(v, 0)).unwrap_or_default())
+                format!(
+                    "Ok({})",
+                    value
+                        .as_ref()
+                        .map(|v| expr_to_string(v, 0))
+                        .unwrap_or_default()
+                )
             } else {
-                format!("Err({})", error.as_ref().map(|v| expr_to_string(v, 0)).unwrap_or_default())
+                format!(
+                    "Err({})",
+                    error
+                        .as_ref()
+                        .map(|v| expr_to_string(v, 0))
+                        .unwrap_or_default()
+                )
             }
         }
-        Expr::MemberAccess { object, member } => format!("{}.{}", expr_to_string(object, 0), member),
-        Expr::Index { array, index } => format!("{}[{}]", expr_to_string(array, 0), expr_to_string(index, 0)),
-        Expr::IfExpr(c, t, e) => format!("If({}, {}, {})", expr_to_string(c, 0), expr_to_string(t, 0), expr_to_string(e, 0)),
+        Expr::MemberAccess { object, member } => {
+            format!("{}.{}", expr_to_string(object, 0), member)
+        }
+        Expr::Index { array, index } => {
+            format!("{}[{}]", expr_to_string(array, 0), expr_to_string(index, 0))
+        }
+        Expr::IfExpr(c, t, e) => format!(
+            "If({}, {}, {})",
+            expr_to_string(c, 0),
+            expr_to_string(t, 0),
+            expr_to_string(e, 0)
+        ),
         Expr::MatchExpr(target, _) => format!("Match({})", expr_to_string(target, 0)),
         Expr::Interpolate { parts } => {
-            let parts_str: Vec<String> = parts.iter().map(|p| match p {
-                InterpolatePart::Literal(s) => format!("\"{}\"", s),
-                InterpolatePart::Expr(e) => expr_to_string(e, 0),
-            }).collect();
+            let parts_str: Vec<String> = parts
+                .iter()
+                .map(|p| match p {
+                    InterpolatePart::Literal(s) => format!("\"{}\"", s),
+                    InterpolatePart::Expr(e) => expr_to_string(e, 0),
+                })
+                .collect();
             format!("Interpolate([{}])", parts_str.join(", "))
         }
-        Expr::IsCheck(expr, type_ref) => format!("IsCheck({}, {})", expr_to_string(expr, 0), type_ref),
+        Expr::IsCheck(expr, type_ref) => {
+            format!("IsCheck({}, {})", expr_to_string(expr, 0), type_ref)
+        }
         Expr::Cast(expr, type_ref) => format!("Cast({}, {})", expr_to_string(expr, 0), type_ref),
         Expr::NamedArg(name, e) => format!("{}: {}", name, expr_to_string(e, 0)),
     }
@@ -1205,7 +1738,9 @@ fn expr_to_string(expr: &Expr, _indent: usize) -> String {
 /// Expression variants for if/match that were converted from statements
 impl Expr {
     // Placeholder variants for if/match expressions
-    pub fn dummy() -> Self { Expr::IntLiteral(0) }
+    pub fn dummy() -> Self {
+        Expr::IntLiteral(0)
+    }
 }
 
 // Can't add new variants to an enum from outside,

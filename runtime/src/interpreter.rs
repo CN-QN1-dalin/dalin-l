@@ -1,7 +1,7 @@
-/// Dalin L — 树遍历解释器
-use dalin_compiler::ast::*;
 use crate::env::*;
 use crate::gc::GenerationalGC;
+/// Dalin L — 树遍历解释器
+use dalin_compiler::ast::*;
 use std::collections::HashMap;
 use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
@@ -25,25 +25,32 @@ pub struct GcStats {
 
 impl std::fmt::Display for GcStats {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "GC{{ gen0={}, gen1={}, gen2={}, collected={}, cycles={}, pending={} }}",
-            self.gen0_count, self.gen1_count, self.gen2_count,
-            self.total_collected, self.cycles, self.allocs_since_gc)
+        write!(
+            f,
+            "GC{{ gen0={}, gen1={}, gen2={}, collected={}, cycles={}, pending={} }}",
+            self.gen0_count,
+            self.gen1_count,
+            self.gen2_count,
+            self.total_collected,
+            self.cycles,
+            self.allocs_since_gc
+        )
     }
 }
 
-    /// 任务树节点（持久化，存于跨线程共享注册表，供控制面视图）。
-    struct TaskNode {
-        name: String,
-        parent: Option<String>,
+/// 任务树节点（持久化，存于跨线程共享注册表，供控制面视图）。
+struct TaskNode {
+    name: String,
+    parent: Option<String>,
+}
+
+impl Interpreter {
+    /// 生成当前解释器实例唯一 task id（per-instance 计数器，无全局竞争）。
+    fn next_task_id(&mut self, name: &str) -> String {
+        self.task_seq += 1;
+        format!("{}_{}", name, self.task_seq)
     }
-    
-    impl Interpreter {
-        /// 生成当前解释器实例唯一 task id（per-instance 计数器，无全局竞争）。
-        fn next_task_id(&mut self, name: &str) -> String {
-            self.task_seq += 1;
-            format!("{}_{}", name, self.task_seq)
-        }
-    }
+}
 
 impl std::fmt::Display for RuntimeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -205,9 +212,15 @@ impl Interpreter {
     fn eval_stmt(&mut self, stmt: &Stmt, env: &mut Environment) -> Result<Value, RuntimeError> {
         match stmt {
             Stmt::Let { name, value, .. } => self.eval_let(name, value.as_deref(), env),
-            Stmt::Fn { name, params, return_type, body, effect, capability, .. } => {
-                self.eval_fn_decl(name, params, return_type, body, effect, capability, env)
-            }
+            Stmt::Fn {
+                name,
+                params,
+                return_type,
+                body,
+                effect,
+                capability,
+                ..
+            } => self.eval_fn_decl(name, params, return_type, body, effect, capability, env),
             Stmt::Return(v) => {
                 let val = match v {
                     Some(e) => self.eval_expr(e, env)?,
@@ -216,21 +229,44 @@ impl Interpreter {
                 self.return_value = Some(val);
                 Err(RuntimeError(RETURN_SENTINEL.into()))
             }
-            Stmt::If { condition, then_body, else_body } => self.eval_if(condition, then_body, else_body, env),
+            Stmt::If {
+                condition,
+                then_body,
+                else_body,
+            } => self.eval_if(condition, then_body, else_body, env),
             Stmt::While { condition, body } => self.eval_while(condition, body, env),
-            Stmt::For { target, iterable, body } => self.eval_for(target, iterable, body, env),
+            Stmt::For {
+                target,
+                iterable,
+                body,
+            } => self.eval_for(target, iterable, body, env),
             Stmt::Match { target, arms } => self.eval_match(target, arms, env),
             Stmt::StructDef { name, fields, .. } => {
-                self.structs.insert(name.clone(), fields.iter().map(|f| f.name.clone()).collect());
+                self.structs.insert(
+                    name.clone(),
+                    fields.iter().map(|f| f.name.clone()).collect(),
+                );
                 Ok(Value::None)
             }
             Stmt::EnumDef { name, variants, .. } => {
-                self.enums.insert(name.clone(), variants.iter().map(|v| v.name.clone()).collect());
+                self.enums.insert(
+                    name.clone(),
+                    variants.iter().map(|v| v.name.clone()).collect(),
+                );
                 Ok(Value::None)
             }
             Stmt::Spawn { fn_decl } => {
                 // fn_decl 是 Stmt::Fn；spawn 要求效应标注为 spawn（效应格顶层，运行时强制）。
-                if let Stmt::Fn { name, params, return_type, body, effect, capability, .. } = fn_decl.as_ref() {
+                if let Stmt::Fn {
+                    name,
+                    params,
+                    return_type,
+                    body,
+                    effect,
+                    capability,
+                    ..
+                } = fn_decl.as_ref()
+                {
                     if effect.as_deref() != Some("spawn") {
                         return Err(RuntimeError(format!(
                             "spawn 要求被派生的函数标注 @ spawn（{} 未标注效应）",
@@ -254,7 +290,13 @@ impl Interpreter {
                     let (tx, rx) = mpsc::channel();
                     {
                         let mut tree = self.task_tree.lock().unwrap();
-                        tree.insert(task_id.clone(), TaskNode { name: name.clone(), parent: self.current_task_id.clone() });
+                        tree.insert(
+                            task_id.clone(),
+                            TaskNode {
+                                name: name.clone(),
+                                parent: self.current_task_id.clone(),
+                            },
+                        );
                     }
                     {
                         let mut results = self.task_results.lock().unwrap();
@@ -285,19 +327,31 @@ impl Interpreter {
                     Err(RuntimeError("spawn 必须后接函数定义".into()))
                 }
             }
-            Stmt::Channel { send_name, recv_name, .. } => {
+            Stmt::Channel {
+                send_name,
+                recv_name,
+                ..
+            } => {
                 let (tx, rx) = mpsc::channel();
                 env.define(send_name, Value::ChannelSender(Arc::new(tx)));
                 // 接收端 Receiver 存共享注册表，Value 仅持有名称（保持 Value: Send）。
-                self.channel_registry.lock().unwrap().insert(recv_name.clone(), Arc::new(Mutex::new(rx)));
+                self.channel_registry
+                    .lock()
+                    .unwrap()
+                    .insert(recv_name.clone(), Arc::new(Mutex::new(rx)));
                 env.define(recv_name, Value::ChannelReceiver(recv_name.clone()));
                 Ok(Value::None)
             }
             Stmt::Assert { condition, message } => {
                 let cond = self.eval_expr(condition, env)?;
                 if !self.truthy(&cond) {
-                    let msg = message.as_ref()
-                        .map(|m| self.eval_expr(m, env).map(|v| format!("{}", v)).unwrap_or_default())
+                    let msg = message
+                        .as_ref()
+                        .map(|m| {
+                            self.eval_expr(m, env)
+                                .map(|v| format!("{}", v))
+                                .unwrap_or_default()
+                        })
                         .unwrap_or_default();
                     return Err(RuntimeError(format!("Assertion failed: {}", msg)));
                 }
@@ -308,7 +362,12 @@ impl Interpreter {
         }
     }
 
-    fn eval_let(&mut self, name: &str, value: Option<&Expr>, env: &mut Environment) -> Result<Value, RuntimeError> {
+    fn eval_let(
+        &mut self,
+        name: &str,
+        value: Option<&Expr>,
+        env: &mut Environment,
+    ) -> Result<Value, RuntimeError> {
         let val = match value {
             Some(v) => self.eval_expr(v, env)?,
             None => Value::None,
@@ -318,7 +377,16 @@ impl Interpreter {
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn eval_fn_decl(&mut self, name: &str, params: &[FnParam], return_type: &Option<TypeRef>, body: &[Stmt], effect: &Option<String>, capability: &Option<String>, env: &mut Environment) -> Result<Value, RuntimeError> {
+    fn eval_fn_decl(
+        &mut self,
+        name: &str,
+        params: &[FnParam],
+        return_type: &Option<TypeRef>,
+        body: &[Stmt],
+        effect: &Option<String>,
+        capability: &Option<String>,
+        env: &mut Environment,
+    ) -> Result<Value, RuntimeError> {
         let fn_val = FnValue {
             name: name.to_string(),
             params: params.to_vec(),
@@ -334,7 +402,13 @@ impl Interpreter {
         Ok(Value::None)
     }
 
-    fn eval_if(&mut self, condition: &Expr, then_body: &[Stmt], else_body: &[Stmt], env: &mut Environment) -> Result<Value, RuntimeError> {
+    fn eval_if(
+        &mut self,
+        condition: &Expr,
+        then_body: &[Stmt],
+        else_body: &[Stmt],
+        env: &mut Environment,
+    ) -> Result<Value, RuntimeError> {
         let cond = self.eval_expr(condition, env)?;
         if self.truthy(&cond) {
             self.eval_block(then_body, env)
@@ -343,14 +417,21 @@ impl Interpreter {
         }
     }
 
-    fn eval_while(&mut self, condition: &Expr, body: &[Stmt], env: &mut Environment) -> Result<Value, RuntimeError> {
+    fn eval_while(
+        &mut self,
+        condition: &Expr,
+        body: &[Stmt],
+        env: &mut Environment,
+    ) -> Result<Value, RuntimeError> {
         loop {
             self.step_count += 1;
             if self.step_count >= self.max_steps {
                 return Err(RuntimeError("Step budget exceeded".to_string()));
             }
             let cond_val = self.eval_expr(condition, env)?;
-            if !self.truthy(&cond_val) { break; }
+            if !self.truthy(&cond_val) {
+                break;
+            }
             let result = self.eval_block(body, &mut env.child());
             match result {
                 Err(RuntimeError(ref msg)) if msg == RETURN_SENTINEL => return result,
@@ -360,7 +441,13 @@ impl Interpreter {
         Ok(Value::None)
     }
 
-    fn eval_for(&mut self, target: &str, iterable: &Expr, body: &[Stmt], env: &mut Environment) -> Result<Value, RuntimeError> {
+    fn eval_for(
+        &mut self,
+        target: &str,
+        iterable: &Expr,
+        body: &[Stmt],
+        env: &mut Environment,
+    ) -> Result<Value, RuntimeError> {
         let iter = self.eval_expr(iterable, env)?;
         let items = self.as_iterable(&iter);
         let mut result = Value::None;
@@ -376,7 +463,12 @@ impl Interpreter {
         Ok(result)
     }
 
-    fn eval_match(&mut self, target: &Expr, arms: &[MatchArm], env: &mut Environment) -> Result<Value, RuntimeError> {
+    fn eval_match(
+        &mut self,
+        target: &Expr,
+        arms: &[MatchArm],
+        env: &mut Environment,
+    ) -> Result<Value, RuntimeError> {
         let target_val = self.eval_expr(target, env)?;
         for arm in arms {
             let mut arm_env = env.child();
@@ -428,15 +520,27 @@ impl Interpreter {
                     Ok(Value::Option(false, None))
                 }
             }
-            Expr::ResultValue { is_ok, value, error } => {
+            Expr::ResultValue {
+                is_ok,
+                value,
+                error,
+            } => {
                 if *is_ok {
                     if let Some(v) = value {
-                        Ok(Value::Result(true, Some(Box::new(self.eval_expr(v, env)?)), None))
+                        Ok(Value::Result(
+                            true,
+                            Some(Box::new(self.eval_expr(v, env)?)),
+                            None,
+                        ))
                     } else {
                         Ok(Value::Result(true, None, None))
                     }
                 } else if let Some(e) = error {
-                    Ok(Value::Result(false, None, Some(Box::new(self.eval_expr(e, env)?))))
+                    Ok(Value::Result(
+                        false,
+                        None,
+                        Some(Box::new(self.eval_expr(e, env)?)),
+                    ))
                 } else {
                     Ok(Value::Result(*is_ok, None, None))
                 }
@@ -492,18 +596,18 @@ impl Interpreter {
                     BaseType::Result => "result",
                     _ => "unknown",
                 };
-                let matches = match (&val, *expected) {
-                    (Value::Int(_), "int") => true,
-                    (Value::Float(_), "float") => true,
-                    (Value::String(_), "string") => true,
-                    (Value::Bool(_), "bool") => true,
-                    (Value::Char(_), "char") => true,
-                    (Value::Array(_), "array") => true,
-                    (Value::None, "none") => true,
-                    (Value::Option(..), "option") => true,
-                    (Value::Result(..), "result") => true,
-                    _ => false,
-                };
+                let matches = matches!(
+                    (&val, *expected),
+                    (Value::Int(_), "int")
+                        | (Value::Float(_), "float")
+                        | (Value::String(_), "string")
+                        | (Value::Bool(_), "bool")
+                        | (Value::Char(_), "char")
+                        | (Value::Array(_), "array")
+                        | (Value::None, "none")
+                        | (Value::Option(..), "option")
+                        | (Value::Result(..), "result")
+                );
                 Ok(Value::Bool(matches))
             }
             // ── 类型转换 as ──
@@ -519,14 +623,14 @@ impl Interpreter {
                 match (val, target) {
                     (Value::Int(i), "float") => Ok(Value::Float(i as f64)),
                     (Value::Float(f), "int") => Ok(Value::Int(f as i64)),
-                    (Value::String(s), "int") => {
-                        s.parse::<i64>().map(Value::Int)
-                            .map_err(|_| RuntimeError("cast failed: not an int".into()))
-                    }
-                    (Value::String(s), "float") => {
-                        s.parse::<f64>().map(Value::Float)
-                            .map_err(|_| RuntimeError("cast failed: not a float".into()))
-                    }
+                    (Value::String(s), "int") => s
+                        .parse::<i64>()
+                        .map(Value::Int)
+                        .map_err(|_| RuntimeError("cast failed: not an int".into())),
+                    (Value::String(s), "float") => s
+                        .parse::<f64>()
+                        .map(Value::Float)
+                        .map_err(|_| RuntimeError("cast failed: not a float".into())),
                     (Value::Int(i), "string") => Ok(Value::String(i.to_string())),
                     (Value::Float(f), "string") => Ok(Value::String(f.to_string())),
                     (Value::Bool(b), "string") => Ok(Value::String(b.to_string())),
@@ -564,14 +668,23 @@ impl Interpreter {
         Err(RuntimeError(format!("Undefined variable: '{}'", name)))
     }
 
-    fn eval_binary(&mut self, left: &Expr, op: &str, right: &Expr, env: &mut Environment) -> Result<Value, RuntimeError> {
+    fn eval_binary(
+        &mut self,
+        left: &Expr,
+        op: &str,
+        right: &Expr,
+        env: &mut Environment,
+    ) -> Result<Value, RuntimeError> {
         // Assignment
         if op == "=" {
             let right_val = self.eval_expr(right, env)?;
             match left {
                 Expr::Ident(name) => {
                     if !env.assign(name, right_val.clone()) {
-                        return Err(RuntimeError(format!("Cannot assign to undefined variable: '{}'", name)));
+                        return Err(RuntimeError(format!(
+                            "Cannot assign to undefined variable: '{}'",
+                            name
+                        )));
                     }
                     return Ok(right_val);
                 }
@@ -595,76 +708,84 @@ impl Interpreter {
         let right_val = self.eval_expr(right, env)?;
 
         match op {
-            "+" => {
-                match (&left_val, &right_val) {
-                    (Value::Int(a), Value::Int(b)) => Ok(Value::Int(a + b)),
-                    (Value::Float(a), Value::Float(b)) => Ok(Value::Float(a + b)),
-                    (Value::Int(a), Value::Float(b)) => Ok(Value::Float(*a as f64 + b)),
-                    (Value::Float(a), Value::Int(b)) => Ok(Value::Float(a + *b as f64)),
-                    (Value::String(a), Value::String(b)) => Ok(Value::String(format!("{}{}", a, b))),
-                    (Value::String(a), b) => Ok(Value::String(format!("{}{}", a, b))),
-                    (a, Value::String(b)) => Ok(Value::String(format!("{}{}", a, b))),
-                    _ => Err(RuntimeError(format!("Cannot add {:?} and {:?}", left_val, right_val))),
-                }
-            }
-            "-" => {
-                match (&left_val, &right_val) {
-                    (Value::Int(a), Value::Int(b)) => Ok(Value::Int(a - b)),
-                    (Value::Float(a), Value::Float(b)) => Ok(Value::Float(a - b)),
-                    (Value::Int(a), Value::Float(b)) => Ok(Value::Float(*a as f64 - b)),
-                    (Value::Float(a), Value::Int(b)) => Ok(Value::Float(a - *b as f64)),
-                    _ => Err(RuntimeError(format!("Cannot subtract {:?} and {:?}", left_val, right_val))),
-                }
-            }
-            "*" => {
-                match (&left_val, &right_val) {
-                    (Value::Int(a), Value::Int(b)) => Ok(Value::Int(a * b)),
-                    (Value::Float(a), Value::Float(b)) => Ok(Value::Float(a * b)),
-                    (Value::Int(a), Value::Float(b)) => Ok(Value::Float(*a as f64 * b)),
-                    (Value::Float(a), Value::Int(b)) => Ok(Value::Float(a * *b as f64)),
-                    _ => Err(RuntimeError(format!("Cannot multiply {:?} and {:?}", left_val, right_val))),
-                }
-            }
-            "/" => {
-                match (&left_val, &right_val) {
-                    (Value::Int(a), Value::Int(b)) => {
-                        if *b == 0 {
-                            Err(RuntimeError("division by zero".into()))
-                        } else if *a == i64::MIN && *b == -1 {
-                            Err(RuntimeError("integer overflow in division".into()))
-                        } else {
-                            Ok(Value::Int(a / b))
-                        }
+            "+" => match (&left_val, &right_val) {
+                (Value::Int(a), Value::Int(b)) => Ok(Value::Int(a + b)),
+                (Value::Float(a), Value::Float(b)) => Ok(Value::Float(a + b)),
+                (Value::Int(a), Value::Float(b)) => Ok(Value::Float(*a as f64 + b)),
+                (Value::Float(a), Value::Int(b)) => Ok(Value::Float(a + *b as f64)),
+                (Value::String(a), Value::String(b)) => Ok(Value::String(format!("{}{}", a, b))),
+                (Value::String(a), b) => Ok(Value::String(format!("{}{}", a, b))),
+                (a, Value::String(b)) => Ok(Value::String(format!("{}{}", a, b))),
+                _ => Err(RuntimeError(format!(
+                    "Cannot add {:?} and {:?}",
+                    left_val, right_val
+                ))),
+            },
+            "-" => match (&left_val, &right_val) {
+                (Value::Int(a), Value::Int(b)) => Ok(Value::Int(a - b)),
+                (Value::Float(a), Value::Float(b)) => Ok(Value::Float(a - b)),
+                (Value::Int(a), Value::Float(b)) => Ok(Value::Float(*a as f64 - b)),
+                (Value::Float(a), Value::Int(b)) => Ok(Value::Float(a - *b as f64)),
+                _ => Err(RuntimeError(format!(
+                    "Cannot subtract {:?} and {:?}",
+                    left_val, right_val
+                ))),
+            },
+            "*" => match (&left_val, &right_val) {
+                (Value::Int(a), Value::Int(b)) => Ok(Value::Int(a * b)),
+                (Value::Float(a), Value::Float(b)) => Ok(Value::Float(a * b)),
+                (Value::Int(a), Value::Float(b)) => Ok(Value::Float(*a as f64 * b)),
+                (Value::Float(a), Value::Int(b)) => Ok(Value::Float(a * *b as f64)),
+                _ => Err(RuntimeError(format!(
+                    "Cannot multiply {:?} and {:?}",
+                    left_val, right_val
+                ))),
+            },
+            "/" => match (&left_val, &right_val) {
+                (Value::Int(a), Value::Int(b)) => {
+                    if *b == 0 {
+                        Err(RuntimeError("division by zero".into()))
+                    } else if *a == i64::MIN && *b == -1 {
+                        Err(RuntimeError("integer overflow in division".into()))
+                    } else {
+                        Ok(Value::Int(a / b))
                     }
-                    (Value::Float(a), Value::Float(b)) => {
-                        if *b == 0.0 {
-                            Err(RuntimeError("division by zero".into()))
-                        } else {
-                            Ok(Value::Float(a / b))
-                        }
-                    }
-                    _ => Err(RuntimeError(format!("Cannot divide {:?} and {:?}", left_val, right_val))),
                 }
-            }
-            "%" => {
-                match (&left_val, &right_val) {
-                    (Value::Int(a), Value::Int(b)) => {
-                        if *b == 0 {
-                            Err(RuntimeError("modulo by zero".into()))
-                        } else if *b == -1 {
-                            Err(RuntimeError("integer overflow in modulo".into()))
-                        } else {
-                            Ok(Value::Int(a % b))
-                        }
+                (Value::Float(a), Value::Float(b)) => {
+                    if *b == 0.0 {
+                        Err(RuntimeError("division by zero".into()))
+                    } else {
+                        Ok(Value::Float(a / b))
                     }
-                    _ => Err(RuntimeError(format!("Cannot modulo {:?} and {:?}", left_val, right_val))),
                 }
-            }
+                _ => Err(RuntimeError(format!(
+                    "Cannot divide {:?} and {:?}",
+                    left_val, right_val
+                ))),
+            },
+            "%" => match (&left_val, &right_val) {
+                (Value::Int(a), Value::Int(b)) => {
+                    if *b == 0 {
+                        Err(RuntimeError("modulo by zero".into()))
+                    } else if *b == -1 {
+                        Err(RuntimeError("integer overflow in modulo".into()))
+                    } else {
+                        Ok(Value::Int(a % b))
+                    }
+                }
+                _ => Err(RuntimeError(format!(
+                    "Cannot modulo {:?} and {:?}",
+                    left_val, right_val
+                ))),
+            },
             "==" => Ok(Value::Bool(self.values_equal(&left_val, &right_val))),
             "!=" => Ok(Value::Bool(!self.values_equal(&left_val, &right_val))),
             "??" => {
                 // Null coalescing: 如果 left 非 None 则返回 left，否则返回 right
-                if !matches!(left_val, Value::Option(false, _) | Value::Result(false, _, _)) {
+                if !matches!(
+                    left_val,
+                    Value::Option(false, _) | Value::Result(false, _, _)
+                ) {
                     return Ok(left_val);
                 }
                 self.eval_expr(right, env)
@@ -677,13 +798,22 @@ impl Interpreter {
                 }
             }
             "<" | ">" | "<=" | ">=" => self.compare(&left_val, &right_val, op),
-            "&&" => Ok(Value::Bool(self.truthy(&left_val) && self.truthy(&right_val))),
-            "||" => Ok(Value::Bool(self.truthy(&left_val) || self.truthy(&right_val))),
+            "&&" => Ok(Value::Bool(
+                self.truthy(&left_val) && self.truthy(&right_val),
+            )),
+            "||" => Ok(Value::Bool(
+                self.truthy(&left_val) || self.truthy(&right_val),
+            )),
             _ => Err(RuntimeError(format!("Unknown operator: {}", op))),
         }
     }
 
-    fn eval_unary(&mut self, op: &str, operand: &Expr, env: &mut Environment) -> Result<Value, RuntimeError> {
+    fn eval_unary(
+        &mut self,
+        op: &str,
+        operand: &Expr,
+        env: &mut Environment,
+    ) -> Result<Value, RuntimeError> {
         let val = self.eval_expr(operand, env)?;
         match op {
             "-" => match val {
@@ -696,7 +826,12 @@ impl Interpreter {
         }
     }
 
-    fn eval_call(&mut self, func: &Expr, args: &[Expr], env: &mut Environment) -> Result<Value, RuntimeError> {
+    fn eval_call(
+        &mut self,
+        func: &Expr,
+        args: &[Expr],
+        env: &mut Environment,
+    ) -> Result<Value, RuntimeError> {
         let callee_name = match func {
             Expr::Ident(name) => name.clone(),
             Expr::MemberAccess { member, .. } => member.clone(),
@@ -710,7 +845,24 @@ impl Interpreter {
         }
 
         // Builtins
-        let builtins: [&str; 16] = ["println", "println!", "print", "print!", "len", "push", "assert", "int", "float", "str", "abs", "range", "await", "send", "recv", "spawn_task"];
+        let builtins: [&str; 16] = [
+            "println",
+            "println!",
+            "print",
+            "print!",
+            "len",
+            "push",
+            "assert",
+            "int",
+            "float",
+            "str",
+            "abs",
+            "range",
+            "await",
+            "send",
+            "recv",
+            "spawn_task",
+        ];
         if builtins.contains(&callee_name.as_str()) {
             return self.call_builtin(&callee_name, &arg_vals);
         }
@@ -718,7 +870,10 @@ impl Interpreter {
         // Struct constructor
         if let Some(fields) = self.structs.get(&callee_name).cloned() {
             let mut map = HashMap::new();
-            map.insert(DALIN_TYPE_KEY.to_string(), Value::String(callee_name.clone()));
+            map.insert(
+                DALIN_TYPE_KEY.to_string(),
+                Value::String(callee_name.clone()),
+            );
             for (fname, fval) in fields.iter().zip(arg_vals) {
                 map.insert(fname.clone(), fval);
             }
@@ -733,18 +888,22 @@ impl Interpreter {
             return self.call_function(&fnv, &arg_vals);
         }
         match env.lookup(&callee_name) {
-            Some(Value::Function(fnv)) => {
-                self.call_function(&fnv, &arg_vals)
-            }
+            Some(Value::Function(fnv)) => self.call_function(&fnv, &arg_vals),
             Some(_) => Err(RuntimeError(format!("'{}' is not callable", callee_name))),
-            None => Err(RuntimeError(format!("Undefined function: '{}'", callee_name))),
+            None => Err(RuntimeError(format!(
+                "Undefined function: '{}'",
+                callee_name
+            ))),
         }
     }
 
     fn call_function(&mut self, fnv: &FnValue, args: &[Value]) -> Result<Value, RuntimeError> {
         if args.len() != fnv.params.len() {
             return Err(RuntimeError(format!(
-                "Function '{}' expects {} args, got {}", fnv.name, fnv.params.len(), args.len()
+                "Function '{}' expects {} args, got {}",
+                fnv.name,
+                fnv.params.len(),
+                args.len()
             )));
         }
         let mut call_env = fnv.closure.child();
@@ -774,13 +933,11 @@ impl Interpreter {
                 print!("{}", s.join(" "));
                 Ok(Value::None)
             }
-            "len" => {
-                match &args[0] {
-                    Value::Array(a) => Ok(Value::Int(a.len() as i64)),
-                    Value::String(s) => Ok(Value::Int(s.len() as i64)),
-                    _ => Ok(Value::Int(0)),
-                }
-            }
+            "len" => match &args[0] {
+                Value::Array(a) => Ok(Value::Int(a.len() as i64)),
+                Value::String(s) => Ok(Value::Int(s.len() as i64)),
+                _ => Ok(Value::Int(0)),
+            },
             "push" => {
                 if let Value::Array(ref mut arr) = args[0].clone() {
                     let mut arr = arr.clone();
@@ -790,30 +947,24 @@ impl Interpreter {
                     Err(RuntimeError("push requires array".into()))
                 }
             }
-            "int" => {
-                match &args[0] {
-                    Value::String(s) => s.parse::<i64>().map(Value::Int).or(Ok(Value::Int(0))),
-                    Value::Float(f) => Ok(Value::Int(*f as i64)),
-                    Value::Int(i) => Ok(Value::Int(*i)),
-                    _ => Ok(Value::Int(0)),
-                }
-            }
-            "float" => {
-                match &args[0] {
-                    Value::String(s) => s.parse::<f64>().map(Value::Float).or(Ok(Value::Float(0.0))),
-                    Value::Int(i) => Ok(Value::Float(*i as f64)),
-                    Value::Float(f) => Ok(Value::Float(*f)),
-                    _ => Ok(Value::Float(0.0)),
-                }
-            }
+            "int" => match &args[0] {
+                Value::String(s) => s.parse::<i64>().map(Value::Int).or(Ok(Value::Int(0))),
+                Value::Float(f) => Ok(Value::Int(*f as i64)),
+                Value::Int(i) => Ok(Value::Int(*i)),
+                _ => Ok(Value::Int(0)),
+            },
+            "float" => match &args[0] {
+                Value::String(s) => s.parse::<f64>().map(Value::Float).or(Ok(Value::Float(0.0))),
+                Value::Int(i) => Ok(Value::Float(*i as f64)),
+                Value::Float(f) => Ok(Value::Float(*f)),
+                _ => Ok(Value::Float(0.0)),
+            },
             "str" => Ok(Value::String(format!("{}", args[0]))),
-            "abs" => {
-                match args[0] {
-                    Value::Int(i) => Ok(Value::Int(i.abs())),
-                    Value::Float(f) => Ok(Value::Float(f.abs())),
-                    _ => Err(RuntimeError("abs requires number".into())),
-                }
-            }
+            "abs" => match args[0] {
+                Value::Int(i) => Ok(Value::Int(i.abs())),
+                Value::Float(f) => Ok(Value::Float(f.abs())),
+                _ => Err(RuntimeError("abs requires number".into())),
+            },
             "range" => {
                 if let (Value::Int(a), Value::Int(b)) = (&args[0], &args[1]) {
                     let items: Vec<Value> = (*a..*b).map(Value::Int).collect();
@@ -884,7 +1035,11 @@ impl Interpreter {
                 }
                 let fname = match &args[0] {
                     Value::String(s) => s.clone(),
-                    _ => return Err(RuntimeError("spawn_task 第一个参数必须是函数名（字符串）".into())),
+                    _ => {
+                        return Err(RuntimeError(
+                            "spawn_task 第一个参数必须是函数名（字符串）".into(),
+                        ));
+                    }
                 };
                 let fnv = match self.functions.get(&fname).cloned() {
                     Some(f) => f,
@@ -901,7 +1056,13 @@ impl Interpreter {
                 let (tx, rx) = mpsc::channel();
                 {
                     let mut tree = self.task_tree.lock().unwrap();
-                    tree.insert(child_id.clone(), TaskNode { name: fname.clone(), parent: self.current_task_id.clone() });
+                    tree.insert(
+                        child_id.clone(),
+                        TaskNode {
+                            name: fname.clone(),
+                            parent: self.current_task_id.clone(),
+                        },
+                    );
                 }
                 {
                     let mut results = self.task_results.lock().unwrap();
@@ -928,22 +1089,38 @@ impl Interpreter {
         }
     }
 
-    fn eval_member_access(&mut self, object: &Expr, member: &str, env: &mut Environment) -> Result<Value, RuntimeError> {
+    fn eval_member_access(
+        &mut self,
+        object: &Expr,
+        member: &str,
+        env: &mut Environment,
+    ) -> Result<Value, RuntimeError> {
         let obj = self.eval_expr(object, env)?;
         match obj {
             Value::Struct(ref map) => {
                 if let Some(v) = map.get(member) {
                     Ok(v.clone())
                 } else {
-                    let ty = map.get(DALIN_TYPE_KEY).map(|v| format!("{}", v)).unwrap_or_default();
-                    Err(RuntimeError(format!("Struct '{}' has no field '{}'", ty, member)))
+                    let ty = map
+                        .get(DALIN_TYPE_KEY)
+                        .map(|v| format!("{}", v))
+                        .unwrap_or_default();
+                    Err(RuntimeError(format!(
+                        "Struct '{}' has no field '{}'",
+                        ty, member
+                    )))
                 }
             }
             _ => Err(RuntimeError(format!("Cannot access member '{}'", member))),
         }
     }
 
-    fn eval_index(&mut self, array: &Expr, index: &Expr, env: &mut Environment) -> Result<Value, RuntimeError> {
+    fn eval_index(
+        &mut self,
+        array: &Expr,
+        index: &Expr,
+        env: &mut Environment,
+    ) -> Result<Value, RuntimeError> {
         let arr = self.eval_expr(array, env)?;
         let idx = self.eval_expr(index, env)?;
         match (&arr, &idx) {
@@ -959,20 +1136,35 @@ impl Interpreter {
         }
     }
 
-    fn eval_pipe(&mut self, input: &Expr, ops: &[(String, Expr)], env: &mut Environment) -> Result<Value, RuntimeError> {
+    fn eval_pipe(
+        &mut self,
+        input: &Expr,
+        ops: &[(String, Expr)],
+        env: &mut Environment,
+    ) -> Result<Value, RuntimeError> {
         let mut current = self.eval_expr(input, env)?;
         for (name, _) in ops {
             match env.lookup(name) {
                 Some(Value::Function(fnv)) => {
                     current = self.call_function(&fnv, &[current])?;
                 }
-                _ => return Err(RuntimeError(format!("Pipe target '{}' is not callable", name))),
+                _ => {
+                    return Err(RuntimeError(format!(
+                        "Pipe target '{}' is not callable",
+                        name
+                    )));
+                }
             }
         }
         Ok(current)
     }
 
-    fn eval_range(&mut self, start: &Expr, end: &Expr, env: &mut Environment) -> Result<Value, RuntimeError> {
+    fn eval_range(
+        &mut self,
+        start: &Expr,
+        end: &Expr,
+        env: &mut Environment,
+    ) -> Result<Value, RuntimeError> {
         let s = self.eval_expr(start, env)?;
         let e = self.eval_expr(end, env)?;
         match (s, e) {
@@ -985,7 +1177,8 @@ impl Interpreter {
     }
 
     fn eval_array(&mut self, elems: &[Expr], env: &mut Environment) -> Result<Value, RuntimeError> {
-        let items: Result<Vec<Value>, RuntimeError> = elems.iter().map(|e| self.eval_expr(e, env)).collect();
+        let items: Result<Vec<Value>, RuntimeError> =
+            elems.iter().map(|e| self.eval_expr(e, env)).collect();
         let items = items?;
         // GC：跟踪 Array 堆分配
         self.gc_track_alloc("array", vec![]);
@@ -1013,27 +1206,30 @@ impl Interpreter {
                 match pat.name.as_str() {
                     "Some" => {
                         if let Value::Option(true, Some(v)) = value
-                            && let Some(ref binding) = pat.binding {
-                                env.define(binding, *v.clone());
-                                return true;
-                            }
+                            && let Some(ref binding) = pat.binding
+                        {
+                            env.define(binding, *v.clone());
+                            return true;
+                        }
                         false
                     }
                     "None" => matches!(value, Value::Option(false, _)),
                     "Ok" => {
                         if let Value::Result(true, Some(v), _) = value
-                            && let Some(ref binding) = pat.binding {
-                                env.define(binding, *v.clone());
-                                return true;
-                            }
+                            && let Some(ref binding) = pat.binding
+                        {
+                            env.define(binding, *v.clone());
+                            return true;
+                        }
                         false
                     }
                     "Err" => {
                         if let Value::Result(false, _, Some(e)) = value
-                            && let Some(ref binding) = pat.binding {
-                                env.define(binding, *e.clone());
-                                return true;
-                            }
+                            && let Some(ref binding) = pat.binding
+                        {
+                            env.define(binding, *e.clone());
+                            return true;
+                        }
                         false
                     }
                     _ => {
@@ -1099,9 +1295,18 @@ impl Interpreter {
     fn compare(&self, a: &Value, b: &Value, op: &str) -> Result<Value, RuntimeError> {
         let cmp = match (a, b) {
             (Value::Int(ai), Value::Int(bi)) => Some(ai.cmp(bi)),
-            (Value::Float(af), Value::Float(bf)) => Some(af.partial_cmp(bf).unwrap_or(std::cmp::Ordering::Equal)),
-            (Value::Int(ai), Value::Float(bf)) => Some((*ai as f64).partial_cmp(bf).unwrap_or(std::cmp::Ordering::Equal)),
-            (Value::Float(af), Value::Int(bi)) => Some(af.partial_cmp(&(*bi as f64)).unwrap_or(std::cmp::Ordering::Equal)),
+            (Value::Float(af), Value::Float(bf)) => {
+                Some(af.partial_cmp(bf).unwrap_or(std::cmp::Ordering::Equal))
+            }
+            (Value::Int(ai), Value::Float(bf)) => Some(
+                (*ai as f64)
+                    .partial_cmp(bf)
+                    .unwrap_or(std::cmp::Ordering::Equal),
+            ),
+            (Value::Float(af), Value::Int(bi)) => Some(
+                af.partial_cmp(&(*bi as f64))
+                    .unwrap_or(std::cmp::Ordering::Equal),
+            ),
             (Value::String(as_), Value::String(bs)) => Some(as_.cmp(bs)),
             _ => None,
         };
@@ -1173,7 +1378,9 @@ mod tests {
     fn run(src: &str) -> Result<Vec<Value>, RuntimeError> {
         let mut lex = dalin_compiler::lexer::Lexer::new(src);
         let toks = lex.tokenize().map_err(|e| RuntimeError(e.to_string()))?;
-        let prog = dalin_compiler::parser::Parser::new(toks).parse().map_err(|e| RuntimeError(e.to_string()))?;
+        let prog = dalin_compiler::parser::Parser::new(toks)
+            .parse()
+            .map_err(|e| RuntimeError(e.to_string()))?;
         let mut interp = Interpreter::new();
         interp.interpret(&prog)
     }
@@ -1269,12 +1476,17 @@ mod tests {
         // 直接通过 Interpreter 验证
         let mut lex = dalin_compiler::lexer::Lexer::new(src);
         let toks = lex.tokenize().expect("lex ok");
-        let prog = dalin_compiler::parser::Parser::new(toks).parse().expect("parse ok");
+        let prog = dalin_compiler::parser::Parser::new(toks)
+            .parse()
+            .expect("parse ok");
         let mut interp = Interpreter::new();
         interp.interpret(&prog).expect("interp ok");
         let stats = interp.gc_stats();
-        assert!(stats.gen0_count > 0 || stats.gen1_count > 0 || stats.total_collected > 0,
-            "GC should track array allocations: {:?}", stats);
+        assert!(
+            stats.gen0_count > 0 || stats.gen1_count > 0 || stats.total_collected > 0,
+            "GC should track array allocations: {:?}",
+            stats
+        );
     }
 
     #[test]
@@ -1298,8 +1510,11 @@ mod tests {
         let mut interp = Interpreter::new();
         if interp.interpret(&prog).is_ok() {
             let stats = interp.gc_stats();
-            assert!(stats.gen0_count > 0 || stats.gen1_count > 0 || stats.total_collected > 0,
-                "GC should track struct allocations: {:?}", stats);
+            assert!(
+                stats.gen0_count > 0 || stats.gen1_count > 0 || stats.total_collected > 0,
+                "GC should track struct allocations: {:?}",
+                stats
+            );
         }
     }
 
@@ -1345,12 +1560,18 @@ mod tests {
         "#;
         let mut lex = dalin_compiler::lexer::Lexer::new(src);
         let toks = lex.tokenize().expect("lex ok");
-        let prog = dalin_compiler::parser::Parser::new(toks).parse().expect("parse ok");
+        let prog = dalin_compiler::parser::Parser::new(toks)
+            .parse()
+            .expect("parse ok");
         let mut interp = Interpreter::new();
         interp.interpret(&prog).expect("interp ok");
         let stats = interp.gc_stats();
         // 35 次分配 > 阈值 32，应至少触发 1 次 GC 周期
-        assert!(stats.cycles >= 1, "GC should have run at least 1 cycle: {:?}", stats);
+        assert!(
+            stats.cycles >= 1,
+            "GC should have run at least 1 cycle: {:?}",
+            stats
+        );
     }
 
     #[test]
@@ -1372,7 +1593,9 @@ mod tests {
         "#;
         let mut lex = dalin_compiler::lexer::Lexer::new(src);
         let toks = lex.tokenize().expect("lex ok");
-        let prog = dalin_compiler::parser::Parser::new(toks).parse().expect("parse ok");
+        let prog = dalin_compiler::parser::Parser::new(toks)
+            .parse()
+            .expect("parse ok");
         let mut interp = Interpreter::new();
         interp.interpret(&prog).expect("interp ok");
         // 强制 GC 应不 panic 且返回回收数量

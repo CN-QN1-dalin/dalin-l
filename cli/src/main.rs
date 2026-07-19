@@ -194,25 +194,64 @@ fn main() {
         Commands::Tasks {} => cmd::tasks::run(),
         Commands::Agents {} => cmd::agents::run(),
         Commands::Vm { mode } => cmd::vm::run(&mode),
-        Commands::Evolve { subcommand, id, to, reason, json: _json } => {
+        Commands::Evolve {
+            subcommand,
+            id,
+            to,
+            reason,
+            json: _json,
+        } => {
             let mut args = std::collections::HashMap::new();
-            if let Some(i) = id { args.insert("id".to_string(), i.to_string()); }
-            if let Some(t) = to { args.insert("to".to_string(), t.to_string()); }
-            if let Some(r) = reason { args.insert("reason".to_string(), r); }
-            if cli.json || _json { args.insert("json".to_string(), "true".to_string()); }
+            if let Some(i) = id {
+                args.insert("id".to_string(), i.to_string());
+            }
+            if let Some(t) = to {
+                args.insert("to".to_string(), t.to_string());
+            }
+            if let Some(r) = reason {
+                args.insert("reason".to_string(), r);
+            }
+            if cli.json || _json {
+                args.insert("json".to_string(), "true".to_string());
+            }
             cmd::evolve::run(&subcommand, &args)
         }
 
-        Commands::Pkg { subcommand, name, version, git, optional, json: as_json, release, name_for_init, lib: lib_only, path } => {
+        Commands::Pkg {
+            subcommand,
+            name,
+            version,
+            git,
+            optional,
+            json: as_json,
+            release,
+            name_for_init,
+            lib: lib_only,
+            path,
+        } => {
             let mut map = std::collections::HashMap::new();
             map.insert("name".to_string(), name.clone());
-            if let Some(v) = version { map.insert("version".to_string(), v); }
-            if let Some(g) = git { map.insert("git".to_string(), g); }
-            if optional { map.insert("optional".to_string(), "true".to_string()); }
-            if as_json { map.insert("json".to_string(), "true".to_string()); }
-            if release { map.insert("release".to_string(), "true".to_string()); }
-            if let Some(n) = name_for_init { map.insert("name".to_string(), n); }
-            if lib_only { map.insert("lib".to_string(), "true".to_string()); }
+            if let Some(v) = version {
+                map.insert("version".to_string(), v);
+            }
+            if let Some(g) = git {
+                map.insert("git".to_string(), g);
+            }
+            if optional {
+                map.insert("optional".to_string(), "true".to_string());
+            }
+            if as_json {
+                map.insert("json".to_string(), "true".to_string());
+            }
+            if release {
+                map.insert("release".to_string(), "true".to_string());
+            }
+            if let Some(n) = name_for_init {
+                map.insert("name".to_string(), n);
+            }
+            if lib_only {
+                map.insert("lib".to_string(), "true".to_string());
+            }
             map.insert("path".to_string(), path);
 
             // For remove, we need to pass name differently

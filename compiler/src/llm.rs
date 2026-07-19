@@ -101,8 +101,10 @@ impl LlmEngine {
         p.contains("sort") && (p.contains("ascending") || p.contains("asc"))
             || p.contains("filter") && p.contains("greater")
             || p.contains("map") && p.contains("double")
-            || p.contains("sum") || p.contains("average")
-            || p.contains("reverse") || p.contains("flatten")
+            || p.contains("sum")
+            || p.contains("average")
+            || p.contains("reverse")
+            || p.contains("flatten")
     }
 
     /// 将 prompt 转换为 AST 片段
@@ -116,30 +118,26 @@ impl LlmEngine {
 
         // 通用降级：生成函数骨架 + @todo 标记
         let fn_name = target.unwrap_or("generated_fn");
-        vec![
-            Stmt::Fn {
-                name: fn_name.to_string(),
-                type_params: vec![],
-                params: vec![],
-                return_type: None,
-                effect: Some("pure".to_string()),
-                capability: Some("cpu".to_string()),
-                llm_prompt: Some(prompt.to_string()),
-                confidence: None,
-                cognitive_loop: None,
-                governance: None,
-                latency: None,
-                timeout: None,
-                throughput: None,
-                body: vec![
-                    Stmt::Expr(Box::new(Expr::StringLiteral(
-                        format!("@llm stub: {prompt}")
-                    ))),
-                ],
-                async_: false,
-                pub_: false,
-            }
-        ]
+        vec![Stmt::Fn {
+            name: fn_name.to_string(),
+            type_params: vec![],
+            params: vec![],
+            return_type: None,
+            effect: Some("pure".to_string()),
+            capability: Some("cpu".to_string()),
+            llm_prompt: Some(prompt.to_string()),
+            confidence: None,
+            cognitive_loop: None,
+            governance: None,
+            latency: None,
+            timeout: None,
+            throughput: None,
+            body: vec![Stmt::Expr(Box::new(Expr::StringLiteral(format!(
+                "@llm stub: {prompt}"
+            ))))],
+            async_: false,
+            pub_: false,
+        }]
     }
 
     /// 模板匹配引擎
@@ -148,74 +146,70 @@ impl LlmEngine {
 
         // filter > threshold
         if p.contains("filter") && (p.contains("greater") || p.contains(">")) {
-            return Some(vec![
-                Stmt::Fn {
-                    name: "filter_fn".to_string(),
-                    type_params: vec![],
-                    params: vec![],
-                    return_type: None,
-                    effect: Some("pure".to_string()),
-                    capability: Some("cpu".to_string()),
-                    llm_prompt: None,
-                    confidence: None,
-                    cognitive_loop: None,
-                    governance: None,
-                    latency: None,
-                    timeout: None,
-                    throughput: None,
-                    body: vec![],
-                    async_: false,
-                    pub_: false,
-                }
-            ]);
+            return Some(vec![Stmt::Fn {
+                name: "filter_fn".to_string(),
+                type_params: vec![],
+                params: vec![],
+                return_type: None,
+                effect: Some("pure".to_string()),
+                capability: Some("cpu".to_string()),
+                llm_prompt: None,
+                confidence: None,
+                cognitive_loop: None,
+                governance: None,
+                latency: None,
+                timeout: None,
+                throughput: None,
+                body: vec![],
+                async_: false,
+                pub_: false,
+            }]);
         }
 
         // sort ascending
-        if (p.contains("sort") || p.contains("order")) && (p.contains("asc") || p.contains("ascending")) {
-            return Some(vec![
-                Stmt::Fn {
-                    name: "sort_fn".to_string(),
-                    type_params: vec![],
-                    params: vec![],
-                    return_type: None,
-                    effect: Some("pure".to_string()),
-                    capability: Some("cpu".to_string()),
-                    llm_prompt: None,
-                    confidence: None,
-                    cognitive_loop: None,
-                    governance: None,
-                    latency: None,
-                    timeout: None,
-                    throughput: None,
-                    body: vec![],
-                    async_: false,
-                    pub_: false,
-                }
-            ]);
+        if (p.contains("sort") || p.contains("order"))
+            && (p.contains("asc") || p.contains("ascending"))
+        {
+            return Some(vec![Stmt::Fn {
+                name: "sort_fn".to_string(),
+                type_params: vec![],
+                params: vec![],
+                return_type: None,
+                effect: Some("pure".to_string()),
+                capability: Some("cpu".to_string()),
+                llm_prompt: None,
+                confidence: None,
+                cognitive_loop: None,
+                governance: None,
+                latency: None,
+                timeout: None,
+                throughput: None,
+                body: vec![],
+                async_: false,
+                pub_: false,
+            }]);
         }
 
         // sum or average
         if p.contains("sum") || p.contains("average") || p.contains("total") {
-            return Some(vec![
-                Stmt::Fn {
-                    name: "aggregate_fn".to_string(),
-                    type_params: vec![],
-                    params: vec![],
-                    return_type: None,
-                    effect: Some("pure".to_string()),
-                    capability: Some("cpu".to_string()),
-                    llm_prompt: None,
-                    confidence: None,
-                    cognitive_loop: None,
-                    governance: None,
-                    latency: None,
-                    timeout: None,
-                    throughput: None,
-                    body: vec![],
-                    async_: false,
-                    pub_: false,
-                }
-            ]);
+            return Some(vec![Stmt::Fn {
+                name: "aggregate_fn".to_string(),
+                type_params: vec![],
+                params: vec![],
+                return_type: None,
+                effect: Some("pure".to_string()),
+                capability: Some("cpu".to_string()),
+                llm_prompt: None,
+                confidence: None,
+                cognitive_loop: None,
+                governance: None,
+                latency: None,
+                timeout: None,
+                throughput: None,
+                body: vec![],
+                async_: false,
+                pub_: false,
+            }]);
         }
 
         None
@@ -248,7 +242,10 @@ mod tests {
         // 通用 prompt → Generated 置信度
         assert_eq!(result.confidence, LlmConfidence::Generated);
         // 应有函数骨架
-        let has_fn = result.statements.iter().any(|s| matches!(s, Stmt::Fn { name, .. } if name == "transform_data"));
+        let has_fn = result
+            .statements
+            .iter()
+            .any(|s| matches!(s, Stmt::Fn { name, .. } if name == "transform_data"));
         assert!(has_fn);
     }
 
@@ -278,11 +275,7 @@ mod tests {
     #[test]
     fn test_process_with_qn1_uses_qn1_backend() {
         let qn1 = crate::qn1::Qn1CodeGenerator::new_mock();
-        let result = LlmEngine::process_with_qn1(
-            "sort ascending",
-            Some("sort_data"),
-            Some(&qn1),
-        );
+        let result = LlmEngine::process_with_qn1("sort ascending", Some("sort_data"), Some(&qn1));
         // QN1 返回高置信度 → PatternMatch
         assert_eq!(result.confidence, LlmConfidence::PatternMatch);
         assert!(!result.statements.is_empty());
@@ -291,11 +284,8 @@ mod tests {
     #[test]
     fn test_process_with_qn1_lower_confidence() {
         let qn1 = crate::qn1::Qn1CodeGenerator::new_mock();
-        let result = LlmEngine::process_with_qn1(
-            "complex custom transformation pipeline",
-            None,
-            Some(&qn1),
-        );
+        let result =
+            LlmEngine::process_with_qn1("complex custom transformation pipeline", None, Some(&qn1));
         // QN1 返回 0.75 置信度 → TypeChecked
         assert_eq!(result.confidence, LlmConfidence::TypeChecked);
     }
@@ -303,11 +293,7 @@ mod tests {
     #[test]
     fn test_process_with_qn1_prompt_preserved() {
         let qn1 = crate::qn1::Qn1CodeGenerator::new_mock();
-        let result = LlmEngine::process_with_qn1(
-            "sort ascending",
-            None,
-            Some(&qn1),
-        );
+        let result = LlmEngine::process_with_qn1("sort ascending", None, Some(&qn1));
         assert_eq!(result.prompt, "sort ascending");
     }
 }
