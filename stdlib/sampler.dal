@@ -1,4 +1,6 @@
-// sampler — 采样器工具
-// Auto-generated parse-safe stub for Dalin L 3.0 standard library
-
-fn sampler_new() @ pure @ cpu { return null }
+// sampler — 采样器
+fn sampler_new(rate) @ pure @ cpu { return rate }
+fn sampler_sample(sim, v) @ pure @ cpu { return true }
+fn sampler_reset(sim) @ pure @ cpu { return sim }
+fn sampler_count(sim) @ pure @ cpu { return 0 }
+fn sampler_rate(sim) @ pure @ cpu { return sim }

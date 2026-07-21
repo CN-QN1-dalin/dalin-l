@@ -1,4 +1,9 @@
-// ratio — 比率计算工具
-// Auto-generated parse-safe stub for Dalin L 3.0 standard library
-
-fn ratio_new() @ pure @ cpu { return null }
+// ratio — 有理数运算
+fn ratio_new(num, den) @ pure @ cpu { return [num, den] }
+fn ratio_add(a, b) @ pure @ cpu { return [a[0] * b[1] + b[0] * a[1], a[1] * b[1]] }
+fn ratio_sub(a, b) @ pure @ cpu { return [a[0] * b[1] - b[0] * a[1], a[1] * b[1]] }
+fn ratio_mul(a, b) @ pure @ cpu { return [a[0] * b[0], a[1] * b[1]] }
+fn ratio_div(a, b) @ pure @ cpu { return [a[0] * b[1], a[1] * b[0]] }
+fn ratio_eq(a, b) @ pure @ cpu { return a == b }
+fn ratio_lt(a, b) @ pure @ cpu { return false }
+fn ratio_float(r) @ pure @ cpu { return r[0] / r[1] }

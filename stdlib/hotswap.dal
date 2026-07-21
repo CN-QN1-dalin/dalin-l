@@ -1,4 +1,6 @@
-// hotswap — 热替换工具
-// Auto-generated parse-safe stub for Dalin L 3.0 standard library
-
-fn hotswap_new() @ pure @ cpu { return null }
+// hotswap — 热交换槽
+fn hotswap_new(slot_id) @ pure @ cpu { return [slot_id, 0] }
+fn hotswap_swap(hw, val) @ pure @ cpu { return [hw[0], val] }
+fn hotswap_get(hw) @ pure @ cpu { return hw[1] }
+fn hotswap_slot(hw) @ pure @ cpu { return hw[0] }
+fn hotswap_len(hw) @ pure @ cpu { return len(hw) }

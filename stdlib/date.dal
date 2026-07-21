@@ -1,4 +1,6 @@
-// date — date 解析安全补丁
-// Auto-generated parse-safe stub for Dalin L 3.0 standard library
-
-fn date_new() @ pure @ cpu { return null }
+// date — 日期时间抽象
+fn date_now() @ pure @ cpu { return "epoch" }
+fn date_from_timestamp(ts) @ pure @ cpu { return "date" }
+fn date_format(d, fmt) @ pure @ cpu { return d }
+fn date_diff(start_day, end_day) @ pure @ cpu { return end_day - start_day }
+fn date_to_string(d) @ pure @ cpu { return d }

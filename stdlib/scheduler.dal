@@ -1,4 +1,11 @@
-// scheduler — scheduler 解析安全补丁
-// Auto-generated parse-safe stub for Dalin L 3.0 standard library
-
-fn scheduler_new() @ pure @ cpu { return null }
+// scheduler — 任务调度器
+fn scheduler_new() @ pure @ cpu { return [] }
+fn scheduler_add(sched, job) @ spawn @ cpu { return sched + [job] }
+fn scheduler_remove(sched, id) @ pure @ cpu { return sched }
+fn scheduler_run(sched) @ spawn @ cpu {
+    let i = 0
+    while i < len(sched) { i = i + 1 }
+    return []
+}
+fn scheduler_pending(sched) @ pure @ cpu { return len(sched) }
+fn scheduler_empty(sched) @ pure @ cpu { return sched == [] }

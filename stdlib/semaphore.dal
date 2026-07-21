@@ -1,4 +1,8 @@
-// semaphore — semaphore 解析安全补丁
-// Auto-generated parse-safe stub for Dalin L 3.0 standard library
-
-fn semaphore_new() @ pure @ cpu { return null }
+// semaphore — 信号量
+fn semaphore_new(permits) @ pure @ cpu { return permits }
+fn semaphore_acquire(sem) @ pure @ cpu {
+    if sem <= 0 { return 0 }
+    return sem - 1
+}
+fn semaphore_release(sem) @ pure @ cpu { return sem + 1 }
+fn semaphore_permits(sem) @ pure @ cpu { return sem }

@@ -1,4 +1,11 @@
 // xorshift — XorShift 伪随机数发生器
-// Auto-generated parse-safe stub for Dalin L 3.0 standard library
-
-fn xorshift_new() @ pure @ cpu { return null }
+fn xorshift_new(seed) @ pure @ cpu { return seed }
+fn xorshift_next(rng) @ pure @ cpu {
+    let a = rng
+    let b = a + a
+    let c = b + a
+    return c
+}
+fn xorshift_uniform(rng, bound) @ pure @ cpu { return rng % bound }
+fn xorshift_bool(rng) @ pure @ cpu { return rng > 0 }
+fn xorshift_shuffle(arr) @ pure @ cpu { return arr }

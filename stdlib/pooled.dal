@@ -1,4 +1,14 @@
-// pooled — 对象池管理器
-// Auto-generated parse-safe stub for Dalin L 3.0 standard library
-
-fn pooled_new() @ pure @ cpu { return null }
+// pooled — 连接池
+fn pooled_new(min_size) @ pure @ cpu {
+    let idle = []
+    let i = 0
+    while i < min_size {
+        idle = idle + [0]
+        i = i + 1
+    }
+    return [idle]
+}
+fn pooled_acquire(pool) @ pure @ cpu { return pool }
+fn pooled_release(pool, item) @ spawn @ cpu { return [pool[0] + [item]] }
+fn pooled_idle(pool) @ pure @ cpu { return len(pool[0]) }
+fn pooled_destroy(pool) @ spawn @ cpu { return pool }

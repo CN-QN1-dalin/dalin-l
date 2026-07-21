@@ -1,4 +1,21 @@
-// flat_hash — 扁平哈希表
-// Auto-generated parse-safe stub for Dalin L 3.0 standard library
-
-fn flat_hash_new() @ pure @ cpu { return null }
+// flat_hash — 紧凑哈希表
+fn flat_hash_new() @ pure @ cpu { return [] }
+fn flat_hash_insert(h, key, val) @ spawn @ cpu { return h + [[key, val]] }
+fn flat_hash_get(h, key) @ pure @ cpu {
+    let i = 0
+    while i < len(h) {
+        if h[i][0] == key { return h[i][1] }
+        i = i + 1
+    }
+    return null
+}
+fn flat_hash_contains(h, key) @ pure @ cpu {
+    let i = 0
+    while i < len(h) {
+        if h[i][0] == key { return true }
+        i = i + 1
+    }
+    return false
+}
+fn flat_hash_remove(h, key) @ pure @ cpu { return h }
+fn flat_hash_len(h) @ pure @ cpu { return len(h) }

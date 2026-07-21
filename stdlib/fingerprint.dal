@@ -1,4 +1,18 @@
 // fingerprint — 数据指纹生成
-// Auto-generated parse-safe stub for Dalin L 3.0 standard library
-
-fn fingerprint_new() @ pure @ cpu { return null }
+fn fingerprint_new() @ pure @ cpu { return [0] }
+fn fingerprint_add(fp, data) @ pure @ cpu {
+    let sum = 0
+    let i = 0
+    while i < len(data) {
+        sum = sum + data[i]
+        i = i + 1
+    }
+    return fp + sum
+}
+fn fingerprint_get(fp) @ pure @ cpu {
+    let n = len(fp)
+    if n == 0 { return 0 }
+    let sum = fp[n - 1]
+    return sum
+}
+fn fingerprint_equal(a, b) @ pure @ cpu { return a == b }

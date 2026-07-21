@@ -1,4 +1,7 @@
-// netty — Netty 风格网络通信
-// Auto-generated parse-safe stub for Dalin L 3.0 standard library
-
-fn netty_new() @ pure @ cpu { return null }
+// netty — 网络事件循环
+fn netty_new() @ pure @ cpu { return [] }
+fn netty_listen(net, host, port) @ spawn @ cpu { return net + [host + ":" + port] }
+fn netty_accept(net) @ pure @ cpu { return null }
+fn netty_close(net) @ spawn @ cpu { return [] }
+fn netty_poll(net) @ spawn @ cpu { return [] }
+fn netty_connections(net) @ pure @ cpu { return net }

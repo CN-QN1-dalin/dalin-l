@@ -1,4 +1,9 @@
-// latch — latch 解析安全补丁
-// Auto-generated parse-safe stub for Dalin L 3.0 standard library
-
-fn latch_new() @ pure @ cpu { return null }
+// latch — 一次性门闩
+fn latch_new(count) @ pure @ cpu { return count }
+fn latch_count_down(latch) @ pure @ cpu {
+    if latch <= 0 { return 0 }
+    return latch - 1
+}
+fn latch_wait(latch) @ pure @ cpu { return latch <= 0 }
+fn latch_is_open(latch) @ pure @ cpu { return latch <= 0 }
+fn latch_count_remaining(latch) @ pure @ cpu { return latch }

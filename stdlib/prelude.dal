@@ -17,8 +17,8 @@ fn eq(a, b) @ pure @ cpu { return a == b }
 fn neq(a, b) @ pure @ cpu { return a != b }
 fn not(x) @ pure @ cpu { return !x }
 
-fn and(a, b) @ pure @ cpu { return a && b }
-fn or(a, b) @ pure @ cpu { return a || b }
+fn logic_and(a, b) @ pure @ cpu { return a && b }
+fn logic_or(a, b) @ pure @ cpu { return a || b }
 
 fn inc(x) @ pure @ cpu { return x + 1 }
 fn dec(x) @ pure @ cpu { return x - 1 }

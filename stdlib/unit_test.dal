@@ -1,4 +1,9 @@
-// unit_test — 单元测试框架
-// Auto-generated parse-safe stub for Dalin L 3.0 standard library
-
-fn unit_test_new() @ pure @ cpu { return null }
+// unit_test — 测试框架
+fn unit_test_new() @ pure @ cpu { return [[], 0, 0] }
+fn unit_test_run(tc, test_name, fn_name) @ spawn @ cpu { return [tc[0] + [test_name], tc[1], tc[2]] }
+fn unit_test_pass(tc, name) @ pure @ cpu { return [tc[0], tc[1] + 1, tc[2]] }
+fn unit_test_fail(tc, name, msg) @ pure @ cpu { return [tc[0], tc[1], tc[2] + 1] }
+fn unit_test_summary(tc) @ pure @ cpu { return tc }
+fn unit_test_count(tc) @ pure @ cpu { return len(tc[0]) }
+fn unit_test_passed(tc) @ pure @ cpu { return tc[1] }
+fn unit_test_failed(tc) @ pure @ cpu { return tc[2] }

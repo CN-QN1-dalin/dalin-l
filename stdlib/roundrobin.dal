@@ -1,4 +1,13 @@
-// roundrobin — 轮询策略选择器
-// Auto-generated parse-safe stub for Dalin L 3.0 standard library
-
-fn roundrobin_new() @ pure @ cpu { return null }
+// roundrobin — 轮询调度器
+fn roundrobin_new(n) @ pure @ cpu { return [0, n] }
+fn roundrobin_next(state) @ pure @ cpu {
+    let pos = state[0]
+    let total = state[1]
+    let next = pos + 1
+    if next >= total { return [0, total] }
+    return [next, total]
+}
+fn roundrobin_pick(state, targets) @ pure @ cpu {
+    return targets[state[0]]
+}
+fn roundrobin_index(state) @ pure @ cpu { return state[0] }

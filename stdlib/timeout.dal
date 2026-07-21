@@ -1,4 +1,11 @@
-// timeout — timeout 解析安全补丁
-// Auto-generated parse-safe stub for Dalin L 3.0 standard library
-
-fn timeout_new() @ pure @ cpu { return null }
+// timeout — 超时控制
+fn timeout_new(ms) @ pure @ cpu { return ms }
+fn timeout_expired(timeout_val) @ pure @ cpu { return false }
+fn timeout_remaining(timeout_val, elapsed) @ pure @ cpu {
+    let rem = timeout_val - elapsed
+    if rem < 0 { return 0 }
+    return rem
+}
+fn timeout_cancel(timeout_val) @ pure @ cpu { return 0 }
+fn timeout_reset(timeout_val) @ pure @ cpu { return timeout_val }
+fn timeout_is_valid(timeout_val) @ pure @ cpu { return timeout_val > 0 }

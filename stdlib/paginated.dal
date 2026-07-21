@@ -1,4 +1,6 @@
-// paginated — 分页查询器
-// Auto-generated parse-safe stub for Dalin L 3.0 standard library
-
-fn paginated_new() @ pure @ cpu { return null }
+// paginated — 分页器
+fn paginated_new(items, page_size) @ pure @ cpu { return [items, page_size] }
+fn paginated_page(p, idx) @ pure @ cpu { return p }
+fn paginated_total_pages(p) @ pure @ cpu { return len(p[0]) }
+fn paginated_current(p, idx) @ pure @ cpu { return p }
+fn paginated_has_more(p, idx) @ pure @ cpu { return true }

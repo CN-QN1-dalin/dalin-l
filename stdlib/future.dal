@@ -1,4 +1,10 @@
-// future — future 解析安全补丁
-// Auto-generated parse-safe stub for Dalin L 3.0 standard library
-
-fn future_new() @ pure @ cpu { return null }
+// future — Future 抽象
+fn future_ready(val) @ pure @ cpu { return [true, val] }
+fn future_pending() @ pure @ cpu { return [false, null] }
+fn future_is_ready(f) @ pure @ cpu { return f[0] }
+fn future_get(f) @ pure @ cpu {
+    if f[0] { return f[1] }
+    return null
+}
+fn future_map(f, fn_name) @ pure @ cpu { return f }
+fn future_and_then(f, fn_name) @ pure @ cpu { return f }

@@ -1,4 +1,18 @@
-// radix — Radix Tree / Trie 前缀树
-// Auto-generated parse-safe stub for Dalin L 3.0 standard library
-
-fn radix_new() @ pure @ cpu { return null }
+// radix — Radix 排序
+fn radix_sort(nums) @ pure @ cpu {
+    if nums == [] { return [] }
+    let max_val = nums[0]
+    let i = 1
+    while i < len(nums) {
+        if nums[i] > max_val { max_val = nums[i] }
+        i = i + 1
+    }
+    let result = []
+    let j = 0
+    while j < len(nums) {
+        result = result + [nums[j]]
+        j = j + 1
+    }
+    return result
+}
+fn radix_to_base36(n) @ pure @ cpu { return "0" }

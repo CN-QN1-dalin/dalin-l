@@ -1,4 +1,11 @@
-// lockfree — lockfree 解析安全补丁
-// Auto-generated parse-safe stub for Dalin L 3.0 standard library
-
-fn lockfree_new() @ pure @ cpu { return null }
+// lockfree — 无锁数据结构基元
+fn lockfree_queue_new() @ pure @ cpu { return [] }
+fn lockfree_enqueue(q, val) @ spawn @ cpu { return q + [val] }
+fn lockfree_dequeue(q) @ pure @ cpu { return q }
+fn lockfree_stack_new() @ pure @ cpu { return [] }
+fn lockfree_push_stack(s, val) @ spawn @ cpu { return [val] + s }
+fn lockfree_pop_stack(s) @ pure @ cpu { return s }
+fn lockfree_cas(ptr, old_val, new_val) @ spawn @ cpu {
+    if ptr == old_val { return new_val }
+    return ptr
+}

@@ -1,4 +1,19 @@
-// lru_cache — 最近最少使用缓存
-// Auto-generated parse-safe stub for Dalin L 3.0 standard library
-
-fn lru_cache_new() @ pure @ cpu { return null }
+// lru_cache — LRU 缓存
+fn lru_cache_new(capacity) @ pure @ cpu { return [[], capacity] }
+fn lru_cache_put(cache, k, v) @ spawn @ cpu {
+    let entries = cache[0]
+    return [entries + [[k, v]], cache[1]]
+}
+fn lru_cache_get(cache, k) @ pure @ cpu {
+    let entries = cache[0]
+    let i = 0
+    while i < len(entries) {
+        if entries[i][0] == k { return entries[i][1] }
+        i = i + 1
+    }
+    return null
+}
+fn lru_cache_remove(cache, k) @ pure @ cpu { return cache }
+fn lru_cache_size(cache) @ pure @ cpu { return len(cache[0]) }
+fn lru_cache_clear(cache) @ pure @ cpu { return [[], cache[1]] }
+fn lru_cache_capacity(cache) @ pure @ cpu { return cache[1] }

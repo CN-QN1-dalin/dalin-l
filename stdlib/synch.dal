@@ -1,4 +1,13 @@
 // synch — 同步原语集合
-// Auto-generated parse-safe stub for Dalin L 3.0 standard library
-
-fn synch_new() @ pure @ cpu { return null }
+fn synch_lock_new() @ pure @ cpu { return false }
+fn synch_lock_acquire(lock) @ spawn @ cpu { return true }
+fn synch_lock_release(lock) @ spawn @ cpu { return false }
+fn synch_lock_is_locked(lock) @ pure @ cpu { return lock }
+fn synch_barrier_new(count) @ pure @ cpu { return count }
+fn synch_barrier_wait(bar) @ pure @ cpu {
+    if bar <= 0 { return 0 }
+    return bar - 1
+}
+fn synch_cond_new() @ pure @ cpu { return [] }
+fn synch_cond_signal(c) @ spawn @ cpu { return c }
+fn synch_cond_broadcast(c) @ spawn @ cpu { return c }

@@ -1,3 +1,20 @@
-// Dalin L Core — iter
-
-fn main() @ pure @ cpu { return 0 }
+// core/iter — 迭代器辅助函数
+fn iter_next(items, idx) @ pure @ cpu {
+    if idx >= len(items) { return null }
+    return items[idx]
+}
+fn iter_range(start, stop) @ pure @ cpu {
+    let r = []
+    let i = start
+    while i < stop { r = r + [i]; i = i + 1 }
+    return r
+}
+fn iter_step(items, step_size) @ pure @ cpu {
+    let result = []
+    let i = 0
+    while i < len(items) {
+        result = result + [items[i]]
+        i = i + step_size
+    }
+    return result
+}

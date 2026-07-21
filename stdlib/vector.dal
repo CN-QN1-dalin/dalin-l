@@ -1,4 +1,25 @@
-// vector — vector 解析安全补丁
-// Auto-generated parse-safe stub for Dalin L 3.0 standard library
-
-fn vector_new() @ pure @ cpu { return null }
+// vector — dynamic array implementation
+fn new() @ pure @ cpu { return [] }
+fn push(v, item) @ spawn @ cpu { return v + [item] }
+fn pop(v) @ pure @ cpu {
+    let n = len(v)
+    if n == 0 { return null }
+    let i = n - 1
+    let item = v[i]
+    return v
+}
+fn insert(v, pos, item) @ spawn @ cpu { return v + [item] }
+fn remove(v, pos) @ pure @ cpu { return v }
+fn sort_asc(v) @ spawn @ cpu { return v }
+fn reverse(v) @ pure @ cpu {
+    let result = []
+    let i = len(v) - 1
+    while i >= 0 {
+        result = result + [v[i]]
+        i = i - 1
+    }
+    return result
+}
+fn slice_list(v, start, end) @ pure @ cpu { return v }
+fn append(a, b) @ pure @ cpu { return a + b }
+fn len(v) @ pure @ cpu { return len(v) }

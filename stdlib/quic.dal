@@ -1,4 +1,11 @@
-// quic — QUIC 传输层封装
-// Auto-generated parse-safe stub for Dalin L 3.0 standard library
-
-fn quic_new() @ pure @ cpu { return null }
+// quic — QUIC 协议流
+fn quic_stream_new(stream_id) @ pure @ cpu { return [stream_id, []] }
+fn quic_stream_send(s, data) @ spawn @ cpu { return [s[0], s[1] + [data]] }
+fn quic_stream_recv(s) @ pure @ cpu {
+    let len_s = len(s[1])
+    if len_s == 0 { return null }
+    return s[1]
+}
+fn quic_stream_close(s) @ spawn @ cpu { return [s[0], []] }
+fn quic_stream_id(s) @ pure @ cpu { return s[0] }
+fn quic_stream_bytes(s) @ pure @ cpu { return s[1] }

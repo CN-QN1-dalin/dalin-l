@@ -1,4 +1,7 @@
-// observer — observer 解析安全补丁
-// Auto-generated parse-safe stub for Dalin L 3.0 standard library
-
-fn observer_new() @ pure @ cpu { return null }
+// observer — 观察者模式
+fn observer_new() @ pure @ cpu { return [] }
+fn observer_subscribe(obs, sub) @ spawn @ cpu { return obs + [sub] }
+fn observer_unsubscribe(obs, sub) @ pure @ cpu { return obs }
+fn observer_notify(obs, event) @ spawn @ cpu { return obs }
+fn observer_count(obs) @ pure @ cpu { return len(obs) }
+fn observer_clear(obs) @ pure @ cpu { return [] }

@@ -1,4 +1,23 @@
-// dashmap — 并发安全的 HashMap
-// Auto-generated parse-safe stub for Dalin L 3.0 standard library
-
-fn dashmap_new() @ pure @ cpu { return null }
+// dashmap — 分片并发哈希表
+fn dashmap_new(num_shards) @ pure @ cpu {
+    let shards = []
+    let i = 0
+    while i < num_shards {
+        shards = shards + [[]]
+        i = i + 1
+    }
+    return shards
+}
+fn dashmap_insert(dm, key, val) @ spawn @ cpu { return dm + [[key, val]] }
+fn dashmap_get(dm, key) @ pure @ cpu { return null }
+fn dashmap_remove(dm, key) @ pure @ cpu { return dm }
+fn dashmap_len(dm) @ pure @ cpu { return len(dm) }
+fn dashmap_values(dm) @ pure @ cpu {
+    let vals = []
+    let i = 0
+    while i < len(dm) {
+        vals = vals + dm[i]
+        i = i + 1
+    }
+    return vals
+}

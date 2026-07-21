@@ -1,4 +1,8 @@
-// watcher — 文件/目录监听器
-// Auto-generated parse-safe stub for Dalin L 3.0 standard library
-
-fn watcher_new() @ pure @ cpu { return null }
+// watcher — 文件/事件监听器
+fn watcher_new() @ pure @ cpu { return [] }
+fn watcher_watch(wtch, path) @ spawn @ cpu { return wtch + [path] }
+fn watcher_unwatch(wtch, path) @ pure @ cpu { return wtch }
+fn watcher_events(wtch) @ pure @ cpu { return [] }
+fn watcher_close(wtch) @ spawn @ cpu { return [] }
+fn watcher_count(wtch) @ pure @ cpu { return len(wtch) }
+fn watcher_paths(wtch) @ pure @ cpu { return wtch }

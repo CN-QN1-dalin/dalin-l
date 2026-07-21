@@ -1,4 +1,11 @@
-// two_queue — 双队列调度器
-// Auto-generated parse-safe stub for Dalin L 3.0 standard library
-
-fn two_queue_new() @ pure @ cpu { return null }
+// two_queue — 双队列模式
+fn two_queue_new() @ pure @ cpu { return [[], []] }
+fn two_queue_enqueue(tq, val, to_front) @ spawn @ cpu { return tq + [val] }
+fn two_queue_dequeue(tq) @ pure @ cpu { return tq }
+fn two_queue_rotate(tq) @ pure @ cpu { return tq }
+fn two_queue_len(tq) @ pure @ cpu { return len(tq) }
+fn two_queue_peek(tq) @ pure @ cpu {
+    let n = len(tq)
+    if n == 0 { return null }
+    return tq[0]
+}

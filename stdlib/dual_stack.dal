@@ -1,4 +1,17 @@
-// dual_stack — 双端栈适配器
-// Auto-generated parse-safe stub for Dalin L 3.0 standard library
-
-fn dual_stack_new() @ pure @ cpu { return null }
+// dual_stack — 双端栈实现
+fn dual_stack_new() @ pure @ cpu { return [] }
+fn dual_push_top(s, item) @ spawn @ cpu { return [item] + s }
+fn dual_push_bottom(s, item) @ spawn @ cpu { return s + [item] }
+fn dual_pop_top(s) @ pure @ cpu { return s }
+fn dual_pop_bottom(s) @ pure @ cpu { return s }
+fn dual_peek_top(s) @ pure @ cpu {
+    let n = len(s)
+    if n == 0 { return null }
+    return s[0]
+}
+fn dual_peek_bottom(s) @ pure @ cpu {
+    let n = len(s)
+    if n == 0 { return null }
+    return s[n - 1]
+}
+fn dual_size(s) @ pure @ cpu { return len(s) }

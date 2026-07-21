@@ -1,4 +1,13 @@
-// interval_tree — 区间树数据结构
-// Auto-generated parse-safe stub for Dalin L 3.0 standard library
-
-fn interval_tree_new() @ pure @ cpu { return null }
+// interval_tree — 区间树
+fn interval_tree_new() @ pure @ cpu { return [] }
+fn interval_insert(t, start, end, val) @ spawn @ cpu { return t + [[start, end, val]] }
+fn interval_search(t, target) @ pure @ cpu {
+    let i = 0
+    while i < len(t) {
+        if t[i][1] >= target && t[i][2] <= target { return t[i][3] }
+        i = i + 1
+    }
+    return null
+}
+fn interval_overlap(t, start, end) @ pure @ cpu { return [] }
+fn interval_count(t) @ pure @ cpu { return len(t) }

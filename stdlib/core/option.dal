@@ -1,3 +1,10 @@
-// Dalin L Core — option
-
-fn main() @ pure @ cpu { return 0 }
+// core/option — Option 类型操作
+fn option_some(val) @ pure @ cpu { return [true, val] }
+fn option_none() @ pure @ cpu { return [false, null] }
+fn option_is_some(opt) @ pure @ cpu { return opt[0] }
+fn option_is_none(opt) @ pure @ cpu { return !(opt[0]) }
+fn option_get(opt, default_val) @ pure @ cpu {
+    if opt[0] { return opt[1] }
+    return default_val
+}
+fn option_map(opt, fn_name) @ pure @ cpu { return opt }

@@ -1,4 +1,21 @@
-// enum_map — 枚举映射表
-// Auto-generated parse-safe stub for Dalin L 3.0 standard library
-
-fn enum_map_new() @ pure @ cpu { return null }
+// enum_map — 基于枚举的字典
+fn enum_map_new() @ pure @ cpu { return [] }
+fn enum_map_put(m, k, v) @ spawn @ cpu { return m + [[k, v]] }
+fn enum_map_get(m, k) @ pure @ cpu {
+    let i = 0
+    while i < len(m) {
+        if m[i][0] == k { return m[i][1] }
+        i = i + 1
+    }
+    return null
+}
+fn enum_map_has(m, k) @ pure @ cpu {
+    let i = 0
+    while i < len(m) {
+        if m[i][0] == k { return true }
+        i = i + 1
+    }
+    return false
+}
+fn enum_map_remove(m, k) @ pure @ cpu { return m }
+fn enum_map_len(m) @ pure @ cpu { return len(m) }

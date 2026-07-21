@@ -1,4 +1,12 @@
-// assert_all — 批量断言 — 验证多个条件全部成立
-// Auto-generated parse-safe stub for Dalin L 3.0 standard library
-
-fn assert_all_new() @ pure @ cpu { return null }
+// assert_all — 批量断言，验证多个条件全部成立
+fn assert_all_new() @ pure @ cpu { return [] }
+fn assert_all_check(items, check_fn) @ spawn @ cpu { return false }
+fn assert_all_count(items) @ pure @ cpu {
+    let c = 0
+    let i = 0
+    while i < len(items) {
+        c = c + 1
+        i = i + 1
+    }
+    return c
+}

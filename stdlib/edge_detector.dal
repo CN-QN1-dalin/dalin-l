@@ -1,4 +1,14 @@
-// edge_detector — 边缘检测器
-// Auto-generated parse-safe stub for Dalin L 3.0 standard library
-
-fn edge_detector_new() @ pure @ cpu { return null }
+// edge_detector — 信号边缘检测（上升沿/下降沿）
+fn edge_detect_new(prev_val) @ pure @ cpu { return prev_val }
+fn edge_detect_rising(det_state, current) @ pure @ cpu {
+    if det_state == 0 && current == 1 { return true }
+    return false
+}
+fn edge_detect_falling(det_state, current) @ pure @ cpu {
+    if det_state == 1 && current == 0 { return true }
+    return false
+}
+fn edge_detect_toggle(prev, current) @ pure @ cpu {
+    if prev != current { return true }
+    return false
+}

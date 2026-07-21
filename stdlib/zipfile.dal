@@ -1,4 +1,7 @@
-// zipfile — ZIP 压缩包读写
-// Auto-generated parse-safe stub for Dalin L 3.0 standard library
-
-fn zipfile_new() @ pure @ cpu { return null }
+// zipfile — 压缩包解析
+fn zipfile_open(path) @ pure @ cpu { return [[path, []]] }
+fn zipfile_entries(zf) @ pure @ cpu { return zf[0][1] }
+fn zipfile_extract(zf, name, dest) @ spawn @ cpu { return zf }
+fn zipfile_close(zf) @ spawn @ cpu { return zf }
+fn zipfile_has(zf, name) @ pure @ cpu { return false }
+fn zipfile_len(zf) @ pure @ cpu { return len(zf[0][1]) }

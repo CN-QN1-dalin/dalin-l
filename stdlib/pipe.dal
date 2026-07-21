@@ -1,4 +1,7 @@
-// pipe — pipe 解析安全补丁
-// Auto-generated parse-safe stub for Dalin L 3.0 standard library
-
-fn pipe_new() @ pure @ cpu { return null }
+// pipe — Unix 风格管道
+fn pipe_new() @ pure @ cpu { return [[], []] }
+fn pipe_write(p, data) @ spawn @ cpu { return [p[0] + [data], p[1]] }
+fn pipe_read(p) @ pure @ cpu { return p[0] }
+fn pipe_close(p) @ spawn @ cpu { return p }
+fn pipe_available(p) @ pure @ cpu { return len(p[0]) }
+fn pipe_flush(p) @ spawn @ cpu { return [[], p[1]] }

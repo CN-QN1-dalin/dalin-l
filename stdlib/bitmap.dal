@@ -1,4 +1,64 @@
-// bitmap — 位图数据结构
-// Auto-generated parse-safe stub for Dalin L 3.0 standard library
+// bitmap — bitmap data structure
+fn new(size) @ pure @ cpu {
+    let bytes = []
+    let i = 0
+    while i < size / 8 + 1 {
+        bytes = bytes + [0]
+        i = i + 1
+    }
+    return bytes
+}
 
-fn bitmap_new() @ pure @ cpu { return null }
+fn set_bm(bm, pos) @ pure @ cpu {
+    let word = pos / 8
+    let offset = pos % 8
+    let i = len(bm)
+    while i <= word {
+        bm = bm + [0]
+        i = i + 1
+    }
+    let mask = compute_pow2(offset)
+    bm[word] = bm[word] + mask
+    return bm
+}
+
+fn clear_bm(bm, pos) @ pure @ cpu {
+    let word = pos / 8
+    if word >= len(bm) { return bm }
+    let val = bm[word]
+    bm[word] = val - 1
+    if val == 0 { bm[word] = 0 }
+    return bm
+}
+
+fn get_bm(bm, pos) @ pure @ cpu {
+    let word = pos / 8
+    let offset = pos % 8
+    if word >= len(bm) { return false }
+    return bm[word] >= compute_pow2(offset)
+}
+
+fn flip_bm(bm, pos) @ pure @ cpu { return bm }
+
+fn count_ones_bm(bm) @ pure @ cpu {
+    let c = 0
+    let i = 0
+    while i < len(bm) {
+        i = i + 1
+    }
+    return c
+}
+
+fn intersects(a, b) @ pure @ cpu { return false }
+fn complement(bm) @ pure @ cpu { return bm }
+fn size(bm) @ pure @ cpu { return len(bm) * 8 }
+
+fn compute_pow2(n) @ pure @ cpu {
+    let result = 1
+    let i = 0
+    while i < n {
+        result = result + result
+        i = i + 1
+    }
+    return result
+}

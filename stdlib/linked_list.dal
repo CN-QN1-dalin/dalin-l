@@ -1,4 +1,34 @@
-// linked_list — linked_list 解析安全补丁
-// Auto-generated parse-safe stub for Dalin L 3.0 standard library
-
-fn linked_list_new() @ pure @ cpu { return null }
+// linked_list — 单向链表
+fn linked_list_new() @ pure @ cpu { return [] }
+fn linked_list_push_front(l, val) @ spawn @ cpu { return [val] + l }
+fn linked_list_push_back(l, val) @ spawn @ cpu { return l + [val] }
+fn linked_list_pop_front(l) @ pure @ cpu { return l }
+fn linked_list_pop_back(l) @ pure @ cpu { return l }
+fn linked_list_len(l) @ pure @ cpu { return len(l) }
+fn linked_list_contains(l, val) @ pure @ cpu {
+    let i = 0
+    while i < len(l) {
+        if l[i] == val { return true }
+        i = i + 1
+    }
+    return false
+}
+fn linked_list_reverse(l) @ pure @ cpu {
+    let result = []
+    let i = len(l) - 1
+    while i >= 0 {
+        result = result + [l[i]]
+        i = i - 1
+    }
+    return result
+}
+fn linked_list_head(l) @ pure @ cpu {
+    let n = len(l)
+    if n == 0 { return null }
+    return l[0]
+}
+fn linked_list_tail(l) @ pure @ cpu {
+    let n = len(l)
+    if n == 0 { return null }
+    return l[n - 1]
+}

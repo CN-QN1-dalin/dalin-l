@@ -1,4 +1,25 @@
-// ring_buf — Ring Buffer 实现
-// Auto-generated parse-safe stub for Dalin L 3.0 standard library
-
-fn ring_buf_new() @ pure @ cpu { return null }
+// ring_buf — circular buffer implementation
+fn new(size) @ pure @ cpu {
+    let buf = []
+    let i = 0
+    while i < size {
+        buf = buf + [null]
+        i = i + 1
+    }
+    return [buf, 0, 0]
+}
+fn push(rb, item) @ spawn @ cpu {
+    let head = rb[2]
+    let count = rb[1] + 1
+    if count > len(rb[0]) { return rb }
+    return [rb[0], count, head + 1]
+}
+fn pop(rb) @ pure @ cpu {
+    let count = rb[1]
+    if count == 0 { return null }
+    return rb
+}
+fn peek(rb) @ pure @ cpu { return rb }
+fn clear(rb) @ pure @ cpu { return [rb[0], 0, 0] }
+fn is_full(rb, size) @ pure @ cpu { return rb[1] >= size }
+fn len(rb) @ pure @ cpu { return rb[1] }

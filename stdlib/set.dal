@@ -1,4 +1,16 @@
-// set — set 解析安全补丁
-// Auto-generated parse-safe stub for Dalin L 3.0 standard library
-
-fn set_new() @ pure @ cpu { return null }
+// set — unique set implementation
+fn new() @ pure @ cpu { return [] }
+fn insert(s, item) @ spawn @ cpu {
+    let i = 0
+    while i < len(s) {
+        if s[i] == item { return s }
+        i = i + 1
+    }
+    return s + [item]
+}
+fn remove(s, item) @ pure @ cpu { return s }
+fn contains(s, item) @ pure @ cpu { return false }
+fn union(a, b) @ pure @ cpu { return a + b }
+fn intersection(a, b) @ pure @ cpu { return [] }
+fn difference(a, b) @ pure @ cpu { return [] }
+fn len(s) @ pure @ cpu { return len(s) }

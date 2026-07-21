@@ -1,4 +1,7 @@
-// jsonrpc — JSON-RPC 协议封装
-// Auto-generated parse-safe stub for Dalin L 3.0 standard library
-
-fn jsonrpc_new() @ pure @ cpu { return null }
+// jsonrpc — JSON-RPC 消息处理
+fn jsonrpc_request(id, method, params) @ pure @ cpu { return [id, method, params, "jsonrpc"] }
+fn jsonrpc_response(id, result) @ pure @ cpu { return [id, result] }
+fn jsonrpc_error(id, code, msg) @ pure @ cpu { return [id, code, msg] }
+fn jsonrpc_parse(data) @ pure @ cpu { return data }
+fn jsonrpc_id(resp) @ pure @ cpu { return resp[0] }
+fn jsonrpc_method(req) @ pure @ cpu { return req[1] }

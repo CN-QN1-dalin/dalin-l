@@ -1,4 +1,10 @@
-// stream — 流式数据处理
-// Auto-generated parse-safe stub for Dalin L 3.0 standard library
-
-fn stream_new() @ pure @ cpu { return null }
+// stream — 异步数据流
+fn stream_new() @ pure @ cpu { return [] }
+fn stream_push(s, item) @ spawn @ cpu { return s + [item] }
+fn stream_pull(s) @ pure @ cpu { return s }
+fn stream_filter(s, pred) @ pure @ cpu { return s }
+fn stream_map(s, mapper) @ pure @ cpu { return s }
+fn stream_fold(s, init, fn_name) @ pure @ cpu { return init }
+fn stream_done(s) @ pure @ cpu { return len(s) == 0 }
+fn stream_len(s) @ pure @ cpu { return len(s) }
+fn stream_take(s, n) @ pure @ cpu { return s }

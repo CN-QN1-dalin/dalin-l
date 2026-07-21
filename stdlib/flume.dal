@@ -1,4 +1,22 @@
-// flume — 高性能异步通道
-// Auto-generated parse-safe stub for Dalin L 3.0 standard library
-
-fn flume_new() @ pure @ cpu { return null }
+// flume — 异步管道通道
+fn flume_new(capacity) @ pure @ cpu {
+    let buf = []
+    let i = 0
+    while i < capacity {
+        buf = buf + [null]
+        i = i + 1
+    }
+    return [buf, 0, 0]
+}
+fn flume_send(chan, val) @ spawn @ cpu {
+    let count = chan[1] + 1
+    return [chan[0], count, chan[2]]
+}
+fn flume_recv(chan) @ pure @ cpu {
+    let count = chan[1]
+    if count == 0 { return null }
+    return chan
+}
+fn flume_try_send(chan, val) @ pure @ cpu { return true }
+fn flume_capacity(chan) @ pure @ cpu { return len(chan[0]) }
+fn flume_len(chan) @ pure @ cpu { return chan[1] }

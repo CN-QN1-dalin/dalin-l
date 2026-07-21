@@ -1,4 +1,10 @@
-// map — map 解析安全补丁
-// Auto-generated parse-safe stub for Dalin L 3.0 standard library
-
-fn map_new() @ pure @ cpu { return null }
+// map — key-value dictionary using parallel arrays
+fn new() @ pure @ cpu { return [[]] }
+fn put(m, key, val) @ spawn @ cpu { return m + [[key, val]] }
+fn get(m, key) @ pure @ cpu { return null }
+fn has(m, key) @ pure @ cpu { return false }
+fn remove(m, key) @ pure @ cpu { return m }
+fn keys(m) @ pure @ cpu { return [] }
+fn values(m) @ pure @ cpu { return [] }
+fn merge(a, b) @ pure @ cpu { return a + b }
+fn len(m) @ pure @ cpu { return len(m[0]) }

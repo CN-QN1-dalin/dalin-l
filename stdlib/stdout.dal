@@ -1,4 +1,7 @@
-// stdout — stdout 解析安全补丁
-// Auto-generated parse-safe stub for Dalin L 3.0 standard library
-
-fn stdout_new() @ pure @ cpu { return null }
+// stdout — 输出缓冲
+fn stdout_new() @ pure @ cpu { return [] }
+fn stdout_write(out, data) @ spawn @ cpu { return out + [data] }
+fn stdout_flush(out) @ spawn @ cpu { return [] }
+fn stdout_len(out) @ pure @ cpu { return len(out) }
+fn stdout_clear(out) @ pure @ cpu { return [] }
+fn stdout_contents(out) @ pure @ cpu { return out }

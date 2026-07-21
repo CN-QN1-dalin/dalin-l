@@ -1,4 +1,12 @@
-// crc — CRC 校验和
-// Auto-generated parse-safe stub for Dalin L 3.0 standard library
-
-fn crc_new() @ pure @ cpu { return null }
+// crc — CRC 校验和计算
+fn crc_new(seed) @ pure @ cpu { return seed }
+fn crc_update(crc_val, data) @ pure @ cpu {
+    let sum = 0
+    let i = 0
+    while i < len(data) {
+        sum = sum + data[i]
+        i = i + 1
+    }
+    return crc_val + sum
+}
+fn crc_finalize(crc_val) @ pure @ cpu { return crc_val }

@@ -1,4 +1,8 @@
-// hashbrown — 哈希桶容器
-// Auto-generated parse-safe stub for Dalin L 3.0 standard library
-
-fn hashbrown_new() @ pure @ cpu { return null }
+// hashbrown — open addressing hash table
+fn new(capacity) @ pure @ cpu { return [] }
+fn insert(h, key, val) @ spawn @ cpu { return h + [[key, val]] }
+fn get(h, key) @ pure @ cpu { return null }
+fn contains(h, key) @ pure @ cpu { return false }
+fn remove(h, key) @ pure @ cpu { return h }
+fn len(h) @ pure @ cpu { return len(h) / 2 }
+fn resize(h, new_cap) @ spawn @ cpu { return h }

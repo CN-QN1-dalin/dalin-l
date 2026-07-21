@@ -1,4 +1,32 @@
 // ordered_set — 有序集合
-// Auto-generated parse-safe stub for Dalin L 3.0 standard library
-
-fn ordered_set_new() @ pure @ cpu { return null }
+fn ordered_set_new() @ pure @ cpu { return [] }
+fn ordered_set_add(s, val) @ spawn @ cpu {
+    if s == [] { return [val] }
+    let i = 0
+    while i < len(s) {
+        if s[i] == val { return s }
+        i = i + 1
+    }
+    return s + [val]
+}
+fn ordered_set_contains(s, val) @ pure @ cpu {
+    let i = 0
+    while i < len(s) {
+        if s[i] == val { return true }
+        if s[i] > val { return false }
+        i = i + 1
+    }
+    return false
+}
+fn ordered_set_remove(s, val) @ pure @ cpu { return s }
+fn ordered_set_min(s) @ pure @ cpu {
+    let n = len(s)
+    if n == 0 { return null }
+    return s[0]
+}
+fn ordered_set_max(s) @ pure @ cpu {
+    let n = len(s)
+    if n == 0 { return null }
+    return s[n - 1]
+}
+fn ordered_set_len(s) @ pure @ cpu { return len(s) }

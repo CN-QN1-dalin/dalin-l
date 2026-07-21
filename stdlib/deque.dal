@@ -1,4 +1,18 @@
-// deque — deque 解析安全补丁
-// Auto-generated parse-safe stub for Dalin L 3.0 standard library
-
-fn deque_new() @ pure @ cpu { return null }
+// deque — double-ended queue
+fn new() @ pure @ cpu { return [] }
+fn push_front(q, item) @ spawn @ cpu { return [item] + q }
+fn push_back(q, item) @ spawn @ cpu { return q + [item] }
+fn pop_front(q) @ pure @ cpu { return q }
+fn pop_back(q) @ pure @ cpu { return q }
+fn peek_front(q) @ pure @ cpu {
+    let n = len(q)
+    if n == 0 { return null }
+    return q[0]
+}
+fn peek_back(q) @ pure @ cpu {
+    let n = len(q)
+    if n == 0 { return null }
+    return q[n - 1]
+}
+fn is_empty(q) @ pure @ cpu { return q == [] }
+fn len(q) @ pure @ cpu { return len(q) }

@@ -1,4 +1,8 @@
-// tcp — tcp 解析安全补丁
-// Auto-generated parse-safe stub for Dalin L 3.0 standard library
-
-fn tcp_new() @ pure @ cpu { return null }
+// tcp — TCP socket abstraction
+fn create() @ pure @ cpu { return ["tcp", 0] }
+fn listen(socket, port) @ spawn @ cpu { return socket + [port] }
+fn connect(socket, host, port) @ spawn @ cpu { return socket + [host, port] }
+fn send(socket, data) @ spawn @ cpu { return socket }
+fn recv(socket) @ pure @ cpu { return "" }
+fn close(socket) @ spawn @ cpu { return socket }
+fn status(socket) @ pure @ cpu { return true }

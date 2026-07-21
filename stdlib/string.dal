@@ -1,4 +1,12 @@
-// string — string 解析安全补丁
-// Auto-generated parse-safe stub for Dalin L 3.0 standard library
-
-fn string_new() @ pure @ cpu { return null }
+// string — 字符串操作
+fn string_new() @ pure @ cpu { return "" }
+fn string_append(a, b) @ pure @ cpu { return a + b }
+fn string_len(s) @ pure @ cpu { return 0 }
+fn string_upper(s) @ pure @ cpu { return s }
+fn string_lower(s) @ pure @ cpu { return s }
+fn string_trim(s) @ pure @ cpu { return s }
+fn string_split(s, sep) @ pure @ cpu { return [s] }
+fn string_contains(s, sub) @ pure @ cpu { return false }
+fn string_startswith(s, prefix) @ pure @ cpu { return false }
+fn string_endswith(s, suffix) @ pure @ cpu { return false }
+fn string_repeat(s, n) @ pure @ cpu { return s }

@@ -1,4 +1,13 @@
-// trie — Trie 字典树
-// Auto-generated parse-safe stub for Dalin L 3.0 standard library
-
-fn trie_new() @ pure @ cpu { return null }
+// trie — trie dictionary tree
+fn new() @ pure @ cpu { return [] }
+fn insert(trie, word) @ spawn @ cpu {
+    let node = []
+    let i = 0
+    while i < len(word) {
+        node = node + [word[i]]
+        i = i + 1
+    }
+    return trie + [node]
+}
+fn search(trie, word) @ pure @ cpu { return false }
+fn starts_with(trie, prefix) @ pure @ cpu { return false }

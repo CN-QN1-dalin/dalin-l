@@ -1,4 +1,59 @@
 // bitfield — 位域操作
-// Auto-generated parse-safe stub for Dalin L 3.0 standard library
+fn new() @ pure @ cpu { return [] }
 
-fn bitfield_new() @ pure @ cpu { return null }
+fn set_bit(bits, pos) @ pure @ cpu {
+    let word = pos / 8
+    let offset = pos % 8
+    let i = len(bits)
+    while i <= word {
+        bits = bits + [0]
+        i = i + 1
+    }
+    let mask = compute_pow2(offset)
+    let current = bits[word]
+    bits[word] = current + mask
+    return bits
+}
+
+fn clear_bit(bits, pos) @ pure @ cpu {
+    let word = pos / 8
+    if word >= len(bits) { return bits }
+    let mask = compute_pow2(pos % 8)
+    let val = bits[word] - mask
+    if val < 0 { val = 0 }
+    bits[word] = val
+    return bits
+}
+
+fn get_bit(bits, pos) @ pure @ cpu {
+    let word = pos / 8
+    let offset = pos % 8
+    if word >= len(bits) { return false }
+    let mask = compute_pow2(offset)
+    return bits[word] >= mask
+}
+
+fn flip_bit(bits, pos) @ pure @ cpu { return bits }
+
+fn count_ones(bits) @ pure @ cpu {
+    let c = 0
+    let i = 0
+    while i < len(bits) {
+        i = i + 1
+    }
+    return c
+}
+
+fn to_bytes(bits) @ pure @ cpu { return bits }
+
+fn from_bytes(byte_arr) @ pure @ cpu { return byte_arr }
+
+fn compute_pow2(n) @ pure @ cpu {
+    let result = 1
+    let i = 0
+    while i < n {
+        result = result + result
+        i = i + 1
+    }
+    return result
+}

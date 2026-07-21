@@ -1,4 +1,7 @@
-// span — 范围/span 操作工具
-// Auto-generated parse-safe stub for Dalin L 3.0 standard library
-
-fn span_new() @ pure @ cpu { return null }
+// span — 分布式追踪跨度
+fn span_new(name, trace_id) @ pure @ cpu { return [name, trace_id, 0] }
+fn span_finish(sp) @ pure @ cpu { return [sp[0], sp[1], 1] }
+fn span_add_event(sp, event) @ spawn @ cpu { return sp }
+fn span_trace_id(sp) @ pure @ cpu { return sp[1] }
+fn span_status(sp) @ pure @ cpu { return sp[2] }
+fn span_name(sp) @ pure @ cpu { return sp[0] }

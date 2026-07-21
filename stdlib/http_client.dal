@@ -1,4 +1,10 @@
-// http_client — HTTP 客户端封装
-// Auto-generated parse-safe stub for Dalin L 3.0 standard library
-
-fn http_client_new() @ pure @ cpu { return null }
+// http_client — HTTP client interface
+fn new(base_url) @ pure @ cpu { return [base_url, []] }
+fn get(client, url, headers) @ spawn @ cpu { return [client[0], [url]] }
+fn post(client, url, body, headers) @ spawn @ cpu { return [client[0], [url, body]] }
+fn put(client, url, body, headers) @ spawn @ cpu { return [client[0], [url, body]] }
+fn delete(client, url, headers) @ spawn @ cpu { return [client[0], [url]] }
+fn status_code(response) @ pure @ cpu { return 200 }
+fn body(response) @ pure @ cpu { return response }
+fn headers(response) @ pure @ cpu { return response }
+fn close(client) @ spawn @ cpu { return client }

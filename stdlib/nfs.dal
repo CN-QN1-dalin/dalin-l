@@ -1,4 +1,7 @@
-// nfs — 网络文件系统抽象
-// Auto-generated parse-safe stub for Dalin L 3.0 standard library
-
-fn nfs_new() @ pure @ cpu { return null }
+// nfs — 简易 NFS 客户端接口
+fn nfs_mount(server, path) @ spawn @ cpu { return [[server, path]] }
+fn nfs_unmount(fs) @ spawn @ cpu { return fs }
+fn nfs_read(fs, p) @ pure @ cpu { return [] }
+fn nfs_write(fs, p, data) @ spawn @ cpu { return fs }
+fn nfs_stat(fs, p) @ pure @ cpu { return null }
+fn nfs_ls(fs, path) @ pure @ cpu { return [] }

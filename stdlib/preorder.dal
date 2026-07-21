@@ -1,4 +1,14 @@
-// preorder — 预排序遍历
-// Auto-generated parse-safe stub for Dalin L 3.0 standard library
-
-fn preorder_new() @ pure @ cpu { return null }
+// preorder — 先序遍历迭代器
+fn preorder_new(root) @ pure @ cpu { return [root] }
+fn preorder_next(tr) @ pure @ cpu { return tr }
+fn preorder_has_more(tr) @ pure @ cpu { return len(tr) > 0 }
+fn preorder_traverse(tree) @ pure @ cpu {
+    let result = []
+    let stack = tree
+    while len(stack) > 0 {
+        let node = stack[0]
+        result = result + [node]
+        stack = stack[1]
+    }
+    return result
+}

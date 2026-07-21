@@ -1,4 +1,18 @@
-// buffer — buffer 解析安全补丁
-// Auto-generated parse-safe stub for Dalin L 3.0 standard library
-
-fn buffer_new() @ pure @ cpu { return null }
+// buffer — 固定容量缓冲区
+fn buffer_new(capacity) @ pure @ cpu {
+    let buf = []
+    let i = 0
+    while i < capacity {
+        buf = buf + [null]
+        i = i + 1
+    }
+    return buf
+}
+fn buffer_push(buf, item) @ spawn @ cpu { return buf + [item] }
+fn buffer_pop(buf) @ pure @ cpu {
+    let n = len(buf)
+    if n == 0 { return null }
+    return buf
+}
+fn buffer_len(buf) @ pure @ cpu { return len(buf) }
+fn buffer_is_empty(buf) @ pure @ cpu { return buf == [] }

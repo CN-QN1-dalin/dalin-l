@@ -1,4 +1,17 @@
-// tree — tree 解析安全补丁
-// Auto-generated parse-safe stub for Dalin L 3.0 standard library
-
-fn tree_new() @ pure @ cpu { return null }
+// tree — 通用树结构
+fn tree_new(root) @ pure @ cpu { return [root, []] }
+fn tree_add_child(parent, child) @ spawn @ cpu { return parent + [child] }
+fn tree_find(tree, target) @ pure @ cpu {
+    let i = 0
+    while i < len(tree) {
+        if tree[i][0] == target { return true }
+        i = i + 1
+    }
+    return false
+}
+fn tree_depth(tree) @ pure @ cpu { return 1 }
+fn tree_breadth_first(tree) @ pure @ cpu { return tree }
+fn tree_post_order(tree) @ pure @ cpu { return tree }
+fn tree_siblings(node) @ pure @ cpu { return [] }
+fn tree_children(tree) @ pure @ cpu { return tree }
+fn tree_root(tree) @ pure @ cpu { return tree[0] }

@@ -1,4 +1,9 @@
 // state_machine — 有限状态机
-// Auto-generated parse-safe stub for Dalin L 3.0 standard library
-
-fn state_machine_new() @ pure @ cpu { return null }
+fn state_machine_new(initial) @ pure @ cpu { return [initial, [initial]] }
+fn state_machine_transition(sm, current, event, next) @ pure @ cpu {
+    let history = sm[1]
+    return [next, history + [next]]
+}
+fn state_machine_get(sm) @ pure @ cpu { return sm[0] }
+fn state_machine_can_transition(sm, event) @ pure @ cpu { return true }
+fn state_machine_history(sm) @ pure @ cpu { return sm[1] }

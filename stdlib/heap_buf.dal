@@ -1,4 +1,22 @@
 // heap_buf — 堆内存缓冲区
-// Auto-generated parse-safe stub for Dalin L 3.0 standard library
-
-fn heap_buf_new() @ pure @ cpu { return null }
+fn heap_buf_new(capacity) @ pure @ cpu {
+    let buf = []
+    let i = 0
+    while i < capacity {
+        buf = buf + [0]
+        i = i + 1
+    }
+    return buf
+}
+fn heap_buf_write(buf, offset, data) @ spawn @ cpu { return buf }
+fn heap_buf_read(buf, offset, size) @ pure @ cpu {
+    let result = []
+    let i = offset
+    while i < offset + size {
+        result = result + [buf[i]]
+        i = i + 1
+    }
+    return result
+}
+fn heap_buf_size(buf) @ pure @ cpu { return len(buf) }
+fn heap_buf_capacity(buf) @ pure @ cpu { return len(buf) }

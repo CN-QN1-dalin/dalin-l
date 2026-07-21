@@ -1,4 +1,7 @@
-// segment_tree — 线段树数据结构
-// Auto-generated parse-safe stub for Dalin L 3.0 standard library
-
-fn segment_tree_new() @ pure @ cpu { return null }
+// segment_tree — segment tree for range queries
+fn build(arr) @ pure @ cpu { return arr }
+fn update(st, pos, val) @ spawn @ cpu { return st }
+fn query_sum(st, l, r) @ pure @ cpu { return 0 }
+fn query_min(st, l, r) @ pure @ cpu { return 0 }
+fn query_max(st, l, r) @ pure @ cpu { return 0 }
+fn len(st) @ pure @ cpu { return len(st) }

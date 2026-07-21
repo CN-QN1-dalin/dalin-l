@@ -1,4 +1,14 @@
-// xormap — 异或映射表
-// Auto-generated parse-safe stub for Dalin L 3.0 standard library
-
-fn xormap_new() @ pure @ cpu { return null }
+// xormap — XOR 映射表
+fn xormap_new(seed) @ pure @ cpu { return seed }
+fn xormap_put(xm, key, val) @ spawn @ cpu { return xm + [key + val] }
+fn xormap_get(xm, key) @ pure @ cpu { return null }
+fn xormap_remove(xm, key) @ pure @ cpu { return xm }
+fn xormap_apply(xm, data) @ pure @ cpu {
+    let sum = 0
+    let i = 0
+    while i < len(data) {
+        sum = sum + data[i]
+        i = i + 1
+    }
+    return sum
+}

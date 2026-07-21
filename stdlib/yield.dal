@@ -1,4 +1,6 @@
-// yield — yield 解析安全补丁
-// Auto-generated parse-safe stub for Dalin L 3.0 standard library
-
-fn yield_new() @ pure @ cpu { return null }
+// yield — 协作式调度 yield
+fn yield_now() @ pure @ cpu { return 0 }
+fn yield_check() @ pure @ cpu { return true }
+fn yield_block() @ pure @ cpu { return 0 }
+fn yield_count() @ pure @ cpu { return 0 }
+fn yield_reset() @ pure @ cpu { return 0 }

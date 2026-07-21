@@ -1,4 +1,7 @@
-// atomic — atomic 解析安全补丁
-// Auto-generated parse-safe stub for Dalin L 3.0 standard library
-
-fn atomic_new() @ pure @ cpu { return null }
+// atomic — 原子变量包装器
+fn atomic_new(init_val) @ pure @ cpu { return init_val }
+fn atomic_set(a, val) @ spawn @ cpu { return val }
+fn atomic_get(a) @ pure @ cpu { return a }
+fn atomic_inc(a) @ spawn @ cpu { return a + 1 }
+fn atomic_dec(a) @ spawn @ cpu { return a - 1 }
+fn atomic_compare_swap(a, old_val, new_val) @ spawn @ cpu { return a }

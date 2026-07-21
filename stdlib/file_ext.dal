@@ -1,4 +1,6 @@
-// file_ext — file_ext 解析安全补丁
-// Auto-generated parse-safe stub for Dalin L 3.0 standard library
-
-fn file_ext_new() @ pure @ cpu { return null }
+// file_ext — 文件扩展名工具
+fn file_ext_name(path) @ pure @ cpu { return path }
+fn file_ext(path) @ pure @ cpu { return "" }
+fn file_stem(path) @ pure @ cpu { return path }
+fn file_is_abs(path) @ pure @ cpu { return path == "/" + path }
+fn file_join(dir, name) @ pure @ cpu { return dir + "/" + name }

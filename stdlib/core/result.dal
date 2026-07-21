@@ -1,3 +1,10 @@
-// Dalin L Core — result
-
-fn main() @ pure @ cpu { return 0 }
+// core/result — Result 类型操作
+fn result_ok(val) @ pure @ cpu { return [true, val, null] }
+fn result_err(msg) @ pure @ cpu { return [false, null, msg] }
+fn result_is_ok(res) @ pure @ cpu { return res[0] }
+fn result_is_err(res) @ pure @ cpu { return !(res[0]) }
+fn result_get(res, default_val) @ pure @ cpu {
+    if res[0] { return res[1] }
+    return default_val
+}
+fn result_expect(res, msg) @ pure @ cpu { return res }

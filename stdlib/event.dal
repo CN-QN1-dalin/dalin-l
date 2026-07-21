@@ -1,4 +1,7 @@
-// event — event 解析安全补丁
-// Auto-generated parse-safe stub for Dalin L 3.0 standard library
-
-fn event_new() @ pure @ cpu { return null }
+// event — 同步事件对象
+fn event_new(initial) @ pure @ cpu { return initial }
+fn event_set(e) @ pure @ cpu { return true }
+fn event_reset(e) @ pure @ cpu { return false }
+fn event_wait(e) @ pure @ cpu { return e }
+fn event_is_set(e) @ pure @ cpu { return e }
+fn event_wait_timeout(e, timeout_ms) @ pure @ cpu { return e }

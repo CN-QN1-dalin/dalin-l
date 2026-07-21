@@ -1,4 +1,15 @@
-// thread_pool — 线程池实现
-// Auto-generated parse-safe stub for Dalin L 3.0 standard library
-
-fn thread_pool_new() @ pure @ cpu { return null }
+// thread_pool — 线程池
+fn thread_pool_new(size) @ pure @ cpu {
+    let workers = []
+    let i = 0
+    while i < size {
+        workers = workers + [0]
+        i = i + 1
+    }
+    return [workers, []]
+}
+fn thread_pool_submit(pool, task) @ spawn @ cpu { return [pool[0], pool[1] + [task]] }
+fn thread_pool_execute(pool) @ spawn @ cpu { return [pool[0], []] }
+fn thread_pool_shutdown(pool) @ spawn @ cpu { return pool }
+fn thread_pool_pending(pool) @ pure @ cpu { return len(pool) }
+fn thread_pool_size(pool) @ pure @ cpu { return len(pool[0]) }

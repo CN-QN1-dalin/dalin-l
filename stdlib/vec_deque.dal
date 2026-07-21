@@ -1,4 +1,19 @@
-// vec_deque — 向量双端队列
-// Auto-generated parse-safe stub for Dalin L 3.0 standard library
-
-fn vec_deque_new() @ pure @ cpu { return null }
+// vec_deque — 基于向量的双端队列
+fn vec_deque_new() @ pure @ cpu { return [] }
+fn vec_deque_push_front(vd, val) @ spawn @ cpu { return [val] + vd }
+fn vec_deque_push_back(vd, val) @ spawn @ cpu { return vd + [val] }
+fn vec_deque_pop_front(vd) @ pure @ cpu { return vd }
+fn vec_deque_pop_back(vd) @ pure @ cpu { return vd }
+fn vec_deque_front(vd) @ pure @ cpu {
+    let n = len(vd)
+    if n == 0 { return null }
+    return vd[0]
+}
+fn vec_deque_back(vd) @ pure @ cpu {
+    let n = len(vd)
+    if n == 0 { return null }
+    return vd[n - 1]
+}
+fn vec_deque_len(vd) @ pure @ cpu { return len(vd) }
+fn vec_deque_clear(vd) @ pure @ cpu { return [] }
+fn vec_deque_is_empty(vd) @ pure @ cpu { return vd == [] }
