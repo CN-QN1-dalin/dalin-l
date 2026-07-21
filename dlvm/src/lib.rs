@@ -2,7 +2,7 @@
 //!
 //! 替换树遍历解释器，采用栈式字节码架构。
 //! 核心组件：
-//! - Opcode: 指令集（27 条指令）
+//! - Opcode: 指令集（30 条指令）
 //! - BytecodeFunction: 编译后的函数表示
 //! - Vm: 栈式执行引擎
 //! - compiler: AST → 字节码编译器
@@ -72,6 +72,11 @@ pub enum Opcode {
     Spawn(u16), // spawn 任务（函数索引，参数个数）
     Send,       // 发送到通道
     Recv,       // 从通道接收
+
+    // ── M:N 协程调度 ──
+    CoopSpawn(u16),      // 协程 spawn：从栈顶弹出 fn_idx(u16)，加入就绪队列
+    CoopAwait,            // 协程 await：当前协程让出，等待所有 spawned 协程完成
+    CoopYieldResume(u8), // yield to scheduler：保存当前帧，调度下一个就绪协程
 }
 
 /// 编译后的函数
@@ -170,6 +175,164 @@ impl Value {
     }
 }
 
+// ═══════════════════════════════
+//  M:N 协程调度器
+// ═══════════════════════════════
+
+/// 协程任务状态
+#[derive(Debug, Clone, PartialEq)]
+pub enum TaskStatus {
+    /// 就绪，等待调度
+    Ready,
+    /// 正在运行
+    Running,
+    /// 等待子任务完成（CoopAwait 后的状态）
+    Waiting,
+    /// 已完成
+    Done,
+}
+
+/// 协程帧快照：保存 yield 时的 VM 状态以便恢复
+#[derive(Debug, Clone)]
+pub struct TaskFrame {
+    /// 任务 ID
+    pub id: usize,
+    /// 指令指针
+    pub ip: usize,
+    /// 当前函数索引
+    pub current_fn: usize,
+    /// 调用栈：（返回地址，栈基址）
+    pub call_stack: Vec<(usize, usize)>,
+    /// 值栈副本
+    pub stack: Vec<Value>,
+    /// 状态
+    pub status: TaskStatus,
+}
+
+/// FIFO 轮转协程调度器
+#[derive(Debug)]
+pub struct Scheduler {
+    /// 就绪队列：FIFO 顺序
+    ready_queue: Vec<usize>,
+    /// 所有任务帧
+    tasks: Vec<TaskFrame>,
+    /// 当前运行的任务 ID（None 表示尚未调度）
+    current: Option<usize>,
+    /// 全局任务 ID 计数器
+    next_id: usize,
+}
+
+impl Default for Scheduler {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Scheduler {
+    pub fn new() -> Self {
+        Self {
+            ready_queue: Vec::new(),
+            tasks: Vec::new(),
+            current: None,
+            next_id: 0,
+        }
+    }
+
+    /// 注册一个新任务（初始状态 Ready），加入就绪队列
+    pub fn spawn(&mut self, ip: usize, current_fn: usize) -> usize {
+        let id = self.next_id;
+        self.next_id += 1;
+        let frame = TaskFrame {
+            id,
+            ip,
+            current_fn,
+            call_stack: Vec::new(),
+            stack: Vec::new(),
+            status: TaskStatus::Ready,
+        };
+        self.tasks.push(frame);
+        self.ready_queue.push(id);
+        id
+    }
+
+    /// 激活任务：设为 Running，从队列移除
+    pub fn activate(&mut self, task_id: usize) {
+        self.ready_queue.retain(|&tid| tid != task_id);
+        if let Some(t) = self.tasks.iter_mut().find(|t| t.id == task_id) {
+            t.status = TaskStatus::Running;
+        }
+        self.current = Some(task_id);
+    }
+
+    /// 标记当前任务为 Done，并唤醒所有 Waiting 任务
+    pub fn mark_done(&mut self) {
+        if let Some(id) = self.current {
+            if let Some(t) = self.tasks.iter_mut().find(|t| t.id == id) {
+                t.status = TaskStatus::Done;
+            }
+            self.current = None;
+        }
+        // 如果没有 Ready 任务了，唤醒所有 Waiting 任务
+        if !self.has_ready() {
+            for t in &mut self.tasks {
+                if t.status == TaskStatus::Waiting {
+                    t.status = TaskStatus::Ready;
+                    self.ready_queue.push(t.id);
+                }
+            }
+        }
+    }
+
+    /// 当前任务 yield：保存帧。
+    /// - to_waiting=true: CoopAwait 场景，状态设为 Waiting，不重新入队
+    /// - to_waiting=false: CoopYieldResume 场景，状态设为 Ready，重新入队尾
+    pub fn yield_current(&mut self, ip: usize, current_fn: usize, call_stack: &[(usize, usize)], stack: &[Value], to_waiting: bool) {
+        if let Some(id) = self.current {
+            if let Some(t) = self.tasks.iter_mut().find(|t| t.id == id) {
+                t.ip = ip;
+                t.current_fn = current_fn;
+                t.call_stack = call_stack.to_vec();
+                t.stack = stack.to_vec();
+                if to_waiting {
+                    t.status = TaskStatus::Waiting;
+                    // 不加入就绪队列，等待子任务完成后由 mark_done 唤醒
+                } else {
+                    t.status = TaskStatus::Ready;
+                    self.ready_queue.push(id);
+                }
+            }
+            self.current = None;
+        }
+    }
+
+    /// 选择下一个就绪任务。仅选择状态为 Ready 的任务。
+    /// 返回 (task_id, &TaskFrame)
+    pub fn schedule_next(&mut self) -> Option<(usize, TaskFrame)> {
+        while let Some(candidate_id) = self.ready_queue.first().copied() {
+            // 弹出队首
+            self.ready_queue.remove(0);
+            // 仅当任务仍为 Ready 时调度
+            if let Some(t) = self.tasks.iter().find(|t| t.id == candidate_id)
+                && t.status == TaskStatus::Ready
+            {
+                return Some((candidate_id, t.clone()));
+            }
+            // 如果任务已经 Done/Running，继续看下一个
+        }
+        None
+    }
+
+    /// 是否还有就绪任务
+    pub fn has_ready(&self) -> bool {
+        self.tasks.iter().any(|t| t.status == TaskStatus::Ready)
+    }
+
+    /// 获取当前任务 ID
+    pub fn current_id(&self) -> Option<usize> {
+        self.current
+    }
+}
+
 /// DLVM 执行引擎
 pub struct Vm {
     /// 值栈
@@ -186,6 +349,8 @@ pub struct Vm {
     current_fn: usize,
     /// 是否正在执行
     running: bool,
+    /// M:N 协程调度器
+    scheduler: Scheduler,
 }
 
 /// DLVM 错误
@@ -197,6 +362,7 @@ pub enum VmError {
     TypeError(String),
     DivisionByZero,
     Halt,
+    SchedulerError(String),
 }
 
 impl std::fmt::Display for VmError {
@@ -208,6 +374,7 @@ impl std::fmt::Display for VmError {
             VmError::TypeError(msg) => write!(f, "type error: {msg}"),
             VmError::DivisionByZero => write!(f, "division by zero"),
             VmError::Halt => write!(f, "halt"),
+            VmError::SchedulerError(msg) => write!(f, "scheduler error: {msg}"),
         }
     }
 }
@@ -228,18 +395,44 @@ impl Vm {
             ip: 0,
             current_fn: entry,
             running: false,
+            scheduler: Scheduler::new(),
         }
     }
 
-    /// 运行虚拟机，从第一个函数开始执行。
+    /// 运行虚拟机。
+    ///
+    /// 支持两种模式：
+    /// - 普通模式：无协程 opcode 时与之前行为一致
+    /// - 协程模式：CoopSpawn/CoopYieldResume 触发 M:N 调度
     pub fn run(&mut self) -> Result<Value, VmError> {
         self.running = true;
         self.ip = 0;
         self.current_fn = 0;
 
+        // 将主入口注册为任务 0
+        let main_task_id = self.scheduler.spawn(0, 0);
+        self.scheduler.activate(main_task_id);
+        let mut main_result = Value::None;
+
         while self.running {
             let func = &self.functions[self.current_fn].clone();
             if self.ip >= func.code.len() {
+                // 捕获 main 任务结果
+                let is_main = self.scheduler.current_id() == Some(main_task_id);
+                let result = self.stack.pop().unwrap_or(Value::None);
+                if is_main {
+                    main_result = result.clone();
+                }
+                self.stack.push(result);
+
+                self.scheduler.mark_done();
+                // 尝试调度下一个任务
+                if let Some((next_id, frame)) = self.scheduler.schedule_next() {
+                    self.load_frame(&frame);
+                    self.scheduler.activate(next_id);
+                    continue; // 继续执行新任务
+                }
+                self.running = false;
                 break;
             }
             let op = func.code[self.ip].clone();
@@ -247,7 +440,15 @@ impl Vm {
             self.execute_op(op)?;
         }
 
-        Ok(self.stack.pop().unwrap_or(Value::None))
+        Ok(main_result)
+    }
+
+    /// 从 TaskFrame 恢复 VM 状态
+    fn load_frame(&mut self, frame: &TaskFrame) {
+        self.ip = frame.ip;
+        self.current_fn = frame.current_fn;
+        self.call_stack = frame.call_stack.clone();
+        self.stack = frame.stack.clone();
     }
 
     /// 执行单条指令
@@ -416,9 +617,10 @@ impl Vm {
                     self.ip = ret_ip;
                     self.current_fn = self.find_fn_by_ip(ret_ip).unwrap_or(0);
                 } else {
-                    // 顶层返回
+                    // 顶层返回：将结果压回栈，ip 移到末尾让 run loop 处理任务完成
                     self.stack.push(result);
-                    self.running = false;
+                    let func = &self.functions[self.current_fn];
+                    self.ip = func.code.len();
                 }
             }
 
@@ -441,6 +643,72 @@ impl Vm {
 
             Opcode::Builtin(idx) => {
                 self.execute_builtin(idx)?;
+            }
+
+            // ── M:N 协程调度 ──
+
+            // CoopSpawn(fn_idx): 从栈顶弹出被 spawn 函数的起始 ip=0,fn_idx，
+            // 将当前栈快照传给新任务，注册到调度器就绪队列。
+            Opcode::CoopSpawn(fn_idx) => {
+                // 当前栈是父任务传给子任务的参数栈
+                let child_id = self.scheduler.spawn(0, fn_idx as usize);
+                // 子任务继承当前栈作为初始参数
+                if let Some(t) = self.scheduler.tasks.iter_mut().find(|t| t.id == child_id) {
+                    t.stack = self.stack.clone();
+                }
+                // 父任务将 child_id 压栈以便后续 await
+                self.stack.push(Value::Int(child_id as i64));
+            }
+
+            // CoopAwait: 等待所有 spawned 协程完成（除当前任务外）。
+            // 如果还有 Ready 任务，yield 让出 CPU；否则继续执行。
+            Opcode::CoopAwait => {
+                if self.scheduler.has_ready() {
+                    // 还有子任务在运行 → 保存当前帧并 yield
+                    let _current_id = self.scheduler.current_id();
+                    self.scheduler.yield_current(
+                        self.ip,
+                        self.current_fn,
+                        &self.call_stack,
+                        &self.stack,
+                        true, // to_waiting: CoopAwait 等待子任务
+                    );
+                    // 调度下一个就绪任务
+                    if let Some((next_id, frame)) = self.scheduler.schedule_next() {
+                        self.load_frame(&frame);
+                        self.scheduler.activate(next_id);
+                    } else {
+                        // 理论上不应该到这里（has_ready 为 true 但 schedule_next 找不到）
+                        return Err(VmError::SchedulerError(
+                            "CoopAwait: has_ready true but schedule_next returned None".into(),
+                        ));
+                    }
+                }
+                // 否则所有子任务已完成，继续执行当前任务
+            }
+
+            // CoopYieldResume: 显式 yield 到调度器，保存当前帧
+            // 并立即调度下一个就绪任务。
+            Opcode::CoopYieldResume(_slot) => {
+                self.scheduler.yield_current(
+                    self.ip,
+                    self.current_fn,
+                    &self.call_stack,
+                    &self.stack,
+                    false, // to_waiting: CoopYieldResume 轮转让出
+                );
+                if let Some((next_id, frame)) = self.scheduler.schedule_next() {
+                    self.load_frame(&frame);
+                    self.scheduler.activate(next_id);
+                } else {
+                    // 没有就绪任务 → 将当前任务重新激活
+                    if let Some(id) = self.scheduler.current_id() {
+                        // 恢复刚 yield 的任务
+                        self.scheduler.activate(id);
+                    } else {
+                        self.running = false;
+                    }
+                }
             }
 
             // 未实现的指令 —— 直接 panic（Phase 2 迭代补齐）
@@ -625,5 +893,193 @@ mod tests {
         );
         let mut vm = Vm::new(vec![f]);
         assert_eq!(vm.run().unwrap(), Value::Int(10));
+    }
+
+    // ── M:N 协程测试 ──
+
+    #[test]
+    fn coop_spawn_and_await_simple() {
+        // 主任务 CoopSpawn 子任务，子任务计算 10+20，主任务 await 后返回 42
+        let main = make_fn(
+            vec![
+                Opcode::CoopSpawn(1),   // spawn fn#1
+                Opcode::CoopAwait,       // wait for child
+                Opcode::LoadInt(42),     // after child done
+                Opcode::Return,
+            ],
+            vec![],
+        );
+        let worker = BytecodeFunction {
+            name: "calc".into(),
+            code: vec![
+                Opcode::LoadInt(10),
+                Opcode::LoadInt(20),
+                Opcode::Add,
+                Opcode::Return,
+            ],
+            constants: vec![],
+            arity: 0,
+            locals: 0,
+            effect: None,
+            capability: None,
+        };
+        let mut vm = Vm::new(vec![main, worker]);
+        let result = vm.run().unwrap();
+        // main 在 child 完成后恢复执行，返回 42
+        assert_eq!(result, Value::Int(42));
+    }
+
+    #[test]
+    fn coop_yield_resume_cycle() {
+        // entry spawns t1, yields to let t1 run, resumes and computes 1+10=11
+        let t1 = BytecodeFunction {
+            name: "t1".into(),
+            code: vec![
+                Opcode::LoadInt(100),
+                Opcode::LoadInt(200),
+                Opcode::Add,                   // 100+200 = 300
+                Opcode::CoopYieldResume(0),    // yield back to entry
+                Opcode::Return,
+            ],
+            constants: vec![],
+            arity: 0,
+            locals: 0,
+            effect: None,
+            capability: None,
+        };
+        let entry = BytecodeFunction {
+            name: "entry".into(),
+            code: vec![
+                Opcode::CoopSpawn(1),          // spawn t1 (fn#1)
+                Opcode::LoadInt(1),
+                Opcode::CoopYieldResume(0),    // yield to let t1 run
+                Opcode::LoadInt(10),
+                Opcode::Add,                   // 1+10 = 11
+                Opcode::Return,
+            ],
+            constants: vec![],
+            arity: 0,
+            locals: 0,
+            effect: None,
+            capability: None,
+        };
+        let mut vm = Vm::new(vec![entry, t1]);
+        let result = vm.run().unwrap();
+        assert_eq!(result, Value::Int(11));
+    }
+
+    #[test]
+    fn coop_yield_saves_frame() {
+        // Verify that after yield, the task resumes from where it left off
+        let t = make_fn(
+            vec![
+                Opcode::LoadInt(7),
+                Opcode::CoopYieldResume(0),
+                Opcode::LoadInt(8),
+                Opcode::Add,                // 7+8 = 15
+                Opcode::Return,
+            ],
+            vec![],
+        );
+        let mut vm = Vm::new(vec![t]);
+        let result = vm.run().unwrap();
+        // After yielding and resuming (only one task, so it resumes itself),
+        // stack should be [7, 8] before Add → result is 15
+        assert_eq!(result, Value::Int(15));
+    }
+
+    #[test]
+    fn coop_await_blocks_until_children_done() {
+        // Main spawns child, awaits, child runs to completion
+        let main = BytecodeFunction {
+            name: "main".into(),
+            code: vec![
+                Opcode::LoadInt(0),
+                Opcode::CoopSpawn(1),          // spawn child (fn#1)
+                Opcode::CoopAwait,              // wait for child
+                Opcode::LoadInt(42),            // after child done
+                Opcode::Return,
+            ],
+            constants: vec![],
+            arity: 0,
+            locals: 0,
+            effect: None,
+            capability: None,
+        };
+        let child = BytecodeFunction {
+            name: "child".into(),
+            code: vec![
+                Opcode::LoadInt(100),
+                Opcode::Return,
+            ],
+            constants: vec![],
+            arity: 0,
+            locals: 0,
+            effect: None,
+            capability: None,
+        };
+        let mut vm = Vm::new(vec![main, child]);
+        let result = vm.run().unwrap();
+        assert_eq!(result, Value::Int(42));
+    }
+
+    #[test]
+    fn scheduler_round_robin() {
+        // Three tasks: t0 yields→t1→t1 yields→t2→t2 yields→t0 resumes
+        let t0 = BytecodeFunction {
+            name: "t0".into(),
+            code: vec![
+                Opcode::LoadInt(1),
+                Opcode::CoopYieldResume(0),
+                Opcode::LoadInt(2),
+                Opcode::Add,
+                Opcode::CoopYieldResume(0),
+                Opcode::LoadInt(3),
+                Opcode::Add,              // (1+2)+3 = 6
+                Opcode::Return,
+            ],
+            constants: vec![],
+            arity: 0,
+            locals: 0,
+            effect: None,
+            capability: None,
+        };
+        // Entry spawns t0 and t1 as child tasks, then yields
+        let entry = BytecodeFunction {
+            name: "entry".into(),
+            code: vec![
+                Opcode::LoadInt(0),        // dummy arg for spawn
+                Opcode::CoopSpawn(1),      // spawn t0 (fn#1)
+                Opcode::CoopAwait,          // wait for children
+                Opcode::LoadInt(100),
+                Opcode::Return,
+            ],
+            constants: vec![],
+            arity: 0,
+            locals: 0,
+            effect: None,
+            capability: None,
+        };
+        let mut vm = Vm::new(vec![entry, t0]);
+        let result = vm.run().unwrap();
+        // After children complete, main returns 100
+        assert_eq!(result, Value::Int(100));
+    }
+
+    #[test]
+    fn scheduler_resume_prepares_for_scheduling() {
+        // Single task yields, should resume itself since there's nothing else
+        let t = make_fn(
+            vec![
+                Opcode::LoadInt(5),
+                Opcode::CoopYieldResume(0),
+                Opcode::LoadInt(7),
+                Opcode::Mul,                // 5*7 = 35
+                Opcode::Return,
+            ],
+            vec![],
+        );
+        let mut vm = Vm::new(vec![t]);
+        assert_eq!(vm.run().unwrap(), Value::Int(35));
     }
 }

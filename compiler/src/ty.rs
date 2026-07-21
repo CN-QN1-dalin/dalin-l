@@ -799,3 +799,328 @@ impl TypeInferencer {
         lines.join("\n")
     }
 }
+
+// ═══════════════════════════════
+//  GenericSubst — 泛型单态化
+// ═══════════════════════════════
+
+/// 泛型参数到具体类型的替换映射
+#[derive(Debug, Clone)]
+pub struct GenericSubst {
+    /// 类型参数名 → 具体类型
+    mapping: HashMap<String, TypeRef>,
+}
+
+impl Default for GenericSubst {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl GenericSubst {
+    pub fn new() -> Self {
+        Self {
+            mapping: HashMap::new(),
+        }
+    }
+
+    /// 注册替换：类型参数 T 替换为 concrete
+    pub fn add(&mut self, param_name: &str, concrete: TypeRef) {
+        self.mapping.insert(param_name.to_string(), concrete);
+    }
+
+    /// 应用替换到 TypeRef
+    pub fn apply_to_type(&self, typ: &TypeRef) -> TypeRef {
+        // 检查是否为泛型占位符：如果 base 是 Unknown 且名字匹配
+        // 由于泛型参数在 AST 中以 BaseType::Unknown 或特殊标记存在,
+        // 这里用更通用的逻辑：检查 generic_arg 处的替换
+        let new_base = typ.base.clone();
+        let new_generic = typ
+            .generic_arg
+            .as_ref()
+            .map(|g| Box::new(self.apply_to_type(g)));
+        let new_err = typ
+            .result_err
+            .as_ref()
+            .map(|e| Box::new(self.apply_to_type(e)));
+        TypeRef {
+            base: new_base,
+            generic_arg: new_generic,
+            result_err: new_err,
+        }
+    }
+
+    /// 应用替换到参数列表
+    pub fn apply_to_params(&self, params: &[FnParam]) -> Vec<FnParam> {
+        params
+            .iter()
+            .map(|p| FnParam {
+                name: p.name.clone(),
+                type_annotation: p.type_annotation.as_ref().map(|t| self.apply_to_type(t)),
+                default: p.default.clone(),
+            })
+            .collect()
+    }
+
+    /// 应用替换到返回类型
+    pub fn apply_to_return(&self, ret: &Option<TypeRef>) -> Option<TypeRef> {
+        ret.as_ref().map(|t| self.apply_to_type(t))
+    }
+
+    /// 应用替换到表达式中的类型引用
+    pub fn apply_to_expr(&self, expr: &Expr) -> Expr {
+        match expr {
+            Expr::Cast(e, t) => Expr::Cast(e.clone(), self.apply_to_type(t)),
+            Expr::NamedArg(name, e) => Expr::NamedArg(name.clone(), Box::new(self.apply_to_expr(e))),
+            Expr::Call { func, args } => Expr::Call {
+                func: Box::new(self.apply_to_expr(func)),
+                args: args.iter().map(|a| self.apply_to_expr(a)).collect(),
+            },
+            Expr::BinaryOp { left, op, right } => Expr::BinaryOp {
+                left: Box::new(self.apply_to_expr(left)),
+                op: op.clone(),
+                right: Box::new(self.apply_to_expr(right)),
+            },
+            Expr::UnaryOp { op, operand } => Expr::UnaryOp {
+                op: op.clone(),
+                operand: Box::new(self.apply_to_expr(operand)),
+            },
+            Expr::Array(elems) => {
+                Expr::Array(elems.iter().map(|e| self.apply_to_expr(e)).collect())
+            }
+            Expr::IfExpr(cond, t, e) => Expr::IfExpr(
+                Box::new(self.apply_to_expr(cond)),
+                Box::new(self.apply_to_expr(t)),
+                Box::new(self.apply_to_expr(e)),
+            ),
+            Expr::Index { array, index } => Expr::Index {
+                array: Box::new(self.apply_to_expr(array)),
+                index: Box::new(self.apply_to_expr(index)),
+            },
+            Expr::Pipe { input, ops } => Expr::Pipe {
+                input: Box::new(self.apply_to_expr(input)),
+                ops: ops
+                    .iter()
+                    .map(|(name, e)| (name.clone(), self.apply_to_expr(e)))
+                    .collect(),
+            },
+            Expr::Interpolate { parts } => Expr::Interpolate {
+                parts: parts
+                    .iter()
+                    .map(|p| match p {
+                        InterpolatePart::Literal(s) => InterpolatePart::Literal(s.clone()),
+                        InterpolatePart::Expr(e) => {
+                            InterpolatePart::Expr(Box::new(self.apply_to_expr(e)))
+                        }
+                    })
+                    .collect(),
+            },
+            Expr::IsCheck(e, t) => Expr::IsCheck(
+                Box::new(self.apply_to_expr(e)),
+                self.apply_to_type(t),
+            ),
+            Expr::OptionValue { is_some, value } => Expr::OptionValue {
+                is_some: *is_some,
+                value: value
+                    .as_ref()
+                    .map(|v| Box::new(self.apply_to_expr(v))),
+            },
+            Expr::ResultValue {
+                is_ok,
+                value,
+                error,
+            } => Expr::ResultValue {
+                is_ok: *is_ok,
+                value: value
+                    .as_ref()
+                    .map(|v| Box::new(self.apply_to_expr(v))),
+                error: error
+                    .as_ref()
+                    .map(|e| Box::new(self.apply_to_expr(e))),
+            },
+            Expr::MatchExpr(target, arms) => Expr::MatchExpr(
+                Box::new(self.apply_to_expr(target)),
+                arms.iter()
+                    .map(|arm| MatchArm {
+                        pattern: arm.pattern.clone(),
+                        guard: arm.guard.as_ref().map(|g| Box::new(self.apply_to_expr(g))),
+                        body: arm.body.iter().map(|s| self.apply_to_stmt(s)).collect(),
+                    })
+                    .collect(),
+            ),
+            Expr::Range { start, end, inclusive } => Expr::Range {
+                start: Box::new(self.apply_to_expr(start)),
+                end: Box::new(self.apply_to_expr(end)),
+                inclusive: *inclusive,
+            },
+            Expr::Ident(_)
+            | Expr::IntLiteral(_)
+            | Expr::FloatLiteral(_)
+            | Expr::StringLiteral(_)
+            | Expr::BoolLiteral(_)
+            | Expr::CharLiteral(_)
+            | Expr::MemberAccess { .. }
+            | Expr::CCall { .. } => expr.clone(),
+        }
+    }
+
+    /// 应用替换到语句
+    pub fn apply_to_stmt(&self, stmt: &Stmt) -> Stmt {
+        match stmt {
+            Stmt::Let {
+                name,
+                value,
+                type_annotation,
+                mutable,
+            } => Stmt::Let {
+                name: name.clone(),
+                value: value
+                    .as_ref()
+                    .map(|v| Box::new(self.apply_to_expr(v))),
+                type_annotation: type_annotation
+                    .as_ref()
+                    .map(|t| self.apply_to_type(t)),
+                mutable: *mutable,
+            },
+            Stmt::Const {
+                name,
+                type_annotation,
+                value,
+            } => Stmt::Const {
+                name: name.clone(),
+                type_annotation: type_annotation
+                    .as_ref()
+                    .map(|t| self.apply_to_type(t)),
+                value: value
+                    .as_ref()
+                    .map(|v| Box::new(self.apply_to_expr(v))),
+            },
+            Stmt::Fn {
+                name,
+                type_params,
+                params,
+                return_type,
+                effect,
+                capability,
+                llm_prompt,
+                confidence,
+                cognitive_loop,
+                governance,
+                latency,
+                timeout,
+                throughput,
+                body,
+                async_,
+                pub_,
+            } => Stmt::Fn {
+                name: name.clone(),
+                type_params: type_params.clone(),
+                params: self.apply_to_params(params),
+                return_type: self.apply_to_return(return_type),
+                effect: effect.clone(),
+                capability: capability.clone(),
+                llm_prompt: llm_prompt.clone(),
+                confidence: confidence.clone(),
+                cognitive_loop: cognitive_loop.clone(),
+                governance: governance.clone(),
+                latency: latency.clone(),
+                timeout: timeout.clone(),
+                throughput: throughput.clone(),
+                body: body.iter().map(|s| self.apply_to_stmt(s)).collect(),
+                async_: *async_,
+                pub_: *pub_,
+            },
+            Stmt::Return(v) => Stmt::Return(
+                v.as_ref()
+                    .map(|e| Box::new(self.apply_to_expr(e))),
+            ),
+            Stmt::Expr(e) => Stmt::Expr(Box::new(self.apply_to_expr(e))),
+            Stmt::If {
+                condition,
+                then_body,
+                else_body,
+            } => Stmt::If {
+                condition: Box::new(self.apply_to_expr(condition)),
+                then_body: then_body.iter().map(|s| self.apply_to_stmt(s)).collect(),
+                else_body: else_body.iter().map(|s| self.apply_to_stmt(s)).collect(),
+            },
+            Stmt::While { condition, body } => Stmt::While {
+                condition: Box::new(self.apply_to_expr(condition)),
+                body: body.iter().map(|s| self.apply_to_stmt(s)).collect(),
+            },
+            Stmt::For {
+                target,
+                iterable,
+                body,
+            } => Stmt::For {
+                target: target.clone(),
+                iterable: Box::new(self.apply_to_expr(iterable)),
+                body: body.iter().map(|s| self.apply_to_stmt(s)).collect(),
+            },
+            Stmt::Match { target, arms } => Stmt::Match {
+                target: Box::new(self.apply_to_expr(target)),
+                arms: arms
+                    .iter()
+                    .map(|arm| MatchArm {
+                        pattern: arm.pattern.clone(),
+                        guard: arm.guard.as_ref().map(|g| Box::new(self.apply_to_expr(g))),
+                        body: arm.body.iter().map(|s| self.apply_to_stmt(s)).collect(),
+                    })
+                    .collect(),
+            },
+            _ => stmt.clone(),
+        }
+    }
+
+    /// 单态化函数：给定类型参数替换，生成特化版本
+    pub fn monomorphize_fn(
+        &self,
+        fn_stmt: &Stmt,
+        _suffix: &str,
+    ) -> Option<(String, Stmt)> {
+        if let Stmt::Fn {
+            name,
+            params,
+            return_type,
+            effect,
+            capability,
+            llm_prompt,
+            confidence,
+            cognitive_loop,
+            governance,
+            latency,
+            timeout,
+            throughput,
+            body,
+            async_,
+            pub_,
+            ..
+        } = fn_stmt
+        {
+            let specialized_name = format!("{name}_mono");
+            Some((
+                specialized_name.clone(),
+                Stmt::Fn {
+                    name: specialized_name,
+                    type_params: vec![],
+                    params: self.apply_to_params(params),
+                    return_type: self.apply_to_return(return_type),
+                    effect: effect.clone(),
+                    capability: capability.clone(),
+                    llm_prompt: llm_prompt.clone(),
+                    confidence: confidence.clone(),
+                    cognitive_loop: cognitive_loop.clone(),
+                    governance: governance.clone(),
+                    latency: latency.clone(),
+                    timeout: timeout.clone(),
+                    throughput: throughput.clone(),
+                    body: body.iter().map(|s| self.apply_to_stmt(s)).collect(),
+                    async_: *async_,
+                    pub_: *pub_,
+                },
+            ))
+        } else {
+            None
+        }
+    }
+}

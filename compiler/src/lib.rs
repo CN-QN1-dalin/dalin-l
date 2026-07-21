@@ -139,6 +139,7 @@ fn expand_llm(prog: &Program) -> Program {
     for stmt in &prog.statements {
         if let Stmt::Fn {
             name,
+            type_params,
             params,
             return_type,
             effect,
@@ -153,7 +154,6 @@ fn expand_llm(prog: &Program) -> Program {
             body: _,
             async_,
             pub_,
-            ..
         } = stmt
         {
             if let Some(prompt) = llm_prompt.clone() {
@@ -172,7 +172,7 @@ fn expand_llm(prog: &Program) -> Program {
                 };
                 stmts.push(Stmt::Fn {
                     name: name.clone(),
-                    type_params: vec![],
+                    type_params: type_params.clone(),
                     params: params.clone(),
                     return_type: return_type.clone(),
                     effect: effect.clone(),
