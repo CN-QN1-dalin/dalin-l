@@ -399,6 +399,103 @@ impl HoverProvider {
 }
 
 // ---------------------------------------------------------------------------
+// Definition Provider (go-to-definition + references)
+// ---------------------------------------------------------------------------
+
+struct DefinitionProvider;
+
+impl DefinitionProvider {
+    /// Find the definition location of an identifier at (line, character)
+    fn find_definition(&self, content: &str, line: usize, character: usize) -> Option<(usize, usize, usize, usize)> {
+        let word = Self::word_at_position(content, line, character)?;
+        let lines: Vec<&str> = content.lines().collect();
+
+        // Search for function definition: fn <word>
+        for (i, l) in lines.iter().enumerate() {
+            let trimmed = l.trim();
+            if trimmed.starts_with("fn ") {
+                let after_fn = &trimmed[3..];
+                if let Some(paren) = after_fn.find('(') {
+                    let fn_name = after_fn[..paren].trim();
+                    if fn_name == word {
+                        let col = l.find(fn_name).unwrap_or(0);
+                        return Some((i, col, i, col + fn_name.len()));
+                    }
+                }
+            }
+            // Search for let binding
+            if trimmed.starts_with("let ") {
+                let rest = &trimmed[4..];
+                let var_name = rest.split(|c: char| c == '=' || c == ':').next().unwrap_or("").trim();
+                if var_name == word {
+                    let col = l.find(var_name).unwrap_or(0);
+                    return Some((i, col, i, col + var_name.len()));
+                }
+            }
+            // Search for const binding
+            if trimmed.starts_with("const ") {
+                let rest = &trimmed[6..];
+                let var_name = rest.split(|c: char| c == '=' || c == ':').next().unwrap_or("").trim();
+                if var_name == word {
+                    let col = l.find(var_name).unwrap_or(0);
+                    return Some((i, col, i, col + var_name.len()));
+                }
+            }
+        }
+        None
+    }
+
+    fn word_at_position(content: &str, line: usize, character: usize) -> Option<String> {
+        let lines: Vec<&str> = content.lines().collect();
+        if line >= lines.len() { return None; }
+        let current_line = lines[line];
+        let chars: Vec<char> = current_line.chars().collect();
+        if character >= chars.len() { return None; }
+
+        let mut start = character;
+        while start > 0 {
+            let c = chars[start - 1];
+            if c.is_alphanumeric() || c == '_' || c == '@' { start -= 1; } else { break; }
+        }
+        let mut end = character;
+        while end < chars.len() {
+            let c = chars[end];
+            if c.is_alphanumeric() || c == '_' { end += 1; } else { break; }
+        }
+        if start == end { return None; }
+        Some(chars[start..end].iter().collect())
+    }
+
+    fn find_references(&self, content: &str, line: usize, character: usize) -> Vec<(usize, usize, usize, usize)> {
+        let word = match Self::word_at_position(content, line, character) {
+            Some(w) => w, None => return vec![],
+        };
+        let lines: Vec<&str> = content.lines().collect();
+        let mut refs = Vec::new();
+        for (i, l) in lines.iter().enumerate() {
+            let mut search_start = 0usize;
+            while let Some(pos) = l[search_start..].find(&word) {
+                let abs_pos = search_start + pos;
+                let before_ok = abs_pos == 0 || {
+                    let c = l.as_bytes().get(abs_pos - 1).copied().unwrap_or(b' ');
+                    !c.is_ascii_alphanumeric() && c != b'_'
+                };
+                let after_ok = {
+                    let c = l.as_bytes().get(abs_pos + word.len()).copied().unwrap_or(b' ');
+                    !c.is_ascii_alphanumeric() && c != b'_'
+                };
+                if before_ok && after_ok {
+                    refs.push((i, abs_pos, i, abs_pos + word.len()));
+                }
+                search_start = abs_pos + 1;
+                if search_start >= l.len() { break; }
+            }
+        }
+        refs
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Signature Help Provider
 // ---------------------------------------------------------------------------
 
@@ -481,6 +578,7 @@ fn main() {
     let completion_engine = CompletionEngine::new();
     let hover_provider = HoverProvider;
     let signature_helper = SignatureHelpProvider;
+    let definition_provider = DefinitionProvider;
 
     let mut reader = BufReader::new(io::stdin());
     let mut stdout = io::stdout();
@@ -512,6 +610,8 @@ fn main() {
                                 "signatureHelpProvider": {
                                     "triggerCharacters": ["(", ","]
                                 },
+                                "definitionProvider": true,
+                                "referencesProvider": true,
                             }
                         }
                     });
@@ -656,6 +756,68 @@ fn main() {
                         &mut stdout,
                         &json!({"jsonrpc": "2.0", "id": req.get("id"), "result": result_value}),
                     );
+                }
+
+                // --- Go-to-Definition ---
+                "textDocument/definition" => {
+                    let params = req.get("params");
+                    let text_doc = params.and_then(|p| p.get("textDocument"));
+                    let uri = text_doc
+                        .and_then(|d| d.get("uri").and_then(|u| u.as_str()))
+                        .unwrap_or("");
+                    let position = text_doc.and_then(|d| d.get("position"));
+                    let line = position.as_ref().and_then(|l| l.get("line")).and_then(|l| l.as_u64()).unwrap_or(0) as usize;
+                    let character = position.as_ref().and_then(|c| c.get("character")).and_then(|c| c.as_u64()).unwrap_or(0) as usize;
+
+                    let content = match compiler.doc_manager.get_content(uri) {
+                        Some(c) => c.to_string(),
+                        None => {
+                            send_response(&mut stdout, &json!({"jsonrpc": "2.0", "id": req.get("id"), "result": null}));
+                            continue;
+                        }
+                    };
+
+                    let def = definition_provider.find_definition(&content, line, character);
+                    let result = def.map(|(sl, sc, el, ec)| json!({
+                        "uri": uri,
+                        "range": {
+                            "start": {"line": sl, "character": sc},
+                            "end": {"line": el, "character": ec}
+                        }
+                    }));
+                    send_response(&mut stdout, &json!({
+                        "jsonrpc": "2.0", "id": req.get("id"), "result": result
+                    }));
+                }
+
+                // --- Find References ---
+                "textDocument/references" => {
+                    let params = req.get("params");
+                    let text_doc = params.and_then(|p| p.get("textDocument"));
+                    let uri = text_doc.and_then(|d| d.get("uri").and_then(|u| u.as_str())).unwrap_or("");
+                    let position = text_doc.and_then(|d| d.get("position"));
+                    let line = position.as_ref().and_then(|l| l.get("line")).and_then(|l| l.as_u64()).unwrap_or(0) as usize;
+                    let character = position.as_ref().and_then(|c| c.get("character")).and_then(|c| c.as_u64()).unwrap_or(0) as usize;
+
+                    let content = match compiler.doc_manager.get_content(uri) {
+                        Some(c) => c.to_string(),
+                        None => {
+                            send_response(&mut stdout, &json!({"jsonrpc": "2.0", "id": req.get("id"), "result": []}));
+                            continue;
+                        }
+                    };
+
+                    let refs = definition_provider.find_references(&content, line, character);
+                    let locations: Vec<Value> = refs.iter().map(|(sl, sc, el, ec)| json!({
+                        "uri": uri,
+                        "range": {
+                            "start": {"line": sl, "character": sc},
+                            "end": {"line": el, "character": ec}
+                        }
+                    })).collect();
+                    send_response(&mut stdout, &json!({
+                        "jsonrpc": "2.0", "id": req.get("id"), "result": locations
+                    }));
                 }
 
                 // --- Signature Help ---
