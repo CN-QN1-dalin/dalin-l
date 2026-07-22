@@ -261,8 +261,7 @@ impl CognitiveLoop {
     pub fn leq(&self, other: &CognitiveLoop) -> bool {
         use CognitiveLoop::*;
         match (self, other) {
-            (Perceive, x) if *x != Perceive => true,
-            (_, Perceive) => false,
+            (Perceive, _) => true,
             (Reason, x) if *x == Reason || *x == Decide || *x == Act || *x == Loop => true,
             (_, Reason) => false,
             (Decide, x) if *x == Decide || *x == Act || *x == Loop => true,
@@ -1670,6 +1669,76 @@ impl SevenChannelInferencer {
         }
         lines.push(String::new());
         lines.join("\n")
+    }
+
+    pub fn has_errors(&self) -> bool {
+        !self.value.errors.is_empty()
+            || !self.effect.errors.is_empty()
+            || !self.capability.errors.is_empty()
+            || !self.confidence.errors.is_empty()
+            || !self.cognitive_loop.errors.is_empty()
+            || !self.governance.errors.is_empty()
+            || !self.time_constraint.errors.is_empty()
+    }
+
+    /// 收集七通道所有结构化错误
+    pub fn collect_errors(&self) -> Vec<crate::error::ChannelError> {
+        let mut errs = Vec::new();
+        for e in &self.effect.errors {
+            errs.push(crate::error::ChannelError::EffectViolation {
+                location: crate::error::SourceLocation { line: 0, column: 0, filename: "compile".into() },
+                context: "".into(),
+                required: "".into(),
+                detail: e.clone(),
+            });
+        }
+        for e in &self.capability.errors {
+            errs.push(crate::error::ChannelError::CapabilityViolation {
+                location: crate::error::SourceLocation { line: 0, column: 0, filename: "compile".into() },
+                context: "".into(),
+                required: "".into(),
+                detail: e.clone(),
+            });
+        }
+        for e in &self.confidence.errors {
+            errs.push(crate::error::ChannelError::ConfidenceViolation {
+                location: crate::error::SourceLocation { line: 0, column: 0, filename: "compile".into() },
+                actual: "".into(),
+                required: "".into(),
+                detail: e.clone(),
+            });
+        }
+        for e in &self.cognitive_loop.errors {
+            errs.push(crate::error::ChannelError::CognitiveLoopViolation {
+                location: crate::error::SourceLocation { line: 0, column: 0, filename: "compile".into() },
+                context: "".into(),
+                required: "".into(),
+                detail: e.clone(),
+            });
+        }
+        for e in &self.governance.errors {
+            errs.push(crate::error::ChannelError::GovernanceViolation {
+                location: crate::error::SourceLocation { line: 0, column: 0, filename: "compile".into() },
+                required: "".into(),
+                actual: "".into(),
+                detail: e.clone(),
+            });
+        }
+        for e in &self.time_constraint.errors {
+            errs.push(crate::error::ChannelError::LatencyViolation {
+                location: crate::error::SourceLocation { line: 0, column: 0, filename: "compile".into() },
+                declared_ms: 0,
+                actual_ms: 0,
+                detail: e.clone(),
+            });
+        }
+        for e in &self.value.errors {
+            errs.push(crate::error::ChannelError::TypeError {
+                location: crate::error::SourceLocation { line: 0, column: 0, filename: "compile".into() },
+                message: e.message.clone(),
+            });
+        }
+        errs
     }
 }
 

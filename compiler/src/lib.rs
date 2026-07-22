@@ -58,6 +58,7 @@ pub fn compile_with_llm(src: &str) -> CompileResult {
     // Step 4: 七通道类型推断
     let mut infer = SevenChannelInferencer::new();
     infer.infer_program(&expanded);
+    let ty2_errors = infer.collect_errors();
 
     // Step 5: 延迟验证（Phase D — 时序契约）
     let latency_result = latency::LatencyVerifier::verify(&expanded);
@@ -77,20 +78,22 @@ pub fn compile_with_llm(src: &str) -> CompileResult {
         program: expanded,
         report,
         specs,
-        errors: latency_result
-            .errors
-            .iter()
-            .map(|e| ChannelError::LatencyViolation {
-                location: crate::error::SourceLocation {
-                    line: 0,
-                    column: 0,
-                    filename: "compile".into(),
-                },
-                declared_ms: 0,
-                actual_ms: 0,
-                detail: e.clone(),
-            })
-            .collect::<Vec<_>>(),
+        errors: {
+            let mut all_errors = ty2_errors;
+            all_errors.extend(latency_result.errors.iter().map(|e| {
+                ChannelError::LatencyViolation {
+                    location: crate::error::SourceLocation {
+                        line: 0,
+                        column: 0,
+                        filename: "compile".into(),
+                    },
+                    declared_ms: 0,
+                    actual_ms: 0,
+                    detail: e.clone(),
+                }
+            }));
+            all_errors
+        },
     }
 }
 
