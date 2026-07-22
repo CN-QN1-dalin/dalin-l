@@ -19,8 +19,8 @@ pub struct BytecodeCompiler {
     code: Vec<Opcode>,
     /// 当前函数名
     fn_name: String,
-    /// 局部变量表：变量名 → 栈偏移（从栈底算起的位置）
-    locals: HashMap<String, usize>,
+    /// 局部变量表：变量名 → 槽位编号（u8，对应 VM::GetLoc/SetLoc）
+    locals: HashMap<String, u8>,
     /// 当前已编译的函数名集合（用于去重）
     compiled_fns: Vec<String>,
 }
@@ -107,9 +107,12 @@ impl BytecodeCompiler {
         idx as u16
     }
 
-    /// 注册一个局部变量，记录其栈偏移
-    fn register_local(&mut self, name: &str, stack_offset: usize) {
-        self.locals.insert(name.to_string(), stack_offset);
+    /// 为新局部变量分配下一个槽位编号并注册
+    fn allocate_local(&mut self, name: &str) -> u8 {
+        let max_slot = self.locals.values().copied().max().unwrap_or(0);
+        let slot = max_slot.saturating_add(1);
+        self.locals.insert(name.to_string(), slot);
+        slot
     }
 
     fn compile_stmt(&mut self, stmt: &Stmt) {
@@ -117,24 +120,23 @@ impl BytecodeCompiler {
             Stmt::Expr(e) => {
                 self.compile_expr(e);
             }
-            Stmt::Let { name, value, .. } => {
-                // let x = expr → 编译 expr，记录变量位置
-                let stack_before = self.current_offset(); // 近似栈偏移
+            Stmt::Let { name, value, mutable: _, type_annotation: _ } => {
+                let sid = self.allocate_local(name);
                 if let Some(v) = value {
                     self.compile_expr(v);
                 } else {
                     self.emit(Opcode::LoadNone);
                 }
-                self.register_local(name, stack_before);
+                self.emit(Opcode::SetLoc(sid));
             }
-            Stmt::Const { name, value, .. } => {
-                let stack_before = self.current_offset();
+            Stmt::Const { name, value, type_annotation: _ } => {
+                let sid = self.allocate_local(name);
                 if let Some(v) = value {
                     self.compile_expr(v);
                 } else {
                     self.emit(Opcode::LoadNone);
                 }
-                self.register_local(name, stack_before);
+                self.emit(Opcode::SetLoc(sid));
             }
             Stmt::Fn {
                 name,
@@ -163,7 +165,10 @@ impl BytecodeCompiler {
                 // 注册参数为局部变量
                 for (i, param) in params.iter().enumerate() {
                     let pname = Self::param_name(param, i);
-                    self.register_local(&pname, i);
+                    // Param slot assignment
+                    let p_slot = i as u8;
+                    self.locals.insert(pname.clone(), p_slot);
+                    // Also ensure locals vec has enough room
                 }
 
                 // 编译函数体
@@ -228,14 +233,12 @@ impl BytecodeCompiler {
                 self.emit(Opcode::LoadStr(idx));
             }
             Expr::Ident(name) => {
-                // 查找局部变量表
-                if let Some(_offset) = self.locals.get(name) {
-                    // 变量已注册，但当前 VM 没有 LoadLocal 指令
-                    // 变量值在编译时已被 push 到栈上
-                    // 这里标记为已解析
+                if let Some(&slot) = self.locals.get(name.as_str()) {
+                    self.emit(Opcode::GetLoc(slot));
+                } else {
+                    // 未注册的标识符 → LoadNone
+                    self.emit(Opcode::LoadNone);
                 }
-                // 对于非变量标识符（如函数名在 Call 中），由 Call 处理
-                self.emit(Opcode::LoadNone);
             }
 
             Expr::BinaryOp { left, op, right } => {
@@ -246,13 +249,16 @@ impl BytecodeCompiler {
                     "-" => Opcode::Sub,
                     "*" => Opcode::Mul,
                     "/" => Opcode::Div,
+                    "%" => Opcode::Mod,
+                    "&&" => Opcode::And,
+                    "||" => Opcode::Or,
                     "==" => Opcode::Eq,
                     "!=" => Opcode::Ne,
                     "<" => Opcode::Lt,
                     ">" => Opcode::Gt,
                     "<=" => Opcode::Le,
                     ">=" => Opcode::Ge,
-                    _ => Opcode::Add, // fallback
+                    _ => Opcode::Add,
                 };
                 self.emit(opcode);
             }
@@ -261,6 +267,8 @@ impl BytecodeCompiler {
                 self.compile_expr(operand);
                 if op == "-" {
                     self.emit(Opcode::Neg);
+                } else if op == "!" {
+                    self.emit(Opcode::Not);
                 }
             }
 

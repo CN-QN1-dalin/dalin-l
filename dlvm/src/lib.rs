@@ -60,6 +60,19 @@ pub enum Opcode {
     Return,                // 从函数返回
     MakeClosure(u16),      // 创建闭包（函数索引，环境大小）
 
+    // ── 局部变量读写 ──
+    GetLoc(u8),     // 读取局部变量槽位 → 压栈
+    SetLoc(u8),     // 弹栈顶 → 写入局部变量槽位
+
+    // ── C FFI ──
+    CallC(u16, u16, usize), // C FFI stub
+
+    // ── 算术扩展 ──
+    Mod,        // 取模
+    And,        // 逻辑与
+    Or,         // 逻辑或
+    Not,        // 逻辑非
+
     // ── 数据结构 ──
     MakeArray(u16), // 创建数组（从栈上弹出 n 个元素）
     Index,          // 索引访问
@@ -388,6 +401,8 @@ pub struct Vm {
     channels: HashMap<usize, Channel>,
     /// 全局通道 ID 计数器
     next_channel_id: usize,
+    /// 每函数局部变量槽位 [fn_idx][slot_idx]
+    locals: Vec<Vec<Value>>,
 }
 
 /// DLVM 错误
@@ -427,6 +442,7 @@ impl Vm {
         for (i, f) in functions.iter().enumerate() {
             fn_by_name.insert(f.name.clone(), i);
         }
+        let fn_count = functions.len();
         let entry = functions.first().map(|_| 0).unwrap_or(0);
         Self {
             stack: Vec::with_capacity(1024),
@@ -439,6 +455,7 @@ impl Vm {
             scheduler: Scheduler::new(),
             channels: HashMap::new(),
             next_channel_id: 0,
+            locals: vec![Vec::new(); fn_count],
         }
     }
 
@@ -706,6 +723,52 @@ impl Vm {
 
             Opcode::Builtin(idx) => {
                 self.execute_builtin(idx)?;
+            }
+
+            // ── 局部变量读写 ──
+            Opcode::GetLoc(slot) => {
+                let sid = slot as usize;
+                if self.locals.len() <= self.current_fn || sid >= self.locals[self.current_fn].len() {
+                    self.locals[self.current_fn].resize(sid + 1, Value::None);
+                }
+                self.stack.push(self.locals[self.current_fn][sid].clone());
+            }
+            Opcode::SetLoc(slot) => {
+                let val = self.stack.pop().ok_or(VmError::StackUnderflow)?;
+                let sid = slot as usize;
+                if self.locals.len() <= self.current_fn || sid >= self.locals[self.current_fn].len() {
+                    self.locals[self.current_fn].resize(sid + 1, Value::None);
+                }
+                self.locals[self.current_fn][sid] = val;
+            }
+            Opcode::CallC(_lib_idx, _func_idx, argc) => {
+                for _ in 0..argc {
+                    self.stack.pop().ok_or(VmError::StackUnderflow)?;
+                }
+                self.stack.push(Value::None);
+            }
+            Opcode::Mod => {
+                let b = self.stack.pop().ok_or(VmError::StackUnderflow)?;
+                let a = self.stack.pop().ok_or(VmError::StackUnderflow)?;
+                match (a, b) {
+                    (Value::Int(x), Value::Int(y)) if y != 0 => self.stack.push(Value::Int(x % y)),
+                    (Value::Float(x), Value::Float(y)) if y != 0.0 => self.stack.push(Value::Float(x % y)),
+                    _ => return Err(VmError::TypeError("% requires int/float".into())),
+                }
+            }
+            Opcode::And => {
+                let b = self.stack.pop().ok_or(VmError::StackUnderflow)?;
+                let a = self.stack.pop().ok_or(VmError::StackUnderflow)?;
+                self.stack.push(Value::Bool(self.bool_of(&a) && self.bool_of(&b)));
+            }
+            Opcode::Or => {
+                let b = self.stack.pop().ok_or(VmError::StackUnderflow)?;
+                let a = self.stack.pop().ok_or(VmError::StackUnderflow)?;
+                self.stack.push(Value::Bool(self.bool_of(&a) || self.bool_of(&b)));
+            }
+            Opcode::Not => {
+                let a = self.stack.pop().ok_or(VmError::StackUnderflow)?;
+                self.stack.push(Value::Bool(!self.bool_of(&a)));
             }
 
             // ── M:N 协程调度 ──
@@ -987,6 +1050,17 @@ impl Vm {
             }
         }
         Ok(())
+    }
+
+    fn bool_of(&self, v: &Value) -> bool {
+        match v {
+            Value::Bool(b) => *b,
+            Value::None => false,
+            Value::Int(0) => false,
+            Value::Str(s) => !s.is_empty(),
+            Value::Array(a) => !a.is_empty(),
+            _ => true,
+        }
     }
 
     fn find_fn_by_ip(&self, ip: usize) -> Option<usize> {
