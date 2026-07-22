@@ -23,6 +23,8 @@ pub struct BytecodeCompiler {
     locals: HashMap<String, u8>,
     /// 当前已编译的函数名集合（用于去重）
     compiled_fns: Vec<String>,
+    /// 编译错误标志
+    had_compile_error: bool,
 }
 
 impl Default for BytecodeCompiler {
@@ -40,17 +42,35 @@ impl BytecodeCompiler {
             fn_name: "main".into(),
             locals: HashMap::new(),
             compiled_fns: vec![],
+            had_compile_error: false,
         }
+    }
+
+    fn mark_error(&mut self) {
+        self.had_compile_error = true;
+    }
+
+    fn has_error(&self) -> bool {
+        self.had_compile_error
     }
 
     /// 编译整个程序
     pub fn compile(&mut self, prog: &Program) -> Vec<BytecodeFunction> {
         self.functions.clear();
         self.compiled_fns.clear();
+        self.had_compile_error = false;
         self.start_function("__entry__");
 
         for stmt in &prog.statements {
             self.compile_stmt(stmt);
+            if self.has_error() {
+                break;
+            }
+        }
+
+        if self.has_error() {
+            // 编译失败：返回空函数列表，调用方检查 had_compile_error
+            return std::mem::take(&mut self.functions);
         }
 
         // 确保最后有 Return
@@ -108,11 +128,11 @@ impl BytecodeCompiler {
     }
 
     /// 为新局部变量分配下一个槽位编号并注册
-    fn allocate_local(&mut self, name: &str) -> u8 {
+    fn allocate_local(&mut self, name: &str) -> Option<u8> {
         let max_slot = self.locals.values().copied().max().unwrap_or(0);
         let slot = max_slot.saturating_add(1);
         self.locals.insert(name.to_string(), slot);
-        slot
+        Some(slot)
     }
 
     fn compile_stmt(&mut self, stmt: &Stmt) {
@@ -121,7 +141,10 @@ impl BytecodeCompiler {
                 self.compile_expr(e);
             }
             Stmt::Let { name, value, mutable: _, type_annotation: _ } => {
-                let sid = self.allocate_local(name);
+                let sid = match self.allocate_local(name) {
+                    Some(s) => s,
+                    None => return,
+                };
                 if let Some(v) = value {
                     self.compile_expr(v);
                 } else {
@@ -130,7 +153,10 @@ impl BytecodeCompiler {
                 self.emit(Opcode::SetLoc(sid));
             }
             Stmt::Const { name, value, type_annotation: _ } => {
-                let sid = self.allocate_local(name);
+                let sid = match self.allocate_local(name) {
+                    Some(s) => s,
+                    None => return,
+                };
                 if let Some(v) = value {
                     self.compile_expr(v);
                 } else {
@@ -243,7 +269,9 @@ impl BytecodeCompiler {
 
             Expr::BinaryOp { left, op, right } => {
                 self.compile_expr(left);
+                if self.has_error() { return; }
                 self.compile_expr(right);
+                if self.has_error() { return; }
                 let opcode = match op.as_str() {
                     "+" => Opcode::Add,
                     "-" => Opcode::Sub,
@@ -258,17 +286,26 @@ impl BytecodeCompiler {
                     ">" => Opcode::Gt,
                     "<=" => Opcode::Le,
                     ">=" => Opcode::Ge,
-                    _ => Opcode::Add,
+                    other => {
+                        eprintln!("compile error: unknown binary operator '{}'", other);
+                        self.mark_error();
+                        return;
+                    }
                 };
                 self.emit(opcode);
             }
 
             Expr::UnaryOp { op, operand } => {
                 self.compile_expr(operand);
+                if self.has_error() { return; }
                 if op == "-" {
                     self.emit(Opcode::Neg);
                 } else if op == "!" {
                     self.emit(Opcode::Not);
+                } else {
+                    eprintln!("compile error: unknown unary operator '{}'", op);
+                    self.mark_error();
+                    return;
                 }
             }
 
@@ -276,6 +313,7 @@ impl BytecodeCompiler {
                 // 编译参数
                 for a in args {
                     self.compile_expr(a);
+                    if self.has_error() { return; }
                 }
                 // 如果函数是 Ident，用 Builtin 或按名调用
                 if let Expr::Ident(name) = func.as_ref() {
@@ -304,18 +342,21 @@ impl BytecodeCompiler {
             Expr::IfExpr(cond, then, else_) => {
                 // 编译条件
                 self.compile_expr(cond);
+                if self.has_error() { return; }
                 // 假跳转占位
                 let jmp_false_pos = self.current_offset();
                 self.emit(Opcode::JmpIfNot(0)); // placeholder
 
                 // then 分支
                 self.compile_expr(then);
+                if self.has_error() { return; }
                 let jmp_end_pos = self.current_offset();
                 self.emit(Opcode::Jmp(0)); // placeholder
 
                 // else 分支 — 记录其起始位置
                 let else_start = self.current_offset();
                 self.compile_expr(else_);
+                if self.has_error() { return; }
 
                 // 精确 patch 跳转偏移
                 // JmpIfNot: 条件为 false 时跳到 else_start
@@ -339,6 +380,7 @@ impl BytecodeCompiler {
             Expr::Array(items) => {
                 for item in items {
                     self.compile_expr(item);
+                    if self.has_error() { return; }
                 }
                 self.emit(Opcode::MakeArray(items.len() as u16));
             }
@@ -346,6 +388,7 @@ impl BytecodeCompiler {
             // 成员访问 obj.member → Member(idx)
             Expr::MemberAccess { object, member } => {
                 self.compile_expr(object);
+                if self.has_error() { return; }
                 let idx = self.add_constant(member);
                 self.emit(Opcode::Member(idx));
             }
@@ -353,15 +396,19 @@ impl BytecodeCompiler {
             // 索引访问 arr[i] → Index
             Expr::Index { array, index } => {
                 self.compile_expr(array);
+                if self.has_error() { return; }
                 self.compile_expr(index);
+                if self.has_error() { return; }
                 self.emit(Opcode::Index);
             }
 
             Expr::Pipe { input, ops } => {
                 // pipe: input |> fn(arg) → compile input, call fn with arg
                 self.compile_expr(input);
+                if self.has_error() { return; }
                 for (fn_name, call_arg) in ops {
                     self.compile_expr(call_arg);
+                    if self.has_error() { return; }
                     let builtin_idx = match fn_name.as_str() {
                         "print" => Some(0),
                         "println" => Some(1),
@@ -369,7 +416,13 @@ impl BytecodeCompiler {
                     };
                     match builtin_idx {
                         Some(idx) => self.emit(Opcode::Builtin(idx)),
-                        None => self.emit(Opcode::Call(2, CallTarget::Name(fn_name.clone()))),
+                        None => {
+                            // argv = 2 (input + arg) for non-builtin
+                            self.emit(Opcode::Call(
+                                2u16,
+                                CallTarget::Name(fn_name.clone()),
+                            ));
+                        }
                     }
                 }
             }
@@ -377,7 +430,9 @@ impl BytecodeCompiler {
             // Range 表达式：编译 start 和 end，结果留待运行时处理
             Expr::Range { start, end, inclusive: _ } => {
                 self.compile_expr(start);
+                if self.has_error() { return; }
                 self.compile_expr(end);
+                if self.has_error() { return; }
                 // 简化为二元数组 [start, end]
                 self.emit(Opcode::MakeArray(2));
             }
@@ -401,6 +456,7 @@ impl BytecodeCompiler {
             // Match 表达式：暂时编译 target + 第一个 arm 的最后一条表达式
             Expr::MatchExpr(target, arms) => {
                 self.compile_expr(target);
+                if self.has_error() { return; }
                 if let Some(first_arm) = arms.first() {
                     // 取第一个 arm 的最后一条表达式语句
                     if let Some(last_stmt) = first_arm.body.last() {
@@ -418,6 +474,7 @@ impl BytecodeCompiler {
                 let argc = args.len();
                 for a in args {
                     self.compile_expr(a);
+                    if self.has_error() { return; }
                 }
                 let lib_idx = lib_path.as_deref().map(|p| self.add_constant(p)).unwrap_or(0);
                 let func_idx = self.add_constant(func_name);
@@ -432,6 +489,7 @@ impl BytecodeCompiler {
                         }
                         InterpolatePart::Expr(e) => {
                             self.compile_expr(e);
+                            if self.has_error() { return; }
                         }
                     }
                 }
@@ -440,6 +498,7 @@ impl BytecodeCompiler {
             }
             Expr::IsCheck(expr, _) => {
                 self.compile_expr(expr);
+                if self.has_error() { return; }
                 self.emit(Opcode::LoadBool(false));
             }
             Expr::Cast(expr, _) => {
