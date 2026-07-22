@@ -209,12 +209,13 @@ impl BytecodeCompiler {
                 }
 
                 // 完成函数编译
+                let local_count = self.locals.len() as u8;
                 self.functions.push(BytecodeFunction {
                     name: std::mem::take(&mut self.fn_name),
                     code: std::mem::take(&mut self.code),
                     constants: std::mem::take(&mut self.constants),
                     arity: params.len() as u8,
-                    locals: 0,
+                    locals: local_count,
                     effect: effect.clone(),
                     capability: capability.clone(),
                 });
@@ -238,10 +239,8 @@ impl BytecodeCompiler {
     }
 
     /// 从函数参数提取名称
-    fn param_name(_param: &FnParam, idx: usize) -> String {
-        // FnParam 可能有 name 字段，也可能只有 type_annotation
-        // 用索引作为后备名
-        format!("_p{idx}")
+    fn param_name(param: &FnParam, _idx: usize) -> String {
+        param.name.clone()
     }
 
     fn compile_expr(&mut self, expr: &Expr) {
@@ -480,6 +479,8 @@ impl BytecodeCompiler {
                 self.emit(Opcode::CallC(lib_idx, func_idx, argc));
             }
             Expr::Interpolate { parts } => {
+                // 编译各部分后用 string_concat (builtin 4) 拼接
+                // 栈布局: [part0, part1, ..., partN-1, count(N)]
                 for part in parts {
                     match part {
                         InterpolatePart::Literal(s) => {
@@ -493,7 +494,8 @@ impl BytecodeCompiler {
                     }
                 }
                 let total = parts.len();
-                self.emit(Opcode::Builtin(total as u8));
+                self.emit(Opcode::LoadInt(total as i64));
+                self.emit(Opcode::Builtin(4)); // string_concat
             }
             Expr::IsCheck(expr, _) => {
                 self.compile_expr(expr);

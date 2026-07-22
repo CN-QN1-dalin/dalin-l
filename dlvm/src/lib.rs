@@ -1024,13 +1024,8 @@ impl Vm {
     }
 
     fn pop_bool(&mut self) -> Result<bool, VmError> {
-        match self.stack.pop().ok_or(VmError::StackUnderflow)? {
-            Value::Bool(b) => Ok(b),
-            Value::None => Ok(false),
-            Value::Int(0) => Ok(false),
-            Value::Int(_) => Ok(true),
-            _ => Ok(true), // 任意非空值 = true
-        }
+        let v = self.stack.pop().ok_or(VmError::StackUnderflow)?;
+        Ok(self.bool_of(&v))
     }
 
     fn execute_builtin(&mut self, idx: u8) -> Result<(), VmError> {
@@ -1063,6 +1058,19 @@ impl Vm {
                     return Err(VmError::TypeError("assertion failed".into()));
                 }
                 self.stack.push(Value::None);
+            }
+            4 => {
+                // string_concat: 弹出 n 个值，拼接为字符串
+                let n = self.stack.pop().ok_or(VmError::StackUnderflow)?
+                    .as_int().ok_or(VmError::TypeError("string_concat: count must be Int".into()))?
+                    as usize;
+                let mut parts: Vec<String> = Vec::with_capacity(n);
+                for _ in 0..n {
+                    let v = self.stack.pop().ok_or(VmError::StackUnderflow)?;
+                    parts.push(v.to_string());
+                }
+                parts.reverse();
+                self.stack.push(Value::Str(parts.concat()));
             }
             _ => {
                 return Err(VmError::InvalidOpcode(Opcode::Builtin(idx)));

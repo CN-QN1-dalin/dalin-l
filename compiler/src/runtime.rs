@@ -770,8 +770,14 @@ impl Runtime {
             elapsed_us: fn_start.elapsed().as_micros() as u64,
         });
 
-        // 4. 创建函数作用域并绑定参数
+        // 4. 创建函数作用域并绑定参数（带数量校验）
         self.env.push_scope();
+        if fn_def.params.len() != args.len() {
+            return Err(RuntimeError::RuntimePanic(format!(
+                "function '{}' expects {} argument(s), got {}",
+                fn_def.name, fn_def.params.len(), args.len()
+            )));
+        }
         for (param, arg) in fn_def.params.iter().zip(args.iter()) {
             self.env.define(&param.name, arg.clone());
         }
