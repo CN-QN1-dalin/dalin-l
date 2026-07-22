@@ -615,64 +615,109 @@ impl Runtime {
     }
 
     fn load_stmt(&mut self, stmt: &Stmt) {
-        if let Stmt::Fn {
-            name,
-            params,
-            body,
-            effect,
-            capability,
-            confidence,
-            cognitive_loop,
-            governance,
-            latency,
-            timeout,
-            throughput,
-            ..
-        } = stmt
-        {
-            let eff = effect.as_deref().map(parse_effect).unwrap_or(Effect::Pure);
-            let cap = capability
-                .as_deref()
-                .map(parse_capability)
-                .unwrap_or(Capability::Cpu);
-            let conf = confidence.as_deref().map(parse_confidence);
-            let cl = cognitive_loop.as_deref().map(parse_cognitive_loop);
-            let gov = governance.as_deref().map(parse_governance);
-            let tc = {
-                let mut t = TimeConstraint::new();
-                if let Some(l) = latency {
-                    t.latency_ms = l.trim_end_matches("ms").parse::<u64>().ok();
-                }
-                if let Some(to) = timeout {
-                    t.timeout_ms = if to.ends_with("ms") {
-                        to.trim_end_matches("ms").parse::<u64>().ok()
+        match stmt {
+            Stmt::Fn {
+                name,
+                params,
+                body,
+                effect,
+                capability,
+                confidence,
+                cognitive_loop,
+                governance,
+                latency,
+                timeout,
+                throughput,
+                ..
+            } => {
+                let eff = effect.as_deref().map(parse_effect).unwrap_or(Effect::Pure);
+                let cap = capability
+                    .as_deref()
+                    .map(parse_capability)
+                    .unwrap_or(Capability::Cpu);
+                let conf = confidence.as_deref().map(parse_confidence);
+                let cl = cognitive_loop.as_deref().map(parse_cognitive_loop);
+                let gov = governance.as_deref().map(parse_governance);
+                let tc = {
+                    let mut t = TimeConstraint::new();
+                    if let Some(l) = latency {
+                        t.latency_ms = l.trim_end_matches("ms").parse::<u64>().ok();
+                    }
+                    if let Some(to) = timeout {
+                        t.timeout_ms = if to.ends_with("ms") {
+                            to.trim_end_matches("ms").parse::<u64>().ok()
+                        } else {
+                            to.trim_end_matches("s")
+                                .parse::<u64>()
+                                .ok()
+                                .map(|x| x * 1000)
+                        };
+                    }
+                    if let Some(tp) = throughput {
+                        t.throughput = tp.trim_end_matches("/s").parse::<u64>().ok();
+                    }
+                    if t.latency_ms.is_some() || t.timeout_ms.is_some() || t.throughput.is_some() {
+                        Some(t)
                     } else {
-                        to.trim_end_matches("s")
-                            .parse::<u64>()
-                            .ok()
-                            .map(|x| x * 1000)
-                    };
-                }
-                if let Some(tp) = throughput {
-                    t.throughput = tp.trim_end_matches("/s").parse::<u64>().ok();
-                }
-                if t.latency_ms.is_some() || t.timeout_ms.is_some() || t.throughput.is_some() {
-                    Some(t)
+                        None
+                    }
+                };
+                self.env.register_fn(FnDef {
+                    name: name.clone(),
+                    params: params.clone(),
+                    body: body.clone(),
+                    effect: eff,
+                    capability: cap,
+                    confidence: conf,
+                    cognitive_loop: cl,
+                    governance: gov,
+                    time_constraint: tc,
+                });
+            }
+            // ── StructDef: 注册类型名到运行时，可用作 RuntimeValue::Struct 构造函数名 ──
+            Stmt::StructDef { name, .. } => {
+                // 在本地作用域定义一个构造工厂标记，便于后续识别类型
+                self.env.define(name.as_str(), RuntimeValue::String(format!("struct@{}", name)));
+            }
+            // ── EnumDef: 注册枚举类型名 ──
+            Stmt::EnumDef { name, .. } => {
+                self.env.define(name.as_str(), RuntimeValue::String(format!("enum@{}", name)));
+            }
+            // ── TypeAlias: 注册别名到作用域 ──
+            Stmt::TypeAlias { name, .. } => {
+                self.env.define(name.as_str(), RuntimeValue::String(format!("alias@{}", name)));
+            }
+            // ── TraitDef / ImplBlock: 暂作为类型级元数据注册 ──
+            Stmt::TraitDef { name, .. } => {
+                self.env.define(name.as_str(), RuntimeValue::String(format!("trait@{}", name)));
+            }
+            Stmt::ImplBlock { type_name, .. } => {
+                self.env.define(type_name.as_str(), RuntimeValue::String(format!("impl@{}", type_name)));
+            }
+            // ── Channel: 创建通道端点并注册名称 ──
+            Stmt::Channel { send_name, recv_name, elem_type, capacity } => {
+                let info = format!("channel<{:?}>[cap={}] (send={}, recv={})",
+                    elem_type, capacity, send_name, recv_name);
+                self.env.define(send_name.as_str(), RuntimeValue::String(format!("chan_send:{}", info)));
+                self.env.define(recv_name.as_str(), RuntimeValue::String(format!("chan_recv:{}", info)));
+            }
+            // ── Llm: 打印编译期 LLM 生成的诊断信息 ──
+            Stmt::Llm { prompt, target, .. } => {
+                let msg = if let Some(t) = target {
+                    format!("[@llm] prompt: {:?}, target: {}", prompt, t)
                 } else {
-                    None
-                }
-            };
-            self.env.register_fn(FnDef {
-                name: name.clone(),
-                params: params.clone(),
-                body: body.clone(),
-                effect: eff,
-                capability: cap,
-                confidence: conf,
-                cognitive_loop: cl,
-                governance: gov,
-                time_constraint: tc,
-            });
+                    format!("[@llm] prompt: {:?}", prompt)
+                };
+                eprintln!("{}", msg);
+            }
+            // ── Use / Export: 注册模块路径标记 ──
+            Stmt::Use(path) => {
+                self.env.define(path.as_str(), RuntimeValue::String(format!("use@{}", path)));
+            }
+            Stmt::Export(path) => {
+                self.env.define(path.as_str(), RuntimeValue::String(format!("export@{}", path)));
+            }
+            _ => {}
         }
     }
 
@@ -987,17 +1032,18 @@ impl Runtime {
                 }
                 Ok(RuntimeValue::None)
             }
-            // 声明类语句：不产生值
-            Stmt::Fn { .. }
-            | Stmt::StructDef { .. }
-            | Stmt::EnumDef { .. }
-            | Stmt::TraitDef { .. }
-            | Stmt::ImplBlock { .. }
-            | Stmt::Channel { .. }
-            | Stmt::Llm { .. }
-            | Stmt::Use(_)
-            | Stmt::Export(_)
-            | Stmt::TypeAlias { .. } => Ok(RuntimeValue::None),
+            Stmt::Fn { .. } => Ok(RuntimeValue::None),
+            // StructDef / EnumDef / TraitDef / ImplBlock — 声明不产生值
+            Stmt::StructDef { .. } | Stmt::EnumDef { .. } | Stmt::TraitDef { .. }
+            | Stmt::ImplBlock { .. } | Stmt::TypeAlias { .. } => {
+                Ok(RuntimeValue::None)
+            }
+            // Channel — 在 load_stmt 阶段注册，执行阶段直接返回 none
+            Stmt::Channel { .. } => Ok(RuntimeValue::None),
+            // Llm — 已在 load_stmt 打印诊断
+            Stmt::Llm { .. } => Ok(RuntimeValue::None),
+            // Use / Export — 已在 load_stmt 注册模块标记
+            Stmt::Use(_) | Stmt::Export(_) => Ok(RuntimeValue::None),
             Stmt::ExternBlock { lang, items } => {
                 if lang == "C" || lang == "c" {
                     for item in items {

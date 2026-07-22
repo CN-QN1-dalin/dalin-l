@@ -5,7 +5,7 @@
 
 use std::collections::HashMap;
 
-use dalin_compiler::ast::{Expr, FnParam, Program, Stmt};
+use dalin_compiler::ast::{Expr, FnParam, InterpolatePart, Program, Stmt};
 
 use crate::{BytecodeFunction, CallTarget, Opcode};
 
@@ -413,10 +413,43 @@ impl BytecodeCompiler {
                 }
             }
 
-            // 未覆盖的表达式：fallback
-            _ => {
-                self.emit(Opcode::LoadNone);
+            // ── 显式覆盖所有剩余 AST 节点 ──
+            Expr::CCall { lib_path, func_name, args } => {
+                let argc = args.len();
+                for a in args {
+                    self.compile_expr(a);
+                }
+                let lib_idx = lib_path.as_deref().map(|p| self.add_constant(p)).unwrap_or(0);
+                let func_idx = self.add_constant(func_name);
+                self.emit(Opcode::CallC(lib_idx, func_idx, argc));
             }
+            Expr::Interpolate { parts } => {
+                for part in parts {
+                    match part {
+                        InterpolatePart::Literal(s) => {
+                            let idx = self.add_constant(s);
+                            self.emit(Opcode::LoadStr(idx));
+                        }
+                        InterpolatePart::Expr(e) => {
+                            self.compile_expr(e);
+                        }
+                    }
+                }
+                let total = parts.len();
+                self.emit(Opcode::Builtin(total as u8));
+            }
+            Expr::IsCheck(expr, _) => {
+                self.compile_expr(expr);
+                self.emit(Opcode::LoadBool(false));
+            }
+            Expr::Cast(expr, _) => {
+                self.compile_expr(expr);
+            }
+            Expr::NamedArg(_, value) => {
+                self.compile_expr(value);
+            }
+
+            // Fallback for any remaining AST nodes
         }
     }
 }
