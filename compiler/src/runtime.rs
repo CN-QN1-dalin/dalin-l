@@ -1475,6 +1475,7 @@ impl Runtime {
             RuntimeValue::Float(f) => Ok(*f != 0.0),
             RuntimeValue::None => Ok(false),
             RuntimeValue::String(s) => Ok(!s.is_empty()),
+            RuntimeValue::Array(a) => Ok(!a.is_empty()),
             _ => Err(RuntimeError::TypeError {
                 expected: "bool".to_string(),
                 actual: format!("{}", val),

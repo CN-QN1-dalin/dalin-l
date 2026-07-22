@@ -1091,10 +1091,13 @@ Opcode::Halt => {
                 self.stack.push(Value::None);
             }
             4 => {
-                // string_concat: 弹出 n 个值，拼接为字符串
+                // string_concat: 弹出 count，然后弹出 count 个值，拼接为字符串
                 let n = self.stack.pop().ok_or(VmError::StackUnderflow)?
                     .as_int().ok_or(VmError::TypeError("string_concat: count must be Int".into()))?
                     as usize;
+                if n > self.stack.len() {
+                    return Err(VmError::StackUnderflow);
+                }
                 let mut parts: Vec<String> = Vec::with_capacity(n);
                 for _ in 0..n {
                     let v = self.stack.pop().ok_or(VmError::StackUnderflow)?;
@@ -1115,6 +1118,7 @@ Opcode::Halt => {
             Value::Bool(b) => *b,
             Value::None => false,
             Value::Int(0) => false,
+            Value::Float(0.0) => false,
             Value::Str(s) => !s.is_empty(),
             Value::Array(a) => !a.is_empty(),
             _ => true,
