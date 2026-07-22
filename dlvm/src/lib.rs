@@ -483,7 +483,10 @@ impl Vm {
         let mut main_result = Value::None;
 
         while self.running {
-            let func = &self.functions[self.current_fn].clone();
+            let func = match self.functions.get(self.current_fn).cloned() {
+                Some(f) => f,
+                None => return Err(VmError::TypeError("current_fn out of bounds".into())),
+            };
             if self.ip >= func.code.len() {
                 // 捕获 main 任务结果
                 let is_main = self.scheduler.current_id() == Some(main_task_id);
@@ -503,7 +506,10 @@ impl Vm {
                 self.running = false;
                 break;
             }
-            let op = func.code[self.ip].clone();
+            let op = match func.code.get(self.ip) {
+                Some(o) => o.clone(),
+                None => return Err(VmError::TypeError("instruction out of bounds".into())),
+            };
             self.ip += 1;
             match self.execute_op(op) {
                 Ok(()) => {}
@@ -537,7 +543,10 @@ impl Vm {
             Opcode::LoadInt(n) => self.stack.push(Value::Int(n)),
             Opcode::LoadFloat(f) => self.stack.push(Value::Float(f)),
             Opcode::LoadStr(idx) => {
-                let func = &self.functions[self.current_fn];
+let func = match self.functions.get(self.current_fn) {
+                    Some(f) => f,
+                    None => return Err(VmError::TypeError("current_fn out of bounds".into())),
+                };
                 let s = func.constants.get(idx as usize).cloned();
                 match s {
                     Some(s) => self.stack.push(Value::Str(s)),
@@ -678,7 +687,10 @@ impl Vm {
                     } else {
                         self.ip.saturating_sub((-offset) as usize)
                     };
-                    let func = &self.functions[self.current_fn];
+let func = match self.functions.get(self.current_fn) {
+                        Some(f) => f,
+                        None => return Err(VmError::TypeError("current_fn out of bounds".into())),
+                    };
                     if new_ip > func.code.len() {
                         return Err(VmError::InvalidOpcode(Opcode::JmpIf(offset)));
                     }
