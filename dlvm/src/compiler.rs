@@ -350,14 +350,72 @@ impl BytecodeCompiler {
                     *offset = (end as i64 - jmp_end_pos as i64) as i16;
                 }
             }
-            // ── 控制流: Match 语句（简化：编译 target + 第一个 arm 的 body） ──
+            // ── 控制流: Match 语句（多臂编译） ──
             Stmt::Match { target, arms } => {
+                // 编译目标表达式
                 self.compile_expr(target);
                 if self.has_error() { return; }
-                if let Some(first_arm) = arms.first() {
-                    for s in &first_arm.body {
+                // 将目标值存入临时局部变量
+                let match_slot = match self.allocate_local("__match_val") {
+                    Some(s) => s,
+                    None => { self.mark_error(); return; }
+                };
+                self.emit(Opcode::SetLoc(match_slot));
+                // 跳转表：JmpIfNot 位置 → 后续回填
+                let mut jmp_not_positions: Vec<usize> = Vec::new();
+                let arm_count = arms.len();
+                for (i, arm) in arms.iter().enumerate() {
+                    let is_last = i == arm_count - 1;
+                    // 根据模式类型生成匹配检查
+                    match arm.pattern.kind.as_str() {
+                        "wild" | "ident" => {
+                            // 通配符/标识符模式：始终匹配，无需检查
+                        }
+                        "lit" => {
+                            // 字面量模式：加载目标值 → 编译字面量 → 比较
+                            self.emit(Opcode::GetLoc(match_slot));
+                            if let Some(ref lit_expr) = arm.pattern.value {
+                                self.compile_expr(lit_expr);
+                                if self.has_error() { return; }
+                            } else {
+                                self.emit(Opcode::LoadNone);
+                            }
+                            self.emit(Opcode::Eq);
+                            if !is_last {
+                                jmp_not_positions.push(self.current_offset());
+                                self.emit(Opcode::JmpIfNot(0));
+                            }
+                            self.emit(Opcode::Pop); // 弹出比较结果
+                        }
+                        _ => {
+                            // 未知模式类型：回退到始终匹配
+                        }
+                    }
+                    // 编译 arm body
+                    for s in &arm.body {
                         self.compile_stmt(s);
                         if self.has_error() { return; }
+                    }
+                    if !is_last {
+                        // 执行完当前 arm 后跳转到结尾
+                        let jmp_end_pos = self.current_offset();
+                        self.emit(Opcode::Jmp(0));
+                        // 回填 JmpIfNot 跳转目标
+                        if let Some(jnp) = jmp_not_positions.pop() {
+                            let offset = (self.code.len() as i64 - jnp as i64) as i16;
+                            if let Opcode::JmpIfNot(ref mut off) = self.code[jnp] {
+                                *off = offset;
+                            }
+                        }
+                        // 保存 Jmp 跳转位置，后续回填
+                        jmp_not_positions.push(jmp_end_pos);
+                    }
+                }
+                // 回填所有 Jmp 跳转到结尾
+                let end = self.current_offset();
+                for jmp_pos in &jmp_not_positions {
+                    if let Opcode::Jmp(ref mut off) = self.code[*jmp_pos] {
+                        *off = (end as i64 - *jmp_pos as i64) as i16;
                     }
                 }
             }
@@ -602,19 +660,68 @@ impl BytecodeCompiler {
                 self.emit(Opcode::LoadNone);
             }
 
-            // Match 表达式：暂时编译 target + 第一个 arm 的最后一条表达式
+            // Match 表达式：多臂编译，每个 arm 返回最后一条表达式的值
             Expr::MatchExpr(target, arms) => {
+                // 编译目标表达式
                 self.compile_expr(target);
                 if self.has_error() { return; }
-                if let Some(first_arm) = arms.first() {
-                    // 取第一个 arm 的最后一条表达式语句
-                    if let Some(last_stmt) = first_arm.body.last() {
+                // 存入临时局部变量
+                let match_slot = match self.allocate_local("__match_val") {
+                    Some(s) => s,
+                    None => { self.mark_error(); return; }
+                };
+                self.emit(Opcode::SetLoc(match_slot));
+                // 跳转表
+                let mut jmp_not_positions: Vec<usize> = Vec::new();
+                let arm_count = arms.len();
+                for (i, arm) in arms.iter().enumerate() {
+                    let is_last = i == arm_count - 1;
+                    match arm.pattern.kind.as_str() {
+                        "wild" | "ident" => {
+                            // 始终匹配
+                        }
+                        "lit" => {
+                            self.emit(Opcode::GetLoc(match_slot));
+                            if let Some(ref lit_expr) = arm.pattern.value {
+                                self.compile_expr(lit_expr);
+                                if self.has_error() { return; }
+                            } else {
+                                self.emit(Opcode::LoadNone);
+                            }
+                            self.emit(Opcode::Eq);
+                            if !is_last {
+                                jmp_not_positions.push(self.current_offset());
+                                self.emit(Opcode::JmpIfNot(0));
+                            }
+                            self.emit(Opcode::Pop);
+                        }
+                        _ => {}
+                    }
+                    // 编译 arm body，取最后一条表达式的值
+                    if let Some(last_stmt) = arm.body.last() {
                         self.compile_stmt(last_stmt);
                     } else {
                         self.emit(Opcode::LoadNone);
                     }
-                } else {
-                    self.emit(Opcode::LoadNone);
+                    if self.has_error() { return; }
+                    if !is_last {
+                        let jmp_end_pos = self.current_offset();
+                        self.emit(Opcode::Jmp(0));
+                        if let Some(jnp) = jmp_not_positions.pop() {
+                            let offset = (self.code.len() as i64 - jnp as i64) as i16;
+                            if let Opcode::JmpIfNot(ref mut off) = self.code[jnp] {
+                                *off = offset;
+                            }
+                        }
+                        jmp_not_positions.push(jmp_end_pos);
+                    }
+                }
+                // 回填所有 Jmp 跳转到结尾
+                let end = self.current_offset();
+                for jmp_pos in &jmp_not_positions {
+                    if let Opcode::Jmp(ref mut off) = self.code[*jmp_pos] {
+                        *off = (end as i64 - *jmp_pos as i64) as i16;
+                    }
                 }
             }
 

@@ -90,6 +90,9 @@ pub enum Opcode {
     CoopSpawn(u16),      // 协程 spawn：从栈顶弹出 fn_idx(u16)，加入就绪队列
     CoopAwait,            // 协程 await：当前协程让出，等待所有 spawned 协程完成
     CoopYieldResume(u8), // yield to scheduler：保存当前帧，调度下一个就绪协程
+
+    // ── 栈操作 ──
+    Pop,            // 弹出栈顶并丢弃
 }
 
 /// 编译后的函数
@@ -878,7 +881,11 @@ let func = match self.functions.get(self.current_fn) {
             }
 
             // ── 停止执行 ──
-            Opcode::Halt => {
+            
+            Opcode::Pop => {
+                self.stack.pop().ok_or(VmError::StackUnderflow)?;
+            }
+Opcode::Halt => {
                 return Err(VmError::Halt);
             }
 
