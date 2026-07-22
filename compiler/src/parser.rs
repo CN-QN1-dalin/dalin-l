@@ -1549,6 +1549,54 @@ impl Parser {
                 }
                 // Call: obj(args) — 支持命名参数 name: expr
                 else if self.match_token(LeftParen) {
+                    // Special-case: c_call("lib", "func", arg1, arg2, ...)
+                    if tok.value == "c_call" && matches!(obj, Expr::Ident(ref n) if n == "c_call") {
+                        let mut cc_args = self.parse_call_args()?;
+                        self.expect(RightParen, "')'")?;
+                        // c_call(lib, func, arg1, arg2, ...)
+                        let (lib_expr, func_expr, rest_args) = match cc_args.len() {
+                            n if n >= 2 => {
+                                let first_is_string = matches!(&cc_args[0], Expr::StringLiteral(_));
+                                if first_is_string {
+                                    let lib = match &cc_args[0] {
+                                        Expr::StringLiteral(s) => s.clone(),
+                                        _ => unreachable!(),
+                                    };
+                                    let func = cc_args.remove(1);
+                                    let rest = cc_args.into_iter().skip(1).collect();
+                                    (Some(lib), func, rest)
+                                } else {
+                                    return Err(ParseError {
+                                        message: "c_call first argument must be a string library path".into(),
+                                        line: self.current().line,
+                                        column: self.current().column,
+                                    });
+                                }
+                            }
+                            _ => {
+                                return Err(ParseError {
+                                    message: "c_call requires at least (lib_path, func_name, [args...])".into(),
+                                    line: self.current().line,
+                                    column: self.current().column,
+                                });
+                            }
+                        };
+                        let func_name = match func_expr {
+                            Expr::StringLiteral(s) => s,
+                            _ => {
+                                return Err(ParseError {
+                                    message: "c_call second argument must be a string function name".into(),
+                                    line: self.current().line,
+                                    column: self.current().column,
+                                });
+                            }
+                        };
+                        return Ok(Expr::CCall {
+                            lib_path: lib_expr,
+                            func_name,
+                            args: rest_args,
+                        });
+                    }
                     let args = self.parse_call_args()?;
                     self.expect(RightParen, "')'")?;
                     obj = Expr::Call {

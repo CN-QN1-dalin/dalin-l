@@ -3,6 +3,7 @@
 /// 把编译后的 Program + TaskSpec 真正跑起来。
 /// 内置七通道运行时检查：效应、能力、置信度、认知循环、治理、时间约束。
 use crate::ast::{BaseType, Expr, FnParam, Program, Stmt};
+use crate::cffi::DFFIEnv;
 use crate::ty2::{
     Capability, CognitiveLoop, Confidence, Effect, GovernanceLevel, TimeConstraint,
     parse_capability, parse_cognitive_loop, parse_confidence, parse_effect, parse_governance,
@@ -573,6 +574,8 @@ pub struct Runtime {
     pub governance: GovernanceChecker,
     pub time_monitor: TimeMonitor,
     pub events: Vec<RuntimeEvent>,
+    /// C FFI dispatcher
+    pub cffi: DFFIEnv,
     /// max call depth to prevent stack overflow
     max_depth: usize,
     current_depth: usize,
@@ -593,6 +596,7 @@ impl Runtime {
             cognitive: CognitiveLoopMachine::new(),
             governance: GovernanceChecker::new(session_governance),
             time_monitor: TimeMonitor::new(),
+            cffi: DFFIEnv::new(),
             events: Vec::new(),
             max_depth: 64,
             current_depth: 0,
@@ -994,8 +998,14 @@ impl Runtime {
             | Stmt::Use(_)
             | Stmt::Export(_)
             | Stmt::TypeAlias { .. } => Ok(RuntimeValue::None),
-            // extern "C" blocks are compile-time metadata only
-            Stmt::ExternBlock { .. } => Ok(RuntimeValue::None),
+            Stmt::ExternBlock { lang, items } => {
+                if lang == "C" || lang == "c" {
+                    for item in items {
+                        self.cffi.register_extern(lang.as_str(), item);
+                    }
+                }
+                Ok(RuntimeValue::None)
+            }
         }
     }
 
@@ -1102,46 +1112,14 @@ impl Runtime {
                 Ok(RuntimeValue::None)
             }
             Expr::CCall { lib_path, func_name, args } => {
-                // Evaluate all args
                 let mut c_args = Vec::new();
                 for a in args.iter() {
                     c_args.push(self.eval_expr(a)?);
                 }
-                
-                // Load library
-                use libc::{dlopen, dlsym, RTLD_NOW};
-                use std::ffi::CString;
-                
-                let lib_path = lib_path.as_deref().unwrap_or("libc");
-                let c_lib = CString::new(lib_path)
-                    .map_err(|_| RuntimeError::RuntimePanic(format!("Invalid library path: {}", lib_path)))?;
-                let handle = unsafe { dlopen(c_lib.as_ptr(), RTLD_NOW) };
-                if handle.is_null() {
-                    return Err(RuntimeError::RuntimePanic(format!(
-                        "Failed to open C library '{}'", lib_path
-                    )));
-                }
-                
-                // Find symbol
-                let c_func = CString::new(func_name.as_str())
-                    .map_err(|_| RuntimeError::RuntimePanic(format!("Invalid function name: {}", func_name)))?;
-                let sym = unsafe { dlsym(handle, c_func.as_ptr()) };
-                if sym.is_null() {
-                    return Err(RuntimeError::RuntimePanic(format!(
-                        "Symbol not found: {}", func_name
-                    )));
-                }
-                
-                // Call with catch_unwind for safety
-                let result = unsafe {
-                    std::panic::catch_unwind(|| {
-                        let f: extern "C" fn() -> f64 = std::mem::transmute(sym);
-                        f()
-                    })
-                }
-                .map_err(|e| RuntimeError::RuntimePanic(format!("Panicked in C FFI: {:?}", e)))?;
-                
-                Ok(RuntimeValue::Float(result))
+                let lib = lib_path.as_deref().unwrap_or("libc");
+                let return_type = self.cffi.lookup_extern(lib, func_name)
+                    .map(|item| item.return_type.base.clone());
+                self.cffi.call_c_function(lib, func_name, &c_args, return_type.as_ref())
             }
             Expr::Interpolate { parts } => {
                 use crate::ast::InterpolatePart;

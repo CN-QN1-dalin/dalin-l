@@ -388,7 +388,8 @@ impl TypeInferencer {
             }
             Expr::Cast(_, target_type) => TypeOrVar::Concrete(target_type.clone()),
             Expr::NamedArg(_, expr) => self.infer_expr(expr),
-            Expr::CCall { .. } => TypeOrVar::Concrete(float_type()),
+            // CCall returns runtime-determined type; use Unknown for inference
+            Expr::CCall { .. } => TypeOrVar::Concrete(TypeRef::new(BaseType::Unknown)),
         }
     }
 

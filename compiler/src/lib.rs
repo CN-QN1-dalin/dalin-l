@@ -1,4 +1,5 @@
 pub mod ast;
+pub mod cffi;
 pub mod error;
 pub mod latency;
 pub mod lexer;
