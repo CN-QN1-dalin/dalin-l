@@ -97,6 +97,17 @@ pub fn compile_with_llm(src: &str) -> CompileResult {
     }
 }
 
+/// 纯检查入口（仅编译检查，不生成 TaskSpec）
+/// 供 `dalin check` 命令使用，返回报告 + 结构化错误
+pub fn compile_check(src: &str) -> (String, Vec<ChannelError>) {
+    match compile_with_llm(src) {
+        CompileResult::Ok {
+            report, errors, ..
+        } => (report, errors),
+        CompileResult::Err(e) => (format!("Error: {}", e), vec![]),
+    }
+}
+
 /// 编译结果：AST + 报告 + TaskSpec + 结构化错误
 pub enum CompileResult {
     Err(String),

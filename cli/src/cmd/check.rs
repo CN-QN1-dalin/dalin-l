@@ -11,38 +11,24 @@ pub fn run(input: &str, verbose: bool, json: bool) -> Result<(), String> {
     let src =
         std::fs::read_to_string(input).map_err(|e| format!("Cannot read '{}': {}", input, e))?;
 
-    use dalin_compiler::{lexer, parser, ty};
+    let (report, errors) = dalin_compiler::compile_check(&src);
 
-    let mut lex = lexer::Lexer::new(&src);
-    match lex.tokenize() {
-        Ok(tokens) => {
-            println!("  ✅ Lexer passed ({} tokens)", tokens.len());
+    if verbose {
+        println!("{}", report.trim_end());
+    }
 
-            let mut p = parser::Parser::new(tokens);
-            match p.parse() {
-                Ok(prog) => {
-                    println!("  ✅ Parser passed ({} stmts)", prog.statements.len());
-
-                    if verbose {
-                        let mut infer = ty::TypeInferencer::new();
-                        infer.infer_program(&prog);
-                        println!("\n{}", infer.print_report().trim_end());
-                    } else {
-                        println!("  ✅ Type inference passed (--verbose for details)");
-                    }
-                }
-                Err(e) => {
-                    return util::err("parser", &format!("{}", e)).map_err(|_| String::new());
-                }
-            }
-        }
-        Err(e) => {
-            return util::err("lexer", &format!("{}", e)).map_err(|_| String::new());
+    if errors.is_empty() {
+        println!("  ✅ 七通道检查通过（无错误）");
+    } else {
+        println!("  ⚠️  发现 {} 个错误:", errors.len());
+        for err in &errors {
+            println!("  ❌ {}", err.to_string().trim_end());
         }
     }
 
     if json {
-        println!("\n{{ \"status\": \"ok\", \"file\": \"{}\" }}", input);
+        let status = if errors.is_empty() { "ok" } else { "error" };
+        println!("\n{{ \"status\": \"{}\", \"file\": \"{}\", \"errors\": {} }}", status, input, errors.len());
     }
 
     println!("\n  ╔═══════════════════════════════════╗");

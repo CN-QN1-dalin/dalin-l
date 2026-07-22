@@ -13,6 +13,7 @@ pub fn ok(label: &str, msg: &str) -> Result<(), String> {
     Ok(())
 }
 
+#[allow(dead_code)]
 pub fn err(label: &str, msg: &str) -> Result<(), String> {
     eprintln!("  [FAIL] {} ✗", label);
     eprintln!("         {}", msg);
