@@ -718,10 +718,15 @@ impl BytecodeCompiler {
                         }
                         _ => {}
                     }
-                    // 编译 arm body，取最后一条表达式的值
-                    if let Some(last_stmt) = arm.body.last() {
-                        self.compile_stmt(last_stmt);
-                    } else {
+                    // 编译 arm body 所有语句（保证副作用），取最后一条的值作为表达式结果
+                    for (j, s) in arm.body.iter().enumerate() {
+                        self.compile_stmt(s);
+                        // 中间语句不需要保留返回值（VM 会丢弃），只有最后一个 arm body 的返回值需要保留
+                        if j < arm.body.len() - 1 {
+                            self.emit(Opcode::Pop);
+                        }
+                    }
+                    if arm.body.is_empty() {
                         self.emit(Opcode::LoadNone);
                     }
                     if self.has_error() { return; }
