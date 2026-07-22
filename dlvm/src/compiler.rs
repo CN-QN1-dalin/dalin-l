@@ -305,7 +305,6 @@ impl BytecodeCompiler {
                 } else {
                     eprintln!("compile error: unknown unary operator '{}'", op);
                     self.mark_error();
-                    return;
                 }
             }
 
