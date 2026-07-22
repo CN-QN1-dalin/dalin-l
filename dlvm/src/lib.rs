@@ -673,7 +673,10 @@ let func = match self.functions.get(self.current_fn) {
                     self.ip.saturating_sub((-offset) as usize)
                 };
                 // 边界校验：防止跳转越界导致 panic
-                let func = &self.functions[self.current_fn];
+                let func = match self.functions.get(self.current_fn) {
+                    Some(f) => f,
+                    None => return Err(VmError::TypeError("current_fn out of bounds".into())),
+                };
                 if new_ip > func.code.len() {
                     return Err(VmError::InvalidOpcode(Opcode::Jmp(offset)));
                 }
@@ -705,7 +708,10 @@ let func = match self.functions.get(self.current_fn) {
                     } else {
                         self.ip.saturating_sub((-offset) as usize)
                     };
-                    let func = &self.functions[self.current_fn];
+                    let func = match self.functions.get(self.current_fn) {
+                        Some(f) => f,
+                        None => return Err(VmError::TypeError("current_fn out of bounds".into())),
+                    };
                     if new_ip > func.code.len() {
                         return Err(VmError::InvalidOpcode(Opcode::JmpIfNot(offset)));
                     }
@@ -724,7 +730,10 @@ let func = match self.functions.get(self.current_fn) {
                 } else {
                     // 顶层返回：将结果压回栈，ip 移到末尾让 run loop 处理任务完成
                     self.stack.push(result);
-                    let func = &self.functions[self.current_fn];
+                    let func = match self.functions.get(self.current_fn) {
+                        Some(f) => f,
+                        None => return Err(VmError::TypeError("current_fn out of bounds".into())),
+                    };
                     self.ip = func.code.len();
                 }
             }
@@ -929,7 +938,10 @@ let func = match self.functions.get(self.current_fn) {
             // field_idx 指向常量池中的字符串（字段名）
             Opcode::Member(field_idx) => {
                 let object = self.stack.pop().ok_or(VmError::StackUnderflow)?;
-                let func = &self.functions[self.current_fn];
+                let func = match self.functions.get(self.current_fn) {
+                    Some(f) => f,
+                    None => return Err(VmError::TypeError("current_fn out of bounds".into())),
+                };
                 let field_name = func.constants.get(field_idx as usize).cloned()
                     .ok_or_else(|| VmError::IndexError(format!("constant #{field_idx} out of bounds")))?;
                 match object {
