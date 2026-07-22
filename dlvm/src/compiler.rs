@@ -234,7 +234,158 @@ impl BytecodeCompiler {
                 }
                 self.emit(Opcode::Return);
             }
-            _ => {}
+            // ── 控制流: If 语句 ──
+            Stmt::If { condition, then_body, else_body } => {
+                self.compile_expr(condition);
+                if self.has_error() { return; }
+                let jmp_false_pos = self.current_offset();
+                self.emit(Opcode::JmpIfNot(0)); // placeholder
+                for s in then_body {
+                    self.compile_stmt(s);
+                    if self.has_error() { return; }
+                }
+                let jmp_end_pos = self.current_offset();
+                self.emit(Opcode::Jmp(0)); // placeholder
+                let else_start = self.current_offset();
+                for s in else_body {
+                    self.compile_stmt(s);
+                    if self.has_error() { return; }
+                }
+                let end = self.current_offset();
+                // Patch JmpIfNot → jump to else_start
+                if jmp_false_pos < self.code.len()
+                    && let Opcode::JmpIfNot(offset) = &mut self.code[jmp_false_pos]
+                {
+                    *offset = (else_start as i64 - jmp_false_pos as i64 - 1) as i16;
+                }
+                // Patch Jmp → jump past else
+                if jmp_end_pos < self.code.len()
+                    && let Opcode::Jmp(offset) = &mut self.code[jmp_end_pos]
+                {
+                    *offset = (end as i64 - jmp_end_pos as i64 - 1) as i16;
+                }
+            }
+            // ── 控制流: While 循环 ──
+            Stmt::While { condition, body } => {
+                let cond_start = self.current_offset();
+                self.compile_expr(condition);
+                if self.has_error() { return; }
+                let jmp_end_pos = self.current_offset();
+                self.emit(Opcode::JmpIfNot(0)); // placeholder
+                for s in body {
+                    self.compile_stmt(s);
+                    if self.has_error() { return; }
+                }
+                let end = self.current_offset();
+                // Jump back to condition
+                let back_offset = (cond_start as i64 - end as i64 - 1) as i16;
+                self.emit(Opcode::Jmp(back_offset));
+                // Patch JmpIfNot → skip past the Jmp back
+                if jmp_end_pos < self.code.len()
+                    && let Opcode::JmpIfNot(offset) = &mut self.code[jmp_end_pos]
+                {
+                    *offset = (end as i64 - jmp_end_pos as i64) as i16;
+                }
+            }
+            // ── 控制流: For 循环（数组迭代） ──
+            Stmt::For { target, iterable, body } => {
+                // 编译可迭代对象 → 栈顶
+                self.compile_expr(iterable);
+                if self.has_error() { return; }
+                let iter_slot = match self.allocate_local(&format!("__iter_{target}")) {
+                    Some(s) => s,
+                    None => return,
+                };
+                self.emit(Opcode::SetLoc(iter_slot));
+                // 获取长度
+                self.emit(Opcode::GetLoc(iter_slot));
+                self.emit(Opcode::Builtin(2)); // len
+                let len_slot = match self.allocate_local(&format!("__len_{target}")) {
+                    Some(s) => s,
+                    None => return,
+                };
+                self.emit(Opcode::SetLoc(len_slot));
+                // 初始化计数器
+                self.emit(Opcode::LoadInt(0));
+                let i_slot = match self.allocate_local(&format!("__i_{target}")) {
+                    Some(s) => s,
+                    None => return,
+                };
+                self.emit(Opcode::SetLoc(i_slot));
+                // 循环开始
+                let loop_start = self.current_offset();
+                // 条件: i < len
+                self.emit(Opcode::GetLoc(i_slot));
+                self.emit(Opcode::GetLoc(len_slot));
+                self.emit(Opcode::Lt);
+                let jmp_end_pos = self.current_offset();
+                self.emit(Opcode::JmpIfNot(0)); // placeholder
+                // 取元素: iter[i]
+                self.emit(Opcode::GetLoc(iter_slot));
+                self.emit(Opcode::GetLoc(i_slot));
+                self.emit(Opcode::Index);
+                let target_slot = match self.allocate_local(target) {
+                    Some(s) => s,
+                    None => return,
+                };
+                self.emit(Opcode::SetLoc(target_slot));
+                // 循环体
+                for s in body {
+                    self.compile_stmt(s);
+                    if self.has_error() { return; }
+                }
+                // i += 1
+                self.emit(Opcode::GetLoc(i_slot));
+                self.emit(Opcode::LoadInt(1));
+                self.emit(Opcode::Add);
+                self.emit(Opcode::SetLoc(i_slot));
+                // Jump back to condition
+                let end = self.current_offset();
+                let back_offset = (loop_start as i64 - end as i64 - 1) as i16;
+                self.emit(Opcode::Jmp(back_offset));
+                // Patch JmpIfNot → skip past the Jmp back
+                if jmp_end_pos < self.code.len()
+                    && let Opcode::JmpIfNot(offset) = &mut self.code[jmp_end_pos]
+                {
+                    *offset = (end as i64 - jmp_end_pos as i64) as i16;
+                }
+            }
+            // ── 控制流: Match 语句（简化：编译 target + 第一个 arm 的 body） ──
+            Stmt::Match { target, arms } => {
+                self.compile_expr(target);
+                if self.has_error() { return; }
+                if let Some(first_arm) = arms.first() {
+                    for s in &first_arm.body {
+                        self.compile_stmt(s);
+                        if self.has_error() { return; }
+                    }
+                }
+            }
+            // ── Assert 语句 → builtin 3 ──
+            Stmt::Assert { condition, message: _ } => {
+                self.compile_expr(condition);
+                if self.has_error() { return; }
+                self.emit(Opcode::Builtin(3)); // assert
+            }
+            // ── Spawn → 编译内部函数 + Spawn stub ──
+            Stmt::Spawn { fn_decl } => {
+                self.compile_stmt(fn_decl);
+                if self.has_error() { return; }
+                self.emit(Opcode::Spawn(0)); // stub: spawn fn 0
+            }
+            // ── TryCatch → 编译 try_body（catch 不支持，静默跳过） ──
+            Stmt::TryCatch { try_body, catch_param: _, catch_body: _ } => {
+                for s in try_body {
+                    self.compile_stmt(s);
+                    if self.has_error() { return; }
+                }
+            }
+            // ── 声明类语句：由 load_stmt 处理，字节码中跳过 ──
+            Stmt::StructDef { .. } | Stmt::EnumDef { .. } | Stmt::TraitDef { .. }
+            | Stmt::ImplBlock { .. } | Stmt::TypeAlias { .. } | Stmt::Channel { .. }
+            | Stmt::Llm { .. } | Stmt::Use(_) | Stmt::Export(_) => {}
+            // ── ExternBlock: 元数据，无字节码 ──
+            Stmt::ExternBlock { .. } => {}
         }
     }
 
