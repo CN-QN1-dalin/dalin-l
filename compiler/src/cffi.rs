@@ -100,10 +100,7 @@ impl DFFIEnv {
         let mut libs = self.libs.lock().unwrap();
         let lib = libs
             .entry(lib_name.to_string())
-            .or_insert_with(|| match LibHandle::new(lib_name) {
-                Ok(h) => h,
-                Err(e) => panic!("{}", e),
-            });
+            .or_insert_with(|| LibHandle::new(lib_name).expect("C FFI library load failed"));
         lib.resolve(func_name)
     }
 
