@@ -1579,11 +1579,15 @@ impl SelfHealingRuntime {
     }
 
     /// 调用函数，含自修复逻辑
+    /// 每次调用前重置 recovery_log（避免跨调用状态污染）
     pub fn call_with_healing(
         &mut self,
         fn_name: &str,
         args: &[RuntimeValue],
     ) -> RuntimeResult<RuntimeValue> {
+        // 重置 recovery 状态，避免跨调用污染
+        self.recovery_log.clear();
+        self.recovery_seq = 0;
         let result = self.inner.call(fn_name, args);
 
         match &result {
@@ -1593,15 +1597,10 @@ impl SelfHealingRuntime {
                     RecoveryMode::Fallback => {
                         if matches!(err, RuntimeError::CognitiveLoopViolation { .. }) {
                             // 认知循环违规：退回到 Reason 阶段（与治理级别无关）
-                            let _seq = self.recovery_seq;
-                            self.recovery_seq += 1;
-
                             self.inner.cognitive.current_phase = CognitiveLoopPhase::Reasoning;
                             let retry_result = self.inner.call(fn_name, args);
 
                             let success = retry_result.is_ok();
-                            let _seq = self.recovery_seq;
-                            self.recovery_seq += 1;
                             self.recovery_log.push(RecoveryEvent {
                                 fn_name: fn_name.to_string(),
                                 error: err.clone(),
@@ -1619,16 +1618,11 @@ impl SelfHealingRuntime {
                             }
                         } else if matches!(err, RuntimeError::EffectViolation { .. }) {
                             // 效应违规：降级治理级别重试
-                            let _seq = self.recovery_seq;
-                            self.recovery_seq += 1;
-
                             let saved_level = self.inner.governance.session_level.clone();
                             self.inner.governance.session_level = GovernanceLevel::Suggest;
                             let retry_result = self.inner.call(fn_name, args);
 
                             let success = retry_result.is_ok();
-                            let _seq = self.recovery_seq;
-                            self.recovery_seq += 1;
                             self.recovery_log.push(RecoveryEvent {
                                 fn_name: fn_name.to_string(),
                                 error: err.clone(),
@@ -1650,8 +1644,6 @@ impl SelfHealingRuntime {
                     }
                     RecoveryMode::RetryWithDefault => {
                         if matches!(err, RuntimeError::DivisionByZero) {
-                            let _seq = self.recovery_seq;
-                            self.recovery_seq += 1;
                             self.recovery_log.push(RecoveryEvent {
                                 fn_name: fn_name.to_string(),
                                 error: err.clone(),
@@ -1667,9 +1659,6 @@ impl SelfHealingRuntime {
                     RecoveryMode::DegradeGovernance => {
                         // 治理拒绝 → 降级治理级别重试
                         if matches!(err, RuntimeError::GovernanceViolation { .. }) {
-                            let _seq = self.recovery_seq;
-                            self.recovery_seq += 1;
-
                             let new_level = match self.inner.governance.session_level {
                                 GovernanceLevel::Execute => GovernanceLevel::Approve,
                                 GovernanceLevel::Approve => GovernanceLevel::Suggest,

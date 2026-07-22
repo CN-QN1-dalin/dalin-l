@@ -443,11 +443,11 @@ impl BytecodeCompiler {
                 self.emit(Opcode::Jmp(0));
                 // 编译 catch body（捕获异常时执行）
                 // 如果 catch_param 存在，分配局部变量并存入错误值（占位）
-                if let Some(param_name) = catch_param {
-                    if let Some(slot) = self.allocate_local(param_name) {
-                        self.emit(Opcode::LoadNone); // 错误值占位
-                        self.emit(Opcode::SetLoc(slot));
-                    }
+                if let Some(param_name) = catch_param
+                    && let Some(slot) = self.allocate_local(param_name)
+                {
+                    self.emit(Opcode::LoadNone); // 错误值占位
+                    self.emit(Opcode::SetLoc(slot));
                 }
                 for s in catch_body {
                     self.compile_stmt(s);
