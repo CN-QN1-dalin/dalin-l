@@ -534,7 +534,6 @@ impl BytecodeCompiler {
                 } else {
                     eprintln!("compile error: unknown unary operator '{}'", op);
                     self.mark_error();
-                    return;
                 }
             }
 
@@ -646,9 +645,9 @@ impl BytecodeCompiler {
                     match builtin_idx {
                         Some(idx) => self.emit(Opcode::Builtin(idx)),
                         None => {
-                            // argv = 1 (input) for non-builtin pipe call
+                            // argv = 2 (input + call_arg) for non-builtin pipe call
                             self.emit(Opcode::Call(
-                                1u16,
+                                2u16,
                                 CallTarget::Name(fn_name.clone()),
                             ));
                         }
