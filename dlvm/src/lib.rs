@@ -410,7 +410,7 @@ pub struct Vm {
 pub enum VmError {
     StackUnderflow,
     InvalidOpcode(Opcode),
-    FunctionNotFound(u16),
+    FunctionNotFound(String),
     TypeError(String),
     DivisionByZero,
     Halt,
@@ -424,7 +424,7 @@ impl std::fmt::Display for VmError {
         match self {
             VmError::StackUnderflow => write!(f, "stack underflow"),
             VmError::InvalidOpcode(op) => write!(f, "invalid opcode: {op:?}"),
-            VmError::FunctionNotFound(idx) => write!(f, "function #{idx} not found"),
+            VmError::FunctionNotFound(name) => write!(f, "function '{name}' not found"),
             VmError::TypeError(msg) => write!(f, "type error: {msg}"),
             VmError::DivisionByZero => write!(f, "division by zero"),
             VmError::Halt => write!(f, "halt"),
@@ -663,6 +663,11 @@ impl Vm {
                 } else {
                     self.ip.saturating_sub((-offset) as usize)
                 };
+                // 边界校验：防止跳转越界导致 panic
+                let func = &self.functions[self.current_fn];
+                if new_ip > func.code.len() {
+                    return Err(VmError::InvalidOpcode(Opcode::Jmp(offset)));
+                }
                 self.ip = new_ip;
             }
             Opcode::JmpIf(offset) => {
@@ -673,6 +678,10 @@ impl Vm {
                     } else {
                         self.ip.saturating_sub((-offset) as usize)
                     };
+                    let func = &self.functions[self.current_fn];
+                    if new_ip > func.code.len() {
+                        return Err(VmError::InvalidOpcode(Opcode::JmpIf(offset)));
+                    }
                     self.ip = new_ip;
                 }
             }
@@ -684,6 +693,10 @@ impl Vm {
                     } else {
                         self.ip.saturating_sub((-offset) as usize)
                     };
+                    let func = &self.functions[self.current_fn];
+                    if new_ip > func.code.len() {
+                        return Err(VmError::InvalidOpcode(Opcode::JmpIfNot(offset)));
+                    }
                     self.ip = new_ip;
                 }
             }
@@ -710,10 +723,16 @@ impl Vm {
                 self.call_stack.push((self.ip, base));
                 // 根据调用目标查找函数
                 let fn_idx = match target {
-                    CallTarget::Index(idx) => idx as usize,
+                    CallTarget::Index(idx) => {
+                        let idx = idx as usize;
+                        if idx >= self.functions.len() {
+                            return Err(VmError::InvalidOpcode(Opcode::Call(argc, target)));
+                        }
+                        idx
+                    }
                     CallTarget::Name(name) => match self.fn_by_name.get(&name) {
                         Some(idx) => *idx,
-                        None => return Err(VmError::FunctionNotFound(0)),
+                        None => return Err(VmError::FunctionNotFound(name)),
                     },
                 };
                 // 切换到目标函数
