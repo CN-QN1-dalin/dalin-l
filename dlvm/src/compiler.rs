@@ -431,11 +431,32 @@ impl BytecodeCompiler {
                 if self.has_error() { return; }
                 self.emit(Opcode::Spawn(0)); // stub: spawn fn 0
             }
-            // ── TryCatch → 编译 try_body（catch 不支持，静默跳过） ──
-            Stmt::TryCatch { try_body, catch_param: _, catch_body: _ } => {
+            // ── TryCatch → 编译 try_body + catch_body ──
+            Stmt::TryCatch { try_body, catch_param, catch_body } => {
+                // 编译 try body
                 for s in try_body {
                     self.compile_stmt(s);
                     if self.has_error() { return; }
+                }
+                // try 成功后跳转到结尾（跳过 catch）
+                let jmp_end_pos = self.current_offset();
+                self.emit(Opcode::Jmp(0));
+                // 编译 catch body（捕获异常时执行）
+                // 如果 catch_param 存在，分配局部变量并存入错误值（占位）
+                if let Some(param_name) = catch_param {
+                    if let Some(slot) = self.allocate_local(param_name) {
+                        self.emit(Opcode::LoadNone); // 错误值占位
+                        self.emit(Opcode::SetLoc(slot));
+                    }
+                }
+                for s in catch_body {
+                    self.compile_stmt(s);
+                    if self.has_error() { return; }
+                }
+                // 回填 Jmp 跳转到结尾
+                let end = self.current_offset();
+                if let Opcode::Jmp(ref mut off) = self.code[jmp_end_pos] {
+                    *off = (end as i64 - jmp_end_pos as i64) as i16;
                 }
             }
             // ── 声明类语句：由 load_stmt 处理，字节码中跳过 ──
