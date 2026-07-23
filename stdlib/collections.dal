@@ -2,36 +2,214 @@
 // 列表操作工具
 
 fn list_new() @ pure @ cpu { return [] }
-fn list_len(lst) @ pure @ cpu { return 0 }
+fn list_len(lst) @ pure @ cpu { return len(lst) }
 
 fn list_get(lst, idx) @ pure @ cpu {
-    if lst == [] { return null }
+    let n = len(lst)
+    if idx < 0 || idx >= n { return null }
     return lst[idx]
 }
 
 fn list_push(lst, val) @ pure @ cpu { return lst + [val] }
-fn list_pop(lst) @ pure @ cpu { return null }
+
+fn list_pop(lst) @ pure @ cpu {
+    let n = len(lst)
+    if n == 0 { return null }
+    let result = []
+    let i = 0
+    while i < n - 1 {
+        result = result + [lst[i]]
+        i = i + 1
+    }
+    return result
+}
 
 fn list_contains(lst, val) @ pure @ cpu {
-    if lst == [] { return false }
-    if lst[0] == val { return true }
+    let i = 0
+    let n = len(lst)
+    while i < n {
+        if lst[i] == val { return true }
+        i = i + 1
+    }
     return false
 }
 
-fn list_is_empty(lst) @ pure @ cpu { return lst == [] }
+fn list_is_empty(lst) @ pure @ cpu { return len(lst) == 0 }
 
 fn list_first(lst) @ pure @ cpu {
-    if lst == [] { return null }
+    if len(lst) == 0 { return null }
     return lst[0]
+}
+
+fn list_last(lst) @ pure @ cpu {
+    let n = len(lst)
+    if n == 0 { return null }
+    return lst[n - 1]
 }
 
 fn list_append(a, b) @ pure @ cpu { return a + b }
 fn list_prepend(lst, val) @ pure @ cpu { return [val] + lst }
 
-fn list_reverse(lst) @ pure @ cpu { return lst }
+fn list_reverse(lst) @ pure @ cpu {
+    let result = []
+    let i = len(lst) - 1
+    while i >= 0 {
+        result = result + [lst[i]]
+        i = i - 1
+    }
+    return result
+}
 
-fn list_map(lst, f) @ pure @ cpu { return lst }
-fn list_filter(lst, pred) @ pure @ cpu { return lst }
+fn list_map(lst, f) @ pure @ cpu {
+    let result = []
+    let i = 0
+    let n = len(lst)
+    while i < n {
+        result = result + [f(lst[i])]
+        i = i + 1
+    }
+    return result
+}
+
+fn list_filter(lst, pred) @ pure @ cpu {
+    let result = []
+    let i = 0
+    let n = len(lst)
+    while i < n {
+        if pred(lst[i]) {
+            result = result + [lst[i]]
+        }
+        i = i + 1
+    }
+    return result
+}
+
+fn list_fold(lst, init, f) @ pure @ cpu {
+    let acc = init
+    let i = 0
+    let n = len(lst)
+    while i < n {
+        acc = f(acc, lst[i])
+        i = i + 1
+    }
+    return acc
+}
+
+fn list_reduce(lst, f) @ pure @ cpu {
+    let n = len(lst)
+    if n == 0 { return null }
+    if n == 1 { return lst[0] }
+    let acc = lst[0]
+    let i = 1
+    while i < n {
+        acc = f(acc, lst[i])
+        i = i + 1
+    }
+    return acc
+}
+
+fn list_any(lst, pred) @ pure @ cpu {
+    let i = 0
+    let n = len(lst)
+    while i < n {
+        if pred(lst[i]) { return true }
+        i = i + 1
+    }
+    return false
+}
+
+fn list_all(lst, pred) @ pure @ cpu {
+    let i = 0
+    let n = len(lst)
+    while i < n {
+        if !pred(lst[i]) { return false }
+        i = i + 1
+    }
+    return true
+}
+
+fn list_find(lst, pred) @ pure @ cpu {
+    let i = 0
+    let n = len(lst)
+    while i < n {
+        if pred(lst[i]) { return lst[i] }
+        i = i + 1
+    }
+    return null
+}
+
+fn list_take(lst, n) @ pure @ cpu {
+    let result = []
+    let i = 0
+    let limit = len(lst)
+    if n < limit { limit = n }
+    while i < limit {
+        result = result + [lst[i]]
+        i = i + 1
+    }
+    return result
+}
+
+fn list_skip(lst, n) @ pure @ cpu {
+    let result = []
+    let i = n
+    let sz = len(lst)
+    while i < sz {
+        result = result + [lst[i]]
+        i = i + 1
+    }
+    return result
+}
+
+fn list_zip(a, b) @ pure @ cpu {
+    let result = []
+    let i = 0
+    let na = len(a)
+    let nb = len(b)
+    let limit = na
+    if nb < limit { limit = nb }
+    while i < limit {
+        result = result + [[a[i], b[i]]]
+        i = i + 1
+    }
+    return result
+}
+
+fn list_sort_asc(lst) @ pure @ cpu {
+    let n = len(lst)
+    if n <= 1 { return lst }
+    let sorted = lst
+    let i = 0
+    while i < n {
+        let j = 0
+        while j < n - i - 1 {
+            if sorted[j] > sorted[j + 1] {
+                let temp = sorted[j]
+                sorted = list_set(sorted, j, sorted[j + 1])
+                sorted = list_set(sorted, j + 1, temp)
+            }
+            j = j + 1
+        }
+        i = i + 1
+    }
+    return sorted
+}
+
+fn list_set(lst, idx, val) @ pure @ cpu {
+    let n = len(lst)
+    if idx < 0 || idx >= n { return lst }
+    let result = []
+    let i = 0
+    while i < n {
+        if i == idx {
+            result = result + [val]
+        } else {
+            result = result + [lst[i]]
+        }
+        i = i + 1
+    }
+    return result
+}
 
 fn dict_new() @ pure @ cpu { return [] }
 fn dict_get(d, key) @ pure @ cpu { return null }

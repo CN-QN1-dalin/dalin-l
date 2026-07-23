@@ -1,43 +1,38 @@
 // Stack<T> — 栈（后进先出）
 // LIFO 数据结构封装
 
-/// new<T>() — 创建空栈
-fn new() @ pure @ cpu {
-    return []
-}
+/// new() — 创建空栈
+fn new() @ pure @ cpu { return [] }
 
 /// push(stack, item) — 入栈
-fn push(stack, item) @ spawn @ cpu {
-    return append(stack, item)
-}
+fn push(stack, item) @ spawn @ cpu { return stack + [item] }
 
-/// pop(stack) — 出栈
+/// pop(stack) — 出栈，返回 [new_stack, top_element]
 fn pop(stack) @ pure @ cpu {
     let n = len(stack)
-    if n == 0 {
-        return None
+    if n == 0 { return null }
+    let top = stack[n - 1]
+    let result = []
+    let i = 0
+    while i < n - 1 {
+        result = result + [stack[i]]
+        i = i + 1
     }
-    return stack[n - 1]
+    return [result, top]
 }
 
 /// peek(stack) — 查看栈顶元素
 fn peek(stack) @ pure @ cpu {
     let n = len(stack)
-    if n == 0 {
-        return None
-    }
+    if n == 0 { return null }
     return stack[n - 1]
 }
 
-/// len(stack) — 栈大小
-fn len(stack) @ pure @ cpu {
-    return count(stack)
-}
+/// slen(stack) — 栈大小
+fn slen(stack) @ pure @ cpu { return len(stack) }
 
 /// is_empty(stack) — 栈是否为空
-fn is_empty(stack) @ pure @ cpu {
-    return count(stack) == 0
-}
+fn is_empty(stack) @ pure @ cpu { return len(stack) == 0 }
 
 /// extend(stack, items) — 批量入栈
 fn extend(stack, items) @ spawn @ cpu {
@@ -45,13 +40,14 @@ fn extend(stack, items) @ spawn @ cpu {
     let i = 0
     let n = len(items)
     while i < n {
-        result = append(result, items[i])
+        result = result + [items[i]]
         i = i + 1
     }
     return result
 }
 
 /// drain(stack) — 清空栈
-fn drain(stack) @ pure @ cpu {
-    return []
-}
+fn drain(stack) @ pure @ cpu { return [] }
+
+/// to_list(stack) — 转换为列表
+fn to_list(stack) @ pure @ cpu { return stack }

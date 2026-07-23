@@ -2,8 +2,28 @@
 fn linked_list_new() @ pure @ cpu { return [] }
 fn linked_list_push_front(l, val) @ spawn @ cpu { return [val] + l }
 fn linked_list_push_back(l, val) @ spawn @ cpu { return l + [val] }
-fn linked_list_pop_front(l) @ pure @ cpu { return l }
-fn linked_list_pop_back(l) @ pure @ cpu { return l }
+fn linked_list_pop_front(l) @ pure @ cpu {
+    let n = len(l)
+    if n == 0 { return l }
+    let result = []
+    let i = 1
+    while i < n {
+        result = result + [l[i]]
+        i = i + 1
+    }
+    return result
+}
+fn linked_list_pop_back(l) @ pure @ cpu {
+    let n = len(l)
+    if n == 0 { return l }
+    let result = []
+    let i = 0
+    while i < n - 1 {
+        result = result + [l[i]]
+        i = i + 1
+    }
+    return result
+}
 fn linked_list_len(l) @ pure @ cpu { return len(l) }
 fn linked_list_contains(l, val) @ pure @ cpu {
     let i = 0

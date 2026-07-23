@@ -1,78 +1,69 @@
-// Heap<T> — 二叉堆（优先队列）
-// 最大堆/最小堆数据结构封装
+// Heap — 二叉堆（优先队列）
+// 最大堆/最小堆数据结构（基于无序数组的简化实现）
 
-/// new_max<T>() — 创建空最大堆
-fn new_max() @ pure @ cpu {
-    return []
-}
+/// new_max() — 创建空最大堆
+fn new_max() @ pure @ cpu { return [] }
 
-/// new_min<T>() — 创建空最小堆
-fn new_min() @ pure @ cpu {
-    return []
-}
+/// new_min() — 创建空最小堆
+fn new_min() @ pure @ cpu { return [] }
 
 /// push(heap, item) — 插入元素
-fn push(heap, item) @ spawn @ cpu {
-    return append(heap, item)
-}
+fn push(heap, item) @ spawn @ cpu { return heap + [item] }
 
-/// pop_max(heap) — 弹出最大值
+/// pop_max(heap) — 弹出最大值，返回 [new_heap, max_value]
 fn pop_max(heap) @ pure @ cpu {
     let n = len(heap)
-    if n == 0 {
-        return None
-    }
+    if n == 0 { return null }
     let max_idx = 0
     let i = 1
     while i < n {
-        if heap[i] > heap[max_idx] {
-            max_idx = i
-        }
+        if heap[i] > heap[max_idx] { max_idx = i }
         i = i + 1
     }
-    return heap[max_idx]
+    let max_val = heap[max_idx]
+    let result = []
+    let j = 0
+    while j < n {
+        if j != max_idx { result = result + [heap[j]] }
+        j = j + 1
+    }
+    return [result, max_val]
 }
 
-/// pop_min(heap) — 弹出最小值
+/// pop_min(heap) — 弹出最小值，返回 [new_heap, min_value]
 fn pop_min(heap) @ pure @ cpu {
     let n = len(heap)
-    if n == 0 {
-        return None
-    }
+    if n == 0 { return null }
     let min_idx = 0
     let i = 1
     while i < n {
-        if heap[i] < heap[min_idx] {
-            min_idx = i
-        }
+        if heap[i] < heap[min_idx] { min_idx = i }
         i = i + 1
     }
-    return heap[min_idx]
+    let min_val = heap[min_idx]
+    let result = []
+    let j = 0
+    while j < n {
+        if j != min_idx { result = result + [heap[j]] }
+        j = j + 1
+    }
+    return [result, min_val]
 }
 
 /// peek(heap) — 查看堆顶元素
 fn peek(heap) @ pure @ cpu {
-    let n = len(heap)
-    if n == 0 {
-        return None
-    }
+    if len(heap) == 0 { return null }
     return heap[0]
 }
 
-/// len(heap) — 堆大小
-fn len(heap) @ pure @ cpu {
-    return count(heap)
-}
+/// hlen(heap) — 堆大小
+fn hlen(heap) @ pure @ cpu { return len(heap) }
 
 /// is_empty(heap) — 堆是否为空
-fn is_empty(heap) @ pure @ cpu {
-    return count(heap) == 0
-}
+fn is_empty(heap) @ pure @ cpu { return len(heap) == 0 }
 
 /// drain(heap) — 清空堆
-fn drain(heap) @ pure @ cpu {
-    return []
-}
+fn drain(heap) @ pure @ cpu { return [] }
 
 /// merge(heap_a, heap_b) — 合并两个堆
 fn merge(heap_a, heap_b) @ spawn @ cpu {
@@ -80,7 +71,7 @@ fn merge(heap_a, heap_b) @ spawn @ cpu {
     let i = 0
     let n = len(heap_b)
     while i < n {
-        result = append(result, heap_b[i])
+        result = result + [heap_b[i]]
         i = i + 1
     }
     return result

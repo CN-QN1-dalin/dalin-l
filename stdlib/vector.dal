@@ -1,16 +1,94 @@
 // vector — dynamic array implementation
 fn new() @ pure @ cpu { return [] }
+
 fn push(v, item) @ spawn @ cpu { return v + [item] }
+
 fn pop(v) @ pure @ cpu {
     let n = len(v)
     if n == 0 { return null }
-    let i = n - 1
-    let item = v[i]
-    return v
+    let result = []
+    let i = 0
+    while i < n - 1 {
+        result = result + [v[i]]
+        i = i + 1
+    }
+    return result
 }
-fn insert(v, pos, item) @ spawn @ cpu { return v + [item] }
-fn remove(v, pos) @ pure @ cpu { return v }
-fn sort_asc(v) @ spawn @ cpu { return v }
+
+fn pop_last(v) @ pure @ cpu {
+    let n = len(v)
+    if n == 0 { return null }
+    return v[n - 1]
+}
+
+fn insert(v, pos, item) @ spawn @ cpu {
+    let n = len(v)
+    if pos < 0 { return v }
+    let result = []
+    let i = 0
+    while i < n {
+        if i == pos {
+            result = result + [item]
+        }
+        result = result + [v[i]]
+        i = i + 1
+    }
+    if pos >= n {
+        result = result + [item]
+    }
+    return result
+}
+
+fn remove(v, pos) @ pure @ cpu {
+    let n = len(v)
+    if pos < 0 || pos >= n { return v }
+    let result = []
+    let i = 0
+    while i < n {
+        if i != pos {
+            result = result + [v[i]]
+        }
+        i = i + 1
+    }
+    return result
+}
+
+fn sort_asc(v) @ spawn @ cpu {
+    let n = len(v)
+    if n <= 1 { return v }
+    let sorted = v
+    let i = 0
+    while i < n {
+        let j = 0
+        while j < n - i - 1 {
+            if sorted[j] > sorted[j + 1] {
+                let temp = sorted[j]
+                sorted = set(sorted, j, sorted[j + 1])
+                sorted = set(sorted, j + 1, temp)
+            }
+            j = j + 1
+        }
+        i = i + 1
+    }
+    return sorted
+}
+
+fn set(v, idx, val) @ pure @ cpu {
+    let n = len(v)
+    if idx < 0 || idx >= n { return v }
+    let result = []
+    let i = 0
+    while i < n {
+        if i == idx {
+            result = result + [val]
+        } else {
+            result = result + [v[i]]
+        }
+        i = i + 1
+    }
+    return result
+}
+
 fn reverse(v) @ pure @ cpu {
     let result = []
     let i = len(v) - 1
@@ -20,6 +98,22 @@ fn reverse(v) @ pure @ cpu {
     }
     return result
 }
-fn slice_list(v, start, end) @ pure @ cpu { return v }
+
+fn slice_list(v, start, end) @ pure @ cpu {
+    let n = len(v)
+    if start < 0 { return [] }
+    let stop = end
+    if stop > n { stop = n }
+    if start >= stop { return [] }
+    let result = []
+    let i = start
+    while i < stop {
+        result = result + [v[i]]
+        i = i + 1
+    }
+    return result
+}
+
 fn append(a, b) @ pure @ cpu { return a + b }
-fn len(v) @ pure @ cpu { return len(v) }
+
+fn vlen(v) @ pure @ cpu { return len(v) }

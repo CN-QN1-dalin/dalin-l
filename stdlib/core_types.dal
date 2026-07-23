@@ -1,5 +1,7 @@
 // Dalin L 标准库 — 核心类型系统
 // 基本类型检查和转换工具
+// 注意: is_int/is_float/to_int 等需要运行时类型内省(runtime type introspection)
+// 当前 DLVM 不提供 type tag 查询原语, 这些函数需等待 DLVM 扩展
 
 fn type_of(x) @ pure @ cpu { return "unknown" }
 fn is_int(x) @ pure @ cpu { return false }

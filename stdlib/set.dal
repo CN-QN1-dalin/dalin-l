@@ -1,5 +1,6 @@
 // set — unique set implementation
 fn new() @ pure @ cpu { return [] }
+
 fn insert(s, item) @ spawn @ cpu {
     let i = 0
     while i < len(s) {
@@ -8,9 +9,67 @@ fn insert(s, item) @ spawn @ cpu {
     }
     return s + [item]
 }
-fn remove(s, item) @ pure @ cpu { return s }
-fn contains(s, item) @ pure @ cpu { return false }
-fn union(a, b) @ pure @ cpu { return a + b }
-fn intersection(a, b) @ pure @ cpu { return [] }
-fn difference(a, b) @ pure @ cpu { return [] }
-fn len(s) @ pure @ cpu { return len(s) }
+
+fn remove(s, item) @ pure @ cpu {
+    let result = []
+    let i = 0
+    let n = len(s)
+    while i < n {
+        if s[i] != item {
+            result = result + [s[i]]
+        }
+        i = i + 1
+    }
+    return result
+}
+
+fn contains(s, item) @ pure @ cpu {
+    let i = 0
+    let n = len(s)
+    while i < n {
+        if s[i] == item { return true }
+        i = i + 1
+    }
+    return false
+}
+
+fn union(a, b) @ pure @ cpu {
+    let result = a
+    let i = 0
+    let n = len(b)
+    while i < n {
+        if !contains(result, b[i]) {
+            result = result + [b[i]]
+        }
+        i = i + 1
+    }
+    return result
+}
+
+fn intersection(a, b) @ pure @ cpu {
+    let result = []
+    let i = 0
+    let n = len(a)
+    while i < n {
+        if contains(b, a[i]) {
+            result = result + [a[i]]
+        }
+        i = i + 1
+    }
+    return result
+}
+
+fn difference(a, b) @ pure @ cpu {
+    let result = []
+    let i = 0
+    let n = len(a)
+    while i < n {
+        if !contains(b, a[i]) {
+            result = result + [a[i]]
+        }
+        i = i + 1
+    }
+    return result
+}
+
+fn slen(s) @ pure @ cpu { return len(s) }

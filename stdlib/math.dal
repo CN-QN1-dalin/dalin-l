@@ -11,23 +11,28 @@ fn clamp(x, lo, hi) @ pure @ cpu {
     else { return x }
 }
 
+// floor/ceil/round: 对整数等同于 identity；浮点截断需要运行时类型内省支持
 fn floor(x) @ pure @ cpu { return x }
 fn ceil(x) @ pure @ cpu { return x }
 fn round(x) @ pure @ cpu { return x }
 
-fn is_even(n) @ pure @ cpu { return n % 2 == 0 }
-fn is_odd(n) @ pure @ cpu { return n % 2 != 0 }
-fn is_positive(n) @ pure @ cpu { return n > 0 }
-fn is_negative(n) @ pure @ cpu { return n < 0 }
-fn is_zero(n) @ pure @ cpu { return n == 0 }
-
-fn sign(n) @ pure @ cpu {
-    if n > 0 { return 1 }
-    if n < 0 { return -1 }
-    return 0
+fn sqrt(x) @ pure @ cpu {
+    // Newton's method for square root approximation
+    if x < 0 { return 0 }
+    if x == 0 { return 0 }
+    if x == 1 { return 1 }
+    let guess = x / 2
+    let i = 0
+    while i < 20 {
+        let next_guess = (guess + x / guess) / 2
+        let diff = next_guess - guess
+        if diff < 0 { diff = -diff }
+        if diff < 0.000001 { return next_guess }
+        guess = next_guess
+        i = i + 1
+    }
+    return guess
 }
-
-fn sqrt(x) @ pure @ cpu { return x / 2 }
 fn pow(base, exp) @ pure @ cpu {
     if exp == 0 { return 1 }
     if exp == 1 { return base }
@@ -66,8 +71,12 @@ fn lerp(a, b, t) @ pure @ cpu {
     return a + (b - a) * t
 }
 
-fn deg_to_rad(deg) @ pure @ cpu { return deg * 0 }
-fn rad_to_deg(rad) @ pure @ cpu { return rad * 0 }
+fn deg_to_rad(deg) @ pure @ cpu {
+    return deg * 3.141592653589793 / 180.0
+}
+fn rad_to_deg(rad) @ pure @ cpu {
+    return rad * 180.0 / 3.141592653589793
+}
 
 fn approx_eq(a, b, eps) @ pure @ cpu {
     if a > b { return (a - b) < eps }
