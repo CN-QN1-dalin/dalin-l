@@ -6,8 +6,8 @@
 /// # 示例
 ///
 /// ```
-/// use dalin_l_compiler::j2_strategy_gen::StrategyGenerator;
-/// use dalin_l_compiler::runtime::RecoveryMode;
+/// use dalin_compiler::j2_strategy_gen::{StrategyGenerator, FixRecord};
+/// use dalin_compiler::runtime::RecoveryMode;
 ///
 /// let mut generator = StrategyGenerator::new();
 /// generator.record_fix(FixRecord {

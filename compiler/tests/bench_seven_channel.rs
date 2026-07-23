@@ -28,9 +28,9 @@ fn bench_capability_check_performance() {
     
     for i in 0..30 {
         let cap = match i % 3 {
-            0 => Capability::Cpu,
+             0 => Capability::Cpu,
             1 => Capability::Net,
-            _ => Capability::Fn,
+            _ => Capability::Gpu,
         };
         inferencer.check(&cap, &cap, "same_cap");
     }
@@ -56,7 +56,7 @@ fn bench_governance_check() {
     use dalin_compiler::ty2::{GovernanceInferencer, GovernanceLevel};
     
     let mut inferencer = GovernanceInferencer::new();
-    let required = GovernanceLevel::Audit;
+    let required = GovernanceLevel::Approve;
     
     for _ in 0..15 {
         inferencer.check(&required, &required, "audit_check");
@@ -81,40 +81,37 @@ fn bench_time_constraint_meet() {
     };
     
     let meet_result = TimeConstraint::meet(&tc1, &tc2);
-    assert_eq!(meet_result.latency_ms, Some(200), "Meet should take max latency");
-    assert_eq!(meet_result.timeout_ms, Some(1000), "Meet should take max timeout");
+    assert_eq!(meet_result.latency_ms, Some(100), "Meet takes min (stricter) latency");
+    assert_eq!(meet_result.timeout_ms, Some(500), "Meet takes min (stricter) timeout");
 }
 
 #[test]
 fn bench_confidence_score_boundary() {
     use dalin_compiler::ty2::Confidence;
     
-    let zero = Confidence(0.0);
-    assert_eq!(zero.score(), 0.0, "Zero confidence scores zero");
-    
-    let full = Confidence(1.0);
-    assert_eq!(full.score(), 1.0, "Full confidence scores one");
-    
-    let half = Confidence(0.5);
-    assert!((half.score() - 0.5).abs() < 0.01, "Half confidence scores ~0.5");
+    // Confidence 为五档枚举；score() 映射为固定数值
+    assert_eq!(Confidence::Proven.score(), 1.0, "Proven scores 1.0");
+    assert_eq!(Confidence::Uncertain.score(), 0.5, "Uncertain scores 0.5");
+    assert!((Confidence::Generated.score() - 0.7).abs() < 1e-9, "Generated scores ~0.7");
+    // 偏序：Proven 高于 Uncertain
+    assert!(Confidence::Proven.score() > Confidence::Uncertain.score());
 }
 
 #[test]
 fn bench_seven_channel_composite() {
-    use dalin_compiler::ty2::SevenChannelType;
-    
-    // Composite scoring from multiple channel errors
+    // 七通道错误构造 + Display 格式化（ChannelError 现为带命名词段的枚举）
     for i in 0..50 {
         let err = format!("channel_check_{}", i);
         let sev = dalin_compiler::error::SourceLocation {
-            file: "".to_string(),
+            filename: "".to_string(),
             line: i + 1,
-            col: 0,
+            column: 0,
         };
-        let error = dalin_compiler::error::ChannelError {
-            detail: err.clone(),
+        let error = dalin_compiler::error::ChannelError::EffectViolation {
             location: sev,
-            channel: dalin_compiler::error::ChannelType::Effect,
+            context: "test".to_string(),
+            required: "pure".to_string(),
+            detail: err.clone(),
         };
         
         let err_str = format!("{}", error);

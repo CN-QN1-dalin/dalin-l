@@ -10,7 +10,7 @@ fn generate_sample_program(n_funcs: usize) -> String {
     let mut src = String::from("use core_types\n\n");
     for i in 0..n_funcs {
         src.push_str(&format!(
-            "fn compute_{i}(x: Int, y: Int) @ pure @ cpu -> Int {{\n    return x + y\n}}\n\n"
+            "fn compute_{i}(x: Int, y: Int) -> Int @ pure @ cpu {{\n    return x + y\n}}\n\n"
         ));
     }
     src
@@ -31,9 +31,10 @@ fn bench_parse(src: &str) -> (usize, u128) {
     use dalin_compiler::parser::Parser;
     let start = Instant::now();
     let tokens = Lexer::new(src).tokenize().unwrap_or_default();
-    let _prog = Parser::new(tokens).parse().unwrap_or_default();
+    let token_count = tokens.len();
+    let _prog = Parser::new(tokens).parse().expect("bench parse failed");
     let duration = start.elapsed().as_micros();
-    (tokens.len(), duration)
+    (token_count, duration)
 }
 
 #[test]
@@ -89,14 +90,14 @@ fn bench_scalable_growth() {
 
 #[test]
 fn bench_effect_parsing() {
-    use dalin_compiler::ty2::parse_effect;
+    use dalin_compiler::ty2::{parse_effect, Effect};
     
     for _ in 0..1000 {
         let eff = parse_effect("pure");
-        assert!(eff.is_pure(), "pure effect should be Pure variant");
+        assert!(matches!(eff, Effect::Pure), "pure effect should be Pure variant");
         
         let io_eff = parse_effect("io");
-        assert!(!io_eff.is_pure(), "io effect should not be Pure");
+        assert!(!matches!(io_eff, Effect::Pure), "io effect should not be Pure");
     }
 }
 
@@ -117,31 +118,33 @@ fn bench_capability_parsing() {
 fn bench_confidence_scoring() {
     use dalin_compiler::ty2::Confidence;
     
-    for level in 0.0..1.01 {
-        let conf = Confidence(level);
+    // Confidence 为五档枚举，score() 恒落在 [0.5, 1.0] 区间
+    let all = [
+        Confidence::Proven,
+        Confidence::Verified,
+        Confidence::Inferred,
+        Confidence::Generated,
+        Confidence::Uncertain,
+    ];
+    for conf in all {
         let score = conf.score();
-        assert!(score >= 0.0 && score <= 1.0, "Score {} out of range for confidence {}", score, level);
+        assert!((0.0..=1.0).contains(&score), "Score {} out of range", score);
     }
 }
 
 #[test]
 fn bench_ty2_full_inference_fast() {
-    use dalin_compiler::{ast, lexer, parser};
+    use dalin_compiler::{lexer, parser};
     
     let prog_str = generate_sample_program(5);
     let tokens = lexer::Lexer::new(&prog_str).tokenize().unwrap_or_default();
-    let prog = parser::Parser::new(tokens).parse().unwrap_or_else(|| ast::Program {
-        statements: Vec::new(),
-        derive_attrs: Vec::new(),
-        macros: Vec::new(),
-        modules: Vec::new(),
-    });
+    let prog = parser::Parser::new(tokens).parse().expect("bench parse failed");
     
-    // Type inference on a small program should complete quickly
+    // 七通道全量类型推断在小程序上应快速完成
     let start = Instant::now();
-    let types = dalin_compiler::ty2::TypeInferencer::new().infer_program(&prog);
+    let mut inferencer = dalin_compiler::ty2::SevenChannelInferencer::new();
+    inferencer.infer_program(&prog);
     let elapsed = start.elapsed().as_micros();
     
     assert!(elapsed < 10_000_000, "Inference on 5 funcs under 10ms (got {}us)", elapsed);
-    assert!(types.len() >= 0, "Should produce some type bindings");
 }

@@ -11,7 +11,7 @@
 /// # 示例
 ///
 /// ```
-/// use dalin_l_compiler::j3_evolution_verify::{EvolutionVerificationEngine, ABExperimentConfig};
+/// use dalin_compiler::j3_evolution_verify::{EvolutionVerificationEngine, ABExperimentConfig};
 ///
 /// let mut engine = EvolutionVerificationEngine::new();
 /// let config = ABExperimentConfig {
