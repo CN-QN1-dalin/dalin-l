@@ -699,8 +699,6 @@ fn main() {
 
     let mut reader = BufReader::new(io::stdin());
     let mut stdout = io::stdout();
-    let mut reader = BufReader::new(io::stdin());
-    let mut stdout = io::stdout();
 
     while let Some(line) = read_lsp_message(&mut reader) {
         if let Ok(req) = serde_json::from_str::<JsonRpcRequest>(&line) {
