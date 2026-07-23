@@ -2,14 +2,14 @@
 //! Dalin L Language Server -- LSP 3.17 full implementation (lsp-types refactored)
 //!
 //! Protocol: JSON-RPC over stdio
-//! Capabilities: diagnostics, hover, completion, signatureHelp, definition, references, rename
+//! Capabilities: diagnostics, hover, completion, signatureHelp, definition, references
 
 use dalin_compiler::ast::{Program, Stmt};
 use dalin_compiler::lexer;
 use dalin_compiler::parser;
 use dalin_compiler::ty2::SevenChannelInferencer;
 use lsp_types::{
-    CompletionOptions, HoverProviderCapability, InitializeResult, MarkupContent, OneOf, Position, Range, RenameOptions, ServerCapabilities, SignatureHelpOptions, TextDocumentSyncCapability, TextDocumentSyncKind, TextDocumentSyncOptions,
+    CompletionOptions, HoverProviderCapability, InitializeResult, MarkupContent, OneOf, Position, Range, ServerCapabilities, SignatureHelpOptions, TextDocumentSyncCapability, TextDocumentSyncKind, TextDocumentSyncOptions,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -699,7 +699,8 @@ fn main() {
 
     let mut reader = BufReader::new(io::stdin());
     let mut stdout = io::stdout();
-    let mut shutdown_received = false;
+    let mut reader = BufReader::new(io::stdin());
+    let mut stdout = io::stdout();
 
     while let Some(line) = read_lsp_message(&mut reader) {
         if let Ok(req) = serde_json::from_str::<JsonRpcRequest>(&line) {
@@ -735,7 +736,7 @@ fn main() {
                         }),
                         definition_provider: Some(OneOf::Left(true)),
                         references_provider: Some(OneOf::Left(true)),
-                        rename_provider: Some(OneOf::Left(true)),
+                        rename_provider: None,
                         document_highlight_provider: None,
                         document_symbol_provider: None,
                         workspace_symbol_provider: None,
@@ -963,7 +964,7 @@ fn main() {
                     let response = json!({ "jsonrpc": "2.0", "id": req.id, "result": null });
                     writeln!(stdout, "{}", response).ok();
                     stdout.flush().ok();
-                    shutdown_received = true;
+                    break;
                 }
                 "exit" => {
                     break;

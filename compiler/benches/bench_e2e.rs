@@ -5,7 +5,6 @@
 ///   - Full compile_with_llm() pipeline
 ///   - Stdlib load + compile real-world scenario
 ///   - Size-scaling comparison (1 → 500 functions)
-
 use criterion::{Criterion, black_box, criterion_group, criterion_main, BenchmarkId};
 use dalin_compiler::{lexer, parser, ty2::SevenChannelInferencer, compile_with_llm};
 use dalin_compiler::stdlib_loader::StdLibLoader;

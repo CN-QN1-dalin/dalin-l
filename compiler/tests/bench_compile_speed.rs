@@ -1,7 +1,7 @@
 //! Dalin L 3.0 — Compilation speed benchmark (fixed API usage)
 //! Proves compilation time <1 second for realistic codebases
 
-use dalin_compiler::{lexer, parser, compile_with_llm};
+use dalin_compiler::compile_with_llm;
 use std::time::Instant;
 
 /// Small file: 10 functions, ~50 lines

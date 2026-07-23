@@ -6,15 +6,16 @@
 fn bench_run_source_small() {
     let result = dalin_runtime::interpreter::run_source(r#"fn main() @ pure @ cpu -> Int { return 42 }"#);
     // Either OK or RuntimeError are valid — just check it doesn't panic
-    assert!(result.is_ok() || matches!(result, Err(_)));
+    let _ = result;
 }
 
 #[test]
 fn bench_run_source_multiple_calls() {
     for _ in 0..10 {
         let result = dalin_runtime::interpreter::run_source(r#"let x: Int = 1; return x + 1"#);
-        assert!(result.is_ok() || matches!(result, Err(_)));
-    }
+    // Either OK or RuntimeError are valid — just check it doesn't panic
+    let _ = result;
+}
 }
 
 #[test]
@@ -78,8 +79,8 @@ fn run_task() @ pure @ cpu {
 "#;
 
     let result = dalin_runtime::interpreter::run_source(source);
-    // Just check it compiles/interprets without panicking
-    assert!(result.is_ok() || matches!(result, Err(_)));
+    // Either OK or RuntimeError are valid — just check it doesn't panic
+    let _ = result;
 }
 
 use dalin_runtime::env::Value;
