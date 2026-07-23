@@ -358,10 +358,13 @@ sqrt(4)
 
 #[test]
 fn math_deg_to_rad() {
+    // 常量值在 Dalin L 源码中，不能直接用 Rust 的 std::f64::consts::PI
     let src = "fn deg_to_rad(deg) { return deg * 3.141592653589793 / 180.0 } deg_to_rad(180.0)";
+    #[allow(clippy::approx_constant)]
+    const PI: f64 = 3.141592653589793;
     let val = run_src(src);
     if let Value::Float(f) = val {
-        assert!((f - 3.141592653589793).abs() < 0.01);
+        assert!((f - PI).abs() < 0.01);
     }
 }
 
