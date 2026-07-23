@@ -13,9 +13,9 @@ fn bench_run_source_small() {
 fn bench_run_source_multiple_calls() {
     for _ in 0..10 {
         let result = dalin_runtime::interpreter::run_source(r#"let x: Int = 1; return x + 1"#);
-    // Either OK or RuntimeError are valid — just check it doesn't panic
-    let _ = result;
-}
+        // Either OK or RuntimeError are valid — just check it doesn't panic
+        let _ = result;
+    }
 }
 
 #[test]
