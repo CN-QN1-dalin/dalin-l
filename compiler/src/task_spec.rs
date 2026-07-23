@@ -110,7 +110,7 @@ mod tests {
             latency: None,
             timeout: None,
             throughput: None,
-            body: vec![],
+            body: Box::new(vec![]),
             async_,
             pub_: false,
         }

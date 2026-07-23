@@ -330,7 +330,7 @@ impl Parser {
         let return_type = if self.match_token(Arrow) { Some(self.parse_type()?) } else { None };
         let (effect, capability, llm_prompt, cognitive_loop, governance, latency, timeout, throughput, confidence) = self.parse_channel_annotations(None)?;
         let body = self.parse_block()?;
-        Ok(Stmt::Fn { name, params, return_type, effect, capability, llm_prompt, confidence, cognitive_loop, governance, latency, timeout, throughput, body, async_: false, pub_: false })
+        Ok(Stmt::Fn { name, params, return_type, effect, capability, llm_prompt, confidence, cognitive_loop, governance, latency, timeout, throughput, body: Box::new(body), async_: false, pub_: false })
     }
 
     fn parse_async_fn(&mut self) -> Result<Stmt, ParseError> {
@@ -340,7 +340,7 @@ impl Parser {
         let return_type = if self.match_token(Arrow) { Some(self.parse_type()?) } else { None };
         let (effect, capability, llm_prompt, cognitive_loop, governance, latency, timeout, throughput, confidence) = self.parse_channel_annotations(Some("async".to_string()))?;
         let body = self.parse_block()?;
-        Ok(Stmt::Fn { name, params, return_type, effect, capability, llm_prompt, confidence, cognitive_loop, governance, latency, timeout, throughput, body, async_: true, pub_: false })
+        Ok(Stmt::Fn { name, params, return_type, effect, capability, llm_prompt, confidence, cognitive_loop, governance, latency, timeout, throughput, body: Box::new(body), async_: true, pub_: false })
     }
 
     fn parse_fn_params(&mut self) -> Result<Vec<FnParam>, ParseError> {

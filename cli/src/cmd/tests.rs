@@ -141,11 +141,11 @@ pub fn run() -> Result<(), String> {
 
     // Type Inference Tests
     println!("\n--- Type Inference Tests ---");
-    test_infer!("int 字面量", "let x = 42", vec![("x", "int")]);
-    test_infer!("string 字面量", "let x = \"hello\"", vec![("x", "string")]);
-    test_infer!("bool 字面量", "let x = true", vec![("x", "bool")]);
-    test_infer!("数组类型", "let arr = [1, 2, 3]", vec![("arr", "array<int>")]);
-    test_infer!("Option<int>", "let opt = Some(42)", vec![("opt", "option<int>")]);
+    test_infer!("int 字面量", "let x = 42", [("x", "int")]);
+    test_infer!("string 字面量", "let x = \"hello\"", [("x", "string")]);
+    test_infer!("bool 字面量", "let x = true", [("x", "bool")]);
+    test_infer!("数组类型", "let arr = [1, 2, 3]", [("arr", "array<int>")]);
+    test_infer!("Option<int>", "let opt = Some(42)", [("opt", "option<int>")]);
 
     // Runtime Tests
     println!("\n--- Runtime Tests ---");

@@ -171,7 +171,7 @@ mod tests {
             latency: latency.map(|s| s.to_string()),
             timeout: None,
             throughput: None,
-            body,
+            body: Box::new(body),
             async_: false,
             pub_: false,
         }

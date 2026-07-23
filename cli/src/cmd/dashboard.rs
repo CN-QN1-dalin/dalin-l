@@ -48,5 +48,5 @@ fn html_dashboard() -> String {
 }
 
 fn json_status() -> String {
-    format!("{{\"version\":\"0.1.0\",\"status\":\"ok\",\"phases\":[\"A\",\"B\",\"C\",\"D\",\"E\",\"F\",\"G\",\"H\"]}}")
+    "{\"version\":\"0.1.0\",\"status\":\"ok\",\"phases\":[\"A\",\"B\",\"C\",\"D\",\"E\",\"F\",\"G\",\"H\"]}".to_string()
 }

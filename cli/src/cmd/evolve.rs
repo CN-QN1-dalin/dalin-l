@@ -1,10 +1,9 @@
-/// Dalin L 3.0 — evolve CLI (Phase J Human Review Interface)
-///
-/// Subcommands: review, view, accept, reject, revert, stats, knowledge, calibrate
-/// Audit log: ~/.dalan/audit_log/{YYYY-MM}/{action}_{id}.json
-///
-/// 四通道闭环串联：J1(模式聚类) → J2(策略生成) → J3(进化验证) → J4(人类审查)
-
+//! Dalin L 3.0 — evolve CLI (Phase J Human Review Interface)
+//!
+//! Subcommands: review, view, accept, reject, revert, stats, knowledge, calibrate
+//! Audit log: ~/.dalan/audit_log/{YYYY-MM}/{action}_{id}.json
+//!
+//! 四通道闭环串联：J1(模式聚类) → J2(策略生成) → J3(进化验证) → J4(人类审查)
 use chrono::Local;
 use dalin_compiler::{
     j1_pattern_learning::{ErrorClusteringEngine, ErrorRecord},
@@ -21,6 +20,7 @@ use std::path::PathBuf;
 // ───────────────────────────── Data structures ─────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[allow(clippy::upper_case_acronyms)]
 pub enum RiskLevel {
     TRIVIAL,
     LOW,
@@ -148,7 +148,7 @@ fn fetch_j2_strategies() -> Vec<EvolutionChange> {
 
     rules.into_iter().map(|rule| {
         EvolutionChange {
-            id: (40 + rule.usage_count as u64 % 10),
+            id: (40 + rule.usage_count % 10),
             module: "j2_strategy".into(),
             description: format!("恢复策略: {}", rule.triggers_on.chars().take(50).collect::<String>()),
             diff: format!("applies_mode={}, confidence={:.2}", rule.applies_mode, rule.confidence),
@@ -358,18 +358,16 @@ fn ensure_audit_dir() -> Result<(), String> {
 
 fn load_audit_log() -> AuditLog {
     let path = audit_log_dir().join("_index.json");
-    if path.exists() {
-        if let Ok(content) = fs::read_to_string(&path) {
-            if let Ok(log) = serde_json::from_str(&content) {
-                return log;
-            }
-        }
+    if path.exists()
+        && let Ok(content) = fs::read_to_string(&path)
+        && let Ok(log) = serde_json::from_str(&content) {
+        return log;
     }
     AuditLog { entries: vec![] }
 }
 
 fn save_audit_log(log: &AuditLog) -> Result<(), String> {
-    fs::create_dir_all(&audit_log_dir()).map_err(|e| format!("Cannot create dir: {}", e))?;
+    fs::create_dir_all(audit_log_dir()).map_err(|e| format!("Cannot create dir: {}", e))?;
     let path = audit_log_dir().join("_index.json");
     let content = serde_json::to_string_pretty(log).map_err(|e| format!("JSON error: {}", e))?;
     fs::write(path, content).map_err(|e| format!("Cannot write file: {}", e))?;

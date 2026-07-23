@@ -1,6 +1,5 @@
-/// Dalin L 3.0 — CLI v1.0 (Clap Subcommand Architecture)
-/// Phase I: 深度集成 REPL / Build / Run / Check / Init / Tree / Analyze / Info / Dashboard
-
+//! Dalin L 3.0 — CLI v1.0 (Clap Subcommand Architecture)
+//! Phase I: 深度集成 REPL / Build / Run / Check / Init / Tree / Analyze / Info / Dashboard
 mod cmd;
 mod util;
 

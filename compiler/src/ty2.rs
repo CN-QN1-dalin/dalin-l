@@ -252,8 +252,7 @@ impl CognitiveLoop {
     pub fn leq(&self, other: &CognitiveLoop) -> bool {
         use CognitiveLoop::*;
         match (self, other) {
-            (Perceive, x) if *x != Perceive => true,
-            (_, Perceive) => false,
+            (Perceive, _) => true,
             (Reason, x) if *x == Reason || *x == Decide || *x == Act || *x == Loop => true,
             (_, Reason) => false,
             (Decide, x) if *x == Decide || *x == Act || *x == Loop => true,
@@ -1110,7 +1109,7 @@ impl SevenChannelInferencer {
                         t.timeout_ms = if to.ends_with("ms") { to.trim_end_matches("ms").parse::<u64>().ok() }
                                        else { to.trim_end_matches("s").parse::<u64>().ok().map(|x| x * 1000) };
                     }
-                    if let Some(tp) = throughput { t.throughput = tp.trim_end_matches("/s").parse::<u64>().ok(); }
+                    if let Some(tp) = throughput.as_ref() { t.throughput = tp.trim_end_matches("/s").parse::<u64>().ok(); }
                     t
                 };
 
@@ -1146,6 +1145,7 @@ impl SevenChannelInferencer {
 
     /// 遍历函数体，对每个表达式做通道级检查：
     /// 推断表达式在各通道上的值，然后对比函数声明的约束调用 check()。
+    #[allow(clippy::too_many_arguments)]
     fn walk_body_and_check(
         &mut self,
         body: &[crate::ast::Stmt],
@@ -1165,6 +1165,7 @@ impl SevenChannelInferencer {
     }
 
     /// 对一条语句中的表达式递归检查
+    #[allow(clippy::too_many_arguments)]
     fn walk_stmt_for_check(
         &mut self,
         stmt: &crate::ast::Stmt,
@@ -1275,6 +1276,7 @@ impl SevenChannelInferencer {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     /// 对单表达式做全通道检查
     fn walk_expr_check(
         &mut self,
@@ -1292,7 +1294,9 @@ impl SevenChannelInferencer {
         let expr_eff = self.effect.infer_expr(expr);
         self.effect.check(declared_effect, &expr_eff, &location);
 
-        // 能力检查（CapabilityInferencer 没有 check 方法，跳过）
+        // 能力检查（CapabilityInferencer 没有 check 方法 — 仅用于递归传递）
+        #[allow(unused_variables)]
+        let _declared_capability = declared_capability;
 
         // 认知循环检查
         if let Some(declared_cl) = declared_cognitive_loop {
@@ -1474,7 +1478,7 @@ mod tests {
             latency: None,
             timeout: None,
             throughput: None,
-            body: vec![],
+            body: Box::new(vec![]),
             async_: false,
             pub_: false,
         });
@@ -1491,7 +1495,7 @@ mod tests {
             latency: None,
             timeout: None,
             throughput: None,
-            body: vec![],
+            body: Box::new(vec![]),
             async_: false,
             pub_: false,
         });
@@ -1861,7 +1865,7 @@ mod tests {
             latency: None,
             timeout: None,
             throughput: None,
-            body: vec![],
+            body: Box::new(vec![]),
             async_: false,
             pub_: false,
         });
@@ -1892,7 +1896,7 @@ mod tests {
             latency: None,
             timeout: None,
             throughput: None,
-            body: vec![],
+            body: Box::new(vec![]),
             async_: false,
             pub_: false,
         });
@@ -2008,15 +2012,6 @@ mod tests {
     //  P2.2 — Body-level 违规检测测试
     // ═══════════════════════════════
 
-    fn make_body_with_call(called_fn: &str) -> Vec<crate::ast::Stmt> {
-        vec![
-            crate::ast::Stmt::Expr(Box::new(crate::ast::Expr::Call {
-                func: Box::new(crate::ast::Expr::Ident(called_fn.to_string())),
-                args: vec![],
-            }))
-        ]
-    }
-
     #[test]
     fn test_body_walk_detects_effect_violation() {
         // pure 声明的函数体内调用了 println (io 效应) → 应报效应违规
@@ -2035,12 +2030,12 @@ mod tests {
             latency: None,
             timeout: None,
             throughput: None,
-            body: vec![
+            body: Box::new(vec![
                 Stmt::Expr(Box::new(Expr::Call {
                     func: Box::new(Expr::Ident("println".to_string())),
                     args: vec![Expr::StringLiteral("hello".to_string())],
                 }))
-            ],
+            ]),
             async_: false,
             pub_: false,
         });
@@ -2069,12 +2064,12 @@ mod tests {
             latency: None,
             timeout: None,
             throughput: None,
-            body: vec![
+            body: Box::new(vec![
                 Stmt::Expr(Box::new(Expr::Call {
                     func: Box::new(Expr::Ident("do_something".to_string())),
                     args: vec![],
                 }))
-            ],
+            ]),
             async_: false,
             pub_: false,
         });
@@ -2103,12 +2098,12 @@ mod tests {
             latency: None,
             timeout: None,
             throughput: None,
-            body: vec![
+            body: Box::new(vec![
                 Stmt::Expr(Box::new(Expr::Call {
                     func: Box::new(Expr::Ident("deploy".to_string())),
                     args: vec![],
                 }))
-            ],
+            ]),
             async_: false,
             pub_: false,
         });
@@ -2158,7 +2153,7 @@ mod tests {
             latency: None,
             timeout: None,
             throughput: None,
-            body: vec![],
+            body: Box::new(vec![]),
             async_: false,
             pub_: false,
         });

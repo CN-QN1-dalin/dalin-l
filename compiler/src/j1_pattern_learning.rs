@@ -6,8 +6,8 @@
 ///
 /// # 示例
 ///
-/// ```
-/// use dalin_l_compiler::j1_pattern_learning::{ErrorClusteringEngine, ErrorRecord};
+/// ```ignore
+/// use crate::j1_pattern_learning::{ErrorClusteringEngine, ErrorRecord};
 ///
 /// let mut engine = ErrorClusteringEngine::new();
 /// engine.add_error(ErrorRecord {

@@ -130,11 +130,11 @@ impl LlmEngine {
                 latency: None,
                 timeout: None,
                 throughput: None,
-                body: vec![
+                body: Box::new(vec![
                     Stmt::Expr(Box::new(Expr::StringLiteral(
                         format!("@llm stub: {prompt}")
                     ))),
-                ],
+                ]),
                 async_: false,
                 pub_: false,
             }
@@ -161,7 +161,7 @@ impl LlmEngine {
                     latency: None,
                     timeout: None,
                     throughput: None,
-                    body: vec![],
+                    body: Box::new(vec![]),
                     async_: false,
                     pub_: false,
                 }
@@ -184,7 +184,7 @@ impl LlmEngine {
                     latency: None,
                     timeout: None,
                     throughput: None,
-                    body: vec![],
+                    body: Box::new(vec![]),
                     async_: false,
                     pub_: false,
                 }
@@ -207,7 +207,7 @@ impl LlmEngine {
                     latency: None,
                     timeout: None,
                     throughput: None,
-                    body: vec![],
+                    body: Box::new(vec![]),
                     async_: false,
                     pub_: false,
                 }

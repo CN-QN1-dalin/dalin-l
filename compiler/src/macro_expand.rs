@@ -149,7 +149,7 @@ impl DeriveExpander {
             return_type: None, effect: None, capability: None, llm_prompt: None,
             confidence: None, cognitive_loop: None, governance: None,
             latency: None, timeout: None, throughput: None,
-            body: debug_body, async_: false, pub_: false,
+            body: Box::new(debug_body), async_: false, pub_: false,
         }
     }
 
@@ -165,7 +165,7 @@ impl DeriveExpander {
             name: "clone".to_string(), params: vec![], return_type: None,
             effect: None, capability: None, llm_prompt: None, confidence: None,
             cognitive_loop: None, governance: None, latency: None, timeout: None,
-            throughput: None, body, async_: false, pub_: false,
+            throughput: None, body: Box::new(body), async_: false, pub_: false,
         }
     }
 
@@ -174,7 +174,7 @@ impl DeriveExpander {
             name: "copy".to_string(), params: vec![], return_type: None,
             effect: None, capability: None, llm_prompt: None, confidence: None,
             cognitive_loop: None, governance: None, latency: None, timeout: None,
-            throughput: None, body: vec![Stmt::Return(None)],
+            throughput: None, body: Box::new(vec![Stmt::Return(None)]),
             async_: false, pub_: false,
         }
     }
@@ -197,7 +197,7 @@ impl DeriveExpander {
             return_type: None, effect: None, capability: None, llm_prompt: None,
             confidence: None, cognitive_loop: None, governance: None,
             latency: None, timeout: None, throughput: None,
-            body, async_: false, pub_: false,
+            body: Box::new(body), async_: false, pub_: false,
         }
     }
 
@@ -222,7 +222,7 @@ impl DeriveExpander {
             name: "default".to_string(), params: vec![], return_type: None,
             effect: None, capability: None, llm_prompt: None, confidence: None,
             cognitive_loop: None, governance: None, latency: None, timeout: None,
-            throughput: None, body, async_: false, pub_: false,
+            throughput: None, body: Box::new(body), async_: false, pub_: false,
         }
     }
 }
@@ -528,7 +528,7 @@ mod tests {
                 effect: None, capability: None, llm_prompt: None, confidence: None,
                 cognitive_loop: None, governance: None, latency: None, timeout: None,
                 throughput: None,
-                body: vec![Stmt::Return(Some(Box::new(Expr::IntLiteral(0))))],
+                body: Box::new(vec![Stmt::Return(Some(Box::new(Expr::IntLiteral(0))))]),
                 async_: false, pub_: false,
             },
         ];
@@ -741,7 +741,7 @@ mod tests {
                     effect: None, capability: None, llm_prompt: None, confidence: None,
                     cognitive_loop: None, governance: None, latency: None, timeout: None,
                     throughput: None,
-                    body: vec![Stmt::Return(Some(Box::new(Expr::IntLiteral(42))))],
+                    body: Box::new(vec![Stmt::Return(Some(Box::new(Expr::IntLiteral(42))))]),
                     async_: false, pub_: false,
                 },
             ],
@@ -782,7 +782,7 @@ mod tests {
                 params: vec![], return_type: None,
                 effect: None, capability: None, llm_prompt: None, confidence: None,
                 cognitive_loop: None, governance: None, latency: None, timeout: None,
-                throughput: None, body: vec![], async_: false, pub_: false,
+                throughput: None, body: Box::new(vec![]), async_: false, pub_: false,
             },
         ];
         let decls = extract_macro_decls(&stmts);

@@ -1,12 +1,11 @@
-/// Dalin L 3.0 — dalib pkg 包管理子命令
-///
-/// 类似 Cargo 的包管理器，但为 Dalin L 做了裁剪和定制：
-/// - dalib pkg init [name] — 初始化项目 + 生成 dalan.toml
-/// - dalib pkg add [dep] [--git URL] [--version VER] — 添加依赖
-/// - dalib pkg list — 列出已安装的依赖及版本
-/// - dalib pkg build — 解析 dalan.toml，下载/解析依赖，生成 dalan.lock
-/// - dalib pkg remove [dep] — 移除依赖
-
+//! Dalin L 3.0 — dalib pkg 包管理子命令
+//!
+//! 类似 Cargo 的包管理器，但为 Dalin L 做了裁剪和定制：
+//! - dalib pkg init [name] — 初始化项目 + 生成 dalan.toml
+//! - dalib pkg add [dep] [--git URL] [--version VER] — 添加依赖
+//! - dalib pkg list — 列出已安装的依赖及版本
+//! - dalib pkg build — 解析 dalan.toml，下载/解析依赖，生成 dalan.lock
+//! - dalib pkg remove [dep] — 移除依赖
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
@@ -20,7 +19,7 @@ use dalin_compiler::package::{
 //  核心实现
 // ═══════════════════════════════
 
-fn find_dalan_toml(path: &PathBuf) -> Result<PathBuf, String> {
+fn find_dalan_toml(path: &std::path::Path) -> Result<PathBuf, String> {
     let candidate = path.join("dalan.toml");
     if candidate.exists() {
         return Ok(candidate);
@@ -109,18 +108,17 @@ fn cmd_init(args: &HashMap<String, String>) -> Result<(), String> {
         });
     let lib_only = args.get("lib").map(|v| v == "true").unwrap_or(false);
 
-    let out_dir = if pbuf == PathBuf::from(".") {
+    let out_dir = if pbuf.to_str() == Some(".") {
         PathBuf::from(&name)
     } else {
         pbuf.clone()
     };
 
-    if out_dir.exists() {
-        if let Ok(entries) = fs::read_dir(&out_dir) {
-            let count: usize = entries.count();
-            if count > 0 {
-                return Err(format!("Directory '{}' is not empty", out_dir.display()));
-            }
+    if out_dir.exists()
+        && let Ok(entries) = fs::read_dir(&out_dir) {
+        let count: usize = entries.count();
+        if count > 0 {
+            return Err(format!("Directory '{}' is not empty", out_dir.display()));
         }
     }
 
@@ -265,7 +263,7 @@ fn cmd_build(_args: &HashMap<String, String>) -> Result<(), String> {
 
     let mut graph = DependencyGraph::new();
     for (name, dep) in &manifest.deps {
-        let ver = SemVer::parse(&dep.version.trim_matches('"'))
+        let ver = SemVer::parse(dep.version.trim_matches('"'))
             .unwrap_or_else(|_| SemVer::new(1, 0, 0));
         
         let available_versions = vec![ver];
@@ -316,10 +314,9 @@ fn cmd_build(_args: &HashMap<String, String>) -> Result<(), String> {
         let mut count = 0;
         for entry in entries.flatten() {
             let path = entry.path();
-            if let Some(ext) = path.extension() {
-                if ext == "dal" {
-                    count += 1;
-                }
+            if let Some(ext) = path.extension()
+                && ext == "dal" {
+                count += 1;
             }
         }
         println!("  Compiled {} stdlib modules", count);

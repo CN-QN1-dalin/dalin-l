@@ -129,11 +129,11 @@ fn expand_llm(prog: &Program) -> Program {
                 // 如果生成的语句中有 Fn，提取其 body 作为当前函数的 body；否则用生成语句本身
                 let new_body = if !r_gen.statements.is_empty() && matches!(&r_gen.statements[0], Stmt::Fn { .. }) {
                     match &r_gen.statements[0] {
-                        Stmt::Fn { body, .. } => body.clone(),
-                        _ => vec![],
+                        Stmt::Fn { body, .. } => (*body).clone(),
+                        _ => Box::new(vec![]),
                     }
                 } else {
-                    r_gen.statements
+                    Box::new(r_gen.statements)
                 };
                 stmts.push(Stmt::Fn {
                     name: name.clone(),

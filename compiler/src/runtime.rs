@@ -578,7 +578,7 @@ impl Runtime {
             self.env.register_fn(FnDef {
                 name: name.clone(),
                 params: params.clone(),
-                body: body.clone(),
+                body: (**body).clone(),
                 effect: eff,
                 capability: cap,
                 confidence: conf,
@@ -868,7 +868,7 @@ impl Runtime {
                     self.env.register_fn(FnDef {
                         name: name.clone(),
                         params: params.clone(),
-                        body: body.clone(),
+                        body: (**body).clone(),
                         effect: eff,
                         capability: cap,
                         confidence: None,
@@ -1610,7 +1610,7 @@ mod tests {
             latency: None,
             timeout: None,
             throughput: None,
-            body,
+            body: Box::new(body),
             async_: false,
             pub_: false,
         }

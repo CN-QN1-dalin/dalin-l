@@ -162,6 +162,7 @@ pub struct MatchArm {
 // ═══════════════════════════════
 
 #[derive(Debug, Clone)]
+#[allow(clippy::large_enum_variant)]
 pub enum Stmt {
     Let {
         name: String,
@@ -193,7 +194,7 @@ pub enum Stmt {
         timeout: Option<String>,
         /// Phase D: 吞吐量约束 @ throughput(100/s)
         throughput: Option<String>,
-        body: Vec<Stmt>,
+        body: Box<Vec<Stmt>>,
         async_: bool,
         pub_: bool,
     },
