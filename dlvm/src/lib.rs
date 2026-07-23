@@ -229,8 +229,8 @@ pub struct TaskFrame {
     pub ip: usize,
     /// 当前函数索引
     pub current_fn: usize,
-    /// 调用栈：（返回地址，栈基址）
-    pub call_stack: Vec<(usize, usize)>,
+    /// 调用栈：（返回地址，栈基址，调用者函数索引）
+    pub call_stack: Vec<(usize, usize, usize)>,
     /// 值栈副本
     pub stack: Vec<Value>,
     /// 状态
@@ -314,7 +314,7 @@ impl Scheduler {
     /// 当前任务 yield：保存帧。
     /// - to_waiting=true: CoopAwait 场景，状态设为 Waiting，不重新入队
     /// - to_waiting=false: CoopYieldResume 场景，状态设为 Ready，重新入队尾
-    pub fn yield_current(&mut self, ip: usize, current_fn: usize, call_stack: &[(usize, usize)], stack: &[Value], to_waiting: bool) {
+    pub fn yield_current(&mut self, ip: usize, current_fn: usize, call_stack: &[(usize, usize, usize)], stack: &[Value], to_waiting: bool) {
         if let Some(id) = self.current {
             if let Some(t) = self.tasks.iter_mut().find(|t| t.id == id) {
                 t.ip = ip;
@@ -386,8 +386,8 @@ impl Default for Channel {
 pub struct Vm {
     /// 值栈
     stack: Vec<Value>,
-    /// 调用栈（返回地址 + 栈基址）
-    call_stack: Vec<(usize, usize)>,
+    /// 调用栈（返回地址 + 栈基址 + 调用者函数索引）
+    call_stack: Vec<(usize, usize, usize)>,
     /// 已加载的函数表
     functions: Vec<BytecodeFunction>,
     /// 函数名 → 函数索引映射
@@ -478,10 +478,16 @@ impl Vm {
     pub fn run(&mut self) -> Result<Value, VmError> {
         self.running = true;
         self.ip = 0;
-        self.current_fn = 0;
+        // 入口函数约定：编译器将 __entry__ 追加在最后；找不到则回退到函数 0
+        let entry_idx = self
+            .functions
+            .iter()
+            .position(|f| f.name == "__entry__")
+            .unwrap_or(0);
+        self.current_fn = entry_idx;
 
         // 将主入口注册为任务 0
-        let main_task_id = self.scheduler.spawn(0, 0);
+        let main_task_id = self.scheduler.spawn(0, entry_idx);
         self.scheduler.activate(main_task_id);
         let mut main_result = Value::None;
 
@@ -724,12 +730,12 @@ let func = match self.functions.get(self.current_fn) {
 
             Opcode::Return => {
                 let result = self.stack.pop().ok_or(VmError::StackUnderflow)?;
-                // 弹到调用栈帧的基址
-                if let Some((ret_ip, base)) = self.call_stack.pop() {
+                // 弹到调用栈帧的基址，并恢复到调用者函数（调用帧已记录调用者 fn 索引）
+                if let Some((ret_ip, base, caller_fn)) = self.call_stack.pop() {
                     self.stack.truncate(base);
                     self.stack.push(result);
                     self.ip = ret_ip;
-                    self.current_fn = self.find_fn_by_ip(ret_ip).unwrap_or(0);
+                    self.current_fn = caller_fn;
                 } else {
                     // 顶层返回：将结果压回栈，ip 移到末尾让 run loop 处理任务完成
                     self.stack.push(result);
@@ -742,9 +748,9 @@ let func = match self.functions.get(self.current_fn) {
             }
 
             Opcode::Call(argc, target) => {
-                // 保存返回地址 + 栈基址
+                // 保存返回地址 + 栈基址 + 当前（调用者）函数索引
                 let base = self.stack.len().saturating_sub(argc as usize);
-                self.call_stack.push((self.ip, base));
+                self.call_stack.push((self.ip, base, self.current_fn));
                 // 根据调用目标查找函数
                 let fn_idx = match target {
                     CallTarget::Index(idx) => {
@@ -762,6 +768,18 @@ let func = match self.functions.get(self.current_fn) {
                 // 切换到目标函数
                 self.current_fn = fn_idx;
                 self.ip = 0;
+                // 将实参从值栈 (base..base+argc) 复制到被调函数的局部变量槽 locals[0..argc]
+                let argc_usize = argc as usize;
+                if self.locals.len() <= self.current_fn {
+                    self.locals.resize(self.current_fn + 1, Vec::new());
+                }
+                for i in 0..argc_usize {
+                    let val = self.stack[base + i].clone();
+                    if self.locals[self.current_fn].len() <= i {
+                        self.locals[self.current_fn].resize(i + 1, Value::None);
+                    }
+                    self.locals[self.current_fn][i] = val;
+                }
             }
 
             Opcode::Builtin(idx) => {
@@ -1125,17 +1143,6 @@ Opcode::Halt => {
         }
     }
 
-    fn find_fn_by_ip(&self, ip: usize) -> Option<usize> {
-        // 粗略查找：遍历函数表找包含此 IP 的函数
-        let mut offset = 0usize;
-        for (i, f) in self.functions.iter().enumerate() {
-            if ip >= offset && ip < offset + f.code.len() {
-                return Some(i);
-            }
-            offset += f.code.len();
-        }
-        None
-    }
 }
 
 #[cfg(test)]

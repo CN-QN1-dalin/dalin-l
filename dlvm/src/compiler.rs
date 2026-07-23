@@ -202,9 +202,12 @@ impl BytecodeCompiler {
                     self.compile_stmt(s);
                 }
 
-                // 确保有 Return
-                if self.code.is_empty() || !matches!(self.code.last(), Some(Opcode::Return)) {
+                // 确保有 Return：函数返回值取自函数体最后表达式留在栈顶的值，
+                // 不再无条件压入 LoadNone（否则会覆盖 match/if/裸表达式的返回值）
+                if self.code.is_empty() {
                     self.emit(Opcode::LoadNone);
+                    self.emit(Opcode::Return);
+                } else if !matches!(self.code.last(), Some(Opcode::Return)) {
                     self.emit(Opcode::Return);
                 }
 
@@ -361,12 +364,13 @@ impl BytecodeCompiler {
                     None => { self.mark_error(); return; }
                 };
                 self.emit(Opcode::SetLoc(match_slot));
-                // 跳转表：JmpIfNot 位置 → 后续回填
-                let mut jmp_not_positions: Vec<usize> = Vec::new();
+                // 跳转表：每个 arm 的 fallthrough 落点顺序进入下一 arm（或结尾）
+                let mut end_jumps: Vec<usize> = Vec::new();
                 let arm_count = arms.len();
                 for (i, arm) in arms.iter().enumerate() {
                     let is_last = i == arm_count - 1;
                     // 根据模式类型生成匹配检查
+                    let mut pat_fail_pos: Option<usize> = None;
                     match arm.pattern.kind.as_str() {
                         "wild" | "ident" => {
                             // 通配符/标识符模式：始终匹配，无需检查
@@ -381,15 +385,32 @@ impl BytecodeCompiler {
                                 self.emit(Opcode::LoadNone);
                             }
                             self.emit(Opcode::Eq);
-                            if !is_last {
-                                jmp_not_positions.push(self.current_offset());
-                                self.emit(Opcode::JmpIfNot(0));
-                            }
-                            self.emit(Opcode::Pop); // 弹出比较结果
+                            // 不匹配 → 跳到本 arm 的 pat_fail 落点（Pop 比较结果后顺序进入下一 arm）
+                            let pos = self.current_offset();
+                            self.emit(Opcode::JmpIfNot(0));
+                            pat_fail_pos = Some(pos);
                         }
                         _ => {
                             // 未知模式类型：回退到始终匹配
                         }
+                    }
+                    // 注：Eq 的比较结果已由 JmpIfNot 消费（无论是否跳转都 pop_bool），匹配成功后栈已平衡，无需额外 Pop
+                    // 变量绑定模式：纯 ident 被解析为 ctor 且无 inner，直接将模式变量别名到
+                    // match_slot，使 body/guard 能引用目标值（无需额外指令，无栈副作用）
+                    if arm.pattern.kind == "ctor"
+                        && arm.pattern.inner.is_empty()
+                        && !arm.pattern.name.is_empty()
+                    {
+                        self.locals.insert(arm.pattern.name.clone(), match_slot);
+                    }
+                    // guard 检查：有 guard 且为 false 时跳过本 arm
+                    let mut guard_fail_pos: Option<usize> = None;
+                    if let Some(ref guard) = arm.guard {
+                        self.compile_expr(guard);
+                        if self.has_error() { return; }
+                        let pos = self.current_offset();
+                        self.emit(Opcode::JmpIfNot(0));
+                        guard_fail_pos = Some(pos);
                     }
                     // 编译 arm body
                     for s in &arm.body {
@@ -400,22 +421,31 @@ impl BytecodeCompiler {
                         // 执行完当前 arm 后跳转到结尾
                         let jmp_end_pos = self.current_offset();
                         self.emit(Opcode::Jmp(0));
-                        // 回填 JmpIfNot 跳转目标
-                        if let Some(jnp) = jmp_not_positions.pop() {
-                            let offset = (self.code.len() as i64 - jnp as i64) as i16;
-                            if let Opcode::JmpIfNot(ref mut off) = self.code[jnp] {
-                                *off = offset;
-                            }
+                        end_jumps.push(jmp_end_pos);
+                    }
+                    // 本 arm 的 fallthrough 落点：顺序进入下一 arm
+                    // VM 语义: 执行 JmpIfNot 时 self.ip 已 = pos+1, 故 new_ip = pos+1+offset
+                    // 目标为 code.len()(下一 arm 起点) => offset = code.len() - pos - 1
+                    if let Some(pos) = pat_fail_pos {
+                        let off = (self.code.len() as i64 - pos as i64 - 1) as i16;
+                        if let Opcode::JmpIfNot(ref mut o) = self.code[pos] {
+                            *o = off;
                         }
-                        // 保存 Jmp 跳转位置，后续回填
-                        jmp_not_positions.push(jmp_end_pos);
+                    }
+                    if let Some(pos) = guard_fail_pos {
+                        let off = (self.code.len() as i64 - pos as i64 - 1) as i16;
+                        if let Opcode::JmpIfNot(ref mut o) = self.code[pos] {
+                            *o = off;
+                        }
+                        // guard false 时栈已干净（JmpIfNot 已 pop bool），顺序进入下一 arm
                     }
                 }
                 // 回填所有 Jmp 跳转到结尾
+                // Jmp 在 jmp_pos, 执行时 self.ip = jmp_pos+1 => offset = end - jmp_pos - 1
                 let end = self.current_offset();
-                for jmp_pos in &jmp_not_positions {
+                for jmp_pos in &end_jumps {
                     if let Opcode::Jmp(ref mut off) = self.code[*jmp_pos] {
-                        *off = (end as i64 - *jmp_pos as i64) as i16;
+                        *off = (end as i64 - *jmp_pos as i64 - 1) as i16;
                     }
                 }
             }
@@ -692,11 +722,12 @@ impl BytecodeCompiler {
                     None => { self.mark_error(); return; }
                 };
                 self.emit(Opcode::SetLoc(match_slot));
-                // 跳转表
-                let mut jmp_not_positions: Vec<usize> = Vec::new();
+                // 跳转表：每个 arm 的 fallthrough 落点顺序进入下一 arm（或结尾）
+                let mut end_jumps: Vec<usize> = Vec::new();
                 let arm_count = arms.len();
                 for (i, arm) in arms.iter().enumerate() {
                     let is_last = i == arm_count - 1;
+                    let mut pat_fail_pos: Option<usize> = None;
                     match arm.pattern.kind.as_str() {
                         "wild" | "ident" => {
                             // 始终匹配
@@ -710,13 +741,30 @@ impl BytecodeCompiler {
                                 self.emit(Opcode::LoadNone);
                             }
                             self.emit(Opcode::Eq);
-                            if !is_last {
-                                jmp_not_positions.push(self.current_offset());
-                                self.emit(Opcode::JmpIfNot(0));
-                            }
-                            self.emit(Opcode::Pop);
+                            let pos = self.current_offset();
+                            self.emit(Opcode::JmpIfNot(0));
+                            pat_fail_pos = Some(pos);
                         }
                         _ => {}
+                    }
+                    // 注：Eq 的比较结果已由 JmpIfNot 消费（无论是否跳转都 pop_bool），
+                    // 匹配成功后栈已平衡，无需额外 Pop
+                    // 变量绑定模式：纯 ident 被解析为 ctor 且无 inner，直接将模式变量别名到
+                    // match_slot，使 body/guard 能引用目标值（无需额外指令，无栈副作用）
+                    if arm.pattern.kind == "ctor"
+                        && arm.pattern.inner.is_empty()
+                        && !arm.pattern.name.is_empty()
+                    {
+                        self.locals.insert(arm.pattern.name.clone(), match_slot);
+                    }
+                    // guard 检查：有 guard 且为 false 时跳过本 arm
+                    let mut guard_fail_pos: Option<usize> = None;
+                    if let Some(ref guard) = arm.guard {
+                        self.compile_expr(guard);
+                        if self.has_error() { return; }
+                        let pos = self.current_offset();
+                        self.emit(Opcode::JmpIfNot(0));
+                        guard_fail_pos = Some(pos);
                     }
                     // 编译 arm body 所有语句（保证副作用），取最后一条的值作为表达式结果
                     for (j, s) in arm.body.iter().enumerate() {
@@ -733,20 +781,30 @@ impl BytecodeCompiler {
                     if !is_last {
                         let jmp_end_pos = self.current_offset();
                         self.emit(Opcode::Jmp(0));
-                        if let Some(jnp) = jmp_not_positions.pop() {
-                            let offset = (self.code.len() as i64 - jnp as i64) as i16;
-                            if let Opcode::JmpIfNot(ref mut off) = self.code[jnp] {
-                                *off = offset;
-                            }
+                        end_jumps.push(jmp_end_pos);
+                    }
+                    // 本 arm 的 fallthrough 落点：顺序进入下一 arm
+                    // VM 语义: 执行 JmpIfNot 时 self.ip 已 = pos+1, 故 new_ip = pos+1+offset
+                    // 目标为 code.len()(下一 arm 起点) => offset = code.len() - pos - 1
+                    if let Some(pos) = pat_fail_pos {
+                        let off = (self.code.len() as i64 - pos as i64 - 1) as i16;
+                        if let Opcode::JmpIfNot(ref mut o) = self.code[pos] {
+                            *o = off;
                         }
-                        jmp_not_positions.push(jmp_end_pos);
+                    }
+                    if let Some(pos) = guard_fail_pos {
+                        let off = (self.code.len() as i64 - pos as i64 - 1) as i16;
+                        if let Opcode::JmpIfNot(ref mut o) = self.code[pos] {
+                            *o = off;
+                        }
                     }
                 }
                 // 回填所有 Jmp 跳转到结尾
+                // Jmp 在 jmp_pos, 执行时 self.ip = jmp_pos+1 => offset = end - jmp_pos - 1
                 let end = self.current_offset();
-                for jmp_pos in &jmp_not_positions {
+                for jmp_pos in &end_jumps {
                     if let Opcode::Jmp(ref mut off) = self.code[*jmp_pos] {
-                        *off = (end as i64 - *jmp_pos as i64) as i16;
+                        *off = (end as i64 - *jmp_pos as i64 - 1) as i16;
                     }
                 }
             }
