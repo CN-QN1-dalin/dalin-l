@@ -140,6 +140,8 @@ impl PartialEq for Value {
             (Value::None, Value::None) => true,
             (Value::Channel(a), Value::Channel(b)) => a == b,
             (Value::Closure(fa, ea), Value::Closure(fb, eb)) => fa == fb && ea == eb,
+            (Value::Array(a), Value::Array(b)) => a == b,
+            (Value::Map(a), Value::Map(b)) => a == b,
             // 不同类型之间永远不等
             _ => false,
         }
@@ -230,7 +232,7 @@ pub struct TaskFrame {
     /// 当前函数索引
     pub current_fn: usize,
     /// 调用栈：（返回地址，栈基址，调用者函数索引）
-    pub call_stack: Vec<(usize, usize, usize)>,
+    pub call_stack: Vec<(usize, usize, usize, Vec<Value>)>,
     /// 值栈副本
     pub stack: Vec<Value>,
     /// 状态
@@ -314,7 +316,7 @@ impl Scheduler {
     /// 当前任务 yield：保存帧。
     /// - to_waiting=true: CoopAwait 场景，状态设为 Waiting，不重新入队
     /// - to_waiting=false: CoopYieldResume 场景，状态设为 Ready，重新入队尾
-    pub fn yield_current(&mut self, ip: usize, current_fn: usize, call_stack: &[(usize, usize, usize)], stack: &[Value], to_waiting: bool) {
+    pub fn yield_current(&mut self, ip: usize, current_fn: usize, call_stack: &[(usize, usize, usize, Vec<Value>)], stack: &[Value], to_waiting: bool) {
         if let Some(id) = self.current {
             if let Some(t) = self.tasks.iter_mut().find(|t| t.id == id) {
                 t.ip = ip;
@@ -387,7 +389,7 @@ pub struct Vm {
     /// 值栈
     stack: Vec<Value>,
     /// 调用栈（返回地址 + 栈基址 + 调用者函数索引）
-    call_stack: Vec<(usize, usize, usize)>,
+    call_stack: Vec<(usize, usize, usize, Vec<Value>)>,
     /// 已加载的函数表
     functions: Vec<BytecodeFunction>,
     /// 函数名 → 函数索引映射
@@ -731,7 +733,11 @@ let func = match self.functions.get(self.current_fn) {
             Opcode::Return => {
                 let result = self.stack.pop().ok_or(VmError::StackUnderflow)?;
                 // 弹到调用栈帧的基址，并恢复到调用者函数（调用帧已记录调用者 fn 索引）
-                if let Some((ret_ip, base, caller_fn)) = self.call_stack.pop() {
+                if let Some((ret_ip, base, caller_fn, saved_locals)) = self.call_stack.pop() {
+                    // 恢复被调函数的 locals（递归保护：覆盖后的局部变量还原为调用前快照）
+                    if self.current_fn < self.locals.len() {
+                        self.locals[self.current_fn] = saved_locals;
+                    }
                     self.stack.truncate(base);
                     self.stack.push(result);
                     self.ip = ret_ip;
@@ -748,9 +754,6 @@ let func = match self.functions.get(self.current_fn) {
             }
 
             Opcode::Call(argc, target) => {
-                // 保存返回地址 + 栈基址 + 当前（调用者）函数索引
-                let base = self.stack.len().saturating_sub(argc as usize);
-                self.call_stack.push((self.ip, base, self.current_fn));
                 // 根据调用目标查找函数
                 let fn_idx = match target {
                     CallTarget::Index(idx) => {
@@ -765,6 +768,15 @@ let func = match self.functions.get(self.current_fn) {
                         None => return Err(VmError::FunctionNotFound(name)),
                     },
                 };
+                // 保存被调函数的当前 locals（递归保护：返回后恢复）
+                let saved_locals = if fn_idx < self.locals.len() {
+                    self.locals[fn_idx].clone()
+                } else {
+                    Vec::new()
+                };
+                // 保存返回地址 + 栈基址 + 调用者函数索引 + 被调函数 locals 快照
+                let base = self.stack.len().saturating_sub(argc as usize);
+                self.call_stack.push((self.ip, base, self.current_fn, saved_locals));
                 // 切换到目标函数
                 self.current_fn = fn_idx;
                 self.ip = 0;
