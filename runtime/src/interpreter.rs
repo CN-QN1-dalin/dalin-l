@@ -911,6 +911,13 @@ pub fn run_source_with_tree(source: &str) -> Result<String, RuntimeError> {
     Ok(interp.describe_task_tree())
 }
 
+/// C FFI 外部函数调用入口
+pub fn call_ffi(func_name: &str, _args: &[Value]) -> Result<Value, RuntimeError> {
+    // Stub: 在当前阶段不支持真实 C 调用
+    // Phase 2: 使用 libloading 或 cbindgen 对接
+    Err(RuntimeError(format!("C FFI not implemented for function: {}", func_name)))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

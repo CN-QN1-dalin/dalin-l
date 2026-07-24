@@ -396,12 +396,83 @@ impl Vm {
                 // TODO: 从 MakeClosure/函数名查表
             }
 
+            Opcode::Halt => {
+                self.running = false;
+            }
+
+            Opcode::MakeClosure(idx) => {
+                // Create closure from compiled function
+                self.stack.push(Value::Closure(idx, vec![]));
+            }
+
+            Opcode::Index => {
+                let idx_val = self.stack.pop().ok_or(VmError::StackUnderflow)?;
+                let arr = self.stack.pop().ok_or(VmError::StackUnderflow)?;
+                match (arr, idx_val) {
+                    (Value::Array(v), Value::Int(i)) => {
+                        if i < 0 || i as usize >= v.len() {
+                            return Err(VmError::TypeError(format!("array index {} out of bounds [{}]", i, v.len())));
+                        }
+                        self.stack.push(v[i as usize].clone());
+                    },
+                    (Value::Str(s), Value::Int(i)) => {
+                        if i < 0 || i as usize >= s.len() {
+                            return Err(VmError::TypeError(format!("string index {} out of bounds", i)));
+                        }
+                        let chars: Vec<char> = s.chars().collect();
+                        self.stack.push(Value::Str(chars[i as usize].to_string()));
+                    },
+                    _ => return Err(VmError::TypeError("index requires array/string".into())),
+                }
+            }
+
+            Opcode::Member(field_idx) => {
+                let _func = &self.functions[self.current_fn];
+                let _field_name = field_idx;
+                match self.stack.last() {
+                    Some(Value::Str(_)) | Some(Value::Array(_)) => {
+                        // String/array member access returns type info
+                        // Placeholder for Phase 2
+                        self.stack.push(Value::None);
+                    },
+                    Some(_) => self.stack.push(Value::None),
+                    None => return Err(VmError::StackUnderflow),
+                }
+            }
+
+            Opcode::Spawn(fn_idx) => {
+                // Spawn task — create a task handle (in VM context, just mark as spawned)
+                let _fn_idx = fn_idx;
+                self.stack.push(Value::None); // Returns task handle
+            }
+
+            Opcode::Send => {
+                // Send to channel — pop value and channel
+                let val = self.stack.pop().ok_or(VmError::StackUnderflow)?;
+                let _channel = self.stack.pop().ok_or(VmError::StackUnderflow)?;
+                // In VM context, channel send is a no-op (Phase 2: real channel impl)
+                drop(val);
+                self.stack.push(Value::None);
+            }
+
+            Opcode::Recv => {
+                // Receive from channel — placeholder (Phase 2: real channel impl)
+                self.stack.push(Value::None);
+            }
+
             Opcode::Builtin(idx) => {
                 self.execute_builtin(idx)?;
             }
 
-            // 未实现的指令 —— 直接 panic（Phase 2 迭代补齐）
-            other => return Err(VmError::InvalidOpcode(other)),
+            Opcode::MakeArray(len) => {
+                // Pop len items from stack and create array (in reverse order)
+                let mut items = Vec::new();
+                for _ in 0..len {
+                    items.push(self.stack.pop().ok_or(VmError::StackUnderflow)?);
+                }
+                items.reverse();
+                self.stack.push(Value::Array(items));
+            }
         }
         Ok(())
     }

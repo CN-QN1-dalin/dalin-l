@@ -2,6 +2,7 @@
 //! Phase I: 深度集成 REPL / Build / Run / Check / Init / Tree / Analyze / Info / Dashboard
 mod cmd;
 mod util;
+mod bridge_test_client;
 
 use clap::{Parser, Subcommand};
 
@@ -173,6 +174,16 @@ enum Commands {
         #[arg(long, default_value = ".")]
         path: String,
     },
+
+    /// Bridge Dalin L to external systems via Unix socket
+    Bridge {
+        /// Socket path (default: /tmp/dalin-bridge.sock)
+        #[arg(long, default_value = "/tmp/dalin-bridge.sock")]
+        socket: String,
+    },
+
+    /// Test bridge client (internal test)
+    TestBridgeClient {},
 }
 
 fn main() {
@@ -220,6 +231,10 @@ fn main() {
             }
             cmd::pkg::run(&subcommand, &map)
         }
+
+        Commands::Bridge { socket } => cmd::bridge::serve(&socket),
+
+        Commands::TestBridgeClient {} => { bridge_test_client::main(); Ok(()) }
     };
 
     if let Err(e) = result {
