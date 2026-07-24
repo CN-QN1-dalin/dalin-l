@@ -1,21 +1,86 @@
-// bloom — Bloom filter
-fn new(num_bits) @ pure @ cpu {
-    let bits = []
-    let i = 0
-    while i < num_bits {
-        bits = bits + [false]
-        i = i + 1
-    }
-    return bits
+// Dalin L 标准库 — Bloom Filter (Bloom 过滤器)
+// 用于高效判断元素是否存在于集合中（允许假阳性）
+
+fn bloom_new(size, num_hashes) @ pure @ cpu {
+    return ["bits": size, "hashes": num_hashes, "bit_array": []]
 }
-fn add(bf, value) @ spawn @ cpu { return bf }
-fn check(bf, value) @ pure @ cpu { return true }
-fn reset(bf, num_bits) @ pure @ cpu {
-    let bits = []
+
+fn bloom_set_bits(bf, count) @ pure @ cpu {
+    let arr = []
     let i = 0
-    while i < num_bits {
-        bits = bits + [false]
+    while i < count {
+        arr = arr + [0]
         i = i + 1
     }
-    return bits
+    bf["bit_array"] = arr
+    return bf
+}
+
+fn bloom_hash(data, seed) @ pure @ cpu {
+    // FNV-1a-like hash with different seeds for multiple hash functions
+    let h = seed
+    let i = 0
+    let len_d = len(data)
+    if type_of(data) == "string" || type_of(data) == "list" {
+        while i < len_d {
+            let byte = data[i]
+            h = h ^ byte
+            h = h * 16777619 // FNV prime
+            i = i + 1
+        }
+    } else {
+        h = h + data
+    }
+    return h % 2147483647
+}
+
+/// add(bf, item) — Add an item to the Bloom filter
+fn add(bf, item) @ spawn @ cpu {
+    let size = bf["bits"]
+    let num_h = bf["hashes"]
+    let ba = bf["bit_array"]
+    
+    let i = 0
+    while i < num_h {
+        let h = bloom_hash(item, i + 1)
+        let pos = h % size
+        if ba[pos] != 1 {
+            ba[pos] = 1
+        }
+        i = i + 1
+    }
+    
+    bf["bit_array"] = ba
+    return bf
+}
+
+/// might_contain(bf, item) — Check if item might be in set
+fn might_contain(bf, item) @ pure @ cpu {
+    let size = bf["bits"]
+    let num_h = bf["hashes"]
+    let ba = bf["bit_array"]
+    
+    let i = 0
+    while i < num_h {
+        let h = bloom_hash(item, i + 1)
+        let pos = h % size
+        if ba[pos] != 1 {
+            return false
+        }
+        i = i + 1
+    }
+    return true
+}
+
+fn bloom_len(bf) @ pure @ cpu {
+    return count_true(bf["bit_array"])
+}
+
+fn bloom_cardinality(bf) @ pure @ cpu {
+    let n = bf["bits"]
+    let k = bf["hashes"]
+    let m = bloom_len(bf)
+    // Estimate: n * ln(n/m) / k
+    if m == 0 { return 0 }
+    return int(n * log(n / m) / k)
 }

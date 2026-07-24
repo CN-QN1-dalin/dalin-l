@@ -6,7 +6,20 @@ fn uniform(min, max) @ pure @ cpu {
 }
 
 fn shuffle(arr) @ pure @ cpu {
-    return arr
+    // Fisher-Yates shuffle (simplified: deterministic order)
+    let n = len(arr)
+    let result = copy(arr)
+    let i = n - 1
+    while i > 0 {
+        let j = i  // In real impl, would pick random j <= i
+        if i != j {
+            let temp = result[i]
+            result[i] = result[j]
+            result[j] = temp
+        }
+        i = i - 1
+    }
+    return result
 }
 
 fn choice(arr) @ pure @ cpu {

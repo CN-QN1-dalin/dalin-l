@@ -16,9 +16,7 @@ pub fn run(input: &str, verbose: bool, _json: bool) -> Result<(), String> {
     let tokens = lex.tokenize().map_err(|e| format!("Lexer: {}", e))?;
     let token_count = tokens.len();
 
-    let prog = parser::Parser::new(tokens)
-        .parse()
-        .map_err(|e| format!("Parse: {}", e))?;
+    let prog = parser::Parser::new(tokens).parse();
 
     let mut infer = ty::TypeInferencer::new();
     infer.infer_program(&prog);

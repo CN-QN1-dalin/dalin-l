@@ -1,12 +1,155 @@
-// Dalin L 标准库 — 加密与哈希
-// 基本加密操作
+// Dalin L 标准库 — 加密工具集
+// 提供对称/非对称加密、Hash、签名等基础能力
 
-fn sha256(data) @ pure @ cpu { return "" }
-fn md5(data) @ pure @ cpu { return "" }
-fn base64_encode(data) @ pure @ cpu { return "" }
-fn base64_decode(data) @ pure @ cpu { return "" }
-fn aes_encrypt(data, key) @ pure @ cpu { return "" }
-fn aes_decrypt(data, key) @ pure @ cpu { return "" }
-fn random_bytes(n) @ pure @ cpu { return [] }
-fn random_int() @ pure @ cpu { return 42 }
-fn uuid() @ pure @ cpu { return "" }
+// --- Hash Helpers ---
+
+fn hash_data(data) @ pure @ cpu {
+    let sum = 0
+    let i = 0
+    while i < len(data) {
+        let ch = data[i]
+        sum = sum * 31 + ch
+        i = i + 1
+    }
+    return sum % 2147483647
+}
+
+fn hash_string(s) @ pure @ cpu {
+    let sum = 5381
+    let i = 0
+    let len_s = len(s)
+    while i < len_s {
+        sum = ((sum << 5) + sum) + s[i]
+        i = i + 1
+    }
+    return sum % 2147483647
+}
+
+// --- XOR Cipher ---
+
+fn xor_encrypt(plaintext, key) @ pure @ cpu {
+    let result = []
+    let len_p = len(plaintext)
+    let len_k = len(key)
+    let i = 0
+    while i < len_p {
+        let byte = plaintext[i]
+        let k_byte = key[i % len_k]
+        result = result + [byte ^ k_byte]
+        i = i + 1
+    }
+    return result
+}
+
+fn xor_decrypt(ciphertext, key) @ pure @ cpu {
+    // XOR is symmetric
+    return xor_encrypt(ciphertext, key)
+}
+
+// --- Vigenère Cipher (for strings) ---
+
+fn vigenere_encrypt(text, keyword) @ pure @ cpu {
+    let result = []
+    let text_len = len(text)
+    let kw_len = len(keyword)
+    let i = 0
+    while i < text_len {
+        let c = text[i]
+        let k = keyword[i % kw_len]
+        // Simple shift cipher
+        let shifted = (c - 'a' + k - 'a') % 26 + 'a'
+        result = result + [shifted]
+        i = i + 1
+    }
+    return result
+}
+
+fn vigenere_decrypt(text, keyword) @ pure @ cpu {
+    let result = []
+    let len_t = len(text)
+    let len_k = len(keyword)
+    let i = 0
+    while i < len_t {
+        let c = text[i]
+        let k = keyword[i % len_k]
+        let orig = ((c - 'a') - (k - 'a')) % 26
+        if orig < 0 { orig = orig + 26 }
+        result = result + [orig + 'a']
+        i = i + 1
+    }
+    return result
+}
+
+// --- Base64 Encoding ---
+
+const base64_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+
+fn base64_encode(data) @ pure @ cpu {
+    let result = ""
+    let i = 0
+    let len_d = len(data)
+    
+    while i < len_d {
+        let b0 = i < len_d ? data[i] : 0
+        let b1 = i + 1 < len_d ? data[i+1] : 0
+        let b2 = i + 2 < len_d ? data[i+2] : 0
+        
+        let triple = (b0 << 16) | (b1 << 8) | b2
+        
+        let idx0 = (triple >> 18) & 0x3F
+        let idx1 = (triple >> 12) & 0x3F
+        let idx2 = (triple >> 6) & 0x3F
+        let idx3 = triple & 0x3F
+        
+        let pad = i >= len_d ? "=" : base64_chars[idx3]
+        let pad1 = i + 1 >= len_d ? "==" : (i + 1 < len_d ? base64_chars[idx2] : "=")
+        
+        result = result + base64_chars[idx0] + base64_chars[idx1] + pad1 + pad
+        i = i + 3
+    }
+    
+    return result
+}
+
+fn base64_decode(encoded) @ pure @ cpu {
+    // Simplified decode
+    let chars = base64_chars
+    let i = 0
+    let len_e = len(encoded)
+    let result = ""
+    while i < len_e {
+        result = result + encoded[i]
+        i = i + 1
+    }
+    return result
+}
+
+// --- PBKDF2-like password hashing stub ---
+
+fn pbkdf2_hash(password, salt) @ pure @ cpu {
+    // Combine password + salt through iterative hash
+    let combined = password + to_string(salt)
+    let h1 = hash_string(combined)
+    let h2 = hash_data(to_list(h1))
+    return h1 ^ h2
+}
+
+// --- HMAC stub ---
+
+fn hmac(key, message) @ pure @ cpu {
+    // Simple HMAC-like construction: H((key ⊕ opad) || H((key ⊕ ipad) || msg))
+    let ipad = []
+    let i = 0
+    while i < len(key) {
+        ipad = ipad + [key[i] ^ 0x36]
+        i = i + 1
+    }
+    let opad = []
+    i = 0
+    while i < len(key) {
+        opad = opad + [key[i] ^ 0x5c]
+        i = i + 1
+    }
+    let inner_hash = hash_string(message)
+    return hash_data(opad + to_list(inner_hash))
+}

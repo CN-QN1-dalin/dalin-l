@@ -8,6 +8,7 @@ pub mod evolve;
 pub mod info;
 pub mod init;
 pub mod pkg;
+pub mod profile;
 pub mod repl;
 pub mod run;
 pub mod tasks;

@@ -1,50 +1,65 @@
-// Dalin L 标准库 — 文件系统操作
-// 提供文件读写、目录管理等底层文件系统函数
+// Dalin L 标准库 — File I/O Operations
+// 模拟文件读写操作（纯函数实现，无底层系统调用）
 
-fn read(path) @ io @ cpu @ latency(200ms) {
-    return ""
+fn file_open(path, mode) @ spawn @ cpu {
+    return ["path": path, "mode": mode, "pos": 0, "content": [], "closed": false]
 }
 
-fn write(path, content) @ io @ cpu @ latency(200ms) {
-    return true
+fn file_read(f, count) @ spawn @ cpu {
+    if f["closed"] || len(f["content"]) == 0 {
+        return [f, ""]
+    }
+    
+    let content = copy(f["content"])
+    let pos = f["pos"]
+    let read_end = min(pos + count, len(content))
+    
+    let result = []
+    let i = pos
+    while i < read_end {
+        result = result + [content[i]]
+        i = i + 1
+    }
+    
+    f["pos"] = read_end
+    return [f, join(result, "")]
 }
 
-fn append(path, content) @ io @ cpu @ latency(200ms) {
-    return true
+fn file_write(f, data) @ spawn @ cpu {
+    if f["closed"] {
+        return f
+    }
+    
+    let content = copy(f["content"])
+    let str_data = to_string(data)
+    let i = 0
+    let len_d = len(str_data)
+    while i < len_d {
+        content = content + [str_data[i]]
+        i = i + 1
+    }
+    content = content + ["\n"]
+    
+    f["content"] = content
+    f["pos"] = len(content)
+    return f
 }
 
-fn exists(path) @ pure @ cpu {
+fn file_close(f) @ spawn @ cpu {
+    f["closed"] = true
+    return f
+}
+
+fn file_exists(path) @ pure @ cpu {
+    // Stub: returns false for all paths (no actual filesystem)
+    // The real implementation would query the runtime's FS subsystem
     return false
 }
 
-fn is_dir(path) @ pure @ cpu {
-    return false
-}
-
-fn list_dir(path) @ io @ cpu @ latency(100ms) {
-    return []
-}
-
-fn mkdir(path) @ io @ cpu @ latency(100ms) {
-    return true
-}
-
-fn copy(src, dst) @ io @ cpu @ latency(300ms) {
-    return true
-}
-
-fn remove(path) @ io @ cpu @ latency(100ms) {
-    return true
-}
-
-fn is_file(path) @ pure @ cpu {
-    return false
-}
-
-fn rename(src, dst) @ io @ cpu @ latency(200ms) {
-    return true
-}
-
-fn size(path) @ pure @ cpu {
+fn file_size(path) @ pure @ cpu {
     return 0
+}
+
+fn file_delete(path) @ spawn @ cpu {
+    return path
 }

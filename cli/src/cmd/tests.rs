@@ -33,20 +33,13 @@ pub fn run() -> Result<(), String> {
             match lex.tokenize() {
                 Ok(tokens) => {
                     let mut p = parser::Parser::new(tokens);
-                    match p.parse() {
-                        Ok(prog) => {
-                            if !prog.is_empty() {
-                                passed += 1;
-                                println!("  [parser] {}: ok", $name);
-                            } else {
-                                failed += 1;
-                                println!("  [parser] {}: empty program", $name);
-                            }
-                        }
-                        Err(e) => {
-                            failed += 1;
-                            println!("  [parser] {}: {}", $name, e);
-                        }
+                    let prog = p.parse();
+                    if !prog.is_empty() {
+                        passed += 1;
+                        println!("  [parser] {}: ok", $name);
+                    } else {
+                        failed += 1;
+                        println!("  [parser] {}: empty program", $name);
                     }
                 }
                 Err(e) => {
@@ -63,32 +56,25 @@ pub fn run() -> Result<(), String> {
             match lex.tokenize() {
                 Ok(tokens) => {
                     let mut p = parser::Parser::new(tokens);
-                    match p.parse() {
-                        Ok(prog) => {
-                            let mut infer = ty::TypeInferencer::new();
-                            let types = infer.infer_program(&prog);
-                            let mut ok = true;
-                            for (k, v) in $expected {
-                                if let Some(actual) = types.get(k) {
-                                    if format!("{}", actual) != v {
-                                        ok = false;
-                                    }
-                                } else {
-                                    ok = false;
-                                }
+                    let prog = p.parse();
+                    let mut infer = ty::TypeInferencer::new();
+                    let types = infer.infer_program(&prog);
+                    let mut ok = true;
+                    for (k, v) in $expected {
+                        if let Some(actual) = types.get(k) {
+                            if format!("{}", actual) != v {
+                                ok = false;
                             }
-                            if ok {
-                                passed += 1;
-                                println!("  [infer] {}: ok", $name);
-                            } else {
-                                failed += 1;
-                                println!("  [infer] {}: FAILED types={:?}", $name, types);
-                            }
+                        } else {
+                            ok = false;
                         }
-                        Err(e) => {
-                            failed += 1;
-                            println!("  [infer] {}: parser error: {}", $name, e);
-                        }
+                    }
+                    if ok {
+                        passed += 1;
+                        println!("  [infer] {}: ok", $name);
+                    } else {
+                        failed += 1;
+                        println!("  [infer] {}: FAILED types={:?}", $name, types);
                     }
                 }
                 Err(e) => {

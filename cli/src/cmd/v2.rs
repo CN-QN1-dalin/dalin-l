@@ -35,14 +35,15 @@ pub fn run() -> Result<(), String> {
     match lex.tokenize() {
         Ok(tokens) => {
             let mut parser = parser::Parser::new(tokens);
-            match parser.parse() {
-                Ok(prog) => {
-                    let mut infer = ty2::SevenChannelInferencer::new();
-                    infer.infer_program(&prog);
-                    print!("{}", infer.print_report());
+            let prog = parser.parse();
+            if !parser.recovered().is_empty() {
+                for err in parser.recovered() {
+                    eprintln!("  ⚠ Parse warning: {}", err);
                 }
-                Err(e) => println!("  Parse error: {}", e),
             }
+            let mut infer = ty2::SevenChannelInferencer::new();
+            infer.infer_program(&prog);
+            print!("{}", infer.print_report());
         }
         Err(e) => println!("  Lex error: {}", e),
     }

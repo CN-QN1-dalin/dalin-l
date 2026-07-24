@@ -1,7 +1,23 @@
-// span — 分布式追踪跨度
-fn span_new(name, trace_id) @ pure @ cpu { return [name, trace_id, 0] }
-fn span_finish(sp) @ pure @ cpu { return [sp[0], sp[1], 1] }
-fn span_add_event(sp, event) @ spawn @ cpu { return sp }
-fn span_trace_id(sp) @ pure @ cpu { return sp[1] }
-fn span_status(sp) @ pure @ cpu { return sp[2] }
-fn span_name(sp) @ pure @ cpu { return sp[0] }
+// Dalin L 标准库 — Span (运行时追踪跨度)
+fn span_new(name) @ pure @ cpu { return ["name": name, "start": 0, "end": 0] }
+
+fn span_enter(span) @ spawn @ cpu {
+    span["start"] = time_now()
+    return span
+}
+
+fn span_exit(span) @ spawn @ cpu {
+    span["end"] = time_now()
+    return span
+}
+
+fn span_duration(span) @ pure @ cpu {
+    if span["end"] > span["start"] {
+        return span["end"] - span["start"]
+    }
+    return 0
+}
+
+fn span_name(span) @ pure @ cpu {
+    return span["name"]
+}

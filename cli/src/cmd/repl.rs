@@ -32,20 +32,16 @@ pub fn run() -> Result<(), String> {
                 match lex.tokenize() {
                     Ok(tokens) => {
                         let mut p = parser::Parser::new(tokens);
-                        match p.parse() {
-                            Ok(prog) => {
-                                let mut infer = ty::TypeInferencer::new();
-                                infer.infer_program(&prog);
-                                let report = infer.print_report();
-                                if !report.trim().is_empty() {
-                                    println!("  {}", report.trim_end());
-                                }
+                        let prog = p.parse();
+                        let mut infer = ty::TypeInferencer::new();
+                        infer.infer_program(&prog);
+                        let report = infer.print_report();
+                        if !report.trim().is_empty() {
+                            println!("  {}", report.trim_end());
+                        }
 
-                                if let Err(e) = interpreter::run_source(&line) {
-                                    println!("  ❌ Runtime: {}", e);
-                                }
-                            }
-                            Err(e) => println!("  ❌ Parse: {}", e),
+                        if let Err(e) = interpreter::run_source(&line) {
+                            println!("  ❌ Runtime: {}", e);
                         }
                     }
                     Err(e) => println!("  ❌ Lex: {}", e),

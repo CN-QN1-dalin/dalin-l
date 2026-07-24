@@ -32,7 +32,7 @@ fn bench_parse(src: &str) -> (usize, u128) {
     let start = Instant::now();
     let tokens = Lexer::new(src).tokenize().unwrap_or_default();
     let token_count = tokens.len();
-    let _prog = Parser::new(tokens).parse().expect("bench parse failed");
+    let _prog = Parser::new(tokens).parse();
     let duration = start.elapsed().as_micros();
     (token_count, duration)
 }
@@ -138,7 +138,7 @@ fn bench_ty2_full_inference_fast() {
     
     let prog_str = generate_sample_program(5);
     let tokens = lexer::Lexer::new(&prog_str).tokenize().unwrap_or_default();
-    let prog = parser::Parser::new(tokens).parse().expect("bench parse failed");
+    let prog = parser::Parser::new(tokens).parse();
     
     // 七通道全量类型推断在小程序上应快速完成
     let start = Instant::now();

@@ -219,15 +219,12 @@ impl StdLibLoader {
         };
 
         let mut parser = Parser::new(tokens);
-        let prog = match parser.parse() {
-            Ok(p) => p,
-            Err(e) => {
-                return Err(format!(
-                    "{} 语法错误 [{}:{}]: {}",
-                    module_name, e.line, e.column, e.message
-                ));
-            }
-        };
+        let prog = parser.parse();
+        let parse_errors = parser.recovered().to_vec();
+        // Log recovered errors but don't fail — error recovery keeps parsing
+        for err in &parse_errors {
+            eprintln!("  ⚠ {} syntax warning: {}", module_name, err);
+        }
 
         // 缓存结果（clone 后让 cache 持有所有权）
         let _stmts_count = prog.statements.len();

@@ -77,6 +77,7 @@ pub struct Lexer {
     line: usize,
     column: usize,
     keywords: HashMap<&'static str, TokenType>,
+    source_path: Option<String>,
 }
 
 impl Lexer {
@@ -87,7 +88,18 @@ impl Lexer {
             line: 1,
             column: 1,
             keywords: build_keywords(),
+            source_path: None,
         }
+    }
+
+    /// Set the source file path for error reporting
+    pub fn with_source_path(mut self, path: &str) -> Self {
+        self.source_path = Some(path.to_string());
+        self
+    }
+
+    fn current_file_name(&self) -> Option<&String> {
+        self.source_path.as_ref()
     }
 
     fn current(&self) -> Option<char> {
@@ -306,13 +318,17 @@ impl Lexer {
         if is_ident_start(ch) {
             let ident = self.read_ident();
             let tt = self.keywords.get(ident.as_str()).copied().unwrap_or(Ident);
-            return Ok(Token::new(tt, ident, line, col));
+            let mut tok = Token::new(tt, ident, line, col);
+            tok.file_name = self.current_file_name().cloned();
+            return Ok(tok);
         }
 
         // Numbers
         if ch.is_ascii_digit() {
             let (tt, val) = self.read_number();
-            return Ok(Token::new(tt, val, line, col));
+            let mut tok = Token::new(tt, val, line, col);
+            tok.file_name = self.current_file_name().cloned();
+            return Ok(tok);
         }
 
         // Strings
@@ -323,7 +339,9 @@ impl Lexer {
             } else {
                 CharLiteral
             };
-            return Ok(Token::new(tt, s.0, line, col));
+            let mut tok = Token::new(tt, s.0, line, col);
+            tok.file_name = self.current_file_name().cloned();
+            return Ok(tok);
         }
 
         // Attribute #[...]
@@ -340,7 +358,9 @@ impl Lexer {
                 attr.push(c);
                 self.advance();
             }
-            return Ok(Token::new(Attribute, attr, line, col));
+            let mut tok = Token::new(Attribute, attr, line, col);
+            tok.file_name = self.current_file_name().cloned();
+            return Ok(tok);
         }
 
         // Multi-char operators

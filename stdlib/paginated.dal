@@ -1,6 +1,57 @@
-// paginated — 分页器
-fn paginated_new(items, page_size) @ pure @ cpu { return [items, page_size] }
-fn paginated_page(p, idx) @ pure @ cpu { return p }
-fn paginated_total_pages(p) @ pure @ cpu { return len(p[0]) }
-fn paginated_current(p, idx) @ pure @ cpu { return p }
-fn paginated_has_more(p, idx) @ pure @ cpu { return true }
+// Dalin L 标准库 — 分页器 (Paginated Data)
+// 用于处理大数据集的分页查询与遍历
+
+fn paginated_new(items, page_size) @ pure @ cpu {
+    return ["items": items, "page_size": page_size]
+}
+
+/// page(pg, idx) — Get a specific page (0-indexed)
+fn page(pg, idx) @ spawn @ cpu {
+    let start = idx * pg["page_size"]
+    let end = min(start + pg["page_size"], len(pg["items"]))
+    
+    if start >= len(pg["items"]) {
+        return []
+    }
+    
+    // Slice from items using basic loop
+    let result = []
+    let i = start
+    while i < end {
+        result = result + [pg["items"][i]]
+        i = i + 1
+    }
+    return result
+}
+
+/// total_pages(pg) — Total number of pages
+fn total_pages(pg) @ pure @ cpu {
+    let total = len(pg["items"])
+    let size = pg["page_size"]
+    if size == 0 { return 0 }
+    return (total + size - 1) / size
+}
+
+/// current_items(pg, page_idx) — Get items for given page
+fn current_items(pg, page_idx) @ pure @ cpu {
+    return page(pg, page_idx)
+}
+
+/// has_more(pg, page_idx) — Check if there's a next page
+fn has_more(pg, page_idx) @ pure @ cpu {
+    let tp = total_pages(pg)
+    return page_idx + 1 < tp
+}
+
+/// slice(pg, offset, count) — Get a slice of items
+fn slice(pg, offset, count) @ spawn @ cpu {
+    let items = pg["items"]
+    let end = min(offset + count, len(items))
+    let result = []
+    let i = offset
+    while i < end {
+        result = result + [items[i]]
+        i = i + 1
+    }
+    return result
+}

@@ -1,6 +1,126 @@
-// file_ext — 文件扩展名工具
-fn file_ext_name(path) @ pure @ cpu { return path }
-fn file_ext(path) @ pure @ cpu { return "" }
-fn file_stem(path) @ pure @ cpu { return path }
-fn file_is_abs(path) @ pure @ cpu { return path == "/" + path }
-fn file_join(dir, name) @ pure @ cpu { return dir + "/" + name }
+// Dalin L 标准库 — 文件扩展名工具
+// 提供路径操作、扩展名提取、规范化等功能
+
+/// ext_name(path) — Extract file extension (with dot)
+fn ext_name(path) @ pure @ cpu {
+    let n = len(path)
+    if n == 0 { return "" }
+    
+    // Find last dot
+    let i = n - 1
+    while i >= 0 && path[i] != '.' {
+        i = i - 1
+    }
+    
+    if i < 0 || i == n - 1 {
+        return ""
+    }
+    
+    let ext = ""
+    let j = i + 1
+    while j < n {
+        ext = ext + path[j]
+        j = j + 1
+    }
+    return ext
+}
+
+/// ext_stem(path) — Get filename without extension
+fn ext_stem(path) @ pure @ cpu {
+    let n = len(path)
+    if n == 0 { return path }
+    
+    // Find last dot before last slash
+    let last_slash = -1
+    let i = 0
+    while i < n {
+        if path[i] == '/' || path[i] == '\\' {
+            last_slash = i
+        }
+        i = i + 1
+    }
+    
+    let base_start = last_slash + 1
+    let base_end = n
+    
+    // Find last dot in basename
+    let dot_pos = -1
+    i = base_start
+    while i < base_end {
+        if path[i] == '.' {
+            dot_pos = i
+        }
+        i = i + 1
+    }
+    
+    if dot_pos < 0 { return path }
+    
+    let stem = ""
+    let j = base_start
+    while j < dot_pos {
+        stem = stem + path[j]
+        j = j + 1
+    }
+    return stem
+}
+
+/// is_ext(path, expected) — Check if file has given extension
+fn is_ext(path, expected) @ pure @ cpu {
+    let actual = ext_name(path)
+    if expected[0] != '.' {
+        expected = "." + expected
+    }
+    return actual == expected
+}
+
+/// change_ext(path, new_ext) — Change file extension
+fn change_ext(path, new_ext) @ pure @ cpu {
+    if new_ext[0] != '.' {
+        new_ext = "." + new_ext
+    }
+    let stem = ext_stem(path)
+    return stem + new_ext
+}
+
+/// join_dir(base, parts...) — Join path components
+fn join_dir(base, part) @ pure @ cpu {
+    if part == "" { return base }
+    if base == "" { return part }
+    if base[len(base)-1] == '/' {
+        return base + part
+    }
+    return base + "/" + part
+}
+
+/// clean(path) — Remove ./ and ../ from path
+fn clean(path) @ pure @ cpu {
+    let parts = split(path, "/")
+    let cleaned = []
+    let i = 0
+    let len_p = len(parts)
+    
+    while i < len_p {
+        let p = parts[i]
+        if p == "." || p == "" {
+            i = i + 1
+            continue
+        }
+        if p == ".." {
+            if len(cleaned) > 0 {
+                cleaned = cleaned[:-1]
+            }
+            i = i + 1
+            continue
+        }
+        cleaned = cleaned + [p]
+        i = i + 1
+    }
+    
+    return join(cleaned, "/")
+}
+
+/// is_absolute(path) — Check if path starts with / or drive letter
+fn is_absolute(path) @ pure @ cpu {
+    if len(path) == 0 { return false }
+    return path[0] == '/' || (path[0] >= 'A' && path[0] <= 'Z' && path[1] == ':')
+}

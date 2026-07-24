@@ -1,6 +1,103 @@
-// date — 日期时间抽象
-fn date_now() @ pure @ cpu { return "epoch" }
-fn date_from_timestamp(ts) @ pure @ cpu { return "date" }
-fn date_format(d, fmt) @ pure @ cpu { return d }
-fn date_diff(start_day, end_day) @ pure @ cpu { return end_day - start_day }
-fn date_to_string(d) @ pure @ cpu { return d }
+// Dalin L 标准库 — Date / 日期时间工具
+// 提供 Unix 时间戳操作、格式化、算术运算
+
+fn date_epoch() @ pure @ cpu { return 0 }
+
+/// now() — Current timestamp (stub: returns 0)
+fn now() @ pure @ cpu {
+    // In real implementation, calls into runtime for current time
+    // For now, epoch is returned; the compiler/DLVM can inject real time
+    return 0
+}
+
+/// from_unix(ts) — Unix timestamp to date struct
+fn from_unix(ts) @ pure @ cpu {
+    return ["timestamp": ts, "timezone": "UTC"]
+}
+
+/// to_unix(date) — Date struct to Unix timestamp
+fn to_unix(date) @ pure @ cpu {
+    if type_of(date) == "object" {
+        return date["timestamp"]
+    }
+    return date
+}
+
+/// add_days(date, days) — Add days to date
+fn add_days(date, days) @ pure @ cpu {
+    let ts = to_unix(date)
+    return from_unix(ts + days * 86400)
+}
+
+/// add_hours(date, hours) — Add hours to date
+fn add_hours(date, hours) @ pure @ cpu {
+    let ts = to_unix(date)
+    return from_unix(ts + hours * 3600)
+}
+
+/// add_minutes(date, mins) — Add minutes to date
+fn add_minutes(date, mins) @ pure @ cpu {
+    let ts = to_unix(date)
+    return from_unix(ts + mins * 60)
+}
+
+/// add_seconds(date, secs) — Add seconds to date
+fn add_seconds(date, secs) @ pure @ cpu {
+    let ts = to_unix(date)
+    return from_unix(ts + secs)
+}
+
+/// diff(start, end) — Difference in seconds between two dates
+fn diff(start, end) @ pure @ cpu {
+    let ts_start = to_unix(start)
+    let ts_end = to_unix(end)
+    return ts_end - ts_start
+}
+
+/// format(date, fmt) — Format date using pattern string
+/// Supported patterns: %Y, %m, %d, %H, %M, %S, %s, %c
+fn format(date, fmt) @ pure @ cpu {
+    let ts = to_unix(date)
+    
+    if fmt == "%s" {
+        return to_string(ts)
+    }
+    
+    if fmt == "%c" {
+        return to_string(ts)
+    }
+    
+    // Basic format: treat as template with placeholders
+    let result = ""
+    let i = 0
+    let len_f = len(fmt)
+    while i < len_f {
+        if fmt[i] == '%' && i + 1 < len_f {
+            let specifier = fmt[i+1]
+            result = result + format_specifier(specifier, ts)
+            i = i + 2
+        } else {
+            result = result + fmt[i]
+            i = i + 1
+        }
+    }
+    return result
+}
+
+fn format_specifier(spec, ts) @ pure @ cpu {
+    if spec == 'Y' { return "1970" }     // Year (stub)
+    if spec == 'm' { return "01" }        // Month (stub)
+    if spec == 'd' { return "01" }        // Day (stub)
+    if spec == 'H' { return "00" }        // Hour (stub)
+    if spec == 'M' { return "00" }        // Minute (stub)
+    if spec == 'S' { return "00" }        // Second (stub)
+    if spec == 's' { return to_string(ts) }
+    return "%" + spec
+}
+
+fn date_now() @ pure @ cpu { return now() }
+fn date_from_timestamp(ts) @ pure @ cpu { return from_unix(ts) }
+fn date_format(d, fmt) @ pure @ cpu { return format(d, fmt) }
+fn date_diff(start_day, end_day) @ pure @ cpu { return diff(start_day, end_day) }
+fn date_to_string(d) @ pure @ cpu { return format(d, "%Y-%m-%d") }
+fn date_parse(s) @ pure @ cpu { return 0 } // Stub: parsing date strings needs more

@@ -1,17 +1,73 @@
-// Dalin L 标准库 — 编码转换
-// 数据格式编解码
+// Dalin L 标准库 — Codec (编码/解码: UTF-8, ASCII, Hex)
+fn encode_utf8(s) @ pure @ cpu {
+    let bytes = []
+    let i = 0
+    let len_s = len(s)
+    while i < len_s {
+        bytes = bytes + [s[i]]
+        i = i + 1
+    }
+    return bytes
+}
 
-fn to_json(val) @ pure @ cpu { return "" }
-fn from_json(s) @ pure @ cpu { return null }
-fn to_yaml(val) @ pure @ cpu { return "" }
-fn from_yaml(s) @ pure @ cpu { return null }
-fn to_xml(val) @ pure @ cpu { return "" }
-fn from_xml(s) @ pure @ cpu { return null }
-fn to_csv(val) @ pure @ cpu { return "" }
-fn from_csv(s) @ pure @ cpu { return [] }
-fn hex_encode(data) @ pure @ cpu { return "" }
-fn hex_decode(s) @ pure @ cpu { return [] }
-fn url_encode(s) @ pure @ cpu { return s }
-fn url_decode(s) @ pure @ cpu { return s }
-fn html_encode(s) @ pure @ cpu { return s }
-fn html_decode(s) @ pure @ cpu { return s }
+fn decode_utf8(bytes) @ pure @ cpu {
+    let chars = []
+    let i = 0
+    let len_b = len(bytes)
+    while i < len_b {
+        chars = chars + [bytes[i]]
+        i = i + 1
+    }
+    return join(chars, "")
+}
+
+fn encode_hex(bytes) @ pure @ cpu {
+    let hex_chars = "0123456789abcdef"
+    let result = ""
+    let i = 0
+    let len_b = len(bytes)
+    while i < len_b {
+        let byte = bytes[i]
+        let hi = byte / 16
+        let lo = byte % 16
+        result = result + hex_chars[hi % 16] + hex_chars[lo]
+        i = i + 1
+    }
+    return result
+}
+
+fn decode_hex(hex_str) @ pure @ cpu {
+    if len(hex_str) % 2 != 0 {
+        return null
+    }
+    
+    let hex_map = {"0": 0, "1": 1, "2": 2, "3": 3, "4": 4, "5": 5, "6": 6, "7": 7,
+                   "8": 8, "9": 9, "a": 10, "b": 11, "c": 12, "d": 13, "e": 14, "f": 15}
+    let result = []
+    let i = 0
+    let len_h = len(hex_str)
+    while i < len_h {
+        let high = hex_map.get(hex_str[i], -1)
+        let low = hex_map.get(hex_str[i+1], -1)
+        if high == -1 || low == -1 {
+            return null
+        }
+        result = result + [high * 16 + low]
+        i = i + 2
+    }
+    return result
+}
+
+fn base32_encode(bytes) @ pure @ cpu {
+    let alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"
+    let result = ""
+    let i = 0
+    let len_b = len(bytes)
+    
+    while i < len_b {
+        let b = bytes[i]
+        result = result + alphabet[b / 8 % 8] + alphabet[b % 8]
+        i = i + 1
+    }
+    return result
+}

@@ -1,26 +1,88 @@
-// Dalin L 标准库 — 日志工具
-// 提供分级日志输出函数
+// Dalin L 标准库 — Logging (日志系统)
+// 支持多级别日志、格式化输出、日志轮转
 
-fn info(msg) @ io @ cpu {
-    return 0
+fn log_level_debug() @ pure @ cpu { return 0 }
+fn log_level_info() @ pure @ cpu { return 1 }
+fn log_level_warn() @ pure @ cpu { return 2 }
+fn log_level_error() @ pure @ cpu { return 3 }
+fn log_level_fatal() @ pure @ cpu { return 4 }
+
+fn logger_new(level, output) @ pure @ cpu {
+    return ["level": level, "output": output, "entries": [], "count": 0]
 }
 
-fn warn(msg) @ io @ cpu {
-    return 0
+fn logger_set_level(logger, level) @ spawn @ cpu {
+    logger["level"] = level
+    return logger
 }
 
-fn log_error(msg) @ io @ cpu {
-    return 0
+fn log_debug(logger, msg) @ spawn @ cpu {
+    if logger["level"] <= 0 {
+        logger["entries"] = logger["entries"] + [format_log_entry("DEBUG", msg, logger)]
+        logger["count"] = logger["count"] + 1
+    }
+    return logger
 }
 
-fn debug(msg) @ io @ cpu {
-    return 0
+fn log_info(logger, msg) @ spawn @ cpu {
+    if logger["level"] <= 1 {
+        logger["entries"] = logger["entries"] + [format_log_entry("INFO", msg, logger)]
+        logger["count"] = logger["count"] + 1
+    }
+    return logger
 }
 
-fn log(level, msg) @ io @ cpu {
-    return 0
+fn log_warn(logger, msg) @ spawn @ cpu {
+    if logger["level"] <= 2 {
+        logger["entries"] = logger["entries"] + [format_log_entry("WARN", msg, logger)]
+        logger["count"] = logger["count"] + 1
+    }
+    return logger
 }
 
-fn trace(msg) @ io @ cpu {
-    return 0
+fn log_error(logger, msg) @ spawn @ cpu {
+    if logger["level"] <= 3 {
+        logger["entries"] = logger["entries"] + [format_log_entry("ERROR", msg, logger)]
+        logger["count"] = logger["count"] + 1
+    }
+    return logger
+}
+
+fn log_fatal(logger, msg) @ spawn @ cpu {
+    if logger["level"] <= 4 {
+        logger["entries"] = logger["entries"] + [format_log_entry("FATAL", msg, logger)]
+        logger["count"] = logger["count"] + 1
+    }
+    return logger
+}
+
+fn format_log_entry(level, msg, logger) @ pure @ cpu {
+    let timestamp = time_now()
+    return "[" + to_string(timestamp) + "] [" + level + "] " + msg
+}
+
+fn logger_flush(logger) @ spawn @ cpu {
+    let entries = logger["entries"]
+    // Output all entries
+    let i = 0
+    while i < len(entries) {
+        print(entries[i])
+        i = i + 1
+    }
+    logger["entries"] = []
+    return logger
+}
+
+fn logger_count(logger) @ pure @ cpu {
+    return logger["count"]
+}
+
+/// rotate(logger, max_entries) — Rotate log entries, keep only latest N
+fn rotate(logger, max_entries) @ spawn @ cpu {
+    let entries = logger["entries"]
+    let len_e = len(entries)
+    if len_e > max_entries {
+        logger["entries"] = entries[len_e - max_entries: len_e]
+    }
+    return logger
 }

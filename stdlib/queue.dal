@@ -1,46 +1,24 @@
-// Queue<T> — 队列（先进先出）
-// FIFO 数据结构封装
+// Dalin L 标准库 — Queue (队列)
+fn queue_new() @ pure @ cpu { return [] }
 
-/// new() — 创建空队列
-fn new() @ pure @ cpu { return [] }
+fn queue_push(q, val) @ spawn @ cpu {
+    return q + [val]
+}
 
-/// enqueue(queue, item) — 入队
-fn enqueue(queue, item) @ spawn @ cpu { return queue + [item] }
-
-/// dequeue(queue) — 出队，返回 [new_queue, front_element]
-fn dequeue(queue) @ pure @ cpu {
-    let n = len(queue)
-    if n == 0 { return null }
-    let front = queue[0]
-    let result = []
-    let i = 1
-    while i < n {
-        result = result + [queue[i]]
-        i = i + 1
+fn queue_pop(q) @ spawn @ cpu {
+    if len(q) == 0 {
+        return [q, null]
     }
-    return [result, front]
+    let val = q[0]
+    let new_q = q[1:]
+    return [new_q, val]
 }
 
-/// peek(queue) — 查看队首元素
-fn peek(queue) @ pure @ cpu {
-    if len(queue) == 0 { return null }
-    return queue[0]
+fn queue_peek(q) @ pure @ cpu {
+    if len(q) == 0 { return null }
+    return q[0]
 }
 
-/// qlen(queue) — 队列大小
-fn qlen(queue) @ pure @ cpu { return len(queue) }
+fn queue_len(q) @ pure @ cpu { return len(q) }
 
-/// is_empty(queue) — 队列是否为空
-fn is_empty(queue) @ pure @ cpu { return len(queue) == 0 }
-
-/// drain(queue) — 清空队列
-fn drain(queue) @ pure @ cpu { return [] }
-
-/// iter(queue) — 迭代队列元素
-fn iter(queue) @ pure @ cpu { return queue }
-
-/// clear(queue) — 清空队列
-fn clear(queue) @ pure @ cpu { return [] }
-
-/// to_list(queue) — 转换为列表
-fn to_list(queue) @ pure @ cpu { return queue }
+fn queue_empty(q) @ pure @ cpu { return len(q) == 0 }

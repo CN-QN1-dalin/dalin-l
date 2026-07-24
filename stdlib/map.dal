@@ -1,10 +1,11 @@
-// map — key-value dictionary using parallel arrays
-fn new() @ pure @ cpu { return [[]] }
-fn put(m, key, val) @ spawn @ cpu { return m + [[key, val]] }
-fn get(m, key) @ pure @ cpu { return null }
-fn has(m, key) @ pure @ cpu { return false }
-fn remove(m, key) @ pure @ cpu { return m }
-fn keys(m) @ pure @ cpu { return [] }
-fn values(m) @ pure @ cpu { return [] }
-fn merge(a, b) @ pure @ cpu { return a + b }
-fn len(m) @ pure @ cpu { return len(m[0]) }
+// map — key-value dictionary using associative array (map)
+
+fn new() @ pure @ cpu { return {} }
+fn put(m, key, val) @ spawn @ cpu { m[key] = val; return m }
+fn get(m, key) @ pure @ cpu { let v = m[key]; if v != null { return v } return null }
+fn has(m, key) @ pure @ cpu { return m[key] != null }
+fn remove(m, key) @ spawn @ cpu { m[key] = null; return m }
+fn keys(m) @ pure @ cpu { return map_keys(m) }
+fn values(m) @ pure @ cpu { let ks = map_keys(m); let vs = []; let i = 0; while i < len(ks) { vs = vs + [m[ks[i]]]; i = i + 1 }; return vs }
+fn merge(a, b) @ pure @ cpu { let r = copy(a); let ks = map_keys(b); let i = 0; while i < len(ks) { r[ks[i]] = b[ks[i]]; i = i + 1 }; return r }
+fn len(m) @ pure @ cpu { return len(map_keys(m)) }

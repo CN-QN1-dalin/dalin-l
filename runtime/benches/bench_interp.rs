@@ -9,7 +9,7 @@ pub fn bench_interp_compile_and_run_simple(c: &mut Criterion) {
             let mut lex = lexer::Lexer::new(black_box(src));
             let tokens = lex.tokenize().unwrap();
             let mut p = parser::Parser::new(tokens);
-            let prog = p.parse().unwrap();
+            let prog = p.parse();
             let mut interp = Interpreter::new();
             let _ = interp.interpret(&prog);
         })
@@ -29,7 +29,7 @@ fn compute(a: int, b: int) -> int {
             let mut lex = lexer::Lexer::new(black_box(src));
             let tokens = lex.tokenize().unwrap();
             let mut p = parser::Parser::new(tokens);
-            let prog = p.parse().unwrap();
+            let prog = p.parse();
             let mut interp = Interpreter::new();
             let _ = interp.interpret(&prog);
         })
@@ -52,7 +52,7 @@ fn sum(n: int) -> int {
             let mut lex = lexer::Lexer::new(black_box(src));
             let tokens = lex.tokenize().unwrap();
             let mut p = parser::Parser::new(tokens);
-            let prog = p.parse().unwrap();
+            let prog = p.parse();
             let mut interp = Interpreter::new();
             let _ = interp.interpret(&prog);
         })
@@ -71,7 +71,7 @@ fn fib(n: int) -> int {
             let mut lex = lexer::Lexer::new(black_box(src));
             let tokens = lex.tokenize().unwrap();
             let mut p = parser::Parser::new(tokens);
-            let prog = p.parse().unwrap();
+            let prog = p.parse();
             let mut interp = Interpreter::new();
             let _ = interp.interpret(&prog);
         })
@@ -97,7 +97,7 @@ pub fn bench_interp_deep_call_chain(c: &mut Criterion) {
             let mut lex = lexer::Lexer::new(black_box(&src));
             let tokens = lex.tokenize().unwrap();
             let mut p = parser::Parser::new(tokens);
-            let prog = p.parse().unwrap();
+            let prog = p.parse();
             let mut interp = Interpreter::new();
             let _ = interp.interpret(&prog);
         })
@@ -122,7 +122,7 @@ fn sum_arr(arr: array<int>) -> int {
             let mut lex = lexer::Lexer::new(black_box(src));
             let tokens = lex.tokenize().unwrap();
             let mut p = parser::Parser::new(tokens);
-            let prog = p.parse().unwrap();
+            let prog = p.parse();
             let mut interp = Interpreter::new();
             let _ = interp.interpret(&prog);
         })
@@ -139,7 +139,7 @@ pub fn bench_interp_compile_throughput(c: &mut Criterion) {
                 let mut lex = lexer::Lexer::new(black_box(src));
                 let tokens = lex.tokenize().unwrap();
                 let mut p = parser::Parser::new(tokens);
-                let prog = p.parse().unwrap();
+                let prog = p.parse();
                 let mut interp = Interpreter::new();
                 let _ = interp.interpret(&prog);
             }

@@ -1,11 +1,74 @@
-// Dalin L 标准库 — 配置管理
-// 配置加载和查询
+// Dalin L 标准库 — 配置管理 (Configuration)
+// 支持键值对、嵌套结构、环境变量读取
 
-fn get(key) @ pure @ cpu { return null }
-fn get_or(key, default) @ pure @ cpu { return default }
-fn set(key, val) @ pure @ cpu { return 0 }
-fn has(key) @ pure @ cpu { return false }
-fn load(path) @ io @ cpu @ latency(100ms) { return true }
-fn save(path) @ io @ cpu @ latency(100ms) { return true }
-fn reset() @ pure @ cpu { return 0 }
-fn all() @ pure @ cpu { return [] }
+fn config_new() @ pure @ cpu { return {} }
+
+/// set(cfg, key, val) — Set a configuration value
+fn set(cfg, key, val) @ spawn @ cpu {
+    cfg[key] = val
+    return cfg
+}
+
+/// get(cfg, key) — Get a configuration value
+fn get(cfg, key) @ pure @ cpu {
+    let val = cfg[key]
+    if val != null {
+        return val
+    }
+    return null
+}
+
+/// exists(cfg, key) — Check if key exists
+fn exists(cfg, key) @ pure @ cpu {
+    return cfg[key] != null
+}
+
+/// keys(cfg) — List all keys
+fn keys(cfg) @ pure @ cpu {
+    let result = []
+    let ks = map_keys(cfg)
+    let i = 0
+    while i < len(ks) {
+        result = result + [ks[i]]
+        i = i + 1
+    }
+    return result
+}
+
+/// delete(cfg, key) — Remove a key
+fn delete(cfg, key) @ spawn @ cpu {
+    cfg[key] = null
+    return cfg
+}
+
+/// merge(cfg, other) — Merge two configs (shallow)
+fn merge(cfg, other) @ spawn @ cpu {
+    let result = copy(cfg)
+    let ks = map_keys(other)
+    let i = 0
+    while i < len(ks) {
+        result[ks[i]] = other[ks[i]]
+        i = i + 1
+    }
+    return result
+}
+
+/// to_json(cfg) — Convert config to string representation
+fn to_string(cfg) @ pure @ cpu {
+    let ks = map_keys(cfg)
+    let parts = []
+    let i = 0
+    while i < len(ks) {
+        let k = ks[i]
+        parts = parts + [k + "=" + to_string_v(cfg[k])]
+        i = i + 1
+    }
+    return "{" + join(parts, ", ") + "}"
+}
+
+fn to_string_v(val) @ pure @ cpu {
+    if val == null { return "null" }
+    if val == true { return "true" }
+    if val == false { return "false" }
+    return to_string(val)
+}

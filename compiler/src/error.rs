@@ -89,6 +89,44 @@ impl ChannelError {
             ChannelError::LatencyViolation { .. } => "E008",
         }
     }
+
+    /// Format error with source code snippet and caret indicator.
+    /// ```text
+    /// error[E004]: 语法错误
+    ///   --> main.dal:3:15
+    ///    |
+    ///  3 |     let x = broken_fn(
+    ///    |             ^^^^^^^^^ 期待 ')'
+    /// ```
+    pub fn format_with_source(&self, source: &str) -> String {
+        let loc = match self {
+            ChannelError::EffectViolation { location, .. } => location,
+            ChannelError::CapabilityViolation { location, .. } => location,
+            ChannelError::ConfidenceViolation { location, .. } => location,
+            ChannelError::CognitiveLoopViolation { location, .. } => location,
+            ChannelError::GovernanceViolation { location, .. } => location,
+            ChannelError::LatencyViolation { location, .. } => location,
+            ChannelError::TypeError { location, .. } => location,
+            ChannelError::SyntaxError { location, .. } => location,
+        };
+
+        let base = format!("{}", self);
+        let line_str = source.lines().nth(loc.line.saturating_sub(1));
+        match line_str {
+            Some(line_content) => {
+                let caret = " ".repeat(loc.column.saturating_sub(1)) + &"^".repeat(
+                    line_content.len().saturating_sub(loc.column.saturating_sub(1)).max(1)
+                );
+                format!(
+                    "{base}   |\n  {:>3} | {}\n   | {}\n",
+                    loc.line,
+                    line_content,
+                    caret
+                )
+            }
+            None => base,
+        }
+    }
 }
 
 impl fmt::Display for ChannelError {
@@ -295,5 +333,54 @@ mod tests {
         assert!(msg.contains("50ms"));
         assert!(msg.contains("120ms"));
         assert!(msg.contains("70ms"));
+    }
+
+    #[test]
+    fn source_snippet_format() {
+        let err = ChannelError::SyntaxError {
+            location: SourceLocation {
+                line: 3,
+                column: 15,
+                filename: "test.dal".into(),
+            },
+            message: "期待 ')' 但遇到 '}'".into(),
+        };
+        let src = "let x = 42\nfn f() {\n    let y = broken(\n}\n";
+        let msg = err.format_with_source(src);
+        assert!(msg.contains("broken"), "should show source line: {msg}");
+        assert!(msg.contains("^^"), "should have caret: {msg}");
+        assert!(msg.contains("E004"), "should have error code: {msg}");
+    }
+
+    #[test]
+    fn source_snippet_first_line() {
+        let err = ChannelError::TypeError {
+            location: SourceLocation {
+                line: 1,
+                column: 1,
+                filename: "test.dal".into(),
+            },
+            message: "类型不匹配".into(),
+        };
+        let src = "let x = \"hello\"\nlet y = x + 1\n";
+        let msg = err.format_with_source(src);
+        assert!(msg.contains("let x"));
+        assert!(msg.contains("^^^"));
+    }
+
+    #[test]
+    fn source_snippet_out_of_range() {
+        let err = ChannelError::SyntaxError {
+            location: SourceLocation {
+                line: 999,
+                column: 1,
+                filename: "empty.dal".into(),
+            },
+            message: "未预期的文件结尾".into(),
+        };
+        let src = "";
+        let msg = err.format_with_source(src);
+        assert!(msg.contains("E004"));
+        assert!(!msg.contains("^^")); // no caret for out-of-range
     }
 }

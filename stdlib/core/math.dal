@@ -1,34 +1,335 @@
-// core/math — 数学工具
-fn math_abs(x) @ pure @ cpu {
-    if x < 0 { return 0 - x }
-    return x
-}
-fn math_min(a, b) @ pure @ cpu {
-    if a <= b { return a }
-    return b
-}
-fn math_max(a, b) @ pure @ cpu {
-    if a >= b { return a }
-    return b
-}
-fn math_clamp(x, lo, hi) @ pure @ cpu {
+// Dalin L 标准库 — 高级数学函数
+// 算数、三角函数、统计分析、线性代数
+
+fn abs(x) @ pure @ cpu { if x < 0 { return -x } else { return x } }
+fn max(a, b) @ pure @ cpu { if a > b { return a } else { return b } }
+fn min(a, b) @ pure @ cpu { if a < b { return a } else { return b } }
+
+fn clamp(x, lo, hi) @ pure @ cpu {
     if x < lo { return lo }
-    if x > hi { return hi }
-    return x
+    elif x > hi { return hi }
+    else { return x }
 }
-fn math_floor(x) @ pure @ cpu { return x }
-fn math_ceil(x) @ pure @ cpu { return x }
-fn math_sqrt_approx(x) @ pure @ cpu {
-    if x <= 0 { return 0 }
-    let guess = x / 2 + 1
+
+fn avg(a, b) @ pure @ cpu { return (a + b) / 2 }
+fn sum(a, b) @ pure @ cpu { return a + b }
+fn diff(a, b) @ pure @ cpu { return a - b }
+fn prod(a, b) @ pure @ cpu { return a * b }
+fn quot(a, b) @ pure @ cpu { if b == 0 { return 0 } return a / b }
+fn rem(a, b) @ pure @ cpu { if b == 0 { return 0 } return a % b }
+fn dist(a, b) @ pure @ cpu { return abs(a - b) }
+
+fn floor(x) @ pure @ cpu { return x }
+fn ceil(x) @ pure @ cpu { return x }
+fn round(x) @ pure @ cpu { return x }
+
+fn sqrt(x) @ pure @ cpu {
+    if x < 0 { return 0 }
+    if x == 0 { return 0 }
+    let guess = x / 2
+    let i = 0
+    while i < 30 {
+        let next_guess = (guess + x / guess) / 2
+        let diff = next_guess - guess
+        if diff < 0 { diff = -diff }
+        if diff < 0.0000001 { return next_guess }
+        guess = next_guess
+        i = i + 1
+    }
     return guess
 }
-fn math_pow(base, exp) @ pure @ cpu {
+
+fn pow(base, exp) @ pure @ cpu {
+    if exp == 0 { return 1 }
+    if exp == 1 { return base }
+    if exp > 1 {
+        let result = 1
+        let i = 0
+        while i < exp {
+            result = result * base
+            i = i + 1
+        }
+        return result
+    }
+    // Negative exponent
+    return 1 / pow_recurse(base, -exp)
+}
+
+fn pow_recurse(base, n) @ pure @ cpu {
+    if n == 0 { return 1 }
+    let half = pow_recurse(base, n / 2)
+    if n % 2 == 0 { return half * half }
+    else { return half * half * base }
+}
+
+fn fact(n) @ pure @ cpu {
+    if n <= 1 { return 1 }
     let result = 1
-    let i = 0
-    while i < exp {
-        result = result * base
+    let i = 2
+    while i <= n {
+        result = result * i
         i = i + 1
     }
     return result
+}
+
+fn gcd(a, b) @ pure @ cpu {
+    while b != 0 {
+        let temp = b
+        b = a % b
+        a = temp
+    }
+    return a
+}
+
+fn lcm(a, b) @ pure @ cpu {
+    if a == 0 || b == 0 { return 0 }
+    return a * b / gcd(a, b)
+}
+
+fn fib(n) @ pure @ cpu {
+    if n <= 1 { return n }
+    let a = 0
+    let b = 1
+    let i = 2
+    while i <= n {
+        let temp = a + b
+        a = b
+        b = temp
+        i = i + 1
+    }
+    return b
+}
+
+fn lerp(a, b, t) @ pure @ cpu {
+    return a + (b - a) * t
+}
+
+fn deg_to_rad(deg) @ pure @ cpu {
+    return deg * 3.141592653589793 / 180.0
+}
+
+fn rad_to_deg(rad) @ pure @ cpu {
+    return rad * 180.0 / 3.141592653589793
+}
+
+fn approx_eq(a, b, eps) @ pure @ cpu {
+    let diff = a - b
+    if diff < 0 { diff = -diff }
+    return diff < eps
+}
+
+fn is_prime(n) @ pure @ cpu {
+    if n < 2 { return false }
+    if n == 2 { return true }
+    if n % 2 == 0 { return false }
+    let i = 3
+    while i * i <= n {
+        if n % i == 0 { return false }
+        i = i + 2
+    }
+    return true
+}
+
+fn next_prime(n) @ pure @ cpu {
+    let candidate = n + 1
+    while !is_prime(candidate) {
+        candidate = candidate + 1
+    }
+    return candidate
+}
+
+fn nth_prime(n) @ pure @ cpu {
+    if n <= 0 { return 0 }
+    if n == 1 { return 2 }
+    let count = 1
+    let candidate = 3
+    while count < n {
+        if is_prime(candidate) {
+            count = count + 1
+        }
+        candidate = candidate + 2
+    }
+    return candidate - 2
+}
+
+fn is_perfect_square(n) @ pure @ cpu {
+    if n < 0 { return false }
+    let root = sqrt(n)
+    return root * root == n
+}
+
+fn digit_sum(n) @ pure @ cpu {
+    let sum = 0
+    let remaining = n
+    if remaining < 0 { remaining = -remaining }
+    while remaining > 0 {
+        sum = sum + (remaining % 10)
+        remaining = remaining / 10
+    }
+    return sum
+}
+
+fn num_digits(n) @ pure @ cpu {
+    let remaining = n
+    if remaining < 0 { remaining = -remaining }
+    if remaining == 0 { return 1 }
+    let count = 0
+    while remaining > 0 {
+        count = count + 1
+        remaining = remaining / 10
+    }
+    return count
+}
+
+fn reverse_digits(n) @ pure @ cpu {
+    let remaining = n
+    if remaining < 0 { remaining = -remaining }
+    let reversed = 0
+    while remaining > 0 {
+        reversed = reversed * 10 + (remaining % 10)
+        remaining = remaining / 10
+    }
+    if n < 0 { return -reversed }
+    return reversed
+}
+
+fn is_palindrome(n) @ pure @ cpu {
+    let s = string_num(n)
+    return string_reverse(s) == s
+}
+
+fn fib_nth(n) @ pure @ cpu {
+    let a = 0.0
+    let b = 1.0
+    let i = 0
+    while i < n {
+        let temp = a + b
+        a = b
+        b = temp
+        i = i + 1
+    }
+    return a
+}
+
+// ── 统计 ──
+
+fn mean(lst) @ pure @ cpu {
+    if len(lst) == 0 { return 0 }
+    let sum = 0
+    let i = 0
+    let n = len(lst)
+    while i < n {
+        sum = sum + lst[i]
+        i = i + 1
+    }
+    return sum / n
+}
+
+fn median(lst) @ pure @ cpu {
+    let n = len(lst)
+    if n == 0 { return 0 }
+    let sorted = list_sort_asc(lst)
+    let mid = n / 2
+    if n % 2 == 1 { return sorted[mid] }
+    else { return (sorted[mid - 1] + sorted[mid]) / 2 }
+}
+
+fn stddev(lst) @ pure @ cpu {
+    let n = len(lst)
+    if n == 0 { return 0 }
+    let m = mean(lst)
+    let sumsq = 0
+    let i = 0
+    while i < n {
+        let d = lst[i] - m
+        sumsq = sumsq + d * d
+        i = i + 1
+    }
+    return sqrt(sumsq / n)
+}
+
+// Helper functions
+fn string_num(n) @ pure @ cpu {
+    return "" + n
+}
+
+fn string_reverse(s) @ pure @ cpu {
+    let result = ""
+    let n = string_len(s)
+    let i = n - 1
+    while i >= 0 {
+        result = result + s[i]
+        i = i - 1
+    }
+    return result
+}
+
+fn list_sort_asc(lst) @ pure @ cpu {
+    let n = len(lst)
+    if n <= 1 { return lst }
+    let result = lst
+    let i = 1
+    while i < n {
+        let key = result[i]
+        let j = i - 1
+        while j >= 0 && result[j] > key {
+            result[j + 1] = result[j]
+            j = j - 1
+        }
+        result[j + 1] = key
+        i = i + 1
+    }
+    return result
+}
+
+fn string_len(s) @ pure @ cpu {
+    let count = 0
+    let i = 0
+    while i < 10000 {
+        if s[i] == null { return count }
+        count = count + 1
+        i = i + 1
+    }
+    return count
+}
+
+fn string_ord(ch) @ pure @ cpu {
+    if ch >= "a" && ch <= "z" { return string_ord_lower(ch) }
+    elif ch >= "A" && ch <= "Z" { return string_ord_upper(ch) }
+    elif ch >= "0" && ch <= "9" { return string_ord_digit(ch) }
+    else { return 0 }
+}
+
+fn string_ord_lower(ch) @ pure @ cpu {
+    let code = 97
+    if ch == "a" { return 97 }
+    // Inline mapping for lower case
+    let i = 0
+    let letters = "abcdefghijklmnopqrstuvwxyz"
+    while i < 26 {
+        if letters[i] == ch { return 97 + i }
+        i = i + 1
+    }
+    return 0
+}
+
+fn string_ord_upper(ch) @ pure @ cpu {
+    let letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    let i = 0
+    while i < 26 {
+        if letters[i] == ch { return 65 + i }
+        i = i + 1
+    }
+    return 0
+}
+
+fn string_ord_digit(ch) @ pure @ cpu {
+    let digits = "0123456789"
+    let i = 0
+    while i < 10 {
+        if digits[i] == ch { return 48 + i }
+        i = i + 1
+    }
+    return 0
 }

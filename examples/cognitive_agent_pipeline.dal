@@ -1,0 +1,65 @@
+// Dalin L 3.0 — Cognitive Agent Pipeline
+// Full-stack demo: perception → reasoning → decision → action loop
+
+fn main() {
+    println("=== Cognitive Agent Pipeline ===")
+    
+    let signals = [0.8, 0.6, 0.9, 0.3, 0.7]
+    let threshold = 0.5
+    let mut confidence = 1.0
+    let mut perception_count = 0
+    let mut action_count = 0
+    
+    let mut iter = 0
+    while iter < 5 {
+        println("[Cycle {}]", iter)
+        
+        // ── Step 1: Perceive ────────────────────────
+        let mut perceived = 0.0
+        for signal in signals {
+            if signal > 0.0 {
+                perceived = perceived + signal
+            }
+        }
+        perception_count = perception_count + 1
+        println("  Perceived: {:.4}", perceived)
+        
+        // ── Step 2: Reason (Confidence Fusion) ──────
+        let base_confidence = perceived / (perceived + 1.0)
+        let decay = 0.95
+        let mem_confidence = 0.0
+        let fused = confidence * decay + base_confidence * (1.0 - decay)
+        confidence = fused
+        println("  Confidence: {:.4}", fused)
+        
+        // ── Step 3: Decide (Governance Gate) ────────
+        if confidence >= threshold {
+            execute_action(iter)
+            action_count = action_count + 1
+            println("  Action executed ✓")
+        } else {
+            println("  Action blocked (confidence below threshold)")
+        }
+        
+        // ── Step 4: Convergence Check ───────────────
+        if fused > 0.9 && iter > 2 {
+            println("  Convergence achieved!")
+            break
+        }
+        
+        iter = iter + 1
+    }
+    
+    println("")
+    println("=== Final State ===")
+    println("Confidence: {:.4}", confidence)
+    println("Perceptions: {}", perception_count)
+    println("Actions: {}", action_count)
+    println("=== Pipeline Complete ===")
+}
+
+fn execute_action(id) {
+    let msg = "Executed action"
+    println(msg, id)
+    return id
+}

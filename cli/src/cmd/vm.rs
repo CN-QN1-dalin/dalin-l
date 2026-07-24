@@ -37,25 +37,25 @@ pub fn run(mode: &str) -> Result<(), String> {
     match lex.tokenize() {
         Ok(tokens) => {
             let mut parser = parser::Parser::new(tokens);
-            match parser.parse() {
-                Ok(prog) => {
-                    if mode == "bytecode" {
-                        let mut compiler = BytecodeCompiler::new();
-                        let funcs = compiler.compile(&prog);
-                        let mut vm = dalin_dlvm::Vm::new(funcs);
-                        match vm.run() {
-                            Ok(val) => println!("\n  ✅ DLVM OK: {}", val),
-                            Err(e) => println!("\n  ❌ DLVM error: {}", e),
-                        }
-                    } else {
-                        let mut interp = interpreter::Interpreter::new();
-                        match interp.interpret(&prog) {
-                            Ok(_) => println!("\n  ✅ Interpreter OK"),
-                            Err(e) => println!("\n  ❌ Runtime error: {}", e),
-                        }
-                    }
+            let prog = parser.parse();
+            // Report recovered parse errors
+            for err in parser.recovered() {
+                println!("  ⚠ Parser warning: {}", err);
+            }
+            if mode == "bytecode" {
+                let mut compiler = BytecodeCompiler::new();
+                let funcs = compiler.compile(&prog);
+                let mut vm = dalin_dlvm::Vm::new(funcs);
+                match vm.run() {
+                    Ok(val) => println!("\n  ✅ DLVM OK: {}", val),
+                    Err(e) => println!("\n  ❌ DLVM error: {}", e),
                 }
-                Err(e) => println!("  ❌ Parser error: {}", e),
+            } else {
+                let mut interp = interpreter::Interpreter::new();
+                match interp.interpret(&prog) {
+                    Ok(_) => println!("\n  ✅ Interpreter OK"),
+                    Err(e) => println!("\n  ❌ Runtime error: {}", e),
+                }
             }
         }
         Err(e) => println!("  ❌ Lexer error: {}", e),

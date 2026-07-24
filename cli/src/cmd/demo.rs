@@ -43,30 +43,26 @@ pub fn run() -> Result<(), String> {
             }
             println!("  ✅ Lexer OK ({} tokens)", tokens.len());
 
-            // Step 2: Parser
+            // Step 2: Parser (with error recovery)
             println!("\n--- 2. Parser ---");
             let mut p = parser::Parser::new(tokens);
-            match p.parse() {
-                Ok(prog) => {
-                    println!("  ✅ Parser OK ({} statements)", prog.statements.len());
+            let prog = p.parse();
+            println!("  ✅ Parser OK ({} statements)", prog.statements.len());
 
-                    // Step 3: Type Inference
-                    println!("\n--- 3. Type Inference ---");
-                    let mut infer = ty::TypeInferencer::new();
-                    infer.infer_program(&prog);
-                    let report = infer.print_report();
-                    if !report.trim().is_empty() {
-                        print!("{}", report);
-                    }
+            // Step 3: Type Inference
+            println!("\n--- 3. Type Inference ---");
+            let mut infer = ty::TypeInferencer::new();
+            infer.infer_program(&prog);
+            let report = infer.print_report();
+            if !report.trim().is_empty() {
+                print!("{}", report);
+            }
 
-                    // Step 4: Interpreter
-                    println!("\n--- 4. Interpreter ---");
-                    match interpreter::run_source(demo) {
-                        Ok(_) => println!("  ✅ Execution OK"),
-                        Err(e) => println!("  ❌ Runtime error: {}", e),
-                    }
-                }
-                Err(e) => println!("  ❌ Parser error: {}", e),
+            // Step 4: Interpreter
+            println!("\n--- 4. Interpreter ---");
+            match interpreter::run_source(demo) {
+                Ok(_) => println!("  ✅ Execution OK"),
+                Err(e) => println!("  ❌ Runtime error: {}", e),
             }
         }
         Err(e) => println!("  ❌ Lexer error: {}", e),

@@ -203,6 +203,8 @@ pub struct Token {
     pub value: String,
     pub line: usize,
     pub column: usize,
+    /// Source file name for error reporting
+    pub file_name: Option<String>,
 }
 
 impl Token {
@@ -212,6 +214,7 @@ impl Token {
             value,
             line,
             column,
+            file_name: None,
         }
     }
 }

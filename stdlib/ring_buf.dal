@@ -1,25 +1,49 @@
-// ring_buf — circular buffer implementation
-fn new(size) @ pure @ cpu {
-    let buf = []
-    let i = 0
-    while i < size {
-        buf = buf + [null]
-        i = i + 1
+// Dalin L 标准库 — Ring Buffer (环形缓冲区)
+fn ring_buf_new(capacity) @ pure @ cpu {
+    return ["buffer": [], "head": 0, "tail": 0, "capacity": capacity, "count": 0]
+}
+
+fn ring_buf_full(rb) @ pure @ cpu {
+    return rb["count"] >= rb["capacity"]
+}
+
+fn ring_buf_empty(rb) @ pure @ cpu {
+    return rb["count"] == 0
+}
+
+fn ring_buf_push(rb, val) @ spawn @ cpu {
+    if ring_buf_full(rb) {
+        return rb
     }
-    return [buf, 0, 0]
-}
-fn push(rb, item) @ spawn @ cpu {
-    let head = rb[2]
-    let count = rb[1] + 1
-    if count > len(rb[0]) { return rb }
-    return [rb[0], count, head + 1]
-}
-fn pop(rb) @ pure @ cpu {
-    let count = rb[1]
-    if count == 0 { return null }
+    let buf = copy(rb["buffer"])
+    buf[rb["head"]] = val
+    rb["head"] = (rb["head"] + 1) % rb["capacity"]
+    rb["count"] = rb["count"] + 1
+    rb["buffer"] = buf
     return rb
 }
-fn peek(rb) @ pure @ cpu { return rb }
-fn clear(rb) @ pure @ cpu { return [rb[0], 0, 0] }
-fn is_full(rb, size) @ pure @ cpu { return rb[1] >= size }
-fn len(rb) @ pure @ cpu { return rb[1] }
+
+fn ring_buf_pop(rb) @ spawn @ cpu {
+    if ring_buf_empty(rb) {
+        return [rb, null]
+    }
+    let val = rb["buffer"][rb["tail"]]
+    rb["tail"] = (rb["tail"] + 1) % rb["capacity"]
+    rb["count"] = rb["count"] - 1
+    return [rb, val]
+}
+
+fn ring_buf_peek(rb) @ pure @ cpu {
+    if ring_buf_empty(rb) {
+        return null
+    }
+    return rb["buffer"][rb["tail"]]
+}
+
+fn ring_buf_len(rb) @ pure @ cpu {
+    return rb["count"]
+}
+
+fn ring_buf_cap(rb) @ pure @ cpu {
+    return rb["capacity"]
+}

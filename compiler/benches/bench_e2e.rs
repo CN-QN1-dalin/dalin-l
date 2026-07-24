@@ -109,7 +109,7 @@ fn bench_ty2_inference_only(c: &mut Criterion) {
             let mut lex = lexer::Lexer::new(&src);
             let tokens = lex.tokenize().unwrap();
             let mut pp = parser::Parser::new(tokens);
-            pp.parse().unwrap()
+            pp.parse()
         };
         group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, _| {
             b.iter(|| {
@@ -285,7 +285,7 @@ fn bench_overhead_comparison(c: &mut Criterion) {
         // Parse only
         let prog = {
             let mut pp = parser::Parser::new(tokens);
-            pp.parse().unwrap()
+            pp.parse()
         };
 
         // Ty2 only

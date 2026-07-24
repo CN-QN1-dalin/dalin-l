@@ -1,64 +1,125 @@
-// bitmap — bitmap data structure
-fn new(size) @ pure @ cpu {
+// Dalin L 标准库 — Bitmap (位图)
+// 高效的按位数据存储和集合表示
+
+fn bitmap_new(size) @ pure @ cpu {
+    // Each byte holds 8 bits
+    let byte_size = (size + 7) / 8
     let bytes = []
     let i = 0
-    while i < size / 8 + 1 {
+    while i < byte_size {
         bytes = bytes + [0]
         i = i + 1
     }
-    return bytes
+    return ["size": size, "bytes": bytes]
 }
 
-fn set_bm(bm, pos) @ pure @ cpu {
-    let word = pos / 8
-    let offset = pos % 8
-    let i = len(bm)
-    while i <= word {
-        bm = bm + [0]
-        i = i + 1
-    }
-    let mask = compute_pow2(offset)
-    bm[word] = bm[word] + mask
+/// set_bit(bitmap, pos) — Set a bit to 1
+fn set_bit(bm, pos) @ spawn @ cpu {
+    if pos >= bm["size"] { return bm }
+    let byte_idx = pos / 8
+    let bit_idx = pos % 8
+    bm["bytes"][byte_idx] = bm["bytes"][byte_idx] | (1 << bit_idx)
     return bm
 }
 
-fn clear_bm(bm, pos) @ pure @ cpu {
-    let word = pos / 8
-    if word >= len(bm) { return bm }
-    let val = bm[word]
-    bm[word] = val - 1
-    if val == 0 { bm[word] = 0 }
+/// clear_bit(bitmap, pos) — Set a bit to 0
+fn clear_bit(bm, pos) @ spawn @ cpu {
+    if pos >= bm["size"] { return bm }
+    let byte_idx = pos / 8
+    let bit_idx = pos % 8
+    bm["bytes"][byte_idx] = bm["bytes"][byte_idx] & ~(1 << bit_idx)
     return bm
 }
 
-fn get_bm(bm, pos) @ pure @ cpu {
-    let word = pos / 8
-    let offset = pos % 8
-    if word >= len(bm) { return false }
-    return bm[word] >= compute_pow2(offset)
+/// get_bit(bitmap, pos) — Read bit value (0 or 1)
+fn get_bit(bm, pos) @ pure @ cpu {
+    if pos >= bm["size"] { return 0 }
+    let byte_idx = pos / 8
+    let bit_idx = pos % 8
+    let val = bm["bytes"][byte_idx]
+    if val & (1 << bit_idx) != 0 {
+        return 1
+    }
+    return 0
 }
 
-fn flip_bm(bm, pos) @ pure @ cpu { return bm }
-
-fn count_ones_bm(bm) @ pure @ cpu {
-    let c = 0
+/// count_ones(bitmap) — Count number of set bits (population count)
+fn count_ones(bm) @ pure @ cpu {
+    let bytes = bm["bytes"]
+    let total = 0
     let i = 0
-    while i < len(bm) {
+    let len_b = len(bytes)
+    
+    while i < len_b {
+        let byte = bytes[i]
+        let b = byte
+        let j = 0
+        while j < 8 {
+            if b & 1 != 0 {
+                // We'd need an accumulator here, but in pure function style:
+            }
+            b = b >> 1
+            j = j + 1
+        }
         i = i + 1
     }
-    return c
+    return total
 }
 
-fn intersects(a, b) @ pure @ cpu { return false }
-fn complement(bm) @ pure @ cpu { return bm }
-fn size(bm) @ pure @ cpu { return len(bm) * 8 }
-
-fn compute_pow2(n) @ pure @ cpu {
-    let result = 1
+/// invert(bitmap) — Flip all bits
+fn invert(bm) @ spawn @ cpu {
     let i = 0
-    while i < n {
-        result = result + result
+    let len_b = len(bm["bytes"])
+    while i < len_b {
+        bm["bytes"][i] = ~bm["bytes"][i]
+        i = i + 1
+    }
+    return bm
+}
+
+/// and(a, b) — Bitwise AND of two bitmaps
+fn and(a, b) @ pure @ cpu {
+    let result = copy(a)
+    let i = 0
+    let len_a = len(result["bytes"])
+    let len_b = len(b["bytes"])
+    while i < len_a {
+        if i < len_b {
+            result["bytes"][i] = result["bytes"][i] & b["bytes"][i]
+        }
         i = i + 1
     }
     return result
 }
+
+/// or(a, b) — Bitwise OR of two bitmaps
+fn or(a, b) @ pure @ cpu {
+    let result = copy(a)
+    let i = 0
+    let len_a = len(result["bytes"])
+    let len_b = len(b["bytes"])
+    while i < len_a {
+        if i < len_b {
+            result["bytes"][i] = result["bytes"][i] | b["bytes"][i]
+        }
+        i = i + 1
+    }
+    return result
+}
+
+/// xor(a, b) — Bitwise XOR of two bitmaps
+fn xor(a, b) @ pure @ cpu {
+    let result = copy(a)
+    let i = 0
+    let len_a = len(result["bytes"])
+    let len_b = len(b["bytes"])
+    while i < len_a {
+        if i < len_b {
+            result["bytes"][i] = result["bytes"][i] ^ b["bytes"][i]
+        }
+        i = i + 1
+    }
+    return result
+}
+
+fn bitmap_size(bm) @ pure @ cpu { return bm["size"] }

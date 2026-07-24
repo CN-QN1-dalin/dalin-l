@@ -1,7 +1,62 @@
-// atomic — 原子变量包装器
-fn atomic_new(init_val) @ pure @ cpu { return init_val }
-fn atomic_set(a, val) @ spawn @ cpu { return val }
-fn atomic_get(a) @ pure @ cpu { return a }
-fn atomic_inc(a) @ spawn @ cpu { return a + 1 }
-fn atomic_dec(a) @ spawn @ cpu { return a - 1 }
-fn atomic_compare_swap(a, old_val, new_val) @ spawn @ cpu { return a }
+// Dalin L 标准库 — 原子操作包装器
+// 为简单并发场景提供原子变量操作接口
+
+fn atomic_new(init_val) @ pure @ cpu { return ["value": init_val, "version": 0] }
+
+/// set(a, val) — Set atomic value
+fn set(a, val) @ spawn @ cpu {
+    a["value"] = val
+    a["version"] = a["version"] + 1
+    return val
+}
+
+/// get(a) — Get current atomic value
+fn get(a) @ pure @ cpu {
+    return a["value"]
+}
+
+/// inc(a) — Atomically increment (add 1)
+fn inc(a) @ spawn @ cpu {
+    let old = a["value"]
+    a["value"] = old + 1
+    a["version"] = a["version"] + 1
+    return old
+}
+
+/// dec(a) — Atomically decrement (subtract 1)
+fn dec(a) @ spawn @ cpu {
+    let old = a["value"]
+    a["value"] = old - 1
+    a["version"] = a["version"] + 1
+    return old
+}
+
+/// add(a, delta) — Add a value to atomic variable
+fn add(a, delta) @ spawn @ cpu {
+    a["value"] = a["value"] + delta
+    a["version"] = a["version"] + 1
+    return a["value"]
+}
+
+/// cmp_swap(a, expected, new_val) — Compare-and-swap (CAS)
+fn cmp_swap(a, expected, new_val) @ spawn @ cpu {
+    if a["value"] == expected {
+        a["value"] = new_val
+        a["version"] = a["version"] + 1
+        return true
+    }
+    return false
+}
+
+/// fetch_and_store(a, new_val) — Atomically store and return previous value
+fn fetch_and_store(a, new_val) @ spawn @ cpu {
+    let old = a["value"]
+    a["value"] = new_val
+    a["version"] = a["version"] + 1
+    return old
+}
+
+/// version(a) — Get version counter for optimistic locking
+fn version(a) @ pure @ cpu {
+    return a["version"]
+}

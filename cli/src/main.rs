@@ -46,6 +46,14 @@ enum Commands {
         /// Watch mode: auto-recompile on file change
         #[arg(long, default_value_t = false)]
         watch: bool,
+
+        /// Governance level for the session (prepare/suggest/approve/execute)
+        #[arg(long, default_value = "execute")]
+        gov: String,
+
+        /// Confidence threshold (proven/verified/inferred/generated/uncertain)
+        #[arg(long, default_value = "inferred")]
+        confidence: String,
     },
 
     /// Semantic-only check (fast CI feedback)
@@ -109,6 +117,21 @@ enum Commands {
         /// VM mode: bytecode | interpreter
         #[arg(default_value = "bytecode")]
         mode: String,
+    },
+
+    /// Profile: run program with performance profiling
+    Profile {
+        /// Source file path
+        #[arg(short, long, default_value = "src/main.dal")]
+        input: String,
+
+        /// Governance level for the session (prepare/suggest/approve/execute)
+        #[arg(long, default_value = "execute")]
+        gov: String,
+
+        /// Confidence threshold (proven/verified/inferred/generated/uncertain)
+        #[arg(long, default_value = "inferred")]
+        confidence: String,
     },
 
     /// Evolution: self-improvement closed loop (Phase J)
@@ -181,7 +204,7 @@ fn main() {
     let result = match cli.command {
         Commands::Demo {} => cmd::demo::run(),
         Commands::Build { input, output } => cmd::build::run(&input, &output, cli.verbose),
-        Commands::Run { input, watch } => cmd::run::run(&input, watch, cli.verbose),
+        Commands::Run { input, watch, gov, confidence } => cmd::run::run(&input, watch, cli.verbose, &gov, &confidence),
         Commands::Check { input } => cmd::check::run(&input, cli.verbose, cli.json),
         Commands::Repl {} => cmd::repl::run(),
         Commands::Init { name, lib, git } => cmd::init::run(&name, lib, git),
@@ -194,6 +217,7 @@ fn main() {
         Commands::Tasks {} => cmd::tasks::run(),
         Commands::Agents {} => cmd::agents::run(),
         Commands::Vm { mode } => cmd::vm::run(&mode),
+        Commands::Profile { input, gov, confidence } => cmd::profile::run(&input, &gov, &confidence),
         Commands::Evolve {
             subcommand,
             id,

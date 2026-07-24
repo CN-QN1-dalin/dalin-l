@@ -15,8 +15,6 @@ pub mod audit_revert;
 pub mod subcommands;
 
 // Re-export public API (j_status_report used by main dispatcher)
-pub use data_models::j_status_report;
-
 use std::collections::HashMap;
 
 /// Public API entry point — dispatches to subcommand handlers

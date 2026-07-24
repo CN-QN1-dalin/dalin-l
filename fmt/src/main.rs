@@ -13,9 +13,7 @@ use dalin_compiler::parser::Parser;
 fn format_source(src: &str) -> Result<String, String> {
     let mut lex = Lexer::new(src);
     let tokens = lex.tokenize().map_err(|e| format!("lex error: {e}"))?;
-    let prog = Parser::new(tokens)
-        .parse()
-        .map_err(|e| format!("parse error: {e}"))?;
+    let prog = Parser::new(tokens).parse();
 
     let mut out = String::new();
     let indent = 0u8;

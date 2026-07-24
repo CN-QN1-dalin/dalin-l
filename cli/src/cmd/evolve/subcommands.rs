@@ -3,7 +3,6 @@
 use std::io::{self, Write};
 
 pub use crate::cmd::evolve::data_models::{AuditLog, EvolutionChange, RiskLevel, TestCoverage};
-use chrono::Local;
 use serde::{Deserialize, Serialize};
 
 // ───────────────────── Stats ─────────────────────
@@ -55,6 +54,7 @@ pub(crate) fn compute_stats(changes: &[EvolutionChange], audit: &AuditLog) -> Ev
     }
 }
 
+#[allow(dead_code)]
 pub(crate) fn compute_evolve_stats(changes: &[EvolutionChange], audit: &AuditLog) -> EvolveStats {
     compute_stats(changes, audit)
 }
@@ -198,6 +198,7 @@ pub(crate) fn mock_changes() -> Vec<EvolutionChange> {
     ]
 }
 
+#[allow(dead_code)]
 pub fn print_help() {
     println!("  [A]ccept   Accept the highlighted change");
     println!("  [R]eject   Reject the highlighted change");

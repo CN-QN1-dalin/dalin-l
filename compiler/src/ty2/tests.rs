@@ -332,7 +332,7 @@ fn parse_fn_annotations(src: &str) -> (Option<String>, Option<String>) {
     use super::super::parser::Parser;
     let mut lex = Lexer::new(src);
     let toks = lex.tokenize().expect("lex ok");
-    let prog = Parser::new(toks).parse().expect("parse ok");
+    let prog = Parser::new(toks).parse();
     for stmt in &prog.statements {
         if let Stmt::Fn { effect, capability, .. } = stmt {
             return (effect.clone(), capability.clone());
@@ -346,7 +346,7 @@ fn parse_fn_all_annotations(src: &str) -> (Option<String>, Option<String>, Optio
     use super::super::parser::Parser;
     let mut lex = Lexer::new(src);
     let toks = lex.tokenize().expect("lex ok");
-    let prog = Parser::new(toks).parse().expect("parse ok");
+    let prog = Parser::new(toks).parse();
     for stmt in &prog.statements {
         if let Stmt::Fn { effect, capability, cognitive_loop, governance, latency, timeout, throughput, .. } = stmt {
             return (effect.clone(), capability.clone(), cognitive_loop.clone(), governance.clone(), latency.clone(), timeout.clone(), throughput.clone());
@@ -409,10 +409,12 @@ fn test_governance_rejects_invalid_level() {
     use super::super::parser::Parser;
     let mut lex = Lexer::new("fn f(x) @ gov(invalid) { return x }");
     let toks = lex.tokenize().expect("lex ok");
-    let result = Parser::new(toks).parse();
-    assert!(result.is_err());
-    let err = result.unwrap_err();
-    assert!(err.message.contains("Unknown governance level"));
+    let mut parser = Parser::new(toks);
+    let _prog = parser.parse();
+    let recovered = parser.recovered();
+    assert!(!recovered.is_empty(), "should have at least one parse error");
+    let found = recovered.iter().any(|e| e.message.contains("Unknown governance level"));
+    assert!(found, "parse error should mention 'Unknown governance level', got: {:?}", recovered);
 }
 
 #[test]

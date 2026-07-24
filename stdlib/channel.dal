@@ -1,34 +1,53 @@
-// Dalin L 标准库 — 通道通信
-// 基于 channel 的消息传递原语
+// Channel — 基于 channel 的消息传递原语
+
+fn ch_new(cap) @ pure @ cpu { return ["buf": [], "cap": cap] }
 
 fn send(ch, val) @ spawn @ cpu {
+    let buf = copy(ch["buf"])
+    if len(buf) < ch["cap"] {
+        buf = buf + [val]
+        ch["buf"] = buf
+        return 1
+    }
     return 0
 }
 
 fn recv(ch) @ spawn @ cpu {
-    return null
+    let buf = ch["buf"]
+    if len(buf) == 0 {
+        return null
+    }
+    let val = buf[0]
+    ch["buf"] = buf[1:]
+    return val
 }
 
 fn try_send(ch, val) @ spawn @ cpu {
-    return true
-}
-
-fn try_recv(ch) @ spawn @ cpu {
-    return null
-}
-
-fn close(ch) @ spawn @ cpu {
-    return 0
-}
-
-fn is_closed(ch) @ spawn @ cpu {
+    let buf = copy(ch["buf"])
+    if len(buf) < ch["cap"] {
+        buf = buf + [val]
+        ch["buf"] = buf
+        return true
+    }
     return false
 }
 
-fn make_channel() @ pure @ cpu {
-    return []
+fn try_recv(ch) @ spawn @ cpu {
+    let buf = ch["buf"]
+    if len(buf) == 0 {
+        return null
+    }
+    let val = buf[0]
+    ch["buf"] = buf[1:]
+    return val
 }
 
-fn buffered(cap) @ pure @ cpu {
-    return []
+fn close(ch) @ spawn @ cpu {
+    ch["closed"] = true
+    ch["buf"] = []
+    return ch
+}
+
+fn is_closed(ch) @ pure @ cpu {
+    return ch["closed"] == true
 }

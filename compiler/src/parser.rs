@@ -39,23 +39,63 @@ pub type AnnotationResult = Result<
     ParseError,
 >;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ParseError {
     pub message: String,
     pub line: usize,
     pub column: usize,
+    pub filename: String,
+}
+
+impl ParseError {
+    /// Format error with source code snippet and caret indicator.
+    pub fn format_with_source(&self, source: &str) -> String {
+        let base = format!("{}", self);
+        let line_str = source.lines().nth(self.line.saturating_sub(1));
+        match line_str {
+            Some(line_content) => {
+                let caret = " ".repeat(self.column.saturating_sub(1))
+                    + &"^".repeat(
+                        line_content.len().saturating_sub(self.column.saturating_sub(1)).max(1),
+                    );
+                format!(
+                    "{base}\n   |\n  {:>3} | {}\n   | {}\n",
+                    self.line, line_content, caret
+                )
+            }
+            None => base,
+        }
+    }
 }
 
 impl std::fmt::Display for ParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "[{}:{}] {}", self.line, self.column, self.message)
+        write!(f, "[{}:{}:{}]", self.filename, self.line, self.column)?;
+        if !self.message.is_empty() {
+            write!(f, ": {}", self.message)?;
+        }
+        Ok(())
     }
 }
+
+/// Sync tokens: statement-level keywords where recovery lands
+const SYNC_TOKENS: &[TokenType] = &[
+    KeywordLet, KeywordFn, KeywordIf, KeywordWhile, KeywordFor,
+    KeywordMatch, KeywordReturn, KeywordStruct, KeywordEnum,
+    KeywordTrait, KeywordImpl, KeywordUse, KeywordExport,
+    KeywordExtern, KeywordMod, KeywordPub, KeywordVar,
+    KeywordConst, KeywordTry, KeywordAssert, KeywordSpawn,
+    KeywordAsync, KeywordChannel, KeywordType,
+];
 
 pub struct Parser {
     tokens: Vec<Token>,
     pos: usize,
     recursion_depth: usize,
+    /// Collected parse errors (non-fatal, recovered)
+    recovered_errors: Vec<ParseError>,
+    /// Maximum number of consecutive recovery attempts before giving up
+    recovery_limit: usize,
 }
 
 const MAX_RECURSION_DEPTH: usize = 128;
@@ -66,7 +106,74 @@ impl Parser {
             tokens,
             pos: 0,
             recursion_depth: 0,
+            recovered_errors: Vec::new(),
+            recovery_limit: 5,
         }
+    }
+
+    /// Create a ParseError with default empty filename
+    pub fn error(&self, line: usize, column: usize, message: impl Into<String>) -> ParseError {
+        ParseError {
+            message: message.into(),
+            line,
+            column,
+            filename: String::new(),
+        }
+    }
+
+    /// Create a ParseError with filename for source snippet formatting
+    pub fn error_with_source(
+        &self,
+        line: usize,
+        column: usize,
+        message: impl Into<String>,
+    ) -> ParseError {
+        ParseError {
+            message: message.into(),
+            line,
+            column,
+            filename: self.current_file_name().to_string(),
+        }
+    }
+
+    /// Get current source file name from top of token sources stack
+    fn current_file_name(&self) -> String {
+        if let Some(tok) = self.tokens.last() {
+            tok.file_name.clone().unwrap_or_else(|| "<unknown>".to_string())
+        } else {
+            "<unknown>".to_string()
+        }
+    }
+
+    /// Collect all recovered (non-fatal) parse errors
+    pub fn recovered(&self) -> &[ParseError] {
+        &self.recovered_errors
+    }
+
+    /// Attempt to recover from a parse error: skip tokens until a sync token is found.
+    /// Returns true if recovery hit EOF/failed, false if successfully synced.
+    fn try_recover(&mut self, err: ParseError) -> bool {
+        self.recovered_errors.push(err);
+        let mut recovery_count = 0;
+        while self.pos < self.tokens.len() {
+            let tt = self.tokens[self.pos].token_type;
+            if tt == Eof {
+                return true;
+            }
+            if tt == Newline {
+                self.pos += 1;
+                return false;
+            }
+            if SYNC_TOKENS.contains(&tt) {
+                return false;
+            }
+            self.pos += 1;
+            recovery_count += 1;
+            if recovery_count >= self.recovery_limit {
+                return true;
+            }
+        }
+        true
     }
 
     fn current(&self) -> &Token {
@@ -79,6 +186,7 @@ impl Parser {
                 value: String::new(),
                 line: 99999,
                 column: 0,
+                file_name: None,
             };
             &EOF
         }
@@ -94,6 +202,7 @@ impl Parser {
                 value: String::new(),
                 line: 99999,
                 column: 0,
+                file_name: None,
             };
             &EOF
         }
@@ -131,6 +240,7 @@ impl Parser {
                 ),
                 line: self.current().line,
                 column: self.current().column,
+                filename: self.current_file_name(),
             })
         }
     }
@@ -144,15 +254,20 @@ impl Parser {
     //  主要入口
     // ═══════════════════════════════
 
-    pub fn parse(&mut self) -> Result<Program, ParseError> {
+    pub fn parse(&mut self) -> Program {
         let mut prog = Program::new();
         while !self.check(Eof) {
-            let stmt = self.parse_statement()?;
-            if let Some(s) = stmt {
-                prog.add(s);
+            match self.parse_statement() {
+                Ok(Some(s)) => prog.add(s),
+                Ok(None) => {}
+                Err(e) => {
+                    if self.try_recover(e) {
+                        break; // recovery gave up
+                    }
+                }
             }
         }
-        Ok(prog)
+        prog
     }
 
     fn parse_statement(&mut self) -> Result<Option<Stmt>, ParseError> {
@@ -162,6 +277,7 @@ impl Parser {
                 message: format!("Maximum recursion depth exceeded ({})", MAX_RECURSION_DEPTH),
                 line: self.current().line,
                 column: self.current().column,
+                filename: self.current_file_name(),
             });
         }
         let result = self.parse_statement_inner();
@@ -386,6 +502,7 @@ impl Parser {
                         message: format!("Invalid annotation token: {:?}", tok.value),
                         line: tok.line,
                         column: tok.column,
+                        filename: self.current_file_name(),
                     });
                 }
             };
@@ -396,6 +513,7 @@ impl Parser {
                 message: format!("Invalid effect/capability type: {}", text),
                 line: tok.line,
                 column: tok.column,
+                filename: self.current_file_name(),
             })
         }
     }
@@ -494,6 +612,7 @@ impl Parser {
                             ),
                             line: self.current().line,
                             column: self.current().column,
+                            filename: self.current_file_name(),
                         });
                     }
                 }
@@ -528,6 +647,7 @@ impl Parser {
                     message: format!("Unknown annotation token: {}", tok),
                     line: self.current().line,
                     column: self.current().column,
+                    filename: self.current_file_name(),
                 });
             }
         }
@@ -686,6 +806,7 @@ impl Parser {
                                 .to_string(),
                             line: self.current().line,
                             column: self.current().column,
+                            filename: self.current_file_name(),
                         });
                     }
                     args.push(self.parse_expression()?);
@@ -930,9 +1051,9 @@ impl Parser {
                         "bool" | "boolean" => BaseType::Bool,
                         "char" => BaseType::Char,
                         "void" => BaseType::Void,
-                        _ => return Err(ParseError { message: format!("unknown C type '{}'", type_tok.value), line: type_tok.line, column: type_tok.column }),
+                        _ => return Err(ParseError { message: format!("unknown C type '{}'", type_tok.value), line: type_tok.line, column: type_tok.column, filename: self.current_file_name() }),
                     },
-                    _ => return Err(ParseError { message: format!("expected C type, got '{}'", type_tok.value), line: type_tok.line, column: type_tok.column }),
+                    _ => return Err(ParseError { message: format!("expected C type, got '{}'", type_tok.value), line: type_tok.line, column: type_tok.column, filename: self.current_file_name() }),
                 };
                 params.push((param_name, TypeRef::new(base)));
                 if self.match_token(Comma) { continue; }
@@ -1158,6 +1279,7 @@ impl Parser {
             message: format!("Unexpected token in pattern: {:?}", tok.value),
             line: tok.line,
             column: tok.column,
+            filename: self.current_file_name(),
         })
     }
 
@@ -1220,6 +1342,7 @@ impl Parser {
                 message: format!("Maximum recursion depth exceeded ({})", MAX_RECURSION_DEPTH),
                 line: self.current().line,
                 column: self.current().column,
+                filename: self.current_file_name(),
             });
         }
         let result = self.parse_is_as();
@@ -1313,6 +1436,7 @@ impl Parser {
                         message: format!("Unknown binary operator: {:?}", self.current().value),
                         line: self.current().line,
                         column: self.current().column,
+                        filename: self.current_file_name(),
                     });
                 }
             }
@@ -1566,11 +1690,12 @@ impl Parser {
                                     let rest = cc_args.into_iter().skip(1).collect();
                                     (Some(lib), func, rest)
                                 } else {
-                                    return Err(ParseError {
-                                        message: "c_call first argument must be a string library path".into(),
-                                        line: self.current().line,
-                                        column: self.current().column,
-                                    });
+                                return Err(ParseError {
+                                    message: "c_call first argument must be a string library path".into(),
+                                    line: self.current().line,
+                                    column: self.current().column,
+                                    filename: self.current_file_name(),
+                                });
                                 }
                             }
                             _ => {
@@ -1578,6 +1703,7 @@ impl Parser {
                                     message: "c_call requires at least (lib_path, func_name, [args...])".into(),
                                     line: self.current().line,
                                     column: self.current().column,
+                                    filename: self.current_file_name(),
                                 });
                             }
                         };
@@ -1588,6 +1714,7 @@ impl Parser {
                                     message: "c_call second argument must be a string function name".into(),
                                     line: self.current().line,
                                     column: self.current().column,
+                                    filename: self.current_file_name(),
                                 });
                             }
                         };
@@ -1624,6 +1751,7 @@ impl Parser {
             message: format!("Unexpected token: {:?}", tok.value),
             line: tok.line,
             column: tok.column,
+            filename: self.current_file_name(),
         })
     }
 

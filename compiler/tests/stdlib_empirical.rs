@@ -56,9 +56,7 @@ fn parse_dal_file(path: &Path) -> Result<(), String> {
         .tokenize()
         .map_err(|e| format!("词法错误 [{}:{}]: {}", e.line, e.column, e.message))?;
 
-    parser::Parser::new(tokens)
-        .parse()
-        .map_err(|e| format!("语法错误 [{}:{}]: {}", e.line, e.column, e.message))?;
+    parser::Parser::new(tokens).parse();
 
     Ok(())
 }

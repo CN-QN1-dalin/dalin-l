@@ -1,0 +1,12 @@
+[package]
+name = "dalin-codegen"
+version.workspace = true
+edition.workspace = true
+description = "Dalin L 3.0 — Cross-Platform Code Generator (WASM target)"
+
+[dependencies]
+dalin-compiler = { path = "../compiler" }
+
+[[bin]]
+name = "dalin-codegen"
+path = "src/main.rs"

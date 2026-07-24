@@ -1,8 +1,24 @@
-// semaphore — 信号量
-fn semaphore_new(permits) @ pure @ cpu { return permits }
-fn semaphore_acquire(sem) @ pure @ cpu {
-    if sem <= 0 { return 0 }
-    return sem - 1
+// Dalin L 标准库 — Semaphore (信号量)
+fn semaphore_new(count) @ pure @ cpu { return count }
+
+fn semaphore_acquire(sem) @ spawn @ cpu {
+    if sem > 0 {
+        return [sem - 1, true]
+    }
+    return [sem, false]
 }
-fn semaphore_release(sem) @ pure @ cpu { return sem + 1 }
-fn semaphore_permits(sem) @ pure @ cpu { return sem }
+
+fn semaphore_release(sem) @ spawn @ cpu {
+    return sem + 1
+}
+
+fn semaphore_try_acquire(sem) @ pure @ cpu {
+    if sem > 0 {
+        return [sem - 1, true]
+    }
+    return [sem, false]
+}
+
+fn semaphore_count(sem) @ pure @ cpu {
+    return sem
+}

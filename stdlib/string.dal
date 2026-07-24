@@ -1,12 +1,271 @@
-// string — 字符串操作
+// Dalin L 标准库 — 字符串操作
+// 纯函数式字符串工具集，不依赖外部运行时支持
+
 fn string_new() @ pure @ cpu { return "" }
 fn string_append(a, b) @ pure @ cpu { return a + b }
-fn string_len(s) @ pure @ cpu { return 0 }
-fn string_upper(s) @ pure @ cpu { return s }
-fn string_lower(s) @ pure @ cpu { return s }
-fn string_trim(s) @ pure @ cpu { return s }
-fn string_split(s, sep) @ pure @ cpu { return [s] }
-fn string_contains(s, sub) @ pure @ cpu { return false }
-fn string_startswith(s, prefix) @ pure @ cpu { return false }
-fn string_endswith(s, suffix) @ pure @ cpu { return false }
-fn string_repeat(s, n) @ pure @ cpu { return s }
+
+fn string_len(s) @ pure @ cpu {
+    if s == "" { return 0 }
+    if s[0] == null { return 0 }
+    let count = 0
+    let i = 0
+    while i < 10000 {
+        if s[i] == null { return count }
+        count = count + 1
+        i = i + 1
+    }
+    return count
+}
+
+fn string_get(s, idx) @ pure @ cpu {
+    let n = string_len(s)
+    if idx < 0 || idx >= n { return null }
+    return s[idx]
+}
+
+fn string_upper(s) @ pure @ cpu {
+    let n = string_len(s)
+    let result = ""
+    let i = 0
+    while i < n {
+        let ch = s[i]
+        if ch >= "a" && ch <= "z" {
+            let diff = string_ord(ch) - string_ord("a")
+            result = result + string_chr(string_ord("A") + diff)
+        } else {
+            result = result + ch
+        }
+        i = i + 1
+    }
+    return result
+}
+
+fn string_lower(s) @ pure @ cpu {
+    let n = string_len(s)
+    let result = ""
+    let i = 0
+    while i < n {
+        let ch = s[i]
+        if ch >= "A" && ch <= "Z" {
+            let diff = string_ord(ch) - string_ord("A")
+            result = result + string_chr(string_ord("a") + diff)
+        } else {
+            result = result + ch
+        }
+        i = i + 1
+    }
+    return result
+}
+
+fn string_trim(s) @ pure @ cpu {
+    return string_trim_end(string_trim_start(s))
+}
+
+fn string_trim_start(s) @ pure @ cpu {
+    let n = string_len(s)
+    let i = 0
+    while i < n {
+        let ch = s[i]
+        if ch != " " && ch != "\t" && ch != "\n" { break }
+        i = i + 1
+    }
+    if i >= n { return "" }
+    return string_sub(s, i, n)
+}
+
+fn string_trim_end(s) @ pure @ cpu {
+    let n = string_len(s)
+    let i = n - 1
+    while i >= 0 {
+        let ch = s[i]
+        if ch != " " && ch != "\t" && ch != "\n" { break }
+        i = i - 1
+    }
+    if i < 0 { return "" }
+    return string_sub(s, 0, i + 1)
+}
+
+fn string_split(s, sep) @ pure @ cpu {
+    let result = []
+    let n = string_len(s)
+    let slen = string_len(sep)
+    if slen == 0 { return [s] }
+    let start = 0
+    let i = 0
+    while i <= n - slen {
+        let match = true
+        let j = 0
+        while j < slen {
+            if s[i + j] != sep[j] { match = false; break }
+            j = j + 1
+        }
+        if match {
+            result = result + [string_sub(s, start, i)]
+            i = i + slen - 1
+            start = i + 1
+        }
+        i = i + 1
+    }
+    result = result + [string_sub(s, start, n)]
+    return result
+}
+
+fn string_contains(s, sub) @ pure @ cpu {
+    let n = string_len(s)
+    let slen = string_len(sub)
+    if slen == 0 { return true }
+    if n < slen { return false }
+    let i = 0
+    while i <= n - slen {
+        let matching = true
+        let j = 0
+        while j < slen {
+            if s[i + j] != sub[j] { matching = false; break }
+            j = j + 1
+        }
+        if matching { return true }
+        i = i + 1
+    }
+    return false
+}
+
+fn string_startswith(s, prefix) @ pure @ cpu {
+    let n = string_len(s)
+    let plen = string_len(prefix)
+    if plen > n { return false }
+    let i = 0
+    while i < plen {
+        if s[i] != prefix[i] { return false }
+        i = i + 1
+    }
+    return true
+}
+
+fn string_endswith(s, suffix) @ pure @ cpu {
+    let n = string_len(s)
+    let slen = string_len(suffix)
+    if slen > n { return false }
+    let offset = n - slen
+    let i = 0
+    while i < slen {
+        if s[offset + i] != suffix[i] { return false }
+        i = i + 1
+    }
+    return true
+}
+
+fn string_repeat(s, n) @ pure @ cpu {
+    let result = ""
+    let i = 0
+    while i < n {
+        result = result + s
+        i = i + 1
+    }
+    return result
+}
+
+fn string_sub(s, start, end) @ pure @ cpu {
+    let n = string_len(s)
+    let actual_start = start
+    let actual_end = end
+    if actual_start < 0 { actual_start = 0 }
+    if actual_end > n { actual_end = n }
+    if actual_start >= actual_end { return "" }
+    let result = ""
+    let i = actual_start
+    while i < actual_end {
+        result = result + s[i]
+        i = i + 1
+    }
+    return result
+}
+
+fn string_ord(ch) @ pure @ cpu {
+    // ASCII code point
+    if ch == "a" { return 97 }  elif ch == "b" { return 98 }
+    elif ch == "c" { return 99 }  elif ch == "d" { return 100 }
+    elif ch == "e" { return 101 }  elif ch == "f" { return 102 }
+    elif ch == "g" { return 103 }  elif ch == "h" { return 104 }
+    elif ch == "i" { return 105 }  elif ch == "j" { return 106 }
+    elif ch == "k" { return 107 }  elif ch == "l" { return 108 }
+    elif ch == "m" { return 109 }  elif ch == "n" { return 110 }
+    elif ch == "o" { return 111 }  elif ch == "p" { return 112 }
+    elif ch == "q" { return 113 }  elif ch == "r" { return 114 }
+    elif ch == "s" { return 115 }  elif ch == "t" { return 116 }
+    elif ch == "u" { return 117 }  elif ch == "v" { return 118 }
+    elif ch == "w" { return 119 }  elif ch == "x" { return 120 }
+    elif ch == "y" { return 121 }  elif ch == "z" { return 122 }
+    elif ch == "A" { return 65 }  elif ch == "B" { return 66 }
+    elif ch == "C" { return 67 }  elif ch == "D" { return 68 }
+    elif ch == "E" { return 69 }  elif ch == "F" { return 70 }
+    elif ch == "G" { return 71 }  elif ch == "H" { return 72 }
+    elif ch == "I" { return 73 }  elif ch == "J" { return 74 }
+    elif ch == "K" { return 75 }  elif ch == "L" { return 76 }
+    elif ch == "M" { return 77 }  elif ch == "N" { return 78 }
+    elif ch == "O" { return 79 }  elif ch == "P" { return 80 }
+    elif ch == "Q" { return 81 }  elif ch == "R" { return 82 }
+    elif ch == "S" { return 83 }  elif ch == "T" { return 84 }
+    elif ch == "U" { return 85 }  elif ch == "V" { return 86 }
+    elif ch == "W" { return 87 }  elif ch == "X" { return 88 }
+    elif ch == "Y" { return 89 }  elif ch == "Z" { return 90 }
+    elif ch == "0" { return 48 }  elif ch == "1" { return 49 }
+    elif ch == "2" { return 50 }  elif ch == "3" { return 51 }
+    elif ch == "4" { return 52 }  elif ch == "5" { return 53 }
+    elif ch == "6" { return 54 }  elif ch == "7" { return 55 }
+    elif ch == "8" { return 56 }  elif ch == "9" { return 57 }
+    elif ch == " " { return 32 }  elif ch == "\t" { return 9 }
+    elif ch == "\n" { return 10 } elif ch == "," { return 44 }
+    elif ch == "." { return 46 }  elif ch == "!" { return 33 }
+    elif ch == "?" { return 63 }  elif ch == "'" { return 39 }
+    elif ch == "\"" { return 34 } elif ch == "(" { return 40 }
+    elif ch == ")" { return 41 }  elif ch == "[" { return 91 }
+    elif ch == "]" { return 93 }  elif ch == "{" { return 123 }
+    elif ch == "}" { return 125 } elif ch == ":" { return 58 }
+    elif ch == ";" { return 59 }  elif ch == "+" { return 43 }
+    elif ch == "-" { return 45 }  elif ch == "*" { return 42 }
+    elif ch == "/" { return 47 }  elif ch == "_" { return 95 }
+    elif ch == "@" { return 64 }  elif ch == "#" { return 35 }
+    elif ch == "$" { return 36 }  elif ch == "%" { return 37 }
+    elif ch == "&" { return 38 }  elif ch == "=" { return 61 }
+    elif ch == "<" { return 60 }  elif ch == ">" { return 62 }
+    elif ch == "~" { return 126 } elif ch == "|" { return 124 }
+    elif ch == "^" { return 94 }  elif ch == "`" { return 96 }
+    elif ch == "\\" { return 92 }  else { return 0 }
+}
+
+fn string_chr(code) @ pure @ cpu {
+    // ASCII code point to character
+    if code == 97 { return "a" }  elif code == 98 { return "b" }
+    elif code == 99 { return "c" }  elif code == 100 { return "d" }
+    elif code == 101 { return "e" }  elif code == 102 { return "f" }
+    elif code == 103 { return "g" }  elif code == 104 { return "h" }
+    elif code == 105 { return "i" }  elif code == 106 { return "j" }
+    elif code == 107 { return "k" }  elif code == 108 { return "l" }
+    elif code == 109 { return "m" }  elif code == 110 { return "n" }
+    elif code == 111 { return "o" }  elif code == 112 { return "p" }
+    elif code == 113 { return "q" }  elif code == 114 { return "r" }
+    elif code == 115 { return "s" }  elif code == 116 { return "t" }
+    elif code == 117 { return "u" }  elif code == 118 { return "v" }
+    elif code == 119 { return "w" }  elif code == 120 { return "x" }
+    elif code == 121 { return "y" }  elif code == 122 { return "z" }
+    elif code == 65 { return "A" }  elif code == 66 { return "B" }
+    elif code == 67 { return "C" }  elif code == 68 { return "D" }
+    elif code == 69 { return "E" }  elif code == 70 { return "F" }
+    elif code == 71 { return "G" }  elif code == 72 { return "H" }
+    elif code == 73 { return "I" }  elif code == 74 { return "J" }
+    elif code == 75 { return "K" }  elif code == 76 { return "L" }
+    elif code == 77 { return "M" }  elif code == 78 { return "N" }
+    elif code == 79 { return "O" }  elif code == 80 { return "P" }
+    elif code == 81 { return "Q" }  elif code == 82 { return "R" }
+    elif code == 83 { return "S" }  elif code == 84 { return "T" }
+    elif code == 85 { return "U" }  elif code == 86 { return "V" }
+    elif code == 87 { return "W" }  elif code == 88 { return "X" }
+    elif code == 89 { return "Y" }  elif code == 90 { return "Z" }
+    elif code == 48 { return "0" }  elif code == 49 { return "1" }
+    elif code == 50 { return "2" }  elif code == 51 { return "3" }
+    elif code == 52 { return "4" }  elif code == 53 { return "5" }
+    elif code == 54 { return "6" }  elif code == 55 { return "7" }
+    elif code == 56 { return "8" }  elif code == 57 { return "9" }
+    elif code == 32 { return " " }  elif code == 9 { return "\t" }
+    else { return "\x00" }
+}

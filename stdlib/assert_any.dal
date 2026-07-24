@@ -1,4 +1,13 @@
 // assert_any — 批量断言，验证至少一个条件成立
-fn assert_any_new() @ pure @ cpu { return [] }
-fn assert_any_check(items, check_fn) @ spawn @ cpu { return true }
-fn assert_any_fails(items) @ pure @ cpu { return true }
+fn assert_any_new() @ pure @ cpu { return {"items": [], "check_fn": null} }
+fn assert_any_check(items, check_fn) @ spawn @ cpu {
+    let i = 0
+    while i < len(items) {
+        if check_fn(items[i]) {
+            return true
+        }
+        i = i + 1
+    }
+    return false
+}
+fn assert_any_fails(items) @ pure @ cpu { return len(items) == 0 }

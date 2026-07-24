@@ -1,3 +1,6 @@
+use crate::cognitive::{
+    CognitiveLoopMachine, ConfidenceGate, ConfidenceLevel, GovernanceChecker, TimeMonitor
+};
 use crate::env::*;
 use crate::gc::GenerationalGC;
 use crate::scheduler::Scheduler;
@@ -51,6 +54,36 @@ impl Interpreter {
         self.task_seq += 1;
         format!("{}_{}", name, self.task_seq)
     }
+
+    /// Enable performance profiling
+    pub fn enable_profiling(&mut self) {
+        self.profiling_enabled = true;
+        self.profiler.start();
+    }
+
+    /// Disable performance profiling
+    pub fn disable_profiling(&mut self) {
+        self.profiling_enabled = false;
+    }
+
+    /// Get profiling report (available after profiling is enabled and program executed)
+    pub fn profile_report(&self) -> String {
+        self.profiler.report()
+    }
+
+    /// Record entering a function call in the profiler
+    fn profile_enter_fn(&mut self, name: &str) {
+        if self.profiling_enabled {
+            self.profiler.enter_fn(name);
+        }
+    }
+
+    /// Record exiting a function call in the profiler
+    fn profile_exit_fn(&mut self) {
+        if self.profiling_enabled {
+            self.profiler.exit_fn();
+        }
+    }
 }
 
 impl std::fmt::Display for RuntimeError {
@@ -88,6 +121,20 @@ pub struct Interpreter {
     // GC 统计
     gc_total_collected: usize,
     gc_cycles: usize,
+    // ── Profiler ──
+    /// Performance profiler (optional, enabled via enable_profiling)
+    pub profiler: crate::profiler::Profiler,
+    /// Whether profiling is active
+    profiling_enabled: bool,
+    // ── Cognitive Runtime (Phase 3) ──
+    pub cognitive_machine: CognitiveLoopMachine,
+    pub governance_checker: GovernanceChecker,
+    pub time_monitor: TimeMonitor,
+    pub confidence_gate: ConfidenceGate,
+    // ── Cognitive Annotations (from AST, keyed by fn name) ──
+    fn_cognitive_loops: HashMap<String, dalin_compiler::ty2::CognitiveLoop>,
+    fn_governance: HashMap<String, dalin_compiler::ty2::GovernanceLevel>,
+    fn_confidence: HashMap<String, String>,
 }
 
 impl Default for Interpreter {
@@ -115,6 +162,17 @@ impl Interpreter {
             gc_threshold: 32,
             gc_total_collected: 0,
             gc_cycles: 0,
+            profiler: crate::profiler::Profiler::new(),
+            profiling_enabled: false,
+            cognitive_machine: CognitiveLoopMachine::new(),
+            governance_checker: GovernanceChecker::new(
+                dalin_compiler::ty2::GovernanceLevel::Execute
+            ),
+            time_monitor: TimeMonitor::new(),
+            confidence_gate: ConfidenceGate::new(ConfidenceLevel::Inferred),
+            fn_cognitive_loops: HashMap::new(),
+            fn_governance: HashMap::new(),
+            fn_confidence: HashMap::new(),
         };
         interp.install_builtins();
         interp
@@ -198,12 +256,33 @@ impl Interpreter {
     pub fn interpret(&mut self, prog: &Program) -> Result<Vec<Value>, RuntimeError> {
         let mut results = Vec::new();
         let mut env = self.global_env.clone();
+        // Collect cognitive annotations from all function declarations
+        self.collect_fn_annotations(prog);
         for stmt in &prog.statements {
             let result = self.eval_stmt(stmt, &mut env)?;
             results.push(result);
         }
         self.global_env = env;
         Ok(results)
+    }
+
+    /// Extract cognitive annotations from all function declarations
+    fn collect_fn_annotations(&mut self, prog: &Program) {
+        for stmt in &prog.statements {
+            if let Stmt::Fn { name, cognitive_loop, governance, confidence, .. } = stmt {
+                if let Some(cl) = cognitive_loop {
+                    let parsed = dalin_compiler::ty2::parse_cognitive_loop(cl);
+                    self.fn_cognitive_loops.insert(name.clone(), parsed);
+                }
+                if let Some(g) = governance {
+                    let parsed = dalin_compiler::ty2::parse_governance(g);
+                    self.fn_governance.insert(name.clone(), parsed);
+                }
+                if let Some(c) = confidence {
+                    self.fn_confidence.insert(name.clone(), c.clone());
+                }
+            }
+        }
     }
 
     fn eval_stmt(&mut self, stmt: &Stmt, env: &mut Environment) -> Result<Value, RuntimeError> {
@@ -890,6 +969,44 @@ impl Interpreter {
     }
 
     fn call_function(&mut self, fnv: &FnValue, args: &[Value]) -> Result<Value, RuntimeError> {
+        self.profile_enter_fn(&fnv.name);
+
+        // Cognitive runtime checks
+        let fn_name = &fnv.name;
+
+        // 1. Governance check
+        if let Some(required_gov) = self.fn_governance.get(fn_name) {
+            self.governance_checker.check(required_gov, fn_name)
+                .map_err(RuntimeError)?;
+        }
+
+        // 2. Cognitive loop phase check
+        if let Some(declared_loop) = self.fn_cognitive_loops.get(fn_name) {
+            self.cognitive_machine.check_phase(declared_loop, fn_name)
+                .map_err(RuntimeError)?;
+        }
+
+        // 3. Confidence gate check
+        if let Some(confidence_str) = self.fn_confidence.get(fn_name) {
+            let level = ConfidenceLevel::from_annotation(Some(confidence_str));
+            self.confidence_gate.check(fn_name, &level)
+                .map_err(RuntimeError)?;
+        }
+
+        let start = std::time::Instant::now();
+        let result = self.call_function_inner(fnv, args);
+        let elapsed = start.elapsed().as_millis() as u64;
+
+        // Record timing
+        if elapsed > 0 {
+            self.time_monitor.record(fn_name, elapsed);
+        }
+
+        self.profile_exit_fn();
+        result
+    }
+
+    fn call_function_inner(&mut self, fnv: &FnValue, args: &[Value]) -> Result<Value, RuntimeError> {
         if args.len() != fnv.params.len() {
             return Err(RuntimeError(format!(
                 "Function '{}' expects {} args, got {}",
@@ -1328,7 +1445,7 @@ pub fn run_source(source: &str) -> Result<Vec<Value>, RuntimeError> {
     let mut lex = dalin_compiler::lexer::Lexer::new(source);
     let tokens = lex.tokenize().map_err(|e| RuntimeError(e.to_string()))?;
     let mut parser = dalin_compiler::parser::Parser::new(tokens);
-    let prog = parser.parse().map_err(|e| RuntimeError(e.to_string()))?;
+    let prog = parser.parse();
     let mut interp = Interpreter::new();
     let out = interp.interpret(&prog);
     // 尽力等待所有派生的协程完成（超时兜底，避免未 await 的孤儿协程挂死）。
@@ -1342,7 +1459,7 @@ pub fn run_source_with_tree(source: &str) -> Result<String, RuntimeError> {
     let mut lex = dalin_compiler::lexer::Lexer::new(source);
     let tokens = lex.tokenize().map_err(|e| RuntimeError(e.to_string()))?;
     let mut parser = dalin_compiler::parser::Parser::new(tokens);
-    let prog = parser.parse().map_err(|e| RuntimeError(e.to_string()))?;
+    let prog = parser.parse();
     let mut interp = Interpreter::new();
     interp.interpret(&prog)?;
     // 等所有派生的协程完成，再输出任务树视图。
@@ -1357,9 +1474,7 @@ mod tests {
     fn run(src: &str) -> Result<Vec<Value>, RuntimeError> {
         let mut lex = dalin_compiler::lexer::Lexer::new(src);
         let toks = lex.tokenize().map_err(|e| RuntimeError(e.to_string()))?;
-        let prog = dalin_compiler::parser::Parser::new(toks)
-            .parse()
-            .map_err(|e| RuntimeError(e.to_string()))?;
+        let prog = dalin_compiler::parser::Parser::new(toks).parse();
         let mut interp = Interpreter::new();
         interp.interpret(&prog)
     }
@@ -1456,8 +1571,7 @@ mod tests {
         let mut lex = dalin_compiler::lexer::Lexer::new(src);
         let toks = lex.tokenize().expect("lex ok");
         let prog = dalin_compiler::parser::Parser::new(toks)
-            .parse()
-            .expect("parse ok");
+            .parse();
         let mut interp = Interpreter::new();
         interp.interpret(&prog).expect("interp ok");
         let stats = interp.gc_stats();
@@ -1482,10 +1596,7 @@ mod tests {
             Ok(t) => t,
             Err(_) => return, // lexer error → skip
         };
-        let prog = match dalin_compiler::parser::Parser::new(toks).parse() {
-            Ok(p) => p,
-            Err(_) => return, // parse error → skip (struct with typed fields not fully supported yet)
-        };
+        let prog = dalin_compiler::parser::Parser::new(toks).parse();
         let mut interp = Interpreter::new();
         if interp.interpret(&prog).is_ok() {
             let stats = interp.gc_stats();
@@ -1540,8 +1651,7 @@ mod tests {
         let mut lex = dalin_compiler::lexer::Lexer::new(src);
         let toks = lex.tokenize().expect("lex ok");
         let prog = dalin_compiler::parser::Parser::new(toks)
-            .parse()
-            .expect("parse ok");
+            .parse();
         let mut interp = Interpreter::new();
         interp.interpret(&prog).expect("interp ok");
         let stats = interp.gc_stats();
@@ -1573,8 +1683,7 @@ mod tests {
         let mut lex = dalin_compiler::lexer::Lexer::new(src);
         let toks = lex.tokenize().expect("lex ok");
         let prog = dalin_compiler::parser::Parser::new(toks)
-            .parse()
-            .expect("parse ok");
+            .parse();
         let mut interp = Interpreter::new();
         interp.interpret(&prog).expect("interp ok");
         // 强制 GC 应不 panic 且返回回收数量

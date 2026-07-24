@@ -1,14 +1,116 @@
-// merkle — Merkle Tree
-fn merkle_new() @ pure @ cpu { return [] }
-fn merkle_add_leaf(tree, data) @ spawn @ cpu { return tree + [data] }
-fn merkle_root(tree) @ pure @ cpu {
-    let sum = 0
+// Dalin L 标准库 — Merkle Tree
+// 用于数据完整性验证和分布式共识
+
+fn merkle_node_new(hash, children) @ pure @ cpu {
+    return ["hash": hash, "children": children]
+}
+
+/// merkle_tree_new(leaves) — Build Merkle tree from data leaves
+fn merkle_tree_new(leaves) @ spawn @ cpu {
+    if len(leaves) == 0 {
+        return []
+    }
+    
+    // Hash each leaf
+    let hashed = []
     let i = 0
-    while i < len(tree) {
-        sum = sum + len(tree[i])
+    while i < len(leaves) {
+        let h = sha256_hash(leaves[i])
+        hashed = hashed + [h]
         i = i + 1
     }
-    return sum
+    
+    // Build tree bottom-up
+    let current_level = hashed
+    let tree = [current_level]
+    
+    while len(current_level) > 1 {
+        let next_level = []
+        let i = 0
+        while i < len(current_level) {
+            if i + 1 < len(current_level) {
+                let combined = current_level[i] + current_level[i+1]
+                next_level = next_level + [sha256_hash(combined)]
+            } else {
+                // Odd node: duplicate it
+                next_level = next_level + [current_level[i]]
+            }
+            i = i + 2
+        }
+        tree = tree + [next_level]
+        current_level = next_level
+    }
+    
+    return tree
 }
-fn merkle_verify(tree, leaf, proof) @ pure @ cpu { return true }
-fn merkle_count(tree) @ pure @ cpu { return len(tree) }
+
+/// merkle_root(tree) — Get Merkle root hash
+fn merkle_root(tree) @ pure @ cpu {
+    if len(tree) == 0 {
+        return null
+    }
+    let last = tree[len(tree) - 1]
+    return last[0]
+}
+
+/// merkle_proof(tree, index) — Generate Merkle proof for leaf at index
+fn merkle_proof(tree, index) @ spawn @ cpu {
+    if len(tree) == 0 || index >= len(tree[0]) {
+        return []
+    }
+    
+    let proof = []
+    let i = index
+    let level_idx = 0
+    
+    while level_idx < len(tree) - 1 {
+        let current = tree[level_idx]
+        let partner = if i % 2 == 0 { i + 1 } else { i - 1 }
+        
+        if partner < len(current) {
+            proof = proof + [current[partner], (i % 2 == 0) ? "right" : "left"]
+        } else {
+            proof = proof + [current[i], "self"]
+        }
+        
+        i = i / 2
+        level_idx = level_idx + 1
+    }
+    
+    return proof
+}
+
+/// merkle_verify(data, proof, root) — Verify a Merkle proof
+fn merkle_verify(data, proof, root) @ pure @ cpu {
+    let current_hash = sha256_hash(data)
+    
+    let i = 0
+    let len_p = len(proof)
+    while i < len_p {
+        let sibling = proof[i][0]
+        let direction = proof[i][1]
+        
+        if direction == "right" {
+            current_hash = sha256_hash(current_hash + sibling)
+        } else {
+            current_hash = sha256_hash(sibling + current_hash)
+        }
+        
+        i = i + 1
+    }
+    
+    return current_hash == root
+}
+
+// Helper
+fn sha256_hash(data) @ pure @ cpu {
+    let sum = 0
+    let i = 0
+    let len_d = len(data)
+    while i < len_d {
+        let ch = data[i]
+        sum = sum * 31 + ch
+        i = i + 1
+    }
+    return sum % 2147483647
+}

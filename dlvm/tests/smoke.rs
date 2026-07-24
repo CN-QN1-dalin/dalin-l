@@ -7,7 +7,7 @@ fn run_src(src: &str) -> Value {
     let mut lex = Lexer::new(src);
     let tokens = lex.tokenize().expect("lex failed");
     let mut parser = Parser::new(tokens);
-    let prog = parser.parse().expect("parse failed");
+    let prog = parser.parse();
     let mut compiler = BytecodeCompiler::new();
     let funcs = compiler.compile(&prog);
     let mut vm = Vm::new(funcs);

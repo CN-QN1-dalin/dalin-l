@@ -1,54 +1,44 @@
-// Dalin L 标准库 — 错误处理
-// 提供 Result-like 错误处理和断言工具
+// Dalin L 标准库 — Error Types and Wrapping
+// 统一的错误类型系统，支持错误链和上下文
 
-fn is_error(val) @ pure @ cpu {
-    if val == null { return true }
-    return false
+fn error_new(code, msg) @ pure @ cpu {
+    return ["code": code, "message": msg, "cause": null]
 }
 
-fn is_ok(val) @ pure @ cpu {
-    return !is_error(val)
+fn error_with_cause(code, msg, cause) @ pure @ cpu {
+    return ["code": code, "message": msg, "cause": cause]
 }
 
-fn check(cond, msg) @ pure @ cpu {
-    if !cond { return msg }
-    return ""
+/// kind(err) — Get the error kind (string category)
+fn kind(err) @ pure @ cpu {
+    return err["code"]
 }
 
-fn assert_eq(a, b, msg) @ pure @ cpu {
-    if a != b { return msg }
-    return ""
+/// message(err) — Get the error message
+fn message(err) @ pure @ cpu {
+    return err["message"]
 }
 
-fn assert_ne(a, b, msg) @ pure @ cpu {
-    if a == b { return msg }
-    return ""
+/// cause(err) — Get the wrapped/inner error
+fn cause(err) @ pure @ cpu {
+    return err["cause"]
 }
 
-fn assert_gt(a, b, msg) @ pure @ cpu {
-    if !(a > b) { return msg }
-    return ""
+/// is_kind(err, kind) — Check if error matches a kind
+fn is_kind(err, kind_str) @ pure @ cpu {
+    return err["code"] == kind_str
 }
 
-fn assert_lt(a, b, msg) @ pure @ cpu {
-    if !(a < b) { return msg }
-    return ""
-}
+fn success_ok() @ pure @ cpu { return ["ok": true, "error": null, "value": null] }
+fn success_value(val) @ pure @ cpu { return ["ok": true, "error": null, "value": val] }
+fn success_err(err) @ pure @ cpu { return ["ok": false, "error": err, "value": null] }
 
-fn assert_gte(a, b, msg) @ pure @ cpu {
-    if !(a >= b) { return msg }
-    return ""
-}
+fn ok() @ pure @ cpu { return ["ok": true] }
+fn err(msg) @ pure @ cpu { return ["ok": false, "message": msg] }
 
-fn assert_lte(a, b, msg) @ pure @ cpu {
-    if !(a <= b) { return msg }
-    return ""
-}
-
-fn try_or(val, fallback) @ pure @ cpu {
-    if val == null { return fallback }
-    return val
-}
-
-fn return_ok(val) @ pure @ cpu { return val }
-fn return_err(msg) @ pure @ cpu { return null }
+fn io_error(msg) @ pure @ cpu { error_new("io", msg) }
+fn parse_error(msg) @ pure @ cpu { error_new("parse", msg) }
+fn type_error(msg) @ pure @ cpu { error_new("type", msg) }
+fn not_found(key) @ pure @ cpu { error_new("not_found", key) }
+fn timeout_error(msg) @ pure @ cpu { error_new("timeout", msg) }
+fn permission_denied(msg) @ pure @ cpu { error_new("permission", msg) }

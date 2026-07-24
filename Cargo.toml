@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["compiler", "runtime", "cli", "control-plane", "dlvm", "pyo3-bindings", "registry", "stdlib", "lsp", "fmt"]
+members = ["compiler", "runtime", "cli", "control-plane", "dlvm", "pyo3-bindings", "registry", "stdlib", "lsp", "fmt", "dap", "codegen"]
 
 [workspace.package]
 edition = "2024"

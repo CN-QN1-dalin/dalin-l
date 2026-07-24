@@ -1,23 +1,78 @@
-// mmap — 内存映射文件抽象
+// Dalin L 标准库 — 内存映射文件抽象 (mmap)
+// 提供对文件的大范围零拷贝读写接口
+
 fn mmap_new(path, size) @ pure @ cpu {
+    // Create in-memory buffer representing memory-mapped region
     let buf = []
     let i = 0
     while i < size {
         buf = buf + [0]
         i = i + 1
     }
-    return [path, buf]
+    return ["path": path, "buffer": buf, "size": size, "dirty": false]
 }
-fn mmap_read(m, offset, size) @ pure @ cpu {
+
+/// read(mmap, offset, len) — Read bytes from mapped region
+fn read(mm, offset, count) @ pure @ cpu {
+    let buf = mm["buffer"]
+    if offset >= len(buf) {
+        return []
+    }
+    
     let result = []
     let i = offset
-    while i < offset + size {
-        result = result + [m[1][i]]
+    let end = min(i + count, len(buf))
+    while i < end {
+        result = result + [buf[i]]
         i = i + 1
     }
     return result
 }
-fn mmap_write(m, offset, data) @ spawn @ cpu { return m }
-fn mmap_close(m) @ spawn @ cpu { return m }
-fn mmap_sync(m) @ spawn @ cpu { return m }
-fn mmap_size(m) @ pure @ cpu { return len(m[1]) }
+
+/// write(mm, offset, data) — Write bytes to mapped region
+fn write(mm, offset, data) @ spawn @ cpu {
+    let buf = copy(mm["buffer"])
+    let i = 0
+    let len_d = len(data)
+    while i < len_d {
+        let pos = offset + i
+        if pos < len(buf) {
+            buf[pos] = data[i]
+            mm["dirty"] = true
+        }
+        i = i + 1
+    }
+    mm["buffer"] = buf
+    return mm
+}
+
+/// flush(mm) — Mark region as clean (synced)
+fn flush(mm) @ spawn @ cpu {
+    mm["dirty"] = false
+    return mm
+}
+
+/// is_dirty(mm) — Check if mmap has unsynced changes
+fn is_dirty(mm) @ pure @ cpu {
+    return mm["dirty"]
+}
+
+/// size(mm) — Get mapped region size
+fn size(mm) @ pure @ cpu {
+    return mm["size"]
+}
+
+/// path(mm) — Get file path of mmap
+fn path(mm) @ pure @ cpu {
+    return mm["path"]
+}
+
+/// close(mm) — Release the mmap
+fn close(mm) @ spawn @ cpu {
+    if is_dirty(mm) {
+        flush(mm)
+    }
+    mm["buffer"] = []
+    mm["size"] = 0
+    return mm
+}

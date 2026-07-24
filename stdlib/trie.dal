@@ -1,13 +1,100 @@
-// trie — trie dictionary tree
-fn new() @ pure @ cpu { return [] }
-fn insert(trie, word) @ spawn @ cpu {
-    let node = []
+// Dalin L 标准库 — Trie (前缀树/字典树)
+// 支持字符串前缀搜索、自动补全
+
+/// trie_new() — Create empty Trie
+fn trie_new() @ pure @ cpu { return {} }
+
+/// trie_insert(root, word) — Insert a word into the Trie
+fn trie_insert(root, word) @ spawn @ cpu {
+    let node = root
     let i = 0
-    while i < len(word) {
-        node = node + [word[i]]
+    let len_w = len(word)
+    
+    while i < len_w {
+        let c = word[i]
+        if node[c] == null {
+            node[c] = {}
+        }
+        node = node[c]
         i = i + 1
     }
-    return trie + [node]
+    
+    node["__end__"] = true
+    return root
 }
-fn search(trie, word) @ pure @ cpu { return false }
-fn starts_with(trie, prefix) @ pure @ cpu { return false }
+
+/// trie_search(root, word) — Search for exact word in Trie
+fn trie_search(root, word) @ pure @ cpu {
+    let node = root
+    let i = 0
+    let len_w = len(word)
+    
+    while i < len_w {
+        let c = word[i]
+        if node[c] == null {
+            return false
+        }
+        node = node[c]
+        i = i + 1
+    }
+    
+    return node["__end__"] == true
+}
+
+/// trie_starts_with(root, prefix) — Check if any word starts with prefix
+fn trie_starts_with(root, prefix) @ pure @ cpu {
+    let node = root
+    let i = 0
+    let len_p = len(prefix)
+    
+    while i < len_p {
+        let c = prefix[i]
+        if node[c] == null {
+            return false
+        }
+        node = node[c]
+        i = i + 1
+    }
+    
+    return true
+}
+
+/// trie_autocomplete(root, prefix, max_results) — Get words starting with prefix
+fn trie_autocomplete(root, prefix, max_results) @ pure @ cpu {
+    // Navigate to prefix node
+    let node = root
+    let i = 0
+    let len_p = len(prefix)
+    while i < len_p {
+        let c = prefix[i]
+        if node[c] == null {
+            return []
+        }
+        node = node[c]
+        i = i + 1
+    }
+    
+    // Collect all words under this node
+    let results = []
+    trie_collect_words(node, prefix, results, max_results)
+    return results
+}
+
+fn trie_collect_words(node, current, results, limit) @ spawn @ cpu {
+    if node["__end__"] == true {
+        if len(results) >= limit { return results }
+        results = results + [current]
+    }
+    
+    let keys_list = map_keys(node)
+    let i = 0
+    let len_k = len(keys_list)
+    while i < len_k && len(results) < limit {
+        let k = keys_list[i]
+        if k != "__end__" {
+            trie_collect_words(node[k], current + k, results, limit)
+        }
+        i = i + 1
+    }
+    return results
+}

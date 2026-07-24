@@ -1,23 +1,56 @@
-// Select/多路复用 — Rust select! 风格的非阻塞分发
-// 用于从多个 channel/future 中选择一个就绪的
+// Dalin L 标准库 — Select/多路复用
+// Rust select! 风格的非阻塞分发
 
-fn case(input) @ pure @ cpu {
-    return null
-}
+fn case_new(inputs) @ pure @ cpu { return ["inputs": inputs, "done": false] }
 
 fn default() @ pure @ cpu {
-    return null
+    return ["kind": "default"]
 }
 
+/// select(cases) — Non-blocking select from ready channels
 fn select(cases) @ spawn @ cpu {
-    // 委托给调度器的 channel 并发状态
-    return null
+    let len_c = len(cases)
+    if len_c == 0 {
+        return null
+    }
+    
+    let i = 0
+    while i < len_c {
+        let c = cases[i]
+        if c["inputs"] != [] && len(c["inputs"]) > 0 {
+            c["done"] = true
+            return ["ready_at": i, "case": c]
+        }
+        i = i + 1
+    }
+    
+    // No case ready, return default behavior
+    return ["none_ready": true]
 }
 
+/// select_timeout(cases, ms) — Select with timeout in milliseconds
 fn select_timeout(cases, ms) @ spawn @ cpu {
-    return null
+    let result = select(cases)
+    if result != null && result != ["none_ready": true] {
+        return result
+    }
+    
+    // Wait for ms milliseconds (stub: skip wait in pure mode)
+    sleep(ms)
+    
+    // Re-check after timeout
+    return select(cases)
 }
 
 fn with_priority(cases, priorities) @ spawn @ cpu {
-    return null
+    // Sort by priority (lower index = higher priority)
+    let sorted = []
+    let len_p = len(priorities)
+    let len_c = len(cases)
+    let i = 0
+    while i < min(len_p, len_c) {
+        sorted = sorted + [[priorities[i], cases[i]]]
+        i = i + 1
+    }
+    return sorted
 }

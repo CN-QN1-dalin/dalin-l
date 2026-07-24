@@ -145,17 +145,16 @@ impl LspCompiler {
             }
         };
 
-        // Step 2: Parser
+        // Step 2: Parser (error recovery enabled)
         let mut parser = parser::Parser::new(tokens);
-        let prog = match parser.parse() {
-            Ok(p) => p,
-            Err(e) => {
-                let err_str = e.to_string();
-                let ln = extract_line(&err_str);
-                let msg = format!("语法错误: {}", err_str);
-                return vec![json_diagnostic(&msg, 1, ln, 0, ln, 40)];
-            }
-        };
+        let prog = parser.parse();
+        let mut diags = Vec::new();
+        for err in parser.recovered() {
+            let err_str = err.to_string();
+            let ln = extract_line(&err_str);
+            let msg = format!("语法警告: {}", err_str);
+            diags.push(json_diagnostic(&msg, 1, ln, 0, ln, 40));
+        }
 
         // Cache the program for completion/hover reuse
         self.last_program.insert(uri.to_string(), prog.clone());
@@ -164,7 +163,6 @@ impl LspCompiler {
         let mut infer = SevenChannelInferencer::new();
         infer.infer_program(&prog);
 
-        let mut diags = Vec::new();
         self.collect_errors_to_diags(&mut diags, &infer.effect.errors, "效应违规", "E001");
         self.collect_errors_to_diags(&mut diags, &infer.capability.errors, "能力违规", "E002");
         self.collect_errors_to_diags(&mut diags, &infer.confidence.errors, "置信度不足", "E005");

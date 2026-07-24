@@ -1,6 +1,56 @@
-// hotswap — 热交换槽
-fn hotswap_new(slot_id) @ pure @ cpu { return [slot_id, 0] }
-fn hotswap_swap(hw, val) @ pure @ cpu { return [hw[0], val] }
-fn hotswap_get(hw) @ pure @ cpu { return hw[1] }
-fn hotswap_slot(hw) @ pure @ cpu { return hw[0] }
-fn hotswap_len(hw) @ pure @ cpu { return len(hw) }
+// Dalin L 标准库 — Hotswap (热交换槽)
+// 支持运行时动态替换状态/配置/模块，无需重启
+
+fn hotswap_new(slot_id) @ pure @ cpu { return [slot_id, null] }
+
+/// swap(slot, new_val) — Atomically swap value in hotswap slot
+fn swap(slot, new_val) @ spawn @ cpu {
+    let old_val = slot[1]
+    slot[1] = new_val
+    return [old_val, new_val]
+}
+
+/// get(slot) — Read current value (may be stale under concurrent swap)
+fn get(slot) @ pure @ cpu {
+    if len(slot) < 2 {
+        return null
+    }
+    return slot[1]
+}
+
+/// slot_id(slot) — Get the slot identifier
+fn slot_id(slot) @ pure @ cpu {
+    return slot[0]
+}
+
+/// version(slot) — Track how many swaps have occurred
+fn version(slot) @ pure @ cpu {
+    // Use the slot's internal counter
+    if len(slot) >= 3 {
+        return slot[2]
+    }
+    return 0
+}
+
+/// update(slot, fn) — Apply function to current value and store result
+fn update(slot, fn_func) @ spawn @ cpu {
+    let current = get(slot)
+    let result = fn_func(current)
+    swap(slot, result)
+    return result
+}
+
+/// try_swap(slot, expected_old, new_val) — Conditional swap (CAS-like)
+fn try_swap(slot, expected_old, new_val) @ spawn @ cpu {
+    let current = get(slot)
+    if current == expected_old {
+        slot[1] = new_val
+        return true
+    }
+    return false
+}
+
+/// rollback(slot, target_version) — Revert to a previous state (stub)
+fn rollback(slot, target_version) @ spawn @ cpu {
+    return get(slot)
+}

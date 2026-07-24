@@ -1,7 +1,30 @@
-// observer — 观察者模式
+// Dalin L 标准库 — Observer (观察者模式)
 fn observer_new() @ pure @ cpu { return [] }
-fn observer_subscribe(obs, sub) @ spawn @ cpu { return obs + [sub] }
-fn observer_unsubscribe(obs, sub) @ pure @ cpu { return obs }
-fn observer_notify(obs, event) @ spawn @ cpu { return obs }
+
+fn observer_attach(obs, callback) @ spawn @ cpu {
+    return obs + [callback]
+}
+
+fn observer_detach(obs, cb) @ spawn @ cpu {
+    let result = []
+    let i = 0
+    while i < len(obs) {
+        if obs[i] != cb {
+            result = result + [obs[i]]
+        }
+        i = i + 1
+    }
+    return result
+}
+
+fn observer_notify(obs, event) @ spawn @ cpu {
+    let i = 0
+    while i < len(obs) {
+        let cb = obs[i]
+        cb(event)
+        i = i + 1
+    }
+    return obs
+}
+
 fn observer_count(obs) @ pure @ cpu { return len(obs) }
-fn observer_clear(obs) @ pure @ cpu { return [] }

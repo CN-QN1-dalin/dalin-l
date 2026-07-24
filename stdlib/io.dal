@@ -1,5 +1,5 @@
 // Dalin L 标准库 — 输入输出
-// 文件 I/O 和标准输入输出
+// 标注了 @io 效应，实际运行时依赖解释器内置支持
 
 fn print(val) @ io @ cpu { return 0 }
 fn println(val) @ io @ cpu { return 0 }
@@ -19,12 +19,16 @@ fn remove(path) @ io @ cpu @ latency(100ms) { return true }
 fn copy(src, dst) @ io @ cpu @ latency(300ms) { return true }
 fn rename(src, dst) @ io @ cpu @ latency(200ms) { return true }
 
-fn size(path) @ io @ cpu { return 0 }
+fn file_size(path) @ io @ cpu { return 0 }
+fn file_modified(path) @ io @ cpu { return "" }
 
-fn list_dir(path) @ io @ cpu @ latency(100ms) { return [] }
+fn read_lines(path) @ io @ cpu @ latency(300ms) { return [] }
+fn write_lines(path, lines) @ io @ cpu @ latency(300ms) { return true }
 
-fn write_csv(path, data) @ io @ cpu @ latency(200ms) { return true }
-fn read_csv(path) @ io @ cpu @ latency(200ms) { return [] }
+fn temp_dir() @ io @ cpu { return "/tmp" }
+fn temp_file(prefix) @ io @ cpu { return "/tmp/" + prefix + ".tmp" }
 
-fn write_json(path, data) @ io @ cpu @ latency(200ms) { return true }
-fn read_json(path) @ io @ cpu @ latency(200ms) { return null }
+fn stdin_available() @ io @ cpu { return false }
+fn stdout_is_terminal() @ io @ cpu { return false }
+
+fn flush() @ io @ cpu { return true }

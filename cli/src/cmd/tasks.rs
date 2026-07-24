@@ -17,30 +17,30 @@ pub fn run() -> Result<(), String> {
     match lex.tokenize() {
         Ok(tokens) => {
             let mut parser = parser::Parser::new(tokens);
-            match parser.parse() {
-                Ok(prog) => {
-                    let mut infer = ty2::SevenChannelInferencer::new();
-                    infer.infer_program(&prog);
-                    print!("{}", infer.print_report());
+            let prog = parser.parse();
+            // Warn about recovered parse errors
+            for err in parser.recovered() {
+                eprintln!("  ⚠ Parse warning: {}", err);
+            }
+            let mut infer = ty2::SevenChannelInferencer::new();
+            infer.infer_program(&prog);
+            print!("{}", infer.print_report());
 
-                    let specs = task_spec::from_program(&prog);
-                    println!("=== TaskSpec ===");
-                    for s in &specs {
-                        println!(
-                            "  {} : effect={:?} capability={:?}",
-                            s.fn_id, s.effect, s.capability
-                        );
-                    }
-                    if let Some(parent) = specs.iter().find(|s| s.fn_id == "fan_out") {
-                        let child =
-                            parent.spawn_child("worker", ty2::Effect::Io, ty2::Capability::Cpu);
-                        println!(
-                            "\n  spawn: {} -> parent={:?}",
-                            child.fn_id, child.parent_task
-                        );
-                    }
-                }
-                Err(e) => println!("  Parse error: {}", e),
+            let specs = task_spec::from_program(&prog);
+            println!("=== TaskSpec ===");
+            for s in &specs {
+                println!(
+                    "  {} : effect={:?} capability={:?}",
+                    s.fn_id, s.effect, s.capability
+                );
+            }
+            if let Some(parent) = specs.iter().find(|s| s.fn_id == "fan_out") {
+                let child =
+                    parent.spawn_child("worker", ty2::Effect::Io, ty2::Capability::Cpu);
+                println!(
+                    "\n  spawn: {} -> parent={:?}",
+                    child.fn_id, child.parent_task
+                );
             }
         }
         Err(e) => println!("  Lex error: {}", e),

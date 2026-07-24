@@ -16,9 +16,7 @@ pub fn run(input: &str, output: &str, verbose: bool) -> Result<(), String> {
     let mut lex = lexer::Lexer::new(&src);
     let tokens = lex.tokenize().map_err(|e| format!("{}", e))?;
     let token_count = tokens.len();
-    let prog = parser::Parser::new(tokens)
-        .parse()
-        .map_err(|e| format!("{}", e))?;
+    let prog = parser::Parser::new(tokens).parse();
 
     // Lexer（展示 token 统计）
     {
