@@ -35,7 +35,10 @@ impl ControlPlaneClientWrapper {
     }
 
     pub async fn get(&mut self, id: &str) -> Result<Option<Task>, tonic::Status> {
-        let resp = self.inner.get_task(GetTaskRequest { id: id.to_string() }).await?;
+        let resp = self
+            .inner
+            .get_task(GetTaskRequest { id: id.to_string() })
+            .await?;
         Ok(resp.into_inner().task)
     }
 }

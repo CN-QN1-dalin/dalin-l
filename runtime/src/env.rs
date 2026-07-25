@@ -1,8 +1,8 @@
 /// Dalin L — 运行时环境
 use std::collections::HashMap;
 use std::fmt;
-use std::sync::mpsc::Sender;
 use std::sync::Arc;
+use std::sync::mpsc::Sender;
 
 // 运行时复用编译器的 AST 类型（FnParam / Stmt / TypeRef）
 use dalin_compiler::ast;
@@ -25,17 +25,17 @@ pub enum Value {
     Char(char),
     None,
     Array(Vec<Value>),
-    Option(bool, Option<Box<Value>>),       // (is_some, value)
+    Option(bool, Option<Box<Value>>), // (is_some, value)
     Result(bool, Option<Box<Value>>, Option<Box<Value>>), // (is_ok, value, error)
     Function(FnValue),
     Struct(HashMap<String, Value>),
-    EnumVariant(String, String),             // (enum_name, variant_name)
+    EnumVariant(String, String), // (enum_name, variant_name)
     // ── 并发原语（Agent-Native）──
     // 注意：Receiver 不是 Sync，不能嵌入 Value（否则 Value 整体不 Send，无法跨线程发送任务结果）。
     // 因此任务句柄与通道接收端只持有名称，真实的 Receiver 存放在解释器侧表中。
-    Task(String),                            // 任务句柄 = fn 名，await 时查解释器任务表
-    ChannelSender(Arc<Sender<Value>>),       // 通道发送端（Sender 是 Send+Sync，可跨线程共享）
-    ChannelReceiver(String),                 // 通道接收端 = 名称，recv 时查解释器通道表
+    Task(String),                      // 任务句柄 = fn 名，await 时查解释器任务表
+    ChannelSender(Arc<Sender<Value>>), // 通道发送端（Sender 是 Send+Sync，可跨线程共享）
+    ChannelReceiver(String),           // 通道接收端 = 名称，recv 时查解释器通道表
 }
 
 #[derive(Debug, Clone)]
@@ -71,10 +71,18 @@ impl fmt::Display for Value {
             Value::Result(_, _, _) => write!(f, "Result"),
             Value::Function(fv) => write!(f, "<fn {}>", fv.name),
             Value::Struct(map) => {
-                let ty = map.get(DALIN_TYPE_KEY).and_then(|v| {
-                    if let Value::String(s) = v { Some(s.clone()) } else { None }
-                }).unwrap_or_default();
-                let inner: Vec<String> = map.iter()
+                let ty = map
+                    .get(DALIN_TYPE_KEY)
+                    .and_then(|v| {
+                        if let Value::String(s) = v {
+                            Some(s.clone())
+                        } else {
+                            None
+                        }
+                    })
+                    .unwrap_or_default();
+                let inner: Vec<String> = map
+                    .iter()
                     .filter(|(k, _)| k.as_str() != DALIN_TYPE_KEY)
                     .map(|(k, v)| format!("{} = {}", k, v))
                     .collect();
@@ -103,11 +111,17 @@ impl Default for Environment {
 
 impl Environment {
     pub fn new() -> Self {
-        Self { vars: HashMap::new(), parent: None }
+        Self {
+            vars: HashMap::new(),
+            parent: None,
+        }
     }
 
     pub fn child(&self) -> Self {
-        Self { vars: HashMap::new(), parent: Some(Box::new(self.clone())) }
+        Self {
+            vars: HashMap::new(),
+            parent: Some(Box::new(self.clone())),
+        }
     }
 
     pub fn define(&mut self, name: &str, value: Value) {

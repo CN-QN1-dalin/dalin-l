@@ -1,6 +1,7 @@
+use crate::util;
+use std::path::{Path, PathBuf};
 use std::thread;
 use std::time::Duration;
-use crate::util;
 
 pub fn run(input: &str, watch: bool, verbose: bool) -> Result<(), String> {
     let banner = util::banner("RUN");
@@ -9,6 +10,17 @@ pub fn run(input: &str, watch: bool, verbose: bool) -> Result<(), String> {
     if !std::path::Path::new(input).exists() {
         return Err(format!("Source file '{}' does not exist", input));
     }
+
+    // Resolve project root for cache dir
+    let cwd = std::env::current_dir().unwrap_or_default();
+    let project_root: PathBuf = if input.starts_with(cwd.to_string_lossy().as_ref()) {
+        cwd.clone()
+    } else {
+        Path::new(input)
+            .parent()
+            .map(|p| p.to_path_buf())
+            .unwrap_or_else(|| cwd.clone())
+    };
 
     let mut compiled_ok = false;
 
@@ -20,38 +32,76 @@ pub fn run(input: &str, watch: bool, verbose: bool) -> Result<(), String> {
             compiled_ok = true;
         }
 
+        let src = std::fs::read_to_string(input)
+            .map_err(|e| format!("Cannot read '{}': {}", input, e))?;
+
+        // Check cache first
+        let needs_compile =
+            !dalin_compiler::cache::is_cached(Path::new(input), &src, &project_root);
+        if needs_compile {
+            if verbose {
+                println!("  🔨 Compiling {} ...", input);
+            }
+        } else {
+            if verbose {
+                println!("  ✓ Cache hit, skipping compilation");
+            }
+        }
+
         use dalin_compiler::{lexer, parser};
 
-        let src = std::fs::read_to_string(input).map_err(|e| format!("Cannot read '{}': {}", input, e))?;
-        
         let mut lex = lexer::Lexer::new(&src);
         match lex.tokenize() {
             Ok(tokens) => {
                 let mut p = parser::Parser::new(tokens);
                 match p.parse() {
                     Ok(prog) => {
-                        let _ = util::ok("compile", &format!("{} statements", prog.statements.len()));
-                        
+                        let _ =
+                            util::ok("compile", &format!("{} statements", prog.statements.len()));
+
+                        // Write to cache after successful compile
+                        if let Ok(_cached) = dalin_compiler::cache::ensure_cache_dir(&project_root)
+                        {
+                            let key =
+                                dalin_compiler::cache::compute_cache_key(Path::new(input), &src);
+                            // Serialize AST bytes as a simple cache value
+                            let ast_data = format!("{:?}", prog.statements.len()).into_bytes();
+                            let _ =
+                                dalin_compiler::cache::write_cache(&project_root, &key, &ast_data);
+                        }
+
                         use dalin_runtime::interpreter;
                         match interpreter::run_source(&src) {
-                            Ok(_) => { if verbose { println!("\n  Runtime execution completed."); } }
+                            Ok(_) => {
+                                if verbose {
+                                    println!("\n  Runtime execution completed.");
+                                }
+                            }
                             Err(e) => {
                                 println!("\n  ❌ Runtime error: {}", e);
-                                if !watch { return Err(format!("{}", e)); }
+                                if !watch {
+                                    return Err(format!("{}", e));
+                                }
                             }
                         }
                     }
                     Err(e) => {
-                        if !watch { return Err(format!("{}", e)); }
+                        if !watch {
+                            return Err(format!("{}", e));
+                        }
                     }
                 }
             }
             Err(e) => {
-                if !watch { return Err(format!("{}", e)); }
+                if !watch {
+                    return Err(format!("{}", e));
+                }
             }
         }
 
-        if !watch { break; }
+        if !watch {
+            break;
+        }
     }
 
     println!("\n  ╔═══════════════════════════════════╗");

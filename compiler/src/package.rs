@@ -18,20 +18,34 @@ pub struct SemVer {
 
 impl SemVer {
     pub fn new(major: u64, minor: u64, patch: u64) -> Self {
-        Self { major, minor, patch }
+        Self {
+            major,
+            minor,
+            patch,
+        }
     }
 
     /// 从字符串解析 "1.2.3"
     pub fn parse(version_str: &str) -> Result<Self, String> {
         let parts: Vec<&str> = version_str.trim().split('.').collect();
         if parts.len() < 2 || parts.len() > 3 {
-            return Err(format!("Invalid SemVer: '{}'. Expected MAJOR[.MINOR[.PATCH]]", version_str));
+            return Err(format!(
+                "Invalid SemVer: '{}'. Expected MAJOR[.MINOR[.PATCH]]",
+                version_str
+            ));
         }
-        let major: u64 = parts[0].parse().map_err(|_| format!("Invalid major version: '{}'", parts[0]))?;
-        let minor: u64 = parts[1].parse().map_err(|_| format!("Invalid minor version: '{}'", parts[1]))?;
+        let major: u64 = parts[0]
+            .parse()
+            .map_err(|_| format!("Invalid major version: '{}'", parts[0]))?;
+        let minor: u64 = parts[1]
+            .parse()
+            .map_err(|_| format!("Invalid minor version: '{}'", parts[1]))?;
         let patch = if parts.len() == 3 {
             // Parse the leading numeric portion; ignore any pre-release/build suffix like "-alpha"
-            let num_part: String = parts[2].chars().take_while(|c| c.is_ascii_digit()).collect();
+            let num_part: String = parts[2]
+                .chars()
+                .take_while(|c| c.is_ascii_digit())
+                .collect();
             if num_part.is_empty() {
                 // No leading digits at all (e.g. "alpha"), default to 0
                 0
@@ -41,7 +55,11 @@ impl SemVer {
         } else {
             0
         };
-        Ok(Self { major, minor, patch })
+        Ok(Self {
+            major,
+            minor,
+            patch,
+        })
     }
 
     /// 比较两个版本: -1 (小于), 0 (等于), 1 (大于)
@@ -216,9 +234,13 @@ pub fn parse_package_manifest(content: &str) -> Result<PackageManifest, String> 
 
             match (current_section.as_deref(), key) {
                 (Some("package"), "name") => manifest.name = strip_toml_string(value),
-                (Some("package"), "version") => manifest.version = SemVer::parse(&strip_toml_string(value))?,
+                (Some("package"), "version") => {
+                    manifest.version = SemVer::parse(&strip_toml_string(value))?
+                }
                 (Some("package"), "edition") => manifest.edition = strip_toml_string(value),
-                (Some("package"), "description") => manifest.description = Some(strip_toml_string(value)),
+                (Some("package"), "description") => {
+                    manifest.description = Some(strip_toml_string(value))
+                }
                 (Some("package"), "authors") => {
                     // Parse array ["Author One", "Author Two"]
                     let items = parse_toml_array(value);
@@ -254,7 +276,10 @@ fn strip_toml_string(s: &str) -> String {
 
 fn parse_toml_array(s: &str) -> Vec<String> {
     let inner = s.trim_start_matches('[').trim_end_matches(']');
-    inner.split(',').map(|item| item.trim().to_string()).collect()
+    inner
+        .split(',')
+        .map(|item| item.trim().to_string())
+        .collect()
 }
 
 fn parse_dep_entry(_key: &str, value: &str, _subsection: &Option<String>) -> DependencyEntry {
@@ -331,13 +356,18 @@ impl DependencyGraph {
                     return Err(format!(
                         "版本冲突: '{}' 需要 {}, 但已有 {}",
                         name,
-                        info.available_versions.first().cloned().unwrap_or_else(|| SemVer::new(0,0,0)),
+                        info.available_versions
+                            .first()
+                            .cloned()
+                            .unwrap_or_else(|| SemVer::new(0, 0, 0)),
                         existing
                     ));
                 }
             } else {
                 // 取最新版本
-                let latest = info.available_versions.iter()
+                let latest = info
+                    .available_versions
+                    .iter()
                     .max()
                     .ok_or_else(|| format!("包 '{}' 没有可用版本", name))?
                     .clone();
@@ -437,13 +467,16 @@ impl PackageManager {
             content_hash,
         };
 
-        self.cached_packages.insert(format!("{}@{}", name, version), pkg.clone());
+        self.cached_packages
+            .insert(format!("{}@{}", name, version), pkg.clone());
         Ok(pkg)
     }
 
     /// 获取缓存中的包列表
     pub fn list_cached(&self) -> Vec<String> {
-        let mut pkgs: Vec<String> = self.cached_packages.values()
+        let mut pkgs: Vec<String> = self
+            .cached_packages
+            .values()
             .map(|p| format!("{} v{}", p.name, p.version))
             .collect();
         pkgs.sort();
@@ -454,9 +487,8 @@ impl PackageManager {
     pub fn clean_cache(&mut self, max_age_seconds: u64) -> usize {
         let now: u64 = 0; // In production, use std::time::SystemTime
         let original_len = self.cached_packages.len();
-        self.cached_packages.retain(|_, pkg| {
-            (now.saturating_sub(pkg.downloaded_at)) < max_age_seconds
-        });
+        self.cached_packages
+            .retain(|_, pkg| (now.saturating_sub(pkg.downloaded_at)) < max_age_seconds);
         original_len - self.cached_packages.len()
     }
 }
@@ -532,10 +564,10 @@ mod tests {
 
     #[test]
     fn test_semver_satisfies_caret() {
-        let v1 = SemVer::new(1, 3, 0);   // ^1.2.3 → yes (same major)
-        let v2 = SemVer::new(1, 2, 5);   // ^1.2.3 → yes
-        let v3 = SemVer::new(2, 0, 0);   // ^1.2.3 → no (different major)
-        let v4 = SemVer::new(1, 1, 0);   // ^1.2.3 → no (below requirement)
+        let v1 = SemVer::new(1, 3, 0); // ^1.2.3 → yes (same major)
+        let v2 = SemVer::new(1, 2, 5); // ^1.2.3 → yes
+        let v3 = SemVer::new(2, 0, 0); // ^1.2.3 → no (different major)
+        let v4 = SemVer::new(1, 1, 0); // ^1.2.3 → no (below requirement)
 
         let req = VersionRequirement::Caret(SemVer::new(1, 2, 3));
         assert!(v1.satisfies(&req));
@@ -546,10 +578,10 @@ mod tests {
 
     #[test]
     fn test_semver_satisfies_tilde() {
-        let v1 = SemVer::new(1, 2, 5);   // ~1.2.3 → yes
-        let v2 = SemVer::new(1, 2, 3);   // ~1.2.3 → yes
-        let v3 = SemVer::new(1, 3, 0);   // ~1.2.3 → no (different minor)
-        let v4 = SemVer::new(2, 2, 3);   // ~1.2.3 → no (different major)
+        let v1 = SemVer::new(1, 2, 5); // ~1.2.3 → yes
+        let v2 = SemVer::new(1, 2, 3); // ~1.2.3 → yes
+        let v3 = SemVer::new(1, 3, 0); // ~1.2.3 → no (different minor)
+        let v4 = SemVer::new(2, 2, 3); // ~1.2.3 → no (different major)
 
         let req = VersionRequirement::Tilde(SemVer::new(1, 2, 3));
         assert!(v1.satisfies(&req));
@@ -560,9 +592,9 @@ mod tests {
 
     #[test]
     fn test_semver_satisfies_equal_or_above() {
-        let v1 = SemVer::new(1, 2, 5);   // >=1.2.3 → yes
-        let v2 = SemVer::new(1, 2, 3);   // >=1.2.3 → yes
-        let v3 = SemVer::new(1, 2, 2);   // >=1.2.3 → no
+        let v1 = SemVer::new(1, 2, 5); // >=1.2.3 → yes
+        let v2 = SemVer::new(1, 2, 3); // >=1.2.3 → yes
+        let v3 = SemVer::new(1, 2, 2); // >=1.2.3 → no
 
         let req = VersionRequirement::EqualOrAbove(SemVer::new(1, 2, 3));
         assert!(v1.satisfies(&req));
@@ -623,7 +655,10 @@ rand = "~0.8.4"
         assert_eq!(manifest.version.major, 2);
         assert_eq!(manifest.version.minor, 1);
         assert_eq!(manifest.description, Some("A test project".to_string()));
-        assert_eq!(manifest.authors, vec!["Alice".to_string(), "Bob".to_string()]);
+        assert_eq!(
+            manifest.authors,
+            vec!["Alice".to_string(), "Bob".to_string()]
+        );
         assert_eq!(manifest.license, Some("MIT".to_string()));
         assert_eq!(manifest.deps.len(), 3);
         assert!(manifest.deps.get("serde").unwrap().optional);
@@ -731,25 +766,33 @@ rustflags = ["-C", "target-cpu=native"]
 
     #[test]
     fn test_package_manager_dev_mode() {
-        let mut pm = PackageManager::new("./cache".to_string(), "https://registry.dal.in".to_string());
+        let mut pm =
+            PackageManager::new("./cache".to_string(), "https://registry.dal.in".to_string());
         pm.enable_dev_mode();
 
-        let pkg = pm.get_package("my-lib", &SemVer::new(1, 0, 0)).expect("dev get ok");
+        let pkg = pm
+            .get_package("my-lib", &SemVer::new(1, 0, 0))
+            .expect("dev get ok");
         assert_eq!(pkg.name, "my-lib");
         assert_eq!(pkg.cache_path, "./dev/packages/my-lib");
     }
 
     #[test]
     fn test_package_manager_cache_lookup() {
-        let mut pm = PackageManager::new("./cache".to_string(), "https://registry.dal.in".to_string());
+        let mut pm =
+            PackageManager::new("./cache".to_string(), "https://registry.dal.in".to_string());
 
         // First lookup: not found (falls back to dev mode for mock)
         pm.enable_dev_mode();
-        let pkg1 = pm.get_package("cached-pkg", &SemVer::new(1, 0, 0)).expect("ok");
+        let pkg1 = pm
+            .get_package("cached-pkg", &SemVer::new(1, 0, 0))
+            .expect("ok");
 
         // Check that it's in the cache now (but dev mode doesn't actually cache)
         // With dev mode, each call returns fresh
-        let pkg2 = pm.get_package("cached-pkg", &SemVer::new(1, 0, 0)).expect("ok");
+        let pkg2 = pm
+            .get_package("cached-pkg", &SemVer::new(1, 0, 0))
+            .expect("ok");
         assert_eq!(pkg1.name, pkg2.name);
     }
 
@@ -761,7 +804,8 @@ rustflags = ["-C", "target-cpu=native"]
 
     #[test]
     fn test_package_manager_clean_cache_noop() {
-        let mut pm = PackageManager::new("./cache".to_string(), "https://registry.dal.in".to_string());
+        let mut pm =
+            PackageManager::new("./cache".to_string(), "https://registry.dal.in".to_string());
         // dev mode adds mock entries but they don't have timestamps, so clean should be safe
         pm.clean_cache(3600);
         // No packages to clean

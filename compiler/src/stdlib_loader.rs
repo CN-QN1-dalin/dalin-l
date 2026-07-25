@@ -42,10 +42,7 @@ impl StdLibConfig {
 
         Self {
             stdlib_path,
-            prelude_modules: vec![
-                "prelude".to_string(),
-                "core_types".to_string(),
-            ],
+            prelude_modules: vec!["prelude".to_string(), "core_types".to_string()],
         }
     }
 
@@ -75,7 +72,8 @@ impl StdLibConfig {
                 match key {
                     "path" => stdlib_path = PathBuf::from(value),
                     "prelude" => {
-                        let mods: Vec<String> = value.split(',').map(|s| s.trim().to_string()).collect();
+                        let mods: Vec<String> =
+                            value.split(',').map(|s| s.trim().to_string()).collect();
                         prelude = mods;
                     }
                     _ => {}
@@ -90,7 +88,10 @@ impl StdLibConfig {
             project_root.join(stdlib_path)
         };
 
-        Ok(Self { stdlib_path, prelude_modules: prelude })
+        Ok(Self {
+            stdlib_path,
+            prelude_modules: prelude,
+        })
     }
 }
 
@@ -116,7 +117,8 @@ impl StdLibLoader {
         let manifest_file = project_root.join("dalin.toml");
 
         let config = if manifest_file.exists() {
-            let content = fs::read_to_string(&manifest_file).map_err(|e| format!("读取 dalin.toml 失败: {}", e))?;
+            let content = fs::read_to_string(&manifest_file)
+                .map_err(|e| format!("读取 dalin.toml 失败: {}", e))?;
             // 先尝试从 [stdlib] 段解析
             if content.contains("[stdlib]") {
                 StdLibConfig::from_toml(&content, &project_root)?
@@ -173,14 +175,22 @@ impl StdLibLoader {
         // 构建可能的文件路径
         let candidate_paths = vec![
             self.config.stdlib_path.join(format!("{}.dal", module_name)),
-            self.config.stdlib_path.join("core").join(format!("{}.dal", module_name)),
-            self.config.stdlib_path.join(format!("{}.dalin", module_name)),
+            self.config
+                .stdlib_path
+                .join("core")
+                .join(format!("{}.dal", module_name)),
+            self.config
+                .stdlib_path
+                .join(format!("{}.dalin", module_name)),
         ];
 
         let mut content: Option<String> = None;
         for path in &candidate_paths {
             if path.exists() {
-                content = Some(fs::read_to_string(path).map_err(|e| format!("读取 {}: {}", path.display(), e))?);
+                content = Some(
+                    fs::read_to_string(path)
+                        .map_err(|e| format!("读取 {}: {}", path.display(), e))?,
+                );
                 break;
             }
         }
@@ -198,16 +208,24 @@ impl StdLibLoader {
             let mut lex = Lexer::new(content.as_ref().unwrap());
             match lex.tokenize() {
                 Ok(t) => t,
-                Err(e) => return Err(format!("{} 词法错误 [{}:{}]: {}",
-                    module_name, e.line, e.column, e.message)),
+                Err(e) => {
+                    return Err(format!(
+                        "{} 词法错误 [{}:{}]: {}",
+                        module_name, e.line, e.column, e.message
+                    ));
+                }
             }
         };
 
         let mut parser = Parser::new(tokens);
         let prog = match parser.parse() {
             Ok(p) => p,
-            Err(e) => return Err(format!("{} 语法错误 [{}:{}]: {}",
-                module_name, e.line, e.column, e.message)),
+            Err(e) => {
+                return Err(format!(
+                    "{} 语法错误 [{}:{}]: {}",
+                    module_name, e.line, e.column, e.message
+                ));
+            }
         };
 
         // 缓存结果（clone 后让 cache 持有所有权）
@@ -239,19 +257,25 @@ impl StdLibLoader {
     /// 加载全部标准库模块（扫描 stdlib_path 下的所有 .dal 文件）
     pub fn load_all(&mut self) -> Result<Vec<String>, String> {
         if !self.config.stdlib_path.exists() {
-            return Err(format!("标准库目录不存在: {}", self.config.stdlib_path.display()));
+            return Err(format!(
+                "标准库目录不存在: {}",
+                self.config.stdlib_path.display()
+            ));
         }
 
         let mut loaded = Vec::new();
-        for entry in fs::read_dir(&self.config.stdlib_path).map_err(|e| format!("读取标准库目录失败: {}", e))? {
+        for entry in fs::read_dir(&self.config.stdlib_path)
+            .map_err(|e| format!("读取标准库目录失败: {}", e))?
+        {
             let entry = entry.map_err(|e| format!("读取目录条目失败: {}", e))?;
             let path = entry.path();
             if let Some(ext) = path.extension()
                 && ext == "dal"
-                    && let Some(file_name) = path.file_stem().and_then(|f| f.to_str()) {
-                        self.load_module(file_name)?;
-                        loaded.push(file_name.to_string());
-                    }
+                && let Some(file_name) = path.file_stem().and_then(|f| f.to_str())
+            {
+                self.load_module(file_name)?;
+                loaded.push(file_name.to_string());
+            }
         }
 
         loaded.sort();
@@ -273,11 +297,14 @@ impl StdLibLoader {
             // 也注入模块声明
             for module_decl in &prog.modules {
                 // 在 AST 层面记录来源模块
-                let imported_stmt = Stmt::Export(format!("{}_imported_from:{}", mod_name,
+                let imported_stmt = Stmt::Export(format!(
+                    "{}_imported_from:{}",
+                    mod_name,
                     match module_decl {
                         ModuleDecl::External(n) => n.clone(),
                         ModuleDecl::Inline(n, _) => n.clone(),
-                    }));
+                    }
+                ));
                 target.add(imported_stmt);
             }
         }
@@ -294,7 +321,12 @@ impl StdLibLoader {
                 let top_level_mod = parts[0];
 
                 // 跳过已在预置中的模块（避免死循环）
-                if self.config.prelude_modules.iter().any(|p| p == top_level_mod) {
+                if self
+                    .config
+                    .prelude_modules
+                    .iter()
+                    .any(|p| p == top_level_mod)
+                {
                     continue;
                 }
 
@@ -308,9 +340,10 @@ impl StdLibLoader {
         // 也检查 program 中直接声明的 modules
         for module_decl in &prog.modules {
             if let ModuleDecl::External(name) = module_decl
-                && !self.cache.contains_key(name) {
-                    self.load_module(name)?;
-                }
+                && !self.cache.contains_key(name)
+            {
+                self.load_module(name)?;
+            }
         }
 
         Ok(())
@@ -350,11 +383,12 @@ pub fn read_stdlib_path(project_root: &Path) -> Option<PathBuf> {
     for line in content.lines() {
         let trimmed = line.trim();
         if (trimmed.starts_with("stdlib_path") || trimmed.starts_with("stdlib"))
-            && let Some(eq_pos) = trimmed.find('=') {
-                let value = trimmed[eq_pos + 1..].trim().trim_matches('"');
-                stdlib_path = Some(PathBuf::from(value));
-                break;
-            }
+            && let Some(eq_pos) = trimmed.find('=')
+        {
+            let value = trimmed[eq_pos + 1..].trim().trim_matches('"');
+            stdlib_path = Some(PathBuf::from(value));
+            break;
+        }
     }
 
     stdlib_path
@@ -393,18 +427,22 @@ mod tests {
 
     #[test]
     fn test_load_nonexistent_module_returns_empty() {
-        let mut loader = StdLibLoader::new(PathBuf::from("/tmp"))
-            .expect("should create loader");
+        let mut loader = StdLibLoader::new(PathBuf::from("/tmp")).expect("should create loader");
         let result = loader.load_module("nonexistent_module_xyz");
         // 应返回成功（空 Program）而非错误
         assert!(result.is_ok());
-        assert!(loader.cache.get("nonexistent_module_xyz").map(|p| p.is_empty()).unwrap_or(false));
+        assert!(
+            loader
+                .cache
+                .get("nonexistent_module_xyz")
+                .map(|p| p.is_empty())
+                .unwrap_or(false)
+        );
     }
 
     #[test]
     fn test_stats_display() {
-        let mut loader = StdLibLoader::new(PathBuf::from("/tmp"))
-            .expect("should create loader");
+        let mut loader = StdLibLoader::new(PathBuf::from("/tmp")).expect("should create loader");
         let _ = loader.load_module("dummy_for_stats");
         let stats = loader.stats();
         let display = format!("{}", stats);
@@ -413,8 +451,7 @@ mod tests {
 
     #[test]
     fn test_cache_prevents_duplicate_load() {
-        let mut loader = StdLibLoader::new(PathBuf::from("/tmp"))
-            .expect("should create loader");
+        let mut loader = StdLibLoader::new(PathBuf::from("/tmp")).expect("should create loader");
 
         // 两次加载同一模块不应出错
         let _ = loader.load_module("dummy_test2");
@@ -424,8 +461,7 @@ mod tests {
 
     #[test]
     fn test_load_module_invalidates_with_cache() {
-        let mut loader = StdLibLoader::new(PathBuf::from("/tmp"))
-            .expect("should create loader");
+        let mut loader = StdLibLoader::new(PathBuf::from("/tmp")).expect("should create loader");
         let _ = loader.load_module("cache_test");
         assert!(loader.cache.contains_key("cache_test"));
         assert!(loader.loaded.contains("cache_test"));

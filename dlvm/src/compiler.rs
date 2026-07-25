@@ -210,9 +210,15 @@ impl BytecodeCompiler {
 
                 // Patch 跳转偏移（粗略）
                 if jmp_false_idx < self.code.len()
-                    && let Opcode::JmpIfNot(offset) = &mut self.code[jmp_false_idx] { *offset = false_offset }
+                    && let Opcode::JmpIfNot(offset) = &mut self.code[jmp_false_idx]
+                {
+                    *offset = false_offset
+                }
                 if jmp_end_idx < self.code.len()
-                    && let Opcode::Jmp(offset) = &mut self.code[jmp_end_idx] { *offset = end_offset }
+                    && let Opcode::Jmp(offset) = &mut self.code[jmp_end_idx]
+                {
+                    *offset = end_offset
+                }
             }
 
             Expr::Array(items) => {

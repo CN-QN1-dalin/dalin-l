@@ -47,15 +47,27 @@ pub struct TypeRef {
 
 impl TypeRef {
     pub fn new(base: BaseType) -> Self {
-        Self { base, generic_arg: None, result_err: None }
+        Self {
+            base,
+            generic_arg: None,
+            result_err: None,
+        }
     }
 
     pub fn generic(base: BaseType, arg: TypeRef) -> Self {
-        Self { base, generic_arg: Some(Box::new(arg)), result_err: None }
+        Self {
+            base,
+            generic_arg: Some(Box::new(arg)),
+            result_err: None,
+        }
     }
 
     pub fn result(ok: TypeRef, err: TypeRef) -> Self {
-        Self { base: BaseType::Result, generic_arg: Some(Box::new(ok)), result_err: Some(Box::new(err)) }
+        Self {
+            base: BaseType::Result,
+            generic_arg: Some(Box::new(ok)),
+            result_err: Some(Box::new(err)),
+        }
     }
 }
 
@@ -128,8 +140,8 @@ pub enum Expr {
         error: Option<Box<Expr>>,
     },
     /// if/match 作为表达式（从语句转换而来）
-    IfExpr(Box<Expr>, Box<Expr>, Box<Expr>),    // (condition, then, else)
-    MatchExpr(Box<Expr>, Vec<MatchArm>),         // (target, arms)
+    IfExpr(Box<Expr>, Box<Expr>, Box<Expr>), // (condition, then, else)
+    MatchExpr(Box<Expr>, Vec<MatchArm>), // (target, arms)
 }
 
 // ═══════════════════════════════
@@ -138,7 +150,7 @@ pub enum Expr {
 
 #[derive(Debug, Clone)]
 pub struct Pattern {
-    pub kind: String,     // 'wild' | 'ident' | 'lit' | 'ctor' | 'struct'
+    pub kind: String, // 'wild' | 'ident' | 'lit' | 'ctor' | 'struct'
     pub name: String,
     pub binding: Option<String>,
     pub inner: Vec<Pattern>,
@@ -179,9 +191,9 @@ pub enum Stmt {
         name: String,
         params: Vec<FnParam>,
         return_type: Option<TypeRef>,
-        effect: Option<String>,         // Dalin L 3.0: pure | io | async | spawn
-        capability: Option<String>,     // Dalin L 3.0: cpu | gpu | sfa | net
-        llm_prompt: Option<String>,     // @llm("...") 编译指令
+        effect: Option<String>,     // Dalin L 3.0: pure | io | async | spawn
+        capability: Option<String>, // Dalin L 3.0: cpu | gpu | sfa | net
+        llm_prompt: Option<String>, // @llm("...") 编译指令
         /// 置信度 @ proven | verified | inferred | generated | uncertain
         confidence: Option<String>,
         /// Phase C: 认知循环阶段 @ perceive | reason | decide | act | loop
@@ -304,8 +316,8 @@ pub struct EnumVariant {
 /// 属性宏: #[derive(Debug, Clone)]
 #[derive(Debug, Clone)]
 pub struct AttrDerive {
-    pub name: String,         // "derive"
-    pub traits: Vec<String>,   // ["Debug", "Clone", ...]
+    pub name: String,        // "derive"
+    pub traits: Vec<String>, // ["Debug", "Clone", ...]
 }
 
 /// 模块声明: mod foo; 或 mod foo { ... }
@@ -342,8 +354,8 @@ pub struct PackageManifest {
     pub name: String,
     pub version: SemVer,
     pub edition: String,
-    pub deps: Vec<(String, String)>,    // (name, version_req)
-    pub stdlib_modules: Vec<String>,     // 标准库模块列表
+    pub deps: Vec<(String, String)>, // (name, version_req)
+    pub stdlib_modules: Vec<String>, // 标准库模块列表
 }
 
 /// 编译时宏声明: macro_rules! foo { ... }

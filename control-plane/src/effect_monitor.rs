@@ -10,8 +10,8 @@
 //! - **IO / Net 配额**：token bucket 限制单位时间 IO 次数与流量（Phase 3 细化）。
 //! - **Async 非阻塞保证**：async 上下文中禁止同步阻塞调用（Phase 3 接入 tokio 阻塞检测）。
 
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 /// Spawn 配额：每个 session 的最大子任务数。
 const DEFAULT_MAX_CHILDREN: usize = 64;
@@ -117,24 +117,20 @@ impl EffectMonitor {
     pub fn check_effect(&self, required: &str) -> Result<(), EffectViolation> {
         match required {
             "pure" => Ok(()),
-            "io" if self.context_effect == "pure" => {
-                Err(EffectViolation::EffectMismatch {
-                    required: "io".into(),
-                    context: self.context_effect.clone(),
-                })
-            }
+            "io" if self.context_effect == "pure" => Err(EffectViolation::EffectMismatch {
+                required: "io".into(),
+                context: self.context_effect.clone(),
+            }),
             "async" if self.context_effect == "pure" || self.context_effect == "io" => {
                 Err(EffectViolation::EffectMismatch {
                     required: "async".into(),
                     context: self.context_effect.clone(),
                 })
             }
-            "spawn" if self.context_effect != "spawn" => {
-                Err(EffectViolation::EffectMismatch {
-                    required: "spawn".into(),
-                    context: self.context_effect.clone(),
-                })
-            }
+            "spawn" if self.context_effect != "spawn" => Err(EffectViolation::EffectMismatch {
+                required: "spawn".into(),
+                context: self.context_effect.clone(),
+            }),
             _ => Ok(()),
         }
     }

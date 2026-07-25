@@ -5,3 +5,4 @@
 /// channel_registry）跨 OS 线程共享，是分布式控制面任务树的本地缩影。
 pub mod env;
 pub mod interpreter;
+pub mod profiler;

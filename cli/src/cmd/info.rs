@@ -13,7 +13,7 @@ pub fn run(json: bool) -> Result<(), String> {
     println!("  +-----------------------------------------+");
 
     println!("\n  Supported Phases:");
-    for phase in &["A","B","C","D","E","F","G","H"] {
+    for phase in &["A", "B", "C", "D", "E", "F", "G", "H"] {
         println!("    [OK] Phase {} - Completed", phase);
     }
 
@@ -27,7 +27,9 @@ pub fn run(json: bool) -> Result<(), String> {
     println!("    * DLVM Bytecode VM");
 
     if json {
-        println!("\n  {{ \"version\": \"0.1.0\", \"phases\": [\"A\",\"B\",\"C\",\"D\",\"E\",\"F\",\"G\",\"H\"] }}");
+        println!(
+            "\n  {{ \"version\": \"0.1.0\", \"phases\": [\"A\",\"B\",\"C\",\"D\",\"E\",\"F\",\"G\",\"H\"] }}"
+        );
     }
 
     println!("\n  ============================================");

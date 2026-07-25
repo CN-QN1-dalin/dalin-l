@@ -20,8 +20,8 @@
 
 use std::sync::Arc;
 
-use tonic::async_trait;
 use serde::{Deserialize, Serialize};
+use tonic::async_trait;
 
 /// 派发到 Worker 的任务消息
 #[derive(Debug, Clone, Serialize, Deserialize)]

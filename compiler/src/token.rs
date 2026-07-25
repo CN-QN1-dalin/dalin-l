@@ -19,10 +19,10 @@ pub enum TokenType {
     KeywordCatch,
     KeywordUse,
     KeywordTrait,
-            KeywordAssert,
-            KeywordChannel,
+    KeywordAssert,
+    KeywordChannel,
 
-            // ── 扩展关键字 (12) ──
+    // ── 扩展关键字 (12) ──
     KeywordMut,
     KeywordOk,
     KeywordError,
@@ -63,18 +63,18 @@ pub enum TokenType {
     MinusEqual,
     StarEqual,
     SlashEqual,
-    Arrow,         // ->
-    DoubleArrow,   // =>
-    Pipe,          // |> or <|
-    QuestionMark,  // ?
-    At,            // @
-    Dollar,        // $
+    Arrow,        // ->
+    DoubleArrow,  // =>
+    Pipe,         // |> or <|
+    QuestionMark, // ?
+    At,           // @
+    Dollar,       // $
 
     // ── 分隔符 ──
     Comma,
     Semicolon,
     Colon,
-    DoubleColon,   // ::
+    DoubleColon, // ::
     LeftParen,
     RightParen,
     LeftBracket,
@@ -82,12 +82,12 @@ pub enum TokenType {
     LeftBrace,
     RightBrace,
     Dot,
-    DoubleDot,     // ..
+    DoubleDot, // ..
 
     // ── 特殊 ──
     Eof,
     Newline,
-    Attribute,     // #[...]
+    Attribute, // #[...]
 
     // ── 注释 ──
     Comment,
@@ -185,12 +185,24 @@ pub struct Token {
 
 impl Token {
     pub fn new(token_type: TokenType, value: String, line: usize, column: usize) -> Self {
-        Self { token_type, value, line, column }
+        Self {
+            token_type,
+            value,
+            line,
+            column,
+        }
     }
 }
 
 impl fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}:{} {:25} {:?}", self.line, self.column, self.token_type.name(), self.value)
+        write!(
+            f,
+            "{}:{} {:25} {:?}",
+            self.line,
+            self.column,
+            self.token_type.name(),
+            self.value
+        )
     }
 }

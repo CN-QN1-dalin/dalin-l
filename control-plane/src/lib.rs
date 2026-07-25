@@ -10,19 +10,19 @@
 //! gRPC 代码由 build.rs 从 proto/control.proto 生成（package = dalin_control）。
 
 pub mod agent_registry;
+pub mod client;
+pub mod convert;
 pub mod dispatch;
 pub mod effect_monitor;
-pub mod scheduler;
+pub mod k8s;
 pub mod registry;
+pub mod scheduler;
+pub mod server;
 pub mod store;
-pub mod store_redis;
 pub mod store_etcd;
 pub mod store_factory;
 pub mod store_postgres;
+pub mod store_redis;
 pub mod transport;
-pub mod convert;
-pub mod server;
-pub mod client;
-pub mod k8s;
 
 tonic::include_proto!("dalin_control");

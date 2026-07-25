@@ -1,4 +1,4 @@
-use dalin_compiler::{lexer, parser, ty, token};
+use dalin_compiler::{lexer, parser, token, ty};
 use dalin_runtime::interpreter;
 
 pub fn run() -> Result<(), String> {
@@ -119,15 +119,24 @@ pub fn run() -> Result<(), String> {
     test_lexer!("let x = 42", "let x = 42", |toks: &[token::Token]| {
         toks.len() >= 4 && toks[0].token_type == token::TokenType::KeywordLet
     });
-    test_lexer!("中文标识符", "let 名字 = 42", |toks: &[token::Token]| {
-        toks.len() >= 4 && toks[1].value == "名字"
-    });
+    test_lexer!(
+        "中文标识符",
+        "let 名字 = 42",
+        |toks: &[token::Token]| { toks.len() >= 4 && toks[1].value == "名字" }
+    );
     test_lexer!("管道操作符", "x |> f", |toks: &[token::Token]| {
         toks.iter().any(|t| t.token_type == token::TokenType::Pipe)
     });
-    test_lexer!("布尔字面量", "true false", |toks: &[token::Token]| {
-        toks.iter().filter(|t| t.token_type == token::TokenType::BoolLiteral).count() == 2
-    });
+    test_lexer!(
+        "布尔字面量",
+        "true false",
+        |toks: &[token::Token]| {
+            toks.iter()
+                .filter(|t| t.token_type == token::TokenType::BoolLiteral)
+                .count()
+                == 2
+        }
+    );
 
     // Parser Tests
     println!("\n--- Parser Tests ---");
@@ -145,21 +154,42 @@ pub fn run() -> Result<(), String> {
     test_infer!("string 字面量", "let x = \"hello\"", [("x", "string")]);
     test_infer!("bool 字面量", "let x = true", [("x", "bool")]);
     test_infer!("数组类型", "let arr = [1, 2, 3]", [("arr", "array<int>")]);
-    test_infer!("Option<int>", "let opt = Some(42)", [("opt", "option<int>")]);
+    test_infer!(
+        "Option<int>",
+        "let opt = Some(42)",
+        [("opt", "option<int>")]
+    );
 
     // Runtime Tests
     println!("\n--- Runtime Tests ---");
     test_run!("Hello World", "println(\"Hello, Dalin!\")");
     test_run!("算术运算", "println(1 + 2)");
-    test_run!("函数调用", "fn add(a, b) { return a + b }\nprintln(add(3, 4))");
-    test_run!("递归阶乘", "fn fact(n) { if n <= 1 { return 1 } return n * fact(n - 1) }\nprintln(fact(5))");
-    test_run!("for 循环", "let nums = [1, 2, 3]\nlet mut sum = 0\nfor i in nums { sum = sum + i }\nprintln(sum)");
-    test_run!("管道操作", "fn inc(x) { return x + 1 }\nlet r = 1 |> inc |> inc\nprintln(r)");
+    test_run!(
+        "函数调用",
+        "fn add(a, b) { return a + b }\nprintln(add(3, 4))"
+    );
+    test_run!(
+        "递归阶乘",
+        "fn fact(n) { if n <= 1 { return 1 } return n * fact(n - 1) }\nprintln(fact(5))"
+    );
+    test_run!(
+        "for 循环",
+        "let nums = [1, 2, 3]\nlet mut sum = 0\nfor i in nums { sum = sum + i }\nprintln(sum)"
+    );
+    test_run!(
+        "管道操作",
+        "fn inc(x) { return x + 1 }\nlet r = 1 |> inc |> inc\nprintln(r)"
+    );
     test_run!("中文变量", "let 名字 = \"大林\"\nprintln(名字)");
 
     // Summary
     println!("\n============================================================");
-    println!("  Tests: {} / {} passed | {} failed", passed, passed + failed, failed);
+    println!(
+        "  Tests: {} / {} passed | {} failed",
+        passed,
+        passed + failed,
+        failed
+    );
     println!("============================================================");
 
     if failed > 0 {

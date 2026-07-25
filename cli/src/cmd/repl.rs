@@ -1,6 +1,6 @@
-use std::io::{self, Write};
 use dalin_compiler::{lexer, parser, ty};
 use dalin_runtime::interpreter;
+use std::io::{self, Write};
 
 pub fn run() -> Result<(), String> {
     println!("============================================================");
@@ -19,7 +19,10 @@ pub fn run() -> Result<(), String> {
 
         let line = line.trim().to_string();
         match line.as_str() {
-            "exit" | "quit" => { println!("再见！"); break; }
+            "exit" | "quit" => {
+                println!("再见！");
+                break;
+            }
             "help" => {
                 println!("Dalin L 3.0 — Agent-Native Programming Language");
                 println!("  Syntax: let fn return if else match for in while");
@@ -34,8 +37,10 @@ pub fn run() -> Result<(), String> {
                                 let mut infer = ty::TypeInferencer::new();
                                 infer.infer_program(&prog);
                                 let report = infer.print_report();
-                                if !report.trim().is_empty() { println!("  {}", report.trim_end()); }
-                                
+                                if !report.trim().is_empty() {
+                                    println!("  {}", report.trim_end());
+                                }
+
                                 if let Err(e) = interpreter::run_source(&line) {
                                     println!("  ❌ Runtime: {}", e);
                                 }

@@ -17,18 +17,18 @@ pub type Reg = u8;
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Opcode {
     // ── 常量加载 ──
-    LoadInt(i64),          // 加载整数常量
-    LoadFloat(f64),        // 加载浮点常量
-    LoadStr(u16),          // 加载字符串常量（常量池索引）
-    LoadBool(bool),        // 加载布尔常量
-    LoadNone,              // 加载 None
+    LoadInt(i64),   // 加载整数常量
+    LoadFloat(f64), // 加载浮点常量
+    LoadStr(u16),   // 加载字符串常量（常量池索引）
+    LoadBool(bool), // 加载布尔常量
+    LoadNone,       // 加载 None
 
     // ── 算术运算 ──
-    Add,                   // 栈顶两个值相加
+    Add, // 栈顶两个值相加
     Sub,
     Mul,
     Div,
-    Neg,                   // 一元负号
+    Neg, // 一元负号
 
     // ── 比较运算 ──
     Eq,
@@ -39,28 +39,28 @@ pub enum Opcode {
     Ge,
 
     // ── 控制流 ──
-    Jmp(i16),              // 无条件跳转（相对偏移）
-    JmpIf(i16),            // 条件跳转（栈顶为 true 时跳转）
-    JmpIfNot(i16),         // 条件跳转（栈顶为 false 时跳转）
-    Halt,                  // 停止执行
+    Jmp(i16),      // 无条件跳转（相对偏移）
+    JmpIf(i16),    // 条件跳转（栈顶为 true 时跳转）
+    JmpIfNot(i16), // 条件跳转（栈顶为 false 时跳转）
+    Halt,          // 停止执行
 
     // ── 函数与调用 ──
-    Call(u16),             // 调用函数（参数个数已在栈上）
-    Return,                // 从函数返回
-    MakeClosure(u16),      // 创建闭包（函数索引，环境大小）
+    Call(u16),        // 调用函数（参数个数已在栈上）
+    Return,           // 从函数返回
+    MakeClosure(u16), // 创建闭包（函数索引，环境大小）
 
     // ── 数据结构 ──
-    MakeArray(u16),        // 创建数组（从栈上弹出 n 个元素）
-    Index,                 // 索引访问
-    Member(u16),           // 成员访问（字符串常量池索引）
+    MakeArray(u16), // 创建数组（从栈上弹出 n 个元素）
+    Index,          // 索引访问
+    Member(u16),    // 成员访问（字符串常量池索引）
 
     // ── 内置函数 ──
-    Builtin(u8),           // 调用内置函数（索引 0=print,1=len,2=push,3=assert...）
+    Builtin(u8), // 调用内置函数（索引 0=print,1=len,2=push,3=assert...）
 
     // ── Agent 原语 ──
-    Spawn(u16),            // spawn 任务（函数索引，参数个数）
-    Send,                  // 发送到通道
-    Recv,                  // 从通道接收
+    Spawn(u16), // spawn 任务（函数索引，参数个数）
+    Send,       // 发送到通道
+    Recv,       // 从通道接收
 }
 
 /// 编译后的函数
@@ -137,13 +137,25 @@ impl std::fmt::Display for Value {
 
 impl Value {
     pub fn as_int(&self) -> Option<i64> {
-        if let Value::Int(n) = self { Some(*n) } else { None }
+        if let Value::Int(n) = self {
+            Some(*n)
+        } else {
+            None
+        }
     }
     pub fn as_float(&self) -> Option<f64> {
-        if let Value::Float(n) = self { Some(*n) } else { None }
+        if let Value::Float(n) = self {
+            Some(*n)
+        } else {
+            None
+        }
     }
     pub fn as_str(&self) -> Option<&str> {
-        if let Value::Str(s) = self { Some(s) } else { None }
+        if let Value::Str(s) = self {
+            Some(s)
+        } else {
+            None
+        }
     }
 }
 
@@ -227,7 +239,11 @@ impl Vm {
             Opcode::LoadFloat(f) => self.stack.push(Value::Float(f)),
             Opcode::LoadStr(idx) => {
                 let func = &self.functions[self.current_fn];
-                let s = func.constants.get(idx as usize).cloned().unwrap_or_default();
+                let s = func
+                    .constants
+                    .get(idx as usize)
+                    .cloned()
+                    .unwrap_or_default();
                 self.stack.push(Value::Str(s));
             }
             Opcode::LoadBool(b) => self.stack.push(Value::Bool(b)),
@@ -268,7 +284,9 @@ impl Vm {
                 let b = self.stack.pop().ok_or(VmError::StackUnderflow)?;
                 let a = self.stack.pop().ok_or(VmError::StackUnderflow)?;
                 let result = match (a, b) {
-                    (_, Value::Int(0)) | (_, Value::Float(0.0)) => return Err(VmError::DivisionByZero),
+                    (_, Value::Int(0)) | (_, Value::Float(0.0)) => {
+                        return Err(VmError::DivisionByZero);
+                    }
                     (Value::Int(x), Value::Int(y)) => Value::Int(x / y),
                     (Value::Float(x), Value::Float(y)) => Value::Float(x / y),
                     _ => return Err(VmError::TypeError("/ requires int/float".into())),
@@ -411,17 +429,24 @@ impl Vm {
                 match (arr, idx_val) {
                     (Value::Array(v), Value::Int(i)) => {
                         if i < 0 || i as usize >= v.len() {
-                            return Err(VmError::TypeError(format!("array index {} out of bounds [{}]", i, v.len())));
+                            return Err(VmError::TypeError(format!(
+                                "array index {} out of bounds [{}]",
+                                i,
+                                v.len()
+                            )));
                         }
                         self.stack.push(v[i as usize].clone());
-                    },
+                    }
                     (Value::Str(s), Value::Int(i)) => {
                         if i < 0 || i as usize >= s.len() {
-                            return Err(VmError::TypeError(format!("string index {} out of bounds", i)));
+                            return Err(VmError::TypeError(format!(
+                                "string index {} out of bounds",
+                                i
+                            )));
                         }
                         let chars: Vec<char> = s.chars().collect();
                         self.stack.push(Value::Str(chars[i as usize].to_string()));
-                    },
+                    }
                     _ => return Err(VmError::TypeError("index requires array/string".into())),
                 }
             }
@@ -434,7 +459,7 @@ impl Vm {
                         // String/array member access returns type info
                         // Placeholder for Phase 2
                         self.stack.push(Value::None);
-                    },
+                    }
                     Some(_) => self.stack.push(Value::None),
                     None => return Err(VmError::StackUnderflow),
                 }
@@ -577,12 +602,15 @@ mod tests {
 
     #[test]
     fn arithmetic() {
-        let f = make_fn(vec![
-            Opcode::LoadInt(3),
-            Opcode::LoadInt(4),
-            Opcode::Add,
-            Opcode::Return,
-        ], vec![]);
+        let f = make_fn(
+            vec![
+                Opcode::LoadInt(3),
+                Opcode::LoadInt(4),
+                Opcode::Add,
+                Opcode::Return,
+            ],
+            vec![],
+        );
         let mut vm = Vm::new(vec![f]);
         let result = vm.run().unwrap();
         assert_eq!(result, Value::Int(7));
@@ -590,12 +618,15 @@ mod tests {
 
     #[test]
     fn string_concat() {
-        let f = make_fn(vec![
-            Opcode::LoadStr(0),
-            Opcode::LoadStr(1),
-            Opcode::Add,
-            Opcode::Return,
-        ], vec!["hello ".into(), "world".into()]);
+        let f = make_fn(
+            vec![
+                Opcode::LoadStr(0),
+                Opcode::LoadStr(1),
+                Opcode::Add,
+                Opcode::Return,
+            ],
+            vec!["hello ".into(), "world".into()],
+        );
         let mut vm = Vm::new(vec![f]);
         let result = vm.run().unwrap();
         assert_eq!(result, Value::Str("hello world".into()));
@@ -603,23 +634,29 @@ mod tests {
 
     #[test]
     fn comparison() {
-        let f = make_fn(vec![
-            Opcode::LoadInt(5),
-            Opcode::LoadInt(3),
-            Opcode::Gt,
-            Opcode::Return,
-        ], vec![]);
+        let f = make_fn(
+            vec![
+                Opcode::LoadInt(5),
+                Opcode::LoadInt(3),
+                Opcode::Gt,
+                Opcode::Return,
+            ],
+            vec![],
+        );
         let mut vm = Vm::new(vec![f]);
         assert_eq!(vm.run().unwrap(), Value::Bool(true));
     }
 
     #[test]
     fn builtin_print() {
-        let f = make_fn(vec![
-            Opcode::LoadStr(0),
-            Opcode::Builtin(1),  // println
-            Opcode::Return,
-        ], vec!["hello".into()]);
+        let f = make_fn(
+            vec![
+                Opcode::LoadStr(0),
+                Opcode::Builtin(1), // println
+                Opcode::Return,
+            ],
+            vec!["hello".into()],
+        );
         let mut vm = Vm::new(vec![f]);
         let result = vm.run().unwrap();
         assert_eq!(result, Value::None);
@@ -628,14 +665,17 @@ mod tests {
     #[test]
     fn conditional_jump() {
         // if true { 10 } else { 20 }
-        let f = make_fn(vec![
-            Opcode::LoadBool(true),
-            Opcode::JmpIfNot(4),    // false → 跳到 else 分支
-            Opcode::LoadInt(10),
-            Opcode::Jmp(2),         // 跳过 else
-            Opcode::LoadInt(20),
-            Opcode::Return,
-        ], vec![]);
+        let f = make_fn(
+            vec![
+                Opcode::LoadBool(true),
+                Opcode::JmpIfNot(4), // false → 跳到 else 分支
+                Opcode::LoadInt(10),
+                Opcode::Jmp(2), // 跳过 else
+                Opcode::LoadInt(20),
+                Opcode::Return,
+            ],
+            vec![],
+        );
         let mut vm = Vm::new(vec![f]);
         assert_eq!(vm.run().unwrap(), Value::Int(10));
     }

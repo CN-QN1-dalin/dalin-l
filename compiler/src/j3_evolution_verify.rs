@@ -29,7 +29,7 @@ use std::fmt;
 /// AB 实验中的组别标识
 #[derive(Debug, Clone, PartialEq)]
 pub enum Group {
-    Control,  // A 组（旧策略）
+    Control,   // A 组（旧策略）
     Treatment, // B 组（新策略）
 }
 
@@ -87,7 +87,8 @@ impl EvolutionScore {
         // governance 是 0 或 1
         let governance_part = if self.governance_compliance { 1.0 } else { 0.0 } * W_GOVERNANCE;
 
-        let total = regression_part + performance_part + memory_part + coverage_part + governance_part;
+        let total =
+            regression_part + performance_part + memory_part + coverage_part + governance_part;
         (total * 10000.0).round() / 10000.0
     }
 
@@ -154,8 +155,16 @@ pub struct ABExperimentResult {
 impl fmt::Display for ABExperimentResult {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(f, "Experiment: {}", self.config.experiment_id)?;
-        writeln!(f, "  A ({}) score: {:.4}", self.config.group_a_control, self.group_a_score)?;
-        writeln!(f, "  B ({}) score: {:.4}", self.config.group_b_treatment, self.group_b_score)?;
+        writeln!(
+            f,
+            "  A ({}) score: {:.4}",
+            self.config.group_a_control, self.group_a_score
+        )?;
+        writeln!(
+            f,
+            "  B ({}) score: {:.4}",
+            self.config.group_b_treatment, self.group_b_score
+        )?;
         writeln!(f, "  Winner: Group {}", self.winner)?;
         writeln!(f, "  Differential: {:.4}", self.score_differential)
     }
@@ -258,7 +267,9 @@ impl EvolutionVerificationEngine {
         }
 
         let total = self.experiments.len();
-        let treatment_wins = self.experiments.iter()
+        let treatment_wins = self
+            .experiments
+            .iter()
             .filter(|e| e.winner == Group::Treatment)
             .count();
         let control_wins = total - treatment_wins;
@@ -361,7 +372,11 @@ mod tests {
             coverage_impact: 0.5,
             governance_compliance: true,
         };
-        assert!(high.passes_threshold(0.7), "should pass 0.7 threshold, got: {}", high.composite());
+        assert!(
+            high.passes_threshold(0.7),
+            "should pass 0.7 threshold, got: {}",
+            high.composite()
+        );
 
         let low = EvolutionScore {
             regression_pass_rate: 0.6,
@@ -370,7 +385,11 @@ mod tests {
             coverage_impact: -0.5,
             governance_compliance: false,
         };
-        assert!(!low.passes_threshold(0.8), "should fail 0.8 threshold, got: {}", low.composite());
+        assert!(
+            !low.passes_threshold(0.8),
+            "should fail 0.8 threshold, got: {}",
+            low.composite()
+        );
     }
 
     #[test]
@@ -388,29 +407,21 @@ mod tests {
     #[test]
     fn test_ab_experiment_basic() {
         let mut engine = EvolutionVerificationEngine::new();
-        let result = engine.run_experiment(
-            "exp_001",
-            "v1_strategy",
-            "v2_strategy",
-            0.75,
-            0.85,
-        );
+        let result = engine.run_experiment("exp_001", "v1_strategy", "v2_strategy", 0.75, 0.85);
         assert!(result.is_ok(), "experiment should succeed");
         let res = result.unwrap();
-        assert_eq!(res.winner, Group::Treatment, "B group should win with higher score");
+        assert_eq!(
+            res.winner,
+            Group::Treatment,
+            "B group should win with higher score"
+        );
         assert!((res.score_differential - 0.1).abs() < 0.001);
     }
 
     #[test]
     fn test_ab_experiment_control_wins() {
         let mut engine = EvolutionVerificationEngine::new();
-        let result = engine.run_experiment(
-            "exp_002",
-            "new_strategy",
-            "old_strategy",
-            0.9,
-            0.7,
-        );
+        let result = engine.run_experiment("exp_002", "new_strategy", "old_strategy", 0.9, 0.7);
         assert!(result.is_ok());
         assert_eq!(result.unwrap().winner, Group::Control);
     }
@@ -419,10 +430,7 @@ mod tests {
     fn test_ab_experiment_validation() {
         let mut engine = EvolutionVerificationEngine::new();
         let result = engine.run_experiment("bad", "a", "b", 1.5, 0.5);
-        assert!(
-            result.is_err(),
-            "should reject out-of-range scores"
-        );
+        assert!(result.is_err(), "should reject out-of-range scores");
     }
 
     #[test]

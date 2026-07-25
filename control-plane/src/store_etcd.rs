@@ -65,9 +65,10 @@ impl EtcdTaskStore {
                 for ev in resp.events() {
                     if let Some(kv) = ev.kv()
                         && let Ok(we) = serde_json::from_slice::<WireEvent>(kv.value())
-                            && we.origin != node_id {
-                                let _ = tx.send(we.event);
-                            }
+                        && we.origin != node_id
+                    {
+                        let _ = tx.send(we.event);
+                    }
                 }
             }
         });
@@ -109,12 +110,13 @@ impl TaskStore for EtcdTaskStore {
         let idem_key = format!("{}/{}", parent.unwrap_or(""), idempotency_key);
         let idem_etcd = format!("{}/idem/{}", PREFIX, idem_key);
         if let Ok(resp) = client.get(idem_etcd.as_str(), None).await
-            && let Some(kv) = resp.kvs().first() {
-                let existing_id = String::from_utf8_lossy(kv.value()).to_string();
-                if let Some(rec) = self.get_record(&existing_id).await {
-                    return rec; // 幂等复用
-                }
+            && let Some(kv) = resp.kvs().first()
+        {
+            let existing_id = String::from_utf8_lossy(kv.value()).to_string();
+            if let Some(rec) = self.get_record(&existing_id).await {
+                return rec; // 幂等复用
             }
+        }
         let id = uuid::Uuid::new_v4().to_string();
         let rec = TaskRecord {
             id: id.clone(),
@@ -129,7 +131,11 @@ impl TaskStore for EtcdTaskStore {
         };
         let task_key = format!("{}/task/{}", PREFIX, id);
         let _ = client
-            .put(task_key.into_bytes(), serde_json::to_vec(&rec).unwrap(), None)
+            .put(
+                task_key.into_bytes(),
+                serde_json::to_vec(&rec).unwrap(),
+                None,
+            )
             .await;
         let _ = client
             .put(idem_etcd.into_bytes(), id.as_bytes().to_vec(), None)
@@ -144,7 +150,11 @@ impl TaskStore for EtcdTaskStore {
                 .await;
         }
         let _ = client
-            .put(format!("{}/tasks/{}", PREFIX, id).into_bytes(), Vec::new(), None)
+            .put(
+                format!("{}/tasks/{}", PREFIX, id).into_bytes(),
+                Vec::new(),
+                None,
+            )
             .await;
         self.publish_event(TaskEvent::Submitted(rec.clone())).await;
         rec
@@ -156,7 +166,11 @@ impl TaskStore for EtcdTaskStore {
         let updated = TaskRecord { status, ..rec };
         let task_key = format!("{}/task/{}", PREFIX, id);
         let _ = client
-            .put(task_key.as_str(), serde_json::to_vec(&updated).unwrap(), None)
+            .put(
+                task_key.as_str(),
+                serde_json::to_vec(&updated).unwrap(),
+                None,
+            )
             .await;
         self.publish_event(TaskEvent::StatusChanged(updated.clone()))
             .await;
@@ -179,11 +193,12 @@ impl TaskStore for EtcdTaskStore {
         match self.get_record(id).await {
             Some(mut rec) => {
                 rec.status = TaskStatus::Canceled;
-            let task_key = format!("{}/task/{}", PREFIX, id);
-            let _ = client
-                .put(task_key, serde_json::to_vec(&rec).unwrap(), None)
-                .await;
-                self.publish_event(TaskEvent::Canceled(id.to_string())).await;
+                let task_key = format!("{}/task/{}", PREFIX, id);
+                let _ = client
+                    .put(task_key, serde_json::to_vec(&rec).unwrap(), None)
+                    .await;
+                self.publish_event(TaskEvent::Canceled(id.to_string()))
+                    .await;
                 true
             }
             None => false,
@@ -270,7 +285,11 @@ mod tests {
         vec![std::env::var("ETCD_URL").unwrap_or_else(|_| "127.0.0.1:2379".into())]
     }
 
-    async fn wait_for_event<F>(rx: &mut broadcast::Receiver<TaskEvent>, mut pred: F, ms: u64) -> bool
+    async fn wait_for_event<F>(
+        rx: &mut broadcast::Receiver<TaskEvent>,
+        mut pred: F,
+        ms: u64,
+    ) -> bool
     where
         F: FnMut(TaskEvent) -> bool,
     {

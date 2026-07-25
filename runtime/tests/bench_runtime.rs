@@ -7,7 +7,7 @@
 
 #[test]
 fn bench_run_source_small() {
-    use dalin_runtime::interpreter::{run_source, RuntimeError};
+    use dalin_runtime::interpreter::{RuntimeError, run_source};
     let result = run_source(r#"fn main() @ pure @ cpu -> Int { return 42 }"#);
     assert!(result.is_ok() || matches!(result, Err(RuntimeError(_))));
 }
@@ -24,9 +24,9 @@ fn bench_run_source_multiple_calls() {
 #[test]
 fn bench_env_get_set() {
     use dalin_runtime::env::{Environment, Value};
-    
+
     let mut env = Environment::new();
-    
+
     for i in 0..1000 {
         env.define(&format!("var_{}", i), Value::Int(i as i64));
         let val = env.lookup(&format!("var_{}", i));
@@ -37,13 +37,13 @@ fn bench_env_get_set() {
 #[test]
 fn bench_env_lookup_performance() {
     use dalin_runtime::env::{Environment, Value};
-    
+
     let mut env = Environment::new();
-    
+
     for i in 0..100 {
         env.define(&format!("lookup_{}", i), Value::Int(i as i64));
     }
-    
+
     let mut found = 0usize;
     for i in 0..100 {
         if env.lookup(&format!("lookup_{}", i)).is_some() {
@@ -56,14 +56,14 @@ fn bench_env_lookup_performance() {
 #[test]
 fn bench_nesting_levels() {
     use dalin_runtime::env::{Environment, Value};
-    
+
     let mut scope1 = Environment::new();
     scope1.define("outer", Value::Int(1i64));
-    
+
     {
         let mut scope2 = scope1.child();
         scope2.define("inner", Value::Int(2i64));
-        
+
         let val = scope2.lookup("outer");
         assert!(val.is_some(), "Child scope should see parent vars");
     }
@@ -81,7 +81,7 @@ fn run_task() @ pure @ cpu {
     spawn task1()
 }
 "#;
-    
+
     let result = run_source(source);
     assert!(result.is_ok() || matches!(result, Err(_)));
 }
