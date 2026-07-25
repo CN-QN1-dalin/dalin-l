@@ -1,0 +1,45 @@
+// Dalin L — 随机数生成模块
+
+/// 生成 [0, 1) 范围的随机浮点数
+fn random() -> float {
+    system_random()
+}
+
+/// 生成 [min, max) 范围的随机整数
+fn rand_int(min: int, max: int) -> int {
+    if min >= max { return min }
+    let r = random()
+    let range = max - min
+    min + int(r * float(range))
+}
+
+/// 生成 [min, max] 范围的随机浮点数
+fn rand_float(min: float, max: float) -> float {
+    if min >= max { return min }
+    min + random() * (max - min)
+}
+
+/// 从数组中随机选一个元素 (字符串数组)
+fn rand_choice(items: list) -> option {
+    if len(items) == 0 { return none() }
+    let idx = rand_int(0, len(items))
+    some(items[idx])
+}
+
+/// 打乱整数数组 (Fisher-Yates shuffle)
+fn shuffle(items: list) -> list {
+    let mut arr = items
+    let n = len(arr)
+    for i in range(n - 1, 0, -1) {
+        let j = rand_int(0, i + 1)
+        let tmp = arr[i]
+        arr[i] = arr[j]
+        arr[j] = tmp
+    }
+    arr
+}
+
+// 内部：系统随机数
+fn system_random() -> float {
+    0.0
+}

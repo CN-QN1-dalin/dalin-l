@@ -1,0 +1,82 @@
+// Dalin L — 排序算法模块
+
+/// 冒泡排序 (升序, 整数)
+fn bubble_sort(arr: list) -> list {
+    let mut result = arr
+    let n = len(result)
+    for i in range(0, n) {
+        for j in range(0, n - i - 1) {
+            if result[j] > result[j + 1] {
+                let tmp = result[j]
+                result[j] = result[j + 1]
+                result[j + 1] = tmp
+            }
+        }
+    }
+    result
+}
+
+/// 选择排序 (升序, 整数)
+fn selection_sort(arr: list) -> list {
+    let mut result = arr
+    let n = len(result)
+    for i in range(0, n) {
+        let mut min_idx = i
+        for j in range(i + 1, n) {
+            if result[j] < result[min_idx] {
+                min_idx = j
+            }
+        }
+        if min_idx != i {
+            let tmp = result[i]
+            result[i] = result[min_idx]
+            result[min_idx] = tmp
+        }
+    }
+    result
+}
+
+/// 快速排序 (升序, 整数)
+fn quick_sort(arr: list) -> list {
+    if len(arr) <= 1 { return arr }
+    let pivot = arr[len(arr) / 2]
+    let mut left: list = []
+    let mut mid: list = []
+    let mut right: list = []
+    for x in arr {
+        if x < pivot {
+            left = push(left, x)
+        } else if x > pivot {
+            right = push(right, x)
+        } else {
+            mid = push(mid, x)
+        }
+    }
+    let sorted_left = quick_sort(left)
+    let sorted_right = quick_sort(right)
+    let mut result = sorted_left
+    for x in mid { result = push(result, x) }
+    for x in sorted_right { result = push(result, x) }
+    result
+}
+
+/// 判断整数数组是否已排序 (升序)
+fn is_sorted(arr: list) -> bool {
+    let n = len(arr)
+    for i in range(0, n - 1) {
+        if arr[i] > arr[i + 1] {
+            return false
+        }
+    }
+    true
+}
+
+/// 反转整数数组
+fn reverse(arr: list) -> list {
+    let mut result: list = []
+    let n = len(arr)
+    for i in range(n - 1, -1, -1) {
+        result = push(result, arr[i])
+    }
+    result
+}

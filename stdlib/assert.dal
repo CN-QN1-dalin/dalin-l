@@ -1,0 +1,43 @@
+// Dalin L — 单元测试辅助模块
+
+/// 断言两个整数相等
+fn assert_eq_int(actual: int, expected: int) {
+    if actual != expected {
+        println("ASSERT FAILED: expected {\\expected}, got {\\actual}")
+        exit(1)
+    }
+}
+
+/// 断言两个字符串相等
+fn assert_eq_str(actual: string, expected: string) {
+    if actual != expected {
+        println("ASSERT FAILED: expected {\\expected}, got {\\actual}")
+        exit(1)
+    }
+}
+
+/// 断言两个浮点数相等 (带容差)
+fn assert_eq_float(actual: float, expected: float, epsilon: float) {
+    let diff = actual - expected
+    if diff < 0.0 { let diff = -diff }
+    if diff > epsilon {
+        println("ASSERT FAILED: expected {\\expected}, got {\\actual}")
+        exit(1)
+    }
+}
+
+/// 断言条件为真
+fn assert_true(condition: bool) {
+    if !condition {
+        println("ASSERT FAILED: expected true, got false")
+        exit(1)
+    }
+}
+
+/// 断言条件为假
+fn assert_false(condition: bool) {
+    if condition {
+        println("ASSERT FAILED: expected false, got true")
+        exit(1)
+    }
+}

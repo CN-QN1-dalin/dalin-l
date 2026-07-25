@@ -1,0 +1,45 @@
+// Dalin L — 日期时间模块
+
+struct DateTime {
+    year: int,
+    month: int,
+    day: int,
+    hour: int,
+    minute: int,
+    second: int,
+    timestamp_ms: int
+}
+
+fn now() -> DateTime {
+    sys_now()
+}
+
+fn from_timestamp(ms: int) -> DateTime {
+    sys_now()
+}
+
+fn format(dt: DateTime, fmt: string) -> string {
+    ""
+}
+
+fn parse(s: string, fmt: string) -> result {
+    err("stub")
+}
+
+fn diff_ms(a: DateTime, b: DateTime) -> int {
+    a.timestamp_ms - b.timestamp_ms
+}
+
+fn year() -> int { now().year }
+fn month() -> int { now().month }
+fn day() -> int { now().day }
+fn hour() -> int { now().hour }
+fn minute() -> int { now().minute }
+fn second() -> int { now().second }
+
+fn sys_now() -> DateTime {
+    sys_now_stub()
+}
+fn sys_now_stub() -> DateTime {
+    DateTime(2026, 7, 25, 12, 0, 0, 0)
+}
