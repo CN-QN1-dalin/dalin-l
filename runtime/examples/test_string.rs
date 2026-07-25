@@ -1,7 +1,7 @@
 use dalin_runtime::interpreter::run_source;
 
 fn main() {
-    // Test string concat in print  
+    // Test string concat in print
     let src = r#"
 fn main() @ pure @ cpu {
     let name = "Monitor"
@@ -14,7 +14,7 @@ fn main() @ pure @ cpu {
         Ok(results) => println!("String concat OK: {:?}", results),
         Err(e) => println!("String concat FAILED: {}", e),
     }
-    
+
     // Test printing numbers via str builtin
     let src2 = r#"
 fn main() @ pure @ cpu {
@@ -29,7 +29,7 @@ fn main() @ pure @ cpu {
         Ok(results) => println!("str+concat OK: {:?}", results),
         Err(e) => println!("str+concat FAILED: {}", e),
     }
-    
+
     // Test float output with precision via str
     let src3 = r#"
 fn main() @ pure @ cpu {

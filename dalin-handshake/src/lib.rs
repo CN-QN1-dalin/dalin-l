@@ -27,21 +27,21 @@
 //! }
 //! ```
 
-pub mod types;
+pub mod agent;
 pub mod error;
 pub mod protocol;
 pub mod transport;
-pub mod agent;
+pub mod types;
 
 pub mod prelude {
     //! 便捷导入：use dalin_handshake::prelude::*;
     pub use crate::agent::Agent;
     pub use crate::agent::AgentBuilder;
-    pub use crate::types::*;
     pub use crate::error::*;
     pub use crate::protocol::*;
-    pub use crate::transport::*;
     pub use crate::transport::file::FileTransport;
-    pub use crate::transport::unix::UnixTransport;
     pub use crate::transport::tcp::TcpTransport;
+    pub use crate::transport::unix::UnixTransport;
+    pub use crate::transport::*;
+    pub use crate::types::*;
 }

@@ -1,4 +1,4 @@
-use dalin_runtime::interpreter::{run_source, RuntimeError};
+use dalin_runtime::interpreter::{RuntimeError, run_source};
 
 // ========== Demo 1: Monitor Platform ==========
 
@@ -275,19 +275,19 @@ fn main() {
         Ok(_) => println!("[PASS] Monitor demo ran successfully\n"),
         Err(e) => println!("[FAIL] Monitor demo: {}\n", e),
     }
-    
+
     println!("=== Demo 2: Trading Engine ===");
     match run_trading_demo() {
         Ok(_) => println!("[PASS] Trading demo ran successfully\n"),
         Err(e) => println!("[FAIL] Trading demo: {}\n", e),
     }
-    
+
     println!("=== Demo 3: Code Review System ===");
     match run_codereview_demo() {
         Ok(_) => println!("[PASS] CodeReview demo ran successfully\n"),
         Err(e) => println!("[FAIL] CodeReview demo: {}\n", e),
     }
-    
+
     println!("=== Demo 4: DevOps Pipeline ===");
     match run_pipeline_demo() {
         Ok(_) => println!("[PASS] Pipeline demo ran successfully\n"),

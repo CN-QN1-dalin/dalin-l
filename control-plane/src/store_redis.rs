@@ -146,9 +146,7 @@ impl TaskStore for RedisTaskStore {
             eprintln!("[store_redis] serialize error: {}", e);
             String::new()
         });
-        let _: redis::RedisResult<()> = conn
-            .set(&task_key, &serialized)
-            .await;
+        let _: redis::RedisResult<()> = conn.set(&task_key, &serialized).await;
         let _: redis::RedisResult<()> = conn.set(&idem_redis, &id).await;
         if let Some(p) = parent {
             let _: redis::RedisResult<()> =
@@ -168,9 +166,7 @@ impl TaskStore for RedisTaskStore {
             eprintln!("[store_redis] serialize error: {}", e);
             String::new()
         });
-        let _: redis::RedisResult<()> = conn
-            .set(&task_key, &serialized)
-            .await;
+        let _: redis::RedisResult<()> = conn.set(&task_key, &serialized).await;
         self.publish_event(TaskEvent::StatusChanged(updated.clone()))
             .await;
         Some(updated)
@@ -185,9 +181,7 @@ impl TaskStore for RedisTaskStore {
                 eprintln!("[store_redis] serialize error: {}", e);
                 String::new()
             });
-            let _: redis::RedisResult<()> = conn
-                .set(&task_key, &serialized)
-                .await;
+            let _: redis::RedisResult<()> = conn.set(&task_key, &serialized).await;
         }
     }
 
@@ -201,9 +195,7 @@ impl TaskStore for RedisTaskStore {
                     eprintln!("[store_redis] serialize error: {}", e);
                     String::new()
                 });
-                let _: redis::RedisResult<()> = conn
-                    .set(&task_key, &serialized)
-                    .await;
+                let _: redis::RedisResult<()> = conn.set(&task_key, &serialized).await;
                 self.publish_event(TaskEvent::Canceled(id.to_string()))
                     .await;
                 true

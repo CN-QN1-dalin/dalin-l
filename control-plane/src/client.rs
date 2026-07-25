@@ -31,9 +31,9 @@ impl ControlPlaneClientWrapper {
             }),
         };
         let resp = self.inner.submit_task(req).await?;
-        resp.into_inner().task.ok_or_else(|| {
-            tonic::Status::internal("submit_task returned empty task")
-        })
+        resp.into_inner()
+            .task
+            .ok_or_else(|| tonic::Status::internal("submit_task returned empty task"))
     }
 
     pub async fn get(&mut self, id: &str) -> Result<Option<Task>, tonic::Status> {

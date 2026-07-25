@@ -53,8 +53,8 @@ fn main() @ pure @ cpu {
         Ok(results) => println!("Portfolio PnL test OK: {:?}", results),
         Err(e) => println!("Portfolio PnL test FAILED: {}", e),
     }
-    
-    // Test: array construction in function call  
+
+    // Test: array construction in function call
     let src2 = r#"
 fn get_count(arr) @ pure @ cpu {
     return len(arr)
@@ -70,7 +70,7 @@ fn main() @ pure @ cpu {
         Ok(results) => println!("Array param test OK: {:?}", results),
         Err(e) => println!("Array param test FAILED: {}", e),
     }
-    
+
     // Test: for loop over array with print
     let src3 = r#"
 fn main() @ pure @ cpu {

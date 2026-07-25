@@ -24,7 +24,7 @@ fn main() @ pure @ cpu {
         Ok(results) => println!("Basic struct test OK: {:?}", results),
         Err(e) => println!("Basic struct test FAILED: {}", e),
     }
-    
+
     // Test array indexing + loops + if/while + boolean logic
     let src2 = r#"
 fn main() @ pure @ cpu {
@@ -44,7 +44,7 @@ fn main() @ pure @ cpu {
         Ok(results) => println!("Array+loop test OK: {:?}", results),
         Err(e) => println!("Array+loop test FAILED: {}", e),
     }
-    
+
     // Test match expression with enum variants
     let src3 = r#"
 enum Color { Red, Green, Blue }
@@ -68,7 +68,7 @@ fn main() @ pure @ cpu {
         Ok(results) => println!("Match+enum test OK: {:?}", results),
         Err(e) => println!("Match+enum test FAILED: {}", e),
     }
-    
+
     // Test nested function calls (struct inside function call)
     let src4 = r#"
 struct Point {
@@ -94,7 +94,7 @@ fn main() @ pure @ cpu {
         Ok(results) => println!("Nested call test OK: {:?}", results),
         Err(e) => println!("Nested call test FAILED: {}", e),
     }
-    
+
     // Test len builtin on array
     let src5 = r#"
 fn main() @ pure @ cpu {
@@ -107,7 +107,7 @@ fn main() @ pure @ cpu {
         Ok(results) => println!("Len test OK: {:?}", results),
         Err(e) => println!("Len test FAILED: {}", e),
     }
-    
+
     // Test if/else
     let src6 = r#"
 fn sign_of(x) @ pure @ cpu {
@@ -131,6 +131,6 @@ fn main() @ pure @ cpu {
         Ok(results) => println!("If/else test OK: {:?}", results),
         Err(e) => println!("If/else test FAILED: {}", e),
     }
-    
+
     println!("\nAll syntax tests complete!");
 }

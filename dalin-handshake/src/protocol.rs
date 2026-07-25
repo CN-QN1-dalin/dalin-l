@@ -1,8 +1,8 @@
 //! 握手协议层 — 发现、认证、会话管理、心跳
 
 use crate::error::{HandshakeError, Result};
-use crate::types::*;
 use crate::transport::Transport;
+use crate::types::*;
 use std::collections::HashMap;
 use std::time::Duration;
 
@@ -198,7 +198,11 @@ impl HandshakeProtocol {
     /// 处理握手请求 → 返回握手响应
     fn handle_handshake_req(&mut self, msg: Message) -> Result<Option<Message>> {
         // 检查协议版本
-        let version = msg.payload.get("version").and_then(|v| v.as_str()).unwrap_or("unknown");
+        let version = msg
+            .payload
+            .get("version")
+            .and_then(|v| v.as_str())
+            .unwrap_or("unknown");
         if version != "1.0" {
             let resp = Message::new(
                 MessageType::HandshakeResp,
@@ -217,24 +221,26 @@ impl HandshakeProtocol {
             && let (Some(token), Some(method)) = (
                 auth.get("credentials").and_then(|c| c.as_str()),
                 auth.get("method").and_then(|m| m.as_str()),
-            ) {
-                // 验证 token（简化：检查格式）
-                if method == "token" && !token.starts_with("ahp_tkn_") {
-                    let resp = Message::new(
-                        MessageType::HandshakeResp,
-                        self.agent_id.clone(),
-                        msg.from.clone(),
-                        serde_json::json!({
-                            "status": "rejected",
-                            "reason": "Invalid auth token",
-                        }),
-                    );
-                    return Ok(Some(resp));
-                }
+            )
+        {
+            // 验证 token（简化：检查格式）
+            if method == "token" && !token.starts_with("ahp_tkn_") {
+                let resp = Message::new(
+                    MessageType::HandshakeResp,
+                    self.agent_id.clone(),
+                    msg.from.clone(),
+                    serde_json::json!({
+                        "status": "rejected",
+                        "reason": "Invalid auth token",
+                    }),
+                );
+                return Ok(Some(resp));
             }
+        }
 
         // 获取请求的能力
-        let requested: Vec<String> = msg.payload
+        let requested: Vec<String> = msg
+            .payload
             .get("requested_capabilities")
             .and_then(|c| serde_json::from_value(c.clone()).ok())
             .unwrap_or_default();
@@ -242,7 +248,10 @@ impl HandshakeProtocol {
         // 创建会话
         let session = Session::new(
             msg.from.clone(),
-            msg.payload.get("agent_name").and_then(|n| n.as_str()).unwrap_or("unknown"),
+            msg.payload
+                .get("agent_name")
+                .and_then(|n| n.as_str())
+                .unwrap_or("unknown"),
             requested.clone(),
         );
         let session_id = session.id.clone();
@@ -269,7 +278,11 @@ impl HandshakeProtocol {
 
     /// 处理握手响应
     fn handle_handshake_resp(&mut self, msg: Message) -> Result<Option<Message>> {
-        let status = msg.payload.get("status").and_then(|s| s.as_str()).unwrap_or("rejected");
+        let status = msg
+            .payload
+            .get("status")
+            .and_then(|s| s.as_str())
+            .unwrap_or("rejected");
 
         if status == "accepted" {
             if let Some(session_id_str) = msg.payload.get("session_id").and_then(|s| s.as_str()) {
@@ -283,8 +296,15 @@ impl HandshakeProtocol {
         }
 
         // 被拒绝
-        let reason = msg.payload.get("reason").and_then(|r| r.as_str()).unwrap_or("unknown");
-        Err(HandshakeError::Auth(format!("Handshake rejected: {}", reason)))
+        let reason = msg
+            .payload
+            .get("reason")
+            .and_then(|r| r.as_str())
+            .unwrap_or("unknown");
+        Err(HandshakeError::Auth(format!(
+            "Handshake rejected: {}",
+            reason
+        )))
     }
 
     /// 处理 Ping → 返回 Pong
@@ -292,18 +312,20 @@ impl HandshakeProtocol {
         let pong = Message::pong(&msg);
         // 更新会话心跳
         if let Some(session_id) = &msg.session_id
-            && let Some(session) = self.sessions.get_mut(session_id) {
-                session.heartbeat();
-            }
+            && let Some(session) = self.sessions.get_mut(session_id)
+        {
+            session.heartbeat();
+        }
         Ok(Some(pong))
     }
 
     /// 处理 Pong → 更新心跳
     fn handle_pong(&mut self, msg: Message) -> Result<Option<Message>> {
         if let Some(session_id) = &msg.session_id
-            && let Some(session) = self.sessions.get_mut(session_id) {
-                session.heartbeat();
-            }
+            && let Some(session) = self.sessions.get_mut(session_id)
+        {
+            session.heartbeat();
+        }
         Ok(None)
     }
 
@@ -387,12 +409,7 @@ mod tests {
     fn make_protocol(name: &str) -> HandshakeProtocol {
         let agent_id = AgentId::new(name);
         let transport = MemoryTransport::new(name);
-        HandshakeProtocol::new(
-            agent_id,
-            name,
-            "1.0.0",
-            Box::new(transport),
-        )
+        HandshakeProtocol::new(agent_id, name, "1.0.0", Box::new(transport))
     }
 
     #[test]
@@ -449,11 +466,7 @@ mod tests {
         proto.sessions.insert(session_id.clone(), session);
 
         // Ping
-        let ping = Message::ping(
-            proto.agent_id.clone(),
-            peer_id,
-            session_id.clone(),
-        );
+        let ping = Message::ping(proto.agent_id.clone(), peer_id, session_id.clone());
 
         // 处理 Ping → 应返回 Pong
         let result = proto.handle_message(ping).expect("Should handle ping");

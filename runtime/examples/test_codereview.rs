@@ -1,4 +1,4 @@
-use dalin_runtime::interpreter::{run_source, RuntimeError};
+use dalin_runtime::interpreter::{RuntimeError, run_source};
 
 fn run_codereview_demo() -> Result<(), RuntimeError> {
     // Issue struct takes (message, severity)

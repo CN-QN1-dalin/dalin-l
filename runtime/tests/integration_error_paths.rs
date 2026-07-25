@@ -45,7 +45,10 @@ fn test_undefined_variable_does_not_panic() {
     let src = "fn main() @ pure @ cpu { return undefined_var }";
     let result = run_source(src);
     // 未定义变量可能被运行时容忍（作为函数调用或 null），但不应 panic
-    assert!(result.is_ok() || result.is_err(), "Undefined variable should not panic");
+    assert!(
+        result.is_ok() || result.is_err(),
+        "Undefined variable should not panic"
+    );
 }
 
 #[test]
@@ -54,7 +57,10 @@ fn test_wrong_arg_count_does_not_panic() {
 fn main() @ pure @ cpu { return add(1) }";
     let result = run_source(src);
     // 参数数量不匹配可能被运行时容忍（默认值或扩展到 0），但不应 panic
-    assert!(result.is_ok() || result.is_err(), "Wrong arg count should not panic");
+    assert!(
+        result.is_ok() || result.is_err(),
+        "Wrong arg count should not panic"
+    );
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -70,8 +76,11 @@ fn main() @ pure @ cpu { return div(10, 0) }";
     match &result {
         Err(e) => {
             let msg = e.0.to_lowercase();
-            assert!(msg.contains("error") || msg.contains("division") || msg.contains("zero"),
-                "Division by zero error: {}", msg);
+            assert!(
+                msg.contains("error") || msg.contains("division") || msg.contains("zero"),
+                "Division by zero error: {}",
+                msg
+            );
         }
         Ok(_) => {} // 如果运行时容忍除零，也可以
     }
@@ -81,5 +90,8 @@ fn main() @ pure @ cpu { return div(10, 0) }";
 fn test_empty_source() {
     let src = "";
     let result = run_source(src);
-    assert!(result.is_ok() || result.is_err(), "Empty source should not panic");
+    assert!(
+        result.is_ok() || result.is_err(),
+        "Empty source should not panic"
+    );
 }

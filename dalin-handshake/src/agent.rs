@@ -2,8 +2,8 @@
 
 use crate::error::Result;
 use crate::protocol::HandshakeProtocol;
-use crate::types::*;
 use crate::transport::Transport;
+use crate::types::*;
 
 /// 高层 Agent 实例
 ///
@@ -180,12 +180,8 @@ impl AgentBuilder {
             crate::error::HandshakeError::Protocol("Transport is required".to_string())
         })?;
 
-        let mut protocol = HandshakeProtocol::new(
-            agent_id,
-            agent_name,
-            &self.agent_version,
-            transport,
-        );
+        let mut protocol =
+            HandshakeProtocol::new(agent_id, agent_name, &self.agent_version, transport);
 
         if let Some(token) = self.auth_token {
             protocol = protocol.with_auth(token);

@@ -23,7 +23,7 @@ fn main() @ pure @ cpu {
         Ok(results) => println!("abs_val test: {:?}", results),
         Err(e) => println!("abs_val FAILED: {}", e),
     }
-    
+
     // Test: if/else returns values in a function called from main
     let src2 = r#"
 fn sign_of(x) @ pure @ cpu {
@@ -49,7 +49,7 @@ fn main() @ pure @ cpu {
         Ok(results) => println!("Sign test: {:?}", results),
         Err(e) => println!("Sign FAILED: {}", e),
     }
-    
+
     // Test: match expression with enum variants as return value
     let src3 = r#"
 enum Color { Red, Green, Blue }
@@ -74,7 +74,7 @@ fn main() @ pure @ cpu {
         Ok(results) => println!("Enum match test: {:?}", results),
         Err(e) => println!("Enum match FAILED: {}", e),
     }
-    
+
     // Test: struct method chain (nested calls)
     let src4 = r#"
 struct Point {
@@ -100,7 +100,7 @@ fn main() @ pure @ cpu {
         Ok(results) => println!("Struct chain test: {:?}", results),
         Err(e) => println!("Struct chain FAILED: {}", e),
     }
-    
+
     // Test: for loop over array
     let src5 = r#"
 fn main() @ pure @ cpu {

@@ -317,11 +317,7 @@ pub struct Session {
 }
 
 impl Session {
-    pub fn new(
-        peer_id: AgentId,
-        peer_name: impl Into<String>,
-        capabilities: Vec<String>,
-    ) -> Self {
+    pub fn new(peer_id: AgentId, peer_name: impl Into<String>, capabilities: Vec<String>) -> Self {
         Self {
             id: SessionId::generate(),
             peer_id,
@@ -342,8 +338,9 @@ impl Session {
     /// 检查心跳是否超时
     pub fn is_heartbeat_expired(&self, max_missed: u32) -> bool {
         let elapsed = chrono::Utc::now() - self.last_heartbeat;
-        elapsed > chrono::TimeDelta::from_std(self.keep_alive_interval * max_missed)
-            .unwrap_or(chrono::TimeDelta::MAX)
+        elapsed
+            > chrono::TimeDelta::from_std(self.keep_alive_interval * max_missed)
+                .unwrap_or(chrono::TimeDelta::MAX)
     }
 }
 

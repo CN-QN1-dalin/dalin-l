@@ -17,7 +17,7 @@ fn main() @ pure @ cpu {
         Ok(results) => println!("Simple MA OK: {:?}", results),
         Err(e) => println!("Simple MA FAILED: {}", e),
     }
-    
+
     // Test: PnL calculation for a trade
     let src2 = r#"
 struct Trade {
@@ -46,7 +46,7 @@ fn main() @ pure @ cpu {
         Ok(results) => println!("PnL calc OK: {:?}", results),
         Err(e) => println!("PnL calc FAILED: {}", e),
     }
-    
+
     // Test: cross strategy - detect crossover
     let src3 = r#"
 fn main() @ pure @ cpu {

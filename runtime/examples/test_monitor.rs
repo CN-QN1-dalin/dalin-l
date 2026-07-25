@@ -82,7 +82,7 @@ fn main() @ pure @ cpu {
         Ok(results) => {
             println!("\n=== Monitor Demo SUCCESS ===");
             println!("Final results: {:?}", results);
-        },
+        }
         Err(e) => println!("\n=== Monitor Demo ERROR: {} ===", e),
     }
 }
