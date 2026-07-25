@@ -1,0 +1,23 @@
+[package]
+name = "dalin-handshake"
+version = "1.0.0-dev"
+edition = "2024"
+description = "Universal Agent Handshake Protocol — discover, authenticate, and communicate between agents"
+authors = ["Dalin L Team"]
+license = "MIT"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+uuid = { version = "1", features = ["v4"] }
+chrono = { version = "0.4", features = ["serde"] }
+thiserror = "1"
+log = "0.4"
+tokio = { version = "1", features = ["full"], optional = true }
+
+[features]
+default = ["file"]
+file = []
+unix = ["tokio"]
+tcp = ["tokio"]
+full = ["file", "unix", "tcp"]
