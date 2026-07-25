@@ -262,6 +262,16 @@ impl JitCompiler {
         Ok(annotated)
     }
 
+    /// 通过外部 `lli` 执行 IR (需要系统 LLVM 22+)
+    ///
+    /// 使用 inkwell 或外部 `lli` 将生成的 IR 编译为机器码并执行。
+    #[cfg(feature = "inkwell")]
+    pub fn execute_jit(&self, ir: &str) -> Result<i64, CompileError> {
+        // inkwell 路径：真实 JIT 编译 + 执行
+        // TODO: inkwell 集成后替换此处 stub
+        Err(CompileError::TypeResolutionFailed)
+    }
+
     /// 获取缓存中某函数的编译条目
     #[must_use]
     pub fn get_cached(&self, name: &str) -> Option<&CacheEntry> {
