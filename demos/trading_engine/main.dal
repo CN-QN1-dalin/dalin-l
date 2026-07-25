@@ -1,0 +1,187 @@
+// ════════════════════════════════════════════════════════════════════
+//  Dalin L 3.0 — Trading Engine Demo
+//  历史数据回测框架：移动平均线(MA) + RSI 动量指标 + 双均线交叉策略
+// ════════════════════════════════════════════════════════════════════
+
+struct Trade {
+    buy_price: float,
+    sell_price: float,
+    profit_loss: float
+}
+
+// 计算简单移动平均线 (SMA)
+fn sma(data, period: int) @ pure @ cpu {
+    let n = len(data)
+    let result = []
+    let i = period - 1
+
+    while i < n {
+        let sum = 0.0
+        let j = 0
+        while j < period {
+            let sum = sum + data[i - j]
+            let j = j + 1
+        }
+        let result = push(result, sum / float(period))
+        let i = i + 1
+    }
+
+    return result
+}
+
+// 计算 RSI (Relative Strength Index)
+fn rsi(data, period: int) @ pure @ cpu {
+    let n = len(data)
+    let result = []
+    // 需要至少 period+1 个数据点
+    let i = period
+
+    while i < n {
+        let gain_sum = 0.0
+        let loss_sum = 0.0
+        let j = 0
+        while j < period {
+            let diff = data[i - j] - data[i - j - 1]
+            if diff > 0.0 {
+                let gain_sum = gain_sum + diff
+            } else {
+                let loss_sum = loss_sum + abs(diff)
+            }
+            let j = j + 1
+        }
+        let avg_gain = gain_sum / float(period)
+        let avg_loss = loss_sum / float(period)
+        let rs = 0.0
+        if avg_loss > 0.0 {
+            let rs = avg_gain / avg_loss
+        }
+        let rsi_val = 100.0 - (100.0 / (1.0 + rs))
+        let result = push(result, rsi_val)
+        let i = i + 1
+    }
+
+    return result
+}
+
+// 双均线交叉策略回测
+// 短期均线上穿长期均线 → 买入；下穿 → 卖出
+fn backtest_ma_cross(prices, short_period: int, long_period: int) @ pure @ cpu {
+    let short_ma = sma(prices, short_period)
+    let long_ma = sma(prices, long_period)
+
+    // 两个均线数组长度不同，对齐到短数组
+    let offset = long_period - short_period
+    let trades = []
+    let holding = false
+    let buy_price = 0.0
+
+    let i = 1
+    while i < len(short_ma) {
+        let prev_short = short_ma[i - 1]
+        let curr_short = short_ma[i]
+        let prev_long = long_ma[i - 1]
+        let curr_long = long_ma[i]
+
+        // 金叉：短期均线上穿长期均线
+        if !holding && prev_short <= prev_long && curr_short > curr_long {
+            let buy_price = prices[i + offset]
+            let holding = true
+            print("  BUY at " + str(buy_price))
+        }
+
+        // 死叉：短期均线下穿长期均线
+        if holding && prev_short >= prev_long && curr_short < curr_long {
+            let sell_price = prices[i + offset]
+            let pnl = sell_price - buy_price
+            let trades = push(trades, Trade(buy_price, sell_price, pnl))
+            let holding = false
+            print("  SELL at " + str(sell_price) + " P&L=" + str(pnl))
+        }
+
+        let i = i + 1
+    }
+
+    // 如果仍然持仓，最后平仓
+    if holding {
+        let sell_price = prices[len(prices) - 1]
+        let pnl = sell_price - buy_price
+        let trades = push(trades, Trade(buy_price, sell_price, pnl))
+        print("  FORCE SELL at " + str(sell_price) + " P&L=" + str(pnl))
+    }
+
+    return trades
+}
+
+fn main() @ pure @ cpu {
+    // 模拟历史价格数据 (20 个数据点)
+    let prices = [100.0, 101.5, 103.0, 102.0, 101.0, 104.0, 105.5, 107.0, 106.0, 108.0, 110.0, 109.0, 108.5, 111.0, 113.0, 112.0, 114.5, 116.0, 115.0, 117.0]
+
+    println("")
+    println("=== Trading Engine Backtest Report ===")
+    println("Strategy: MA Cross (short=" + str(3) + ", long=" + str(7) + ")")
+    println("Price data points: " + str(len(prices)))
+    println("Price range: " + str(prices[0]) + " → " + str(prices[len(prices) - 1]))
+    println("")
+
+    // 计算指标
+    println("Calculating Moving Averages...")
+    let short_ma = sma(prices, 3)
+    let long_ma = sma(prices, 7)
+    println("  SMA(3) length: " + str(len(short_ma)))
+    println("  SMA(7) length: " + str(len(long_ma)))
+
+    println("Calculating RSI...")
+    let rsi_vals = rsi(prices, 5)
+    println("  RSI(5) length: " + str(len(rsi_vals)))
+    println("  Latest RSI: " + str(rsi_vals[len(rsi_vals) - 1]))
+    println("")
+
+    // 回测
+    println("Running Backtest...")
+    print("  Trades:")
+    let trades = backtest_ma_cross(prices, 3, 7)
+    println("")
+
+    // 统计
+    let total_trades = len(trades)
+    let total_pnl = 0.0
+    let wins = 0
+    let losses = 0
+    let max_win = 0.0
+    let max_loss = 0.0
+    let j = 0
+
+    while j < total_trades {
+        let t = trades[j]
+        let total_pnl = total_pnl + t.profit_loss
+        if t.profit_loss > 0.0 {
+            let wins = wins + 1
+            if t.profit_loss > max_win {
+                let max_win = t.profit_loss
+            }
+        } else {
+            let losses = losses + 1
+            if t.profit_loss < max_loss {
+                let max_loss = t.profit_loss
+            }
+        }
+        let j = j + 1
+    }
+
+    let win_rate = 0.0
+    if total_trades > 0 {
+        let win_rate = float(wins) / float(total_trades) * 100.0
+    }
+
+    println("=== Backtest Results ===")
+    println("Total trades: " + str(total_trades))
+    println("Wins: " + str(wins))
+    println("Losses: " + str(losses))
+    println("Win rate: " + str(win_rate) + "%")
+    println("Total P&L: " + str(total_pnl))
+    println("Max win: " + str(max_win))
+    println("Max loss: " + str(max_loss))
+    println("")
+
+    return total_trades
+}

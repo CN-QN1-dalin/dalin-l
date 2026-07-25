@@ -1,0 +1,160 @@
+// ════════════════════════════════════════════════════════════════════
+//  Dalin L 3.0 — DevOps Pipeline Demo
+//  模拟 CI/CD 流水线：lint → test → build → deploy，支持失败回滚
+// ════════════════════════════════════════════════════════════════════
+
+struct PipelineStage {
+    name: string,
+    status: string,
+    duration_ms: float
+}
+
+// 模拟 lint 阶段
+fn run_lint(package: string) @ pure @ cpu {
+    println("  [lint] checking " + package + "...")
+    // 模拟检查时间
+    let issues = 2
+    if issues > 0 {
+        println("    Found " + str(issues) + " warnings")
+    }
+    return PipelineStage("lint", "passed", 150.0 + float(issues) * 10.0)
+}
+
+// 模拟测试阶段
+fn run_tests(package: string) @ pure @ cpu {
+    println("  [test] running tests for " + package + "...")
+    let test_count = 24
+    let failed = 0
+    let passed = test_count - failed
+    println("    " + str(passed) + "/" + str(test_count) + " tests passed")
+    if failed > 0 {
+        println("    " + str(failed) + " test(s) failed!")
+        return PipelineStage("test", "failed", 500.0)
+    }
+    return PipelineStage("test", "passed", 500.0)
+}
+
+// 模拟构建阶段
+fn build_artifact(package: string) @ pure @ cpu {
+    println("  [build] compiling " + package + "...")
+    let size = 12
+    println("    Artifact size: " + str(size) + " MB")
+    return PipelineStage("build", "passed", 3000.0)
+}
+
+// 模拟部署阶段（有概率失败）
+fn deploy(stage_name: string) @ pure @ cpu {
+    println("  [deploy] deploying " + stage_name + " to production...")
+    // 模拟部署 — 根据名称决定是否成功
+    let success = true
+    if stage_name == "api" {
+        let success = false
+    }
+    if success {
+        println("    Deploy successful!")
+        return PipelineStage("deploy", "passed", 2000.0)
+    } else {
+        println("    Deploy FAILED!")
+        return PipelineStage("deploy", "failed", 1500.0)
+    }
+}
+
+// 回滚
+fn rollback(prev_stage: string) @ pure @ cpu {
+    println("  [rollback] Rolling back from " + prev_stage + "...")
+    println("    Reverted to previous version")
+    return PipelineStage("rollback", "passed", 1000.0)
+}
+
+fn main() @ pure @ cpu {
+    println("")
+    println("=== DevOps Pipeline ===")
+    println("Pipeline: lint → test → build → deploy")
+    let packages = ["core", "api", "cli"]
+    println("Packages: " + str(len(packages)))
+    println("")
+
+    // 执行 pipeline
+    let all_passed = true
+    let stage_results = []
+    let all_results = []
+    let i = 0
+
+    while i < len(packages) {
+        let pkg = packages[i]
+        println("── Processing package: " + pkg + " ──")
+
+        // Lint
+        let s1 = run_lint(pkg)
+        let all_results = push(all_results, s1)
+        if s1.status != "passed" {
+            let all_passed = false
+            println("  Pipeline failed at lint for " + pkg)
+            let i = len(packages)
+        } else {
+            // Test
+            let s2 = run_tests(pkg)
+            let all_results = push(all_results, s2)
+            if s2.status != "passed" {
+                let all_passed = false
+                println("  Pipeline failed at test for " + pkg)
+                let i = len(packages)
+            } else {
+                // Build
+                let s3 = build_artifact(pkg)
+                let all_results = push(all_results, s3)
+                if s3.status != "passed" {
+                    let all_passed = false
+                    println("  Pipeline failed at build for " + pkg)
+                    let i = len(packages)
+                } else {
+                    // Deploy
+                    let s4 = deploy(pkg)
+                    let all_results = push(all_results, s4)
+                    if s4.status != "passed" {
+                        let all_passed = false
+                        println("  Pipeline failed at deploy for " + pkg)
+                        // 触发回滚
+                        let rollback_stage = rollback(s4.name)
+                        let all_results = push(all_results, rollback_stage)
+                        let i = len(packages)
+                    }
+                }
+            }
+        }
+
+        println("")
+        let i = i + 1
+    }
+
+    // 总结
+    println("=== Pipeline Summary ===")
+    let total_stages = len(all_results)
+    let passed_count = 0
+    let failed_count = 0
+    let total_time = 0.0
+    let j = 0
+
+    while j < total_stages {
+        let stage = all_results[j]
+        if stage.status == "passed" {
+            let passed_count = passed_count + 1
+        } else {
+            let failed_count = failed_count + 1
+        }
+        let total_time = total_time + stage.duration_ms
+        let j = j + 1
+    }
+
+    if all_passed {
+        println("  Result: ALL PASSED")
+    } else {
+        println("  Result: FAILED (rolled back)")
+    }
+    println("  Stages executed: " + str(total_stages))
+    println("  Passed: " + str(passed_count) + ", Failed: " + str(failed_count))
+    println("  Total time: " + str(total_time / 1000.0) + "s")
+    println("")
+
+    return total_stages
+}

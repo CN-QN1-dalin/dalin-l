@@ -1,0 +1,109 @@
+// ════════════════════════════════════════════════════════════════════
+//  Dalin L 3.0 — Monitor Platform Demo
+//  模拟服务器监控仪表盘：采集 CPU/内存/错误率虚拟指标，阈值告警
+// ════════════════════════════════════════════════════════════════════
+
+struct MetricsPoint {
+    cpu: float,
+    mem: float,
+    err: float
+}
+
+struct Alert {
+    timestamp: int,
+    metric: string,
+    value: float,
+    threshold: float
+}
+
+// 生成模拟指标序列
+fn make_point(c: float, m: float, e: float) @ pure @ cpu {
+    return MetricsPoint(c, m, e)
+}
+
+// 检查阈值，生成告警列表
+fn check_thresholds(metrics, cpu_limit: float, mem_limit: float, err_limit: float) @ pure @ cpu {
+    let alerts = []
+    let count = len(metrics)
+    let i = 0
+
+    while i < count {
+        let p = metrics[i]
+        if p.cpu > cpu_limit {
+            let alerts = push(alerts, Alert(i, "cpu", p.cpu, cpu_limit))
+        }
+        if p.mem > mem_limit {
+            let alerts = push(alerts, Alert(i, "mem", p.mem, mem_limit))
+        }
+        if p.err > err_limit {
+            let alerts = push(alerts, Alert(i, "err", p.err, err_limit))
+        }
+        let i = i + 1
+    }
+
+    return alerts
+}
+
+// 模拟 ASCII 柱状图（终端输出）
+fn show_bar(label: string, val: float, max_val: float, symbol: string) @ pure @ cpu {
+    print(label + " [")
+    let bar_len = int(val / max_val * 30.0)
+    let i = 0
+    let bar = ""
+    while i < bar_len {
+        let bar = bar + symbol
+        let i = i + 1
+    }
+    print(bar + "] " + str(val))
+}
+
+fn main() @ pure @ cpu {
+    let metrics = [
+        make_point(65.0, 55.0, 2.0),
+        make_point(78.0, 62.0, 1.5),
+        make_point(92.0, 71.0, 3.2),
+        make_point(85.0, 80.0, 2.8),
+        make_point(45.0, 60.0, 0.5),
+        make_point(88.0, 82.0, 6.1),
+        make_point(72.0, 68.0, 1.8),
+        make_point(95.0, 88.0, 7.5)
+    ]
+
+    println("")
+    println("=== Monitor Platform Report ===")
+    println("Server: production-01")
+    println("Metrics collected: " + str(len(metrics)))
+    println("")
+
+    // 显示最新指标柱状图
+    let latest = metrics[len(metrics) - 1]
+    println("Latest Metrics Snapshot:")
+    show_bar("CPU", latest.cpu, 100.0, "#")
+    show_bar("MEM", latest.mem, 100.0, "#")
+    show_bar("ERR", latest.err, 10.0, "*")
+    println("")
+
+    // 阈值检查
+    let alerts = check_thresholds(metrics, 90.0, 85.0, 5.0)
+    println("Alert Check:")
+    println("  CPU threshold: > 90%")
+    println("  MEM threshold: > 85%")
+    println("  ERR threshold: > 5/s")
+    println("")
+
+    if len(alerts) == 0 {
+        println("  Status: OK — No alerts triggered")
+    } else {
+        println("  Alerts triggered: " + str(len(alerts)))
+        let j = 0
+        while j < len(alerts) {
+            let a = alerts[j]
+            println("    [" + a.metric + "] sample=" + str(a.timestamp) + " value=" + str(a.value) + " exceeded " + str(a.threshold))
+            let j = j + 1
+        }
+    }
+
+    println("")
+    println("=== End of Report ===")
+    return len(alerts)
+}

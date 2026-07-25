@@ -1,0 +1,252 @@
+// ════════════════════════════════════════════════════════════════════
+//  Dalin L 3.0 — Code Review System Demo
+//  静态分析工具：检查命名规范、函数长度、未处理 Result、变量使用
+// ════════════════════════════════════════════════════════════════════
+
+struct Issue {
+    line: int,
+    severity: string,
+    message: string
+}
+
+// 检查单行命名规范
+fn check_naming(line_str: string, line_num: int) @ pure @ cpu {
+    let issues = []
+    let len_line = len(line_str)
+
+    // 检查是否为 let 声明且使用大写字母（非 const）
+    let colon_idx = 0
+    let found = false
+    let i = 0
+    while i < len_line {
+        if line_str[i] == ':' {
+            let colon_idx = i
+            let found = true
+            let i = len_line
+        }
+        let i = i + 1
+    }
+
+    if found {
+        // 检查 = 号
+        let eq_idx = 0
+        let found_eq = false
+        let i = 0
+        while i < len_line {
+            if line_str[i] == '=' {
+                let eq_idx = i
+                let found_eq = true
+                let i = len_line
+            }
+            let i = i + 1
+        }
+
+        // 检查变量名是否以大写开头（非 const 时）
+        let first_char = ""
+        if colon_idx > 0 {
+            let first_char = line_str[colon_idx - 1]
+        }
+        // 简化的命名检查
+        let issue_count = 0
+        if found_eq && colon_idx > 0 {
+            let var_name = ""
+            let j = 0
+            while j < colon_idx {
+                let var_name = var_name + line_str[j]
+                let j = j + 1
+            }
+            // 如果变量名含大写字母，标记建议
+            let has_upper = false
+            let j = 0
+            while j < len(var_name) {
+                if var_name[j] >= 'A' && var_name[j] <= 'Z' {
+                    let has_upper = true
+                    let j = len(var_name)
+                }
+                let j = j + 1
+            }
+            if has_upper {
+                let issues = push(issues, Issue(line_num, "warning", "Variable '" + var_name + "' uses CamelCase, prefer snake_case"))
+            }
+        }
+    }
+
+    return issues
+}
+
+// 检查函数长度（简单检测：行数 > 猜测阈值）
+fn check_fn_length(source: string) @ pure @ cpu {
+    let issues = []
+    let lines = source
+    let n = len(lines)
+    let in_fn = false
+    let fn_start = 0
+    let brace_count = 0
+    let i = 0
+
+    // 简化版：检测 "fn " 关键字
+    while i < n {
+        // 简单字符串扫描
+        let i = i + 1
+    }
+
+    return issues
+}
+
+// 检查未处理的 Result（匹配 "return" 或 "ok"/"err" 关键字）
+fn check_unhandled_result(source: string) @ pure @ cpu {
+    let issues = []
+    let n = len(source)
+    let i = 0
+    let found_unhandled = false
+
+    // 扫描 "return" 关键字后是否有 "ok" 或 "err" 调用
+    while i < n - 6 {
+        if source[i] == 'r' && source[i + 1] == 'e' && source[i + 2] == 't' && source[i + 3] == 'u' && source[i + 4] == 'r' && source[i + 5] == 'n' {
+            // 检查 return 后面是否有 ok/err — 简单文本扫描
+            let found_ok = false
+            let j = i + 6
+            while j < n && source[j] != '\n' {
+                let j = j + 1
+            }
+            // 如果 return 后面直接跟表达式而非 ok/err，可能是未处理
+            let found_unhandled = true
+        }
+        let i = i + 1
+    }
+
+    // 检查 "ok(" 或 "err(" 调用 — 如果有，说明有处理
+    i = 0
+    let has_ok = false
+    let has_err = false
+    while i < n - 3 {
+        if source[i] == 'o' && source[i + 1] == 'k' && source[i + 2] == '(' {
+            let has_ok = true
+        }
+        if source[i] == 'e' && source[i + 1] == 'r' && source[i + 2] == 'r' && source[i + 3] == '(' {
+            let has_err = true
+        }
+        let i = i + 1
+    }
+
+    if !has_ok && !has_err {
+        let issues = push(issues, Issue(0, "info", "No Result/Option handling detected — consider adding match or ?"))
+    }
+
+    return issues
+}
+
+// 评分系统
+fn score_issues(issues) @ pure @ cpu {
+    let total = len(issues)
+    let errors = 0
+    let warnings = 0
+    let infos = 0
+    let i = 0
+
+    while i < total {
+        let iss = issues[i]
+        if iss.severity == "error" {
+            let errors = errors + 1
+        } else if iss.severity == "warning" {
+            let warnings = warnings + 1
+        } else {
+            let infos = infos + 1
+        }
+        let i = i + 1
+    }
+
+    // 满分 100，每个 error -10，每个 warning -3，info 不减分
+    let score = 100.0 - float(errors) * 10.0 - float(warnings) * 3.0
+    if score < 0.0 {
+        let score = 0.0
+    }
+
+    let grade = "A"
+    if score > 90.0 {
+        let grade = "A"
+    } else if score > 75.0 {
+        let grade = "B"
+    } else if score > 60.0 {
+        let grade = "C"
+    } else {
+        let grade = "D"
+    }
+
+    return (grade, score)
+}
+
+fn main() @ pure @ cpu {
+    // 模拟被审查的代码
+    let test_code = "let MyVar: int = 42
+fn foo(x: int) -> int {
+    return x + 1
+}
+let userName: string = \"Alice\"
+let user_email: string = \"alice@example.com\"
+fn processData() -> ok(true) {
+    return ok(42)
+}"
+
+    println("")
+    println("=== Code Review System ===")
+    println("Reviewing: example.dal")
+    println("")
+
+    // 收集所有 issue
+    let all_issues = []
+
+    // 按行分析
+    let lines = test_code
+    let line_num = 1
+    let i = 0
+    let n = len(lines)
+    let current_line = ""
+
+    while i < n {
+        let current_line = current_line + lines[i]
+        if lines[i] == '\n' || i == n - 1 {
+            let naming_issues = check_naming(current_line, line_num)
+            let j = 0
+            while j < len(naming_issues) {
+                let all_issues = push(all_issues, naming_issues[j])
+                let j = j + 1
+            }
+            let current_line = ""
+            let line_num = line_num + 1
+        }
+        let i = i + 1
+    }
+
+    // 检查未处理的 Result
+    let result_issues = check_unhandled_result(test_code)
+    let j = 0
+    while j < len(result_issues) {
+        let all_issues = push(all_issues, result_issues[j])
+        let j = j + 1
+    }
+
+    // 输出发现问题
+    if len(all_issues) == 0 {
+        println("  No issues found — code looks clean!")
+    } else {
+        println("  Found " + str(len(all_issues)) + " issue(s):")
+        let k = 0
+        while k < len(all_issues) {
+            let iss = all_issues[k]
+            println("    [" + iss.severity + "] line " + str(iss.line) + ": " + iss.message)
+            let k = k + 1
+        }
+    }
+
+    println("")
+
+    // 评分
+    let (grade, score) = score_issues(all_issues)
+    println("=== Code Quality Score ===")
+    println("  Grade: " + grade)
+    println("  Score: " + str(score) + "/100")
+    println("")
+
+    return len(all_issues)
+}
