@@ -5,3 +5,4 @@ edition.workspace = true
 description = "Dalin L 3.0 — WASM compilation target"
 
 [dependencies]
+dalin-compiler = { path = "../../compiler" }
