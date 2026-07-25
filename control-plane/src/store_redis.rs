@@ -142,8 +142,12 @@ impl TaskStore for RedisTaskStore {
             submitted_at: now_ms(),
         };
         let task_key = format!("{}:task:{}", PREFIX, id);
+        let serialized = serde_json::to_string(&rec).unwrap_or_else(|e| {
+            eprintln!("[store_redis] serialize error: {}", e);
+            String::new()
+        });
         let _: redis::RedisResult<()> = conn
-            .set(&task_key, serde_json::to_string(&rec).unwrap())
+            .set(&task_key, &serialized)
             .await;
         let _: redis::RedisResult<()> = conn.set(&idem_redis, &id).await;
         if let Some(p) = parent {
@@ -160,8 +164,12 @@ impl TaskStore for RedisTaskStore {
         let rec = self.get_record(id).await?;
         let updated = TaskRecord { status, ..rec };
         let task_key = format!("{}:task:{}", PREFIX, id);
+        let serialized = serde_json::to_string(&updated).unwrap_or_else(|e| {
+            eprintln!("[store_redis] serialize error: {}", e);
+            String::new()
+        });
         let _: redis::RedisResult<()> = conn
-            .set(&task_key, serde_json::to_string(&updated).unwrap())
+            .set(&task_key, &serialized)
             .await;
         self.publish_event(TaskEvent::StatusChanged(updated.clone()))
             .await;
@@ -173,8 +181,12 @@ impl TaskStore for RedisTaskStore {
         if let Some(mut rec) = self.get_record(id).await {
             rec.node = Some(node.to_string());
             let task_key = format!("{}:task:{}", PREFIX, id);
+            let serialized = serde_json::to_string(&rec).unwrap_or_else(|e| {
+                eprintln!("[store_redis] serialize error: {}", e);
+                String::new()
+            });
             let _: redis::RedisResult<()> = conn
-                .set(&task_key, serde_json::to_string(&rec).unwrap())
+                .set(&task_key, &serialized)
                 .await;
         }
     }
@@ -185,8 +197,12 @@ impl TaskStore for RedisTaskStore {
             Some(mut rec) => {
                 rec.status = TaskStatus::Canceled;
                 let task_key = format!("{}:task:{}", PREFIX, id);
+                let serialized = serde_json::to_string(&rec).unwrap_or_else(|e| {
+                    eprintln!("[store_redis] serialize error: {}", e);
+                    String::new()
+                });
                 let _: redis::RedisResult<()> = conn
-                    .set(&task_key, serde_json::to_string(&rec).unwrap())
+                    .set(&task_key, &serialized)
                     .await;
                 self.publish_event(TaskEvent::Canceled(id.to_string()))
                     .await;

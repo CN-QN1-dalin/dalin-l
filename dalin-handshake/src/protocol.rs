@@ -101,7 +101,7 @@ impl HandshakeProtocol {
     /// 3. 停止传输层
     pub fn stop(&mut self) -> Result<()> {
         // 广播下线
-        for (_id, session) in &self.sessions {
+        for session in self.sessions.values() {
             let msg = Message::new(
                 MessageType::Disconnect,
                 self.agent_id.clone(),
@@ -213,8 +213,8 @@ impl HandshakeProtocol {
         }
 
         // 可选认证
-        if let Some(auth) = msg.payload.get("auth") {
-            if let (Some(token), Some(method)) = (
+        if let Some(auth) = msg.payload.get("auth")
+            && let (Some(token), Some(method)) = (
                 auth.get("credentials").and_then(|c| c.as_str()),
                 auth.get("method").and_then(|m| m.as_str()),
             ) {
@@ -232,7 +232,6 @@ impl HandshakeProtocol {
                     return Ok(Some(resp));
                 }
             }
-        }
 
         // 获取请求的能力
         let requested: Vec<String> = msg.payload
@@ -292,21 +291,19 @@ impl HandshakeProtocol {
     fn handle_ping(&mut self, msg: Message) -> Result<Option<Message>> {
         let pong = Message::pong(&msg);
         // 更新会话心跳
-        if let Some(session_id) = &msg.session_id {
-            if let Some(session) = self.sessions.get_mut(session_id) {
+        if let Some(session_id) = &msg.session_id
+            && let Some(session) = self.sessions.get_mut(session_id) {
                 session.heartbeat();
             }
-        }
         Ok(Some(pong))
     }
 
     /// 处理 Pong → 更新心跳
     fn handle_pong(&mut self, msg: Message) -> Result<Option<Message>> {
-        if let Some(session_id) = &msg.session_id {
-            if let Some(session) = self.sessions.get_mut(session_id) {
+        if let Some(session_id) = &msg.session_id
+            && let Some(session) = self.sessions.get_mut(session_id) {
                 session.heartbeat();
             }
-        }
         Ok(None)
     }
 

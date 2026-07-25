@@ -118,8 +118,8 @@ impl FileTransport {
 
             // 读取 announce.json
             let announce_path = path.join("announce.json");
-            if let Some(discovery) = self.read_json::<Discovery>(&announce_path)? {
-                if discovery.protocol == "ahp/1.0" {
+            if let Some(discovery) = self.read_json::<Discovery>(&announce_path)?
+                && discovery.protocol == "ahp/1.0" {
                     peers.push(PeerInfo {
                         agent_id: discovery.agent_id,
                         agent_name: discovery.agent_name,
@@ -130,7 +130,6 @@ impl FileTransport {
                         capabilities: discovery.capabilities,
                     });
                 }
-            }
         }
 
         Ok(peers)
@@ -195,7 +194,7 @@ impl Transport for FileTransport {
         let mut entries: Vec<_> = std::fs::read_dir(&inbox)
             .map_err(|e| HandshakeError::Io(e.to_string()))?
             .flatten()
-            .filter(|e| e.path().extension().map_or(false, |ext| ext == "json"))
+            .filter(|e| e.path().extension().is_some_and(|ext| ext == "json"))
             .collect();
 
         // 按修改时间排序，取最早的

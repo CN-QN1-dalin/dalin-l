@@ -111,6 +111,12 @@ pub struct AgentBuilder {
     auth_token: Option<String>,
 }
 
+impl Default for AgentBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AgentBuilder {
     pub fn new() -> Self {
         Self {

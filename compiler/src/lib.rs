@@ -1,3 +1,18 @@
+//! Dalin L 3.0 — 编译器核心
+//!
+//! 提供从源码到 DLVM 字节码的全链路编译能力：
+//! - **Lexer** — 词法分析，支持中文标识符
+//! - **Parser** — LL(1) 递归下降解析器，支持错误恢复
+//! - **Type Checker** — HM 类型推断 + 七通道类型系统
+//! - **Macro Expansion** — 内置宏展开（assert, dbg 等）
+//! - **Bytecode Cache** — 基于文件 hash 的增量编译缓存
+//! - **Self-Evolution** — J1/J2/J3 自修复协议引擎
+//! - **Stdlib Loader** — 标准库 .dal 文件加载
+//! - **LLM Integration** — 外部 LLM API 调用
+//! - **Runtime** — 测试执行引擎
+//! - **Package Manager** — dalin.toml 解析 + 依赖解析
+//!
+
 pub mod ast;
 pub mod error;
 pub mod latency;
