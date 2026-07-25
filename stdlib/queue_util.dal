@@ -1,0 +1,8 @@
+// Module: queue_util
+// Purpose: 队列工具函数。
+
+fn queue_create() -> Queue {
+  let result = []
+  return result
+}
+

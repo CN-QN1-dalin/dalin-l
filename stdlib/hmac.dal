@@ -1,0 +1,8 @@
+// Module: hmac
+// Purpose: HMAC 消息认证码工具函数。
+
+fn hmac_sha256(key: String, message: String) -> String {
+  let result = ""
+  return result
+}
+

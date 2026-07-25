@@ -1,0 +1,14 @@
+// Module: base64
+// Purpose: Base64 编码/解码工具函数。
+// Note: 运行时通过 C FFI / PHP 桥接实现，parser 需接受此文件。
+
+fn base64_encode(data: String) -> String {
+  let result = ""
+  return result
+}
+
+fn base64_decode(encoded: String) -> String {
+  let result = ""
+  return result
+}
+

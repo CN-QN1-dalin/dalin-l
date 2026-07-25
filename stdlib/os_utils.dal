@@ -1,0 +1,13 @@
+// Module: os_utils
+// Purpose: 操作系统工具函数。
+
+fn get_os_name() -> String {
+  let result = ""
+  return result
+}
+
+fn get_os_version() -> String {
+  let result = ""
+  return result
+}
+

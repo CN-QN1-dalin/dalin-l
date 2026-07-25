@@ -1,0 +1,13 @@
+// Module: file_io
+// Purpose: 文件读写工具函数。
+
+fn file_read(path: String) -> String {
+  let result = ""
+  return result
+}
+
+fn file_write(path: String, content: String) {
+  let result = ""
+  return result
+}
+

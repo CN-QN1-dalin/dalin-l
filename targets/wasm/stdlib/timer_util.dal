@@ -1,0 +1,13 @@
+// Module: timer_util
+// Purpose: 定时器和延时工具函数。
+
+fn sleep(seconds: Int) {
+  let result = 0
+  return result
+}
+
+fn schedule_timer(delay: Int, callback: String) -> Int {
+  let result = 0
+  return result
+}
+

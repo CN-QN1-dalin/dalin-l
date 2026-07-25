@@ -1,0 +1,8 @@
+// Module: dns_resolve
+// Purpose: DNS 域名解析工具函数。
+
+fn dns_resolve(hostname: String) -> String {
+  let result = ""
+  return result
+}
+

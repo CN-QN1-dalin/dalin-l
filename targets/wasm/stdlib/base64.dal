@@ -1,0 +1,13 @@
+// Module: base64
+// Purpose: Base64 编码/解码工具函数。
+
+fn base64_encode(data: String) -> String {
+  let result = ""
+  return result
+}
+
+fn base64_decode(encoded: String) -> String {
+  let result = ""
+  return result
+}
+

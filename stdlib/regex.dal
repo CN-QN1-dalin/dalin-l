@@ -1,0 +1,8 @@
+// Module: regex
+// Purpose: 正则表达式匹配工具函数。
+
+fn regex_match(pattern: String, text: String) -> Bool {
+  let result = true
+  return result
+}
+

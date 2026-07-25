@@ -1,0 +1,13 @@
+// Module: csv
+// Purpose: CSV 读写工具函数。
+
+fn csv_read(path: String) -> List {
+  let result = list()
+  return result
+}
+
+fn csv_write(path: String, data: List) {
+  let result = ""
+  return result
+}
+

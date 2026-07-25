@@ -1,0 +1,13 @@
+// Module: http_client
+// Purpose: HTTP 请求客户端工具函数。
+
+fn http_get(url: String) -> String {
+  let result = ""
+  return result
+}
+
+fn http_post(url: String, body: String) -> String {
+  let result = ""
+  return result
+}
+

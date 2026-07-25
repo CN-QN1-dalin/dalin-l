@@ -1,0 +1,8 @@
+// Module: rand
+// Purpose: 随机数生成工具函数。
+
+fn rand_int(min: Int, max: Int) -> Int {
+  let result = min
+  return result
+}
+
