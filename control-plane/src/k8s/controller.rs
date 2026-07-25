@@ -3,7 +3,7 @@
 // Pure Rust — no kube-rs dependency, integrates cleanly when added.
 // ============================================================
 
-use crate::k8s::operator_types::{Capability, DalinTaskSpec, ResourceResolver, ReplicaStrategy, ResourceRequirements, Effect, ConfidenceLevel, TaskPhase, DalinTaskStatus, TaskCondition};
+use crate::k8s::operator_types::{DalinTaskSpec, ResourceResolver, ReplicaStrategy, ResourceRequirements, Effect, ConfidenceLevel, TaskPhase, DalinTaskStatus, TaskCondition};
 use serde_json::{Map as JsonMap, json};
 
 // Re-import error type for method signatures
@@ -258,6 +258,7 @@ impl DeploymentDesire {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::k8s::operator_types::Capability;
 
     fn sample_spec() -> DalinTaskSpec {
         DalinTaskSpec {
