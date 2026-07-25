@@ -5,14 +5,14 @@ pub fn emit_from_bytecode(_bytecode: &[u8], _output_path: &str) -> Result<String
 
 #[cfg(feature = "native")]
 pub fn emit_from_bytecode(bytecode: &[u8], output_path: &str) -> Result<String, String> {
+    use inkwell::OptimizationLevel;
+    use inkwell::addresses::AddressSpace;
+    use inkwell::builder::Builder;
     use inkwell::context::Context;
     use inkwell::module::Module;
-    use inkwell::builder::Builder;
-    use inkwell::types::BasicType;
-    use inkwell::addresses::AddressSpace;
-    use inkwell::OptimizationLevel;
-    use inkwell::targets::{CodeGenFileType, RelocMode, Target, TargetMachine};
     use inkwell::supports_target::TargetMachine as _;
+    use inkwell::targets::{CodeGenFileType, RelocMode, Target, TargetMachine};
+    use inkwell::types::BasicType;
 
     let context = Context::create();
     let builder = context.create_builder();
@@ -43,7 +43,10 @@ pub fn emit_from_bytecode(bytecode: &[u8], output_path: &str) -> Result<String, 
     builder.build_call(
         printf_fn.get_function_type(),
         printf_fn,
-        &[fmt_global.as_pointer_value().into(), i32_type.const_int(bytecode.len() as u64, false).into()],
+        &[
+            fmt_global.as_pointer_value().into(),
+            i32_type.const_int(bytecode.len() as u64, false).into(),
+        ],
         "printf_call",
     );
 
