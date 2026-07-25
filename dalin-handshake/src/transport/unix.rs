@@ -1,8 +1,8 @@
 //! Unix Domain Socket 传输 — 基于 tokio 的本地 IPC
 
 use crate::error::{HandshakeError, Result};
-use crate::types::{Message, PeerInfo};
 use crate::transport::Transport;
+use crate::types::{Message, PeerInfo};
 
 /// Unix Domain Socket 传输
 ///
@@ -52,7 +52,7 @@ impl Transport for UnixTransport {
         #[cfg(not(all(feature = "unix", target_family = "unix")))]
         {
             Err(HandshakeError::Transport(
-                "Unix transport requires 'unix' feature + Unix platform".to_string()
+                "Unix transport requires 'unix' feature + Unix platform".to_string(),
             ))
         }
     }
@@ -73,29 +73,76 @@ impl Transport for UnixTransport {
             use std::io::Write;
             let mut stream = stream;
             let len = (data.len() as u32).to_be_bytes();
-            stream.write_all(&len)
+            stream
+                .write_all(&len)
                 .map_err(|e| HandshakeError::Io(format!("Unix send: {}", e)))?;
-            stream.write_all(&data)
+            stream
+                .write_all(&data)
                 .map_err(|e| HandshakeError::Io(format!("Unix send: {}", e)))?;
             return Ok(());
         }
         #[cfg(not(all(feature = "unix", target_family = "unix")))]
-        Err(HandshakeError::Transport("Unix send not available".to_string()))
+        Err(HandshakeError::Transport(
+            "Unix send not available".to_string(),
+        ))
     }
 
     fn recv(&self) -> Result<Option<Message>> {
         Err(HandshakeError::Transport(
-            "Unix recv requires async runtime (use tokio)".to_string()
+            "Unix recv requires async runtime (use tokio)".to_string(),
         ))
     }
 
     fn broadcast(&self, _msg: &Message) -> Result<()> {
         Err(HandshakeError::Transport(
-            "Unix broadcast not implemented".to_string()
+            "Unix broadcast not implemented".to_string(),
         ))
     }
 
     fn discover(&self) -> Result<Vec<PeerInfo>> {
         Ok(Vec::new())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_unix_transport_create() {
+        let transport = UnixTransport::new("/tmp/test-agent.sock", "test-agent");
+        assert_eq!(transport.kind(), "unix");
+        assert_eq!(transport.endpoint(), "/tmp/test-agent.sock");
+    }
+
+    #[test]
+    fn test_unix_transport_start_requires_feature() {
+        let mut transport = UnixTransport::new("/tmp/unix-test.sock", "unix-test");
+        // Without the 'unix' feature, start should fail gracefully
+        let result = transport.start();
+        #[cfg(not(all(feature = "unix", target_family = "unix")))]
+        {
+            assert!(result.is_err(), "Without unix feature, start should error");
+        }
+        #[cfg(all(feature = "unix", target_family = "unix"))]
+        {
+            // Clean up after test
+            let _ = transport.stop();
+        }
+    }
+
+    #[test]
+    fn test_unix_transport_stop_cleans_socket() {
+        let mut transport = UnixTransport::new("/tmp/nonexistent-test.sock", "cleanup-test");
+        // stop should attempt to remove the socket file, which may or may not exist
+        let result = transport.stop();
+        assert!(result.is_ok(), "stop should succeed even without start");
+    }
+
+    #[test]
+    fn test_unix_transport_discover_empty() {
+        let transport = UnixTransport::new("/tmp/discover-test.sock", "discover-test");
+        let peers = transport.discover().expect("discover should succeed");
+        assert!(peers.is_empty(), "Discover should return empty list");
     }
 }

@@ -75,3 +75,60 @@ pub fn run_profile(input: &str, verbose: bool) -> Result<(), String> {
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Write;
+    use std::path::PathBuf;
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    static TEST_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+    fn test_dir() -> PathBuf {
+        let pid = std::process::id();
+        let n = TEST_COUNTER.fetch_add(1, Ordering::SeqCst);
+        std::env::temp_dir().join(format!("dalin-profile-test-{}-{}", pid, n))
+    }
+
+    fn create_temp_source(content: &str, dir: &PathBuf) -> PathBuf {
+        std::fs::create_dir_all(dir).expect("Failed to create test dir");
+        let file_path = dir.join("test.dal");
+        let mut file = std::fs::File::create(&file_path).expect("Failed to create test file");
+        write!(file, "{}", content).expect("Failed to write test content");
+        file_path
+    }
+
+    #[test]
+    fn test_profile_nonexistent_file() {
+        let result = run_profile("/nonexistent/file.dal", false);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("does not exist"));
+    }
+
+    #[test]
+    fn test_profile_empty_source() {
+        let dir = test_dir();
+        let src_path = create_temp_source("", &dir);
+        let result = run_profile(src_path.to_str().unwrap(), false);
+        assert!(result.is_ok(), "Profile empty source: {:?}", result.err());
+    }
+
+    #[test]
+    fn test_profile_simple_expr() {
+        let dir = test_dir();
+        let src = "let x = 42";
+        let src_path = create_temp_source(src, &dir);
+        let result = run_profile(src_path.to_str().unwrap(), false);
+        assert!(result.is_ok(), "Profile simple expr: {:?}", result.err());
+    }
+
+    #[test]
+    fn test_profile_with_verbose() {
+        let dir = test_dir();
+        let src = "let x = 42";
+        let src_path = create_temp_source(src, &dir);
+        let result = run_profile(src_path.to_str().unwrap(), true);
+        assert!(result.is_ok(), "Profile with verbose: {:?}", result.err());
+    }
+}

@@ -4,8 +4,8 @@ use crate::error::Result;
 use crate::types::{Message, PeerInfo};
 
 pub mod file;
-pub mod unix;
 pub mod tcp;
+pub mod unix;
 
 /// 传输层接口
 ///
@@ -132,5 +132,136 @@ impl Transport for MemoryTransport {
     fn discover(&self) -> Result<Vec<PeerInfo>> {
         let peers = self.peers.lock().unwrap();
         Ok(peers.clone())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::types::{AgentId, MessageType};
+
+    #[test]
+    fn test_memory_transport_create() {
+        let transport = MemoryTransport::new("test-agent");
+        assert_eq!(transport.kind(), "memory");
+        assert_eq!(transport.endpoint(), "test-agent");
+    }
+
+    #[test]
+    fn test_memory_transport_start_stop() {
+        let mut transport = MemoryTransport::new("start-stop-agent");
+        transport.start().expect("start should succeed");
+        transport.stop().expect("stop should succeed");
+    }
+
+    #[test]
+    fn test_memory_transport_send_recv() {
+        let transport = MemoryTransport::new("test-agent");
+        let msg = Message::new(
+            MessageType::Ping,
+            AgentId::new("alice"),
+            AgentId::new("bob"),
+            serde_json::json!({"data": 42}),
+        );
+        transport.send("bob", &msg).expect("send should succeed");
+
+        let recv = transport.recv().expect("recv should succeed");
+        assert!(recv.is_some(), "should receive the message we just sent");
+        if let Some(received) = recv {
+            assert_eq!(received.msg_type, MessageType::Ping);
+            assert_eq!(received.payload["data"], 42);
+        }
+    }
+
+    #[test]
+    fn test_memory_transport_recv_empty() {
+        let transport = MemoryTransport::new("empty-agent");
+        let result = transport.recv().expect("recv on empty should not error");
+        assert!(result.is_none(), "no messages in empty transport");
+    }
+
+    #[test]
+    fn test_memory_transport_broadcast() {
+        let transport = MemoryTransport::new("broadcaster");
+        let msg = Message::new(
+            MessageType::Data,
+            AgentId::new("broadcaster"),
+            AgentId::new("*"),
+            serde_json::json!({"broadcast": true}),
+        );
+        transport.broadcast(&msg).expect("broadcast should succeed");
+
+        let recv = transport.recv().expect("recv should succeed");
+        assert!(recv.is_some(), "should receive broadcast");
+    }
+
+    #[test]
+    fn test_memory_transport_link_and_discover() {
+        let alice = MemoryTransport::new("alice");
+        let bob = MemoryTransport::new("bob");
+
+        alice.link(&bob);
+
+        let peers = alice.discover().expect("discover should succeed");
+        assert_eq!(peers.len(), 1, "alice should see bob");
+        assert_eq!(peers[0].agent_name, "bob");
+    }
+
+    #[test]
+    fn test_memory_transport_link_bidirectional() {
+        let alice = MemoryTransport::new("alice");
+        let bob = MemoryTransport::new("bob");
+
+        alice.link(&bob);
+
+        let alice_peers = alice.discover().expect("alice discover");
+        let bob_peers = bob.discover().expect("bob discover");
+        assert_eq!(alice_peers.len(), 1, "alice sees bob");
+        assert_eq!(bob_peers.len(), 1, "bob sees alice");
+        assert_eq!(alice_peers[0].agent_name, "bob");
+        assert_eq!(bob_peers[0].agent_name, "alice");
+    }
+
+    #[test]
+    fn test_memory_transport_push_and_recv() {
+        let transport = MemoryTransport::new("receiver");
+        let msg = Message::new(
+            MessageType::Data,
+            AgentId::new("sender"),
+            AgentId::new("receiver"),
+            serde_json::json!({"pushed": true}),
+        );
+        transport.push(msg);
+
+        let recv = transport.recv().expect("recv should succeed");
+        assert!(recv.is_some(), "should receive pushed message");
+        if let Some(received) = recv {
+            assert_eq!(received.payload["pushed"], true);
+        }
+    }
+
+    #[test]
+    fn test_two_memory_transports_linked_communication() {
+        let alice = MemoryTransport::new("alice");
+        let bob = MemoryTransport::new("bob");
+
+        alice.link(&bob);
+
+        // Alice sends a Data message to Bob
+        let data_msg = Message::new(
+            MessageType::Data,
+            AgentId::new("alice"),
+            AgentId::new("bob"),
+            serde_json::json!({"msg": "hello from alice", "value": 99}),
+        );
+        bob.push(data_msg);
+
+        // Bob should receive the message sent to its inbox
+        let recv = bob.recv().expect("bob recv");
+        assert!(recv.is_some(), "bob should receive alice's message");
+        if let Some(received) = recv {
+            assert_eq!(received.payload["msg"], "hello from alice");
+            assert_eq!(received.payload["value"], 99);
+        }
     }
 }

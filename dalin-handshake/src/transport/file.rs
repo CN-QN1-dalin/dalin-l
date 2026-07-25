@@ -4,8 +4,8 @@
 //! 适合零依赖、同机、调试友好的场景。
 
 use crate::error::{HandshakeError, Result};
-use crate::types::*;
 use crate::transport::Transport;
+use crate::types::*;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
@@ -86,8 +86,8 @@ impl FileTransport {
         if !path.exists() {
             return Ok(None);
         }
-        let content = std::fs::read_to_string(path)
-            .map_err(|e| HandshakeError::Io(e.to_string()))?;
+        let content =
+            std::fs::read_to_string(path).map_err(|e| HandshakeError::Io(e.to_string()))?;
         let value: T = serde_json::from_str(&content)?;
         Ok(Some(value))
     }
@@ -119,17 +119,18 @@ impl FileTransport {
             // 读取 announce.json
             let announce_path = path.join("announce.json");
             if let Some(discovery) = self.read_json::<Discovery>(&announce_path)?
-                && discovery.protocol == "ahp/1.0" {
-                    peers.push(PeerInfo {
-                        agent_id: discovery.agent_id,
-                        agent_name: discovery.agent_name,
-                        agent_version: discovery.agent_version,
-                        language: discovery.language,
-                        transport: discovery.transport,
-                        endpoint: discovery.endpoint,
-                        capabilities: discovery.capabilities,
-                    });
-                }
+                && discovery.protocol == "ahp/1.0"
+            {
+                peers.push(PeerInfo {
+                    agent_id: discovery.agent_id,
+                    agent_name: discovery.agent_name,
+                    agent_version: discovery.agent_version,
+                    language: discovery.language,
+                    transport: discovery.transport,
+                    endpoint: discovery.endpoint,
+                    capabilities: discovery.capabilities,
+                });
+            }
         }
 
         Ok(peers)
@@ -168,16 +169,14 @@ impl Transport for FileTransport {
         // 删除 announce.json 表示下线
         let announce = self.agent_dir.join("announce.json");
         if announce.exists() {
-            std::fs::remove_file(&announce)
-                .map_err(|e| HandshakeError::Io(e.to_string()))?;
+            std::fs::remove_file(&announce).map_err(|e| HandshakeError::Io(e.to_string()))?;
         }
         Ok(())
     }
 
     fn send(&self, target: &str, msg: &Message) -> Result<()> {
         let inbox = self.peer_inbox(target);
-        std::fs::create_dir_all(&inbox)
-            .map_err(|e| HandshakeError::Io(e.to_string()))?;
+        std::fs::create_dir_all(&inbox).map_err(|e| HandshakeError::Io(e.to_string()))?;
 
         let filename = format!("msg-{}.json", msg.id);
         let msg_path = inbox.join(&filename);
@@ -203,8 +202,7 @@ impl Transport for FileTransport {
             let path = entry.path();
             if let Some(msg) = self.read_json::<Message>(&path)? {
                 // 删除已读取的消息
-                std::fs::remove_file(&path)
-                    .map_err(|e| HandshakeError::Io(e.to_string()))?;
+                std::fs::remove_file(&path).map_err(|e| HandshakeError::Io(e.to_string()))?;
                 return Ok(Some(msg));
             }
         }
@@ -217,8 +215,7 @@ impl Transport for FileTransport {
         let peers = self.scan_agents()?;
         for peer in &peers {
             let inbox = self.peer_inbox(&peer.agent_id.to_string());
-            std::fs::create_dir_all(&inbox)
-                .map_err(|e| HandshakeError::Io(e.to_string()))?;
+            std::fs::create_dir_all(&inbox).map_err(|e| HandshakeError::Io(e.to_string()))?;
             let filename = format!("msg-{}.json", msg.id);
             let msg_path = inbox.join(&filename);
             self.write_json(&msg_path, msg)?;
@@ -230,5 +227,200 @@ impl Transport for FileTransport {
         let peers = self.scan_agents()?;
         *self.peers.lock().unwrap() = peers.clone();
         Ok(peers)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::types::{AgentId, Discovery, Message, MessageType, TransportKind};
+    use std::path::PathBuf;
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    static TEST_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+    fn test_dir() -> PathBuf {
+        let pid = std::process::id();
+        let n = TEST_COUNTER.fetch_add(1, Ordering::SeqCst);
+        std::env::temp_dir().join(format!("dalin-file-transport-{}-{}", pid, n))
+    }
+
+    fn make_discovery(agent_id: &str) -> Discovery {
+        Discovery::new(
+            AgentId::new(agent_id),
+            agent_id,
+            "1.0.0",
+            TransportKind::File,
+            format!("/tmp/{agent_id}"),
+        )
+    }
+
+    #[test]
+    fn test_file_transport_kind_and_endpoint() {
+        let base_dir = test_dir();
+        let mut transport = FileTransport::new(base_dir.join("shared"), "test-agent");
+        transport.start().expect("start should succeed");
+        assert_eq!(transport.kind(), "file");
+        assert!(transport.endpoint().contains("test-agent"));
+        transport.stop().expect("stop should succeed");
+    }
+
+    #[test]
+    fn test_file_transport_start_creates_dirs() {
+        let base_dir = test_dir();
+        let shared_dir = base_dir.join("shared");
+        let agent_dir = shared_dir.join("test-agent");
+        assert!(!agent_dir.exists(), "should not exist before start");
+
+        let mut transport = FileTransport::new(shared_dir.clone(), "test-agent");
+        transport.start().expect("start should succeed");
+
+        assert!(agent_dir.exists(), "agent dir should exist after start");
+        assert!(
+            agent_dir.join("inbox").exists(),
+            "inbox dir should exist after start"
+        );
+        transport.stop().expect("stop should succeed");
+    }
+
+    #[test]
+    fn test_file_transport_start_writes_announce() {
+        let base_dir = test_dir();
+        let shared_dir = base_dir.join("shared");
+        let discovery = make_discovery("test-agent");
+        let mut transport =
+            FileTransport::new(shared_dir.clone(), "test-agent").with_discovery(discovery);
+        transport.start().expect("start should succeed");
+
+        let announce_path = shared_dir.join("test-agent").join("announce.json");
+        assert!(announce_path.exists(), "announce.json should exist");
+        transport.stop().expect("stop should succeed");
+    }
+
+    #[test]
+    fn test_file_transport_stop_removes_announce() {
+        let base_dir = test_dir();
+        let shared_dir = base_dir.join("shared");
+        let discovery = make_discovery("test-agent");
+        let mut transport =
+            FileTransport::new(shared_dir.clone(), "test-agent").with_discovery(discovery);
+        transport.start().expect("start should succeed");
+
+        let announce_path = shared_dir.join("test-agent").join("announce.json");
+        assert!(announce_path.exists(), "announce before stop");
+
+        transport.stop().expect("stop should succeed");
+        assert!(
+            !announce_path.exists(),
+            "announce should be removed after stop"
+        );
+    }
+
+    #[test]
+    fn test_file_transport_send_and_recv() {
+        let base_dir = test_dir();
+        let shared_dir = base_dir.join("shared");
+        let mut transport_a = FileTransport::new(shared_dir.clone(), "agent-a")
+            .with_discovery(make_discovery("agent-a"));
+        let mut transport_b = FileTransport::new(shared_dir.clone(), "agent-b")
+            .with_discovery(make_discovery("agent-b"));
+
+        transport_a.start().expect("agent-a start");
+        transport_b.start().expect("agent-b start");
+
+        let msg = Message::new(
+            MessageType::Data,
+            AgentId::new("agent-a"),
+            AgentId::new("agent-b"),
+            serde_json::json!({"hello": "from agent-a"}),
+        );
+        transport_a
+            .send("agent-b", &msg)
+            .expect("send should succeed");
+
+        let recv = transport_b.recv().expect("recv should succeed");
+        assert!(recv.is_some(), "agent-b should have received a message");
+        if let Some(received) = recv {
+            assert_eq!(received.from.0, "agent-a");
+            assert_eq!(received.payload["hello"], "from agent-a");
+        }
+
+        transport_a.stop().expect("agent-a stop");
+        transport_b.stop().expect("agent-b stop");
+    }
+
+    #[test]
+    fn test_file_transport_recv_empty_inbox() {
+        let base_dir = test_dir();
+        let mut transport = FileTransport::new(base_dir.join("shared"), "lonely-agent");
+        transport.start().expect("start should succeed");
+
+        let result = transport.recv().expect("recv should not error on empty");
+        assert!(result.is_none(), "No messages in empty inbox");
+
+        transport.stop().expect("stop should succeed");
+    }
+
+    #[test]
+    fn test_file_transport_discover() {
+        let base_dir = test_dir();
+        let shared_dir = base_dir.join("shared");
+
+        let mut transport_a = FileTransport::new(shared_dir.clone(), "discover-a")
+            .with_discovery(make_discovery("discover-a"));
+        let mut transport_b = FileTransport::new(shared_dir.clone(), "discover-b")
+            .with_discovery(make_discovery("discover-b"));
+
+        transport_a.start().expect("discover-a start");
+        transport_b.start().expect("discover-b start");
+
+        let peers = transport_a.discover().expect("discover should succeed");
+        assert_eq!(peers.len(), 1, "agent-a should find 1 peer");
+        if let Some(peer) = peers.first() {
+            assert_eq!(peer.agent_name, "discover-b");
+        }
+
+        transport_a.stop().expect("discover-a stop");
+        transport_b.stop().expect("discover-b stop");
+    }
+
+    #[test]
+    fn test_file_transport_broadcast() {
+        let base_dir = test_dir();
+        let shared_dir = base_dir.join("shared");
+
+        let mut transport_a = FileTransport::new(shared_dir.clone(), "broadcast-a")
+            .with_discovery(make_discovery("broadcast-a"));
+        let mut transport_b = FileTransport::new(shared_dir.clone(), "broadcast-b")
+            .with_discovery(make_discovery("broadcast-b"));
+        let mut transport_c = FileTransport::new(shared_dir.clone(), "broadcast-c")
+            .with_discovery(make_discovery("broadcast-c"));
+
+        transport_a.start().expect("broadcast-a start");
+        transport_b.start().expect("broadcast-b start");
+        transport_c.start().expect("broadcast-c start");
+
+        let msg = Message::new(
+            MessageType::Data,
+            AgentId::new("broadcast-a"),
+            AgentId::new("*"),
+            serde_json::json!({"type": "broadcast"}),
+        );
+        transport_a
+            .broadcast(&msg)
+            .expect("broadcast should succeed");
+
+        assert!(
+            transport_b.recv().expect("b recv").is_some(),
+            "b should receive broadcast"
+        );
+        assert!(
+            transport_c.recv().expect("c recv").is_some(),
+            "c should receive broadcast"
+        );
+
+        transport_a.stop().expect("broadcast-a stop");
+        transport_b.stop().expect("broadcast-b stop");
+        transport_c.stop().expect("broadcast-c stop");
     }
 }

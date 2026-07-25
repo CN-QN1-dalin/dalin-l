@@ -685,3 +685,301 @@ fn send_notification(stdout: &mut std::io::Stdout, notif: &Value) {
     let _ = stdout.write_all(msg.as_bytes());
     let _ = stdout.flush();
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── DocumentManager Tests ──
+
+    #[test]
+    fn test_doc_manager_open_and_get() {
+        let mut dm = DocumentManager::new();
+        dm.open("file:///test.dal", 1, "let x = 42");
+        assert_eq!(dm.get_content("file:///test.dal"), Some("let x = 42"));
+        assert_eq!(dm.get_version("file:///test.dal"), Some(1));
+    }
+
+    #[test]
+    fn test_doc_manager_change() {
+        let mut dm = DocumentManager::new();
+        dm.open("file:///test.dal", 1, "old content");
+        dm.change("file:///test.dal", 2, "new content");
+        assert_eq!(dm.get_content("file:///test.dal"), Some("new content"));
+        assert_eq!(dm.get_version("file:///test.dal"), Some(2));
+    }
+
+    #[test]
+    fn test_doc_manager_close() {
+        let mut dm = DocumentManager::new();
+        dm.open("file:///test.dal", 1, "content");
+        dm.close("file:///test.dal");
+        assert_eq!(dm.get_content("file:///test.dal"), None);
+        assert_eq!(dm.get_version("file:///test.dal"), None);
+    }
+
+    #[test]
+    fn test_doc_manager_get_nonexistent() {
+        let dm = DocumentManager::new();
+        assert_eq!(dm.get_content("file:///nope.dal"), None);
+        assert_eq!(dm.get_version("file:///nope.dal"), None);
+    }
+
+    // ── json_diagnostic Tests ──
+
+    #[test]
+    fn test_json_diagnostic_basic() {
+        let diag = json_diagnostic("test error", 1, 2, 3, 4, 5);
+        assert_eq!(diag["message"], "test error");
+        assert_eq!(diag["severity"], 1);
+        assert_eq!(diag["source"], "dalin-ls");
+        assert_eq!(diag["range"]["start"]["line"], 1); // zero-indexed
+        assert_eq!(diag["range"]["start"]["character"], 3);
+        assert_eq!(diag["range"]["end"]["line"], 3);
+        assert_eq!(diag["range"]["end"]["character"], 5);
+    }
+
+    // ── LspCompiler Tests ──
+
+    #[test]
+    fn test_lsp_compiler_compile_no_doc() {
+        let mut compiler = LspCompiler::new();
+        let diags = compiler.compile_file("file:///nonexistent.dal");
+        assert!(diags.is_empty(), "No diagnostics for nonexistent doc");
+    }
+
+    #[test]
+    fn test_lsp_compiler_compile_valid_code() {
+        let mut compiler = LspCompiler::new();
+        compiler
+            .doc_manager
+            .open("file:///test.dal", 1, "let x = 42");
+        let diags = compiler.compile_file("file:///test.dal");
+        assert!(
+            diags.is_empty(),
+            "Valid code should have no diagnostics: {:?}",
+            diags
+        );
+    }
+
+    #[test]
+    fn test_lsp_compiler_compile_invalid_code() {
+        let mut compiler = LspCompiler::new();
+        compiler
+            .doc_manager
+            .open("file:///bad.dal", 1, "!!! invalid syntax !!!");
+        let diags = compiler.compile_file("file:///bad.dal");
+        assert!(!diags.is_empty(), "Invalid code should produce diagnostics");
+    }
+
+    #[test]
+    fn test_lsp_compiler_compile_empty_code() {
+        let mut compiler = LspCompiler::new();
+        compiler.doc_manager.open("file:///empty.dal", 1, "");
+        let diags = compiler.compile_file("file:///empty.dal");
+        assert!(diags.is_empty(), "Empty code should have no diagnostics");
+    }
+
+    #[test]
+    fn test_lsp_compiler_workspace_diagnostics() {
+        let mut compiler = LspCompiler::new();
+        compiler.doc_manager.open("file:///a.dal", 1, "let x = 42");
+        compiler
+            .doc_manager
+            .open("file:///b.dal", 1, "!!! bad syntax !!!");
+        let diags = compiler.workspace_diagnostics();
+        assert!(
+            !diags.is_empty(),
+            "Workspace should have at least one diagnostic"
+        );
+    }
+
+    #[test]
+    fn test_lsp_compiler_did_open_auto_diagnostic() {
+        let mut compiler = LspCompiler::new();
+        compiler
+            .doc_manager
+            .open("file:///test.dal", 1, "let x = 42");
+        let diags = compiler.compile_file("file:///test.dal");
+        assert!(diags.is_empty());
+    }
+
+    // ── CompletionEngine Tests ──
+
+    #[test]
+    fn test_completion_engine_provides_keywords() {
+        let engine = CompletionEngine::new();
+        let completions = engine.provide_completions("", 0);
+        assert!(!completions.is_empty(), "Should provide completions");
+
+        let labels: Vec<&str> = completions
+            .iter()
+            .filter_map(|c| c["label"].as_str())
+            .collect();
+        assert!(labels.contains(&"let"), "Should contain 'let' keyword");
+        assert!(labels.contains(&"fn"), "Should contain 'fn' keyword");
+        assert!(
+            labels.contains(&"return"),
+            "Should contain 'return' keyword"
+        );
+    }
+
+    #[test]
+    fn test_completion_engine_provides_annotations() {
+        let engine = CompletionEngine::new();
+        let completions = engine.provide_completions("", 0);
+        let labels: Vec<&str> = completions
+            .iter()
+            .filter_map(|c| c["label"].as_str())
+            .collect();
+        assert!(labels.contains(&"@pure"), "Should contain @pure annotation");
+        assert!(labels.contains(&"@io"), "Should contain @io annotation");
+    }
+
+    #[test]
+    fn test_completion_engine_populate_from_ast() {
+        let mut engine = CompletionEngine::new();
+        let mut prog = Program::new();
+        prog.statements.push(Stmt::Let {
+            name: "my_var".into(),
+            value: Some(Box::new(dalin_compiler::ast::Expr::IntLiteral(42))),
+            type_annotation: None,
+            mutable: false,
+        });
+        prog.statements.push(Stmt::Fn {
+            name: "my_fn".into(),
+            params: vec![],
+            return_type: None,
+            effect: None,
+            capability: None,
+            llm_prompt: None,
+            confidence: None,
+            cognitive_loop: None,
+            governance: None,
+            latency: None,
+            timeout: None,
+            throughput: None,
+            body: Box::new(Vec::new()),
+            async_: false,
+            pub_: false,
+        });
+        prog.statements.push(Stmt::Const {
+            name: "MY_CONST".into(),
+            value: Some(Box::new(dalin_compiler::ast::Expr::IntLiteral(100))),
+            type_annotation: None,
+        });
+        engine.populate_from_ast(&prog);
+
+        let completions = engine.provide_completions("", 0);
+        let labels: Vec<&str> = completions
+            .iter()
+            .filter_map(|c| c["label"].as_str())
+            .collect();
+        assert!(
+            labels.contains(&"my_var"),
+            "Should contain 'my_var' from AST"
+        );
+        assert!(labels.contains(&"my_fn"), "Should contain 'my_fn' from AST");
+    }
+
+    // ── HoverProvider Tests ──
+
+    #[test]
+    fn test_hover_provider_empty_content() {
+        let provider = HoverProvider;
+        let result = provider.provide_hover("", 0, 0);
+        assert!(result.is_none(), "Empty content should return None");
+    }
+
+    #[test]
+    fn test_hover_provider_out_of_bounds() {
+        let provider = HoverProvider;
+        let result = provider.provide_hover("line1", 5, 0);
+        assert!(result.is_none(), "Out of bounds line should return None");
+    }
+
+    #[test]
+    fn test_hover_provider_keyword() {
+        let provider = HoverProvider;
+        let content = "fn main() { return 0; }";
+        let result = provider.provide_hover(content, 0, 1);
+        assert!(result.is_some(), "Should provide hover for keyword");
+    }
+
+    #[test]
+    fn test_hover_provider_annotation() {
+        let provider = HoverProvider;
+        let content = "@pure fn foo() {}";
+        // '@' is at position 0, cursor at 1 means hovering over "@pure"
+        let result = provider.provide_hover(content, 0, 1);
+        assert!(result.is_some(), "Should provide hover for annotation");
+        if let Some(hover) = result {
+            let contents = &hover["contents"];
+            assert_eq!(contents["kind"], "markdown");
+            let value = contents["value"].as_str().unwrap_or("");
+            assert!(
+                value.contains("@pure"),
+                "Hover should mention @pure, got: {}",
+                value
+            );
+        }
+    }
+
+    #[test]
+    fn test_hover_provider_identifier() {
+        let provider = HoverProvider;
+        let content = "let x = 42";
+        let result = provider.provide_hover(content, 0, 4);
+        assert!(result.is_some(), "Should provide hover for identifier");
+    }
+
+    // ── SignatureHelpProvider Tests ──
+
+    #[test]
+    fn test_signature_help_provider_empty() {
+        let provider = SignatureHelpProvider;
+        let result = provider.provide_signature_help("");
+        assert!(result.is_none(), "Empty content should return None");
+    }
+
+    #[test]
+    fn test_signature_help_provider_with_functions() {
+        let provider = SignatureHelpProvider;
+        let content = "fn add(a, b) { return a + b; }\nfn greet(name) { println(name); }";
+        let result = provider.provide_signature_help(content);
+        assert!(result.is_some(), "Should provide signature help");
+        if let Some(sig) = result {
+            let signatures = sig["signatures"].as_array().unwrap();
+            assert_eq!(signatures.len(), 2, "Should have 2 signatures");
+            assert!(signatures[0]["label"].as_str().unwrap().contains("add"));
+            assert!(signatures[1]["label"].as_str().unwrap().contains("greet"));
+        }
+    }
+
+    #[test]
+    fn test_signature_help_provider_with_types() {
+        let provider = SignatureHelpProvider;
+        let content = "fn compute(a: Int, b: Float) -> Bool { return true; }";
+        let result = provider.provide_signature_help(content);
+        assert!(result.is_some(), "Should provide signature help");
+        if let Some(sig) = result {
+            let signatures = sig["signatures"].as_array().unwrap();
+            assert_eq!(signatures.len(), 1);
+            assert!(signatures[0]["label"].as_str().unwrap().contains("compute"));
+        }
+    }
+
+    // ── extract_statements Tests ──
+
+    #[test]
+    fn test_extract_statements_empty() {
+        let stmts = extract_statements("");
+        assert!(stmts.is_empty());
+    }
+
+    #[test]
+    fn test_extract_statements_with_fn_and_let() {
+        let stmts = extract_statements("fn main() { let x = 42; }");
+        assert!(stmts.is_empty(), "Should return empty Vec (known behavior)");
+    }
+}

@@ -92,3 +92,77 @@ pub fn run(input: &str, output: &str, verbose: bool) -> Result<(), String> {
     println!("  ╚═══════════════════════════════════╝");
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Write;
+    use std::path::PathBuf;
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    static TEST_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+    fn test_dir() -> PathBuf {
+        let pid = std::process::id();
+        let n = TEST_COUNTER.fetch_add(1, Ordering::SeqCst);
+        std::env::temp_dir().join(format!("dalin-build-test-{}-{}", pid, n))
+    }
+
+    fn create_temp_source(content: &str, dir: &PathBuf) -> PathBuf {
+        std::fs::create_dir_all(dir).expect("Failed to create test dir");
+        let file_path = dir.join("test.dal");
+        let mut file = std::fs::File::create(&file_path).expect("Failed to create test file");
+        write!(file, "{}", content).expect("Failed to write test content");
+        file_path
+    }
+
+    #[test]
+    fn test_build_nonexistent_input() {
+        let out_dir = test_dir();
+        let result = run(
+            "/nonexistent/file.dal",
+            out_dir.join("out.bin").to_str().unwrap(),
+            false,
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_build_empty_source() {
+        let dir = test_dir();
+        let src_path = create_temp_source("", &dir);
+        let out_path = dir.join("output.bin");
+        let result = run(
+            src_path.to_str().unwrap(),
+            out_path.to_str().unwrap(),
+            false,
+        );
+        assert!(result.is_ok(), "Build empty source: {:?}", result.err());
+        assert!(out_path.exists(), "Output file should exist");
+    }
+
+    #[test]
+    fn test_build_simple_program() {
+        let dir = test_dir();
+        let src = "let x = 42";
+        let src_path = create_temp_source(src, &dir);
+        let out_path = dir.join("output.bin");
+        let result = run(
+            src_path.to_str().unwrap(),
+            out_path.to_str().unwrap(),
+            false,
+        );
+        assert!(result.is_ok(), "Build simple program: {:?}", result.err());
+        assert!(out_path.exists(), "Output file should exist");
+    }
+
+    #[test]
+    fn test_build_with_verbose() {
+        let dir = test_dir();
+        let src = "let x = 42";
+        let src_path = create_temp_source(src, &dir);
+        let out_path = dir.join("output.bin");
+        let result = run(src_path.to_str().unwrap(), out_path.to_str().unwrap(), true);
+        assert!(result.is_ok(), "Build with verbose: {:?}", result.err());
+    }
+}
