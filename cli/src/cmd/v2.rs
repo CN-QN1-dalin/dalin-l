@@ -1,4 +1,4 @@
-/// Legacy run_v2_demo() — seven-channel type system demo
+/// Legacy `run_v2_demo()` — seven-channel type system demo
 use dalin_compiler::{lexer, parser, ty2};
 
 pub fn run() -> Result<(), String> {
@@ -41,10 +41,10 @@ pub fn run() -> Result<(), String> {
                     infer.infer_program(&prog);
                     print!("{}", infer.print_report());
                 }
-                Err(e) => println!("  Parse error: {}", e),
+                Err(e) => println!("  Parse error: {e}"),
             }
         }
-        Err(e) => println!("  Lex error: {}", e),
+        Err(e) => println!("  Lex error: {e}"),
     }
 
     Ok(())

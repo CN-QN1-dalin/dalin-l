@@ -5,8 +5,8 @@
 /// # 评分公式
 ///
 /// `EvolutionScore::composite()` 使用加权公式：
-/// - regression_pass_rate × 0.4 + ln(1 + performance_delta) × 0.3
-///   + (1 - |memory_delta|) × 0.1 + coverage_impact × 0.1 + governance_compliance × 0.1
+/// - `regression_pass_rate` × 0.4 + ln(1 + `performance_delta`) × 0.3
+///   + (1 - |`memory_delta`|) × 0.1 + `coverage_impact` × 0.1 + `governance_compliance` × 0.1
 ///
 /// # 示例
 ///
@@ -71,6 +71,7 @@ impl EvolutionScore {
     /// 按设计文档的加权公式计算综合评分
     ///
     /// 权重: [regression: 0.4, performance: 0.3, memory: 0.1, coverage: 0.1, governance: 0.1]
+    #[must_use] 
     pub fn composite(&self) -> f64 {
         let regression_part = self.regression_pass_rate * W_REGRESSION;
 
@@ -82,7 +83,7 @@ impl EvolutionScore {
         let memory_part = (1.0 - self.memory_delta.abs()).clamp(0.0, 1.0) * W_MEMORY;
 
         // coverage_impact 直接在 [-1.0, +1.0] 范围内映射到 [0.0, 1.0]
-        let coverage_part = ((1.0 + self.coverage_impact) / 2.0).clamp(0.0, 1.0) * W_COVERAGE;
+        let coverage_part = f64::midpoint(1.0, self.coverage_impact).clamp(0.0, 1.0) * W_COVERAGE;
 
         // governance 是 0 或 1
         let governance_part = if self.governance_compliance { 1.0 } else { 0.0 } * W_GOVERNANCE;
@@ -95,11 +96,13 @@ impl EvolutionScore {
     /// 检查综合评分是否通过阈值
     ///
     /// 默认阈值为 0.8
+    #[must_use] 
     pub fn passes_threshold(&self, threshold: f64) -> bool {
         self.composite() >= threshold
     }
 
     /// 检查是否通过默认阈值 0.8
+    #[must_use] 
     pub fn passes_default(&self) -> bool {
         self.passes_threshold(0.8)
     }
@@ -184,6 +187,7 @@ impl Default for EvolutionVerificationEngine {
 }
 
 impl EvolutionVerificationEngine {
+    #[must_use] 
     pub fn new() -> Self {
         Self {
             experiments: Vec::new(),
@@ -255,6 +259,7 @@ impl EvolutionVerificationEngine {
     }
 
     /// 综合评估所有已运行实验
+    #[must_use] 
     pub fn summary_report(&self) -> String {
         if self.experiments.is_empty() {
             return "No experiments run yet.".to_string();
@@ -263,7 +268,7 @@ impl EvolutionVerificationEngine {
         let mut report = "=== Evolution Verification Summary ===\n\n".to_string();
         for exp in &self.experiments {
             use std::fmt::Write as FmtWrite;
-            let _ = write!(report, "{}", exp);
+            let _ = write!(report, "{exp}");
         }
 
         let total = self.experiments.len();
@@ -275,9 +280,9 @@ impl EvolutionVerificationEngine {
         let control_wins = total - treatment_wins;
 
         use std::fmt::Write as FmtWrite;
-        let _ = write!(report, "\nTotal experiments: {}", total);
-        let _ = write!(report, "\nTreatment wins (B): {}", treatment_wins);
-        let _ = write!(report, "\nControl wins (A): {}", control_wins);
+        let _ = write!(report, "\nTotal experiments: {total}");
+        let _ = write!(report, "\nTreatment wins (B): {treatment_wins}");
+        let _ = write!(report, "\nControl wins (A): {control_wins}");
         let win_rate = if total > 0 {
             treatment_wins as f64 / total as f64
         } else {
@@ -289,11 +294,13 @@ impl EvolutionVerificationEngine {
     }
 
     /// 返回已运行的实验数量
+    #[must_use] 
     pub fn experiment_count(&self) -> usize {
         self.experiments.len()
     }
 
     /// 获取最后一次实验结果
+    #[must_use] 
     pub fn last_result(&self) -> Option<&ABExperimentResult> {
         self.experiments.last()
     }

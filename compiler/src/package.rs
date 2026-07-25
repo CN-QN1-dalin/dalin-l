@@ -1,7 +1,7 @@
 /// Dalin L 3.0 — Phase H: 包管理系统 (Package Manager)
 ///
-/// 解析 `dalin.toml`、SemVer 版本解析与比较、依赖解析、缓存机制。
-/// 参考 Cargo 的设计，但简化为 DALin L 的最小可用子集。
+/// 解析 `dalin.toml`、`SemVer` 版本解析与比较、依赖解析、缓存机制。
+/// 参考 Cargo 的设计，但简化为 `DALin` L 的最小可用子集。
 use std::collections::HashMap;
 
 // ═══════════════════════════════
@@ -17,6 +17,7 @@ pub struct SemVer {
 }
 
 impl SemVer {
+    #[must_use] 
     pub fn new(major: u64, minor: u64, patch: u64) -> Self {
         Self {
             major,
@@ -30,8 +31,7 @@ impl SemVer {
         let parts: Vec<&str> = version_str.trim().split('.').collect();
         if parts.len() < 2 || parts.len() > 3 {
             return Err(format!(
-                "Invalid SemVer: '{}'. Expected MAJOR[.MINOR[.PATCH]]",
-                version_str
+                "Invalid SemVer: '{version_str}'. Expected MAJOR[.MINOR[.PATCH]]"
             ));
         }
         let major: u64 = parts[0]
@@ -44,7 +44,7 @@ impl SemVer {
             // Parse the leading numeric portion; ignore any pre-release/build suffix like "-alpha"
             let num_part: String = parts[2]
                 .chars()
-                .take_while(|c| c.is_ascii_digit())
+                .take_while(char::is_ascii_digit)
                 .collect();
             if num_part.is_empty() {
                 // No leading digits at all (e.g. "alpha"), default to 0
@@ -64,6 +64,7 @@ impl SemVer {
 
     /// 比较两个版本: -1 (小于), 0 (等于), 1 (大于)
     #[allow(clippy::should_implement_trait)]
+    #[must_use] 
     pub fn cmp(&self, other: &SemVer) -> i32 {
         if self.major != other.major {
             return (self.major as i32) - (other.major as i32);
@@ -75,6 +76,7 @@ impl SemVer {
     }
 
     /// 检查是否满足版本要求
+    #[must_use] 
     pub fn satisfies(&self, requirement: &VersionRequirement) -> bool {
         match requirement {
             VersionRequirement::Exact(req) => self == req,
@@ -97,6 +99,7 @@ impl SemVer {
         }
     }
 
+    #[must_use] 
     pub fn display(&self) -> String {
         format!("{}.{}.{}", self.major, self.minor, self.patch)
     }
@@ -220,7 +223,7 @@ pub fn parse_package_manifest(content: &str) -> Result<PackageManifest, String> 
         }
 
         // Subsection: [dependencies.foo]
-        if line.starts_with("[") {
+        if line.starts_with('[') {
             let bracket_end = line.find(']').ok_or("Invalid subsection syntax")?;
             let subsection = &line[1..bracket_end];
             current_subsection = Some(subsection.to_string());
@@ -235,11 +238,11 @@ pub fn parse_package_manifest(content: &str) -> Result<PackageManifest, String> 
             match (current_section.as_deref(), key) {
                 (Some("package"), "name") => manifest.name = strip_toml_string(value),
                 (Some("package"), "version") => {
-                    manifest.version = SemVer::parse(&strip_toml_string(value))?
+                    manifest.version = SemVer::parse(&strip_toml_string(value))?;
                 }
                 (Some("package"), "edition") => manifest.edition = strip_toml_string(value),
                 (Some("package"), "description") => {
-                    manifest.description = Some(strip_toml_string(value))
+                    manifest.description = Some(strip_toml_string(value));
                 }
                 (Some("package"), "authors") => {
                     // Parse array ["Author One", "Author Two"]
@@ -333,6 +336,7 @@ impl Default for DependencyGraph {
 }
 
 impl DependencyGraph {
+    #[must_use] 
     pub fn new() -> Self {
         Self {
             packages: HashMap::new(),
@@ -369,7 +373,7 @@ impl DependencyGraph {
                     .available_versions
                     .iter()
                     .max()
-                    .ok_or_else(|| format!("包 '{}' 没有可用版本", name))?
+                    .ok_or_else(|| format!("包 '{name}' 没有可用版本"))?
                     .clone();
                 self.resolved.insert(name.clone(), latest);
             }
@@ -412,6 +416,7 @@ pub struct PackageManager {
 }
 
 impl PackageManager {
+    #[must_use] 
     pub fn new(cache_dir: String, registry_url: String) -> Self {
         Self {
             cache_dir,
@@ -434,7 +439,7 @@ impl PackageManager {
     /// 获取包: 从缓存或远程下载
     pub fn get_package(&mut self, name: &str, version: &SemVer) -> Result<CachedPackage, String> {
         // 检查缓存
-        let cache_key = format!("{}@{}", name, version);
+        let cache_key = format!("{name}@{version}");
         if let Some(cached) = self.cached_packages.get(&cache_key) {
             return Ok(cached.clone());
         }
@@ -444,7 +449,7 @@ impl PackageManager {
             return Ok(CachedPackage {
                 name: name.to_string(),
                 version: version.clone(),
-                cache_path: format!("./dev/packages/{}", name),
+                cache_path: format!("./dev/packages/{name}"),
                 downloaded_at: 0,
                 content_hash: "dev-mode-hash".to_string(),
             });
@@ -456,7 +461,7 @@ impl PackageManager {
 
     /// 模拟远程下载
     fn download_package(&mut self, name: &str, version: &SemVer) -> Result<CachedPackage, String> {
-        let content_hash = format!("{:x}", hash_string(&format!("{}@{}", name, version)));
+        let content_hash = format!("{:x}", hash_string(&format!("{name}@{version}")));
         let cache_path = format!("{}/{}/{}", self.cache_dir, name, version);
 
         let pkg = CachedPackage {
@@ -468,11 +473,12 @@ impl PackageManager {
         };
 
         self.cached_packages
-            .insert(format!("{}@{}", name, version), pkg.clone());
+            .insert(format!("{name}@{version}"), pkg.clone());
         Ok(pkg)
     }
 
     /// 获取缓存中的包列表
+    #[must_use] 
     pub fn list_cached(&self) -> Vec<String> {
         let mut pkgs: Vec<String> = self
             .cached_packages
@@ -500,7 +506,7 @@ impl PackageManager {
 fn hash_string(s: &str) -> u64 {
     let mut hash: u64 = 5381;
     for c in s.bytes() {
-        hash = ((hash << 5).wrapping_add(hash)).wrapping_add(c as u64);
+        hash = ((hash << 5).wrapping_add(hash)).wrapping_add(u64::from(c));
     }
     hash
 }

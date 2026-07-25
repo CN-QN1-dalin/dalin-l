@@ -43,6 +43,7 @@ impl Default for DeriveExpander {
 }
 
 impl DeriveExpander {
+    #[must_use] 
     pub fn new() -> Self {
         Self {
             records: Vec::new(),
@@ -77,7 +78,7 @@ impl DeriveExpander {
                         self.records.push(ExpansionRecord {
                             macro_name: "derive(Debug)".to_string(),
                             target_type: "struct".to_string(),
-                            location: format!("struct {}", name),
+                            location: format!("struct {name}"),
                             generated_stmts: 1,
                         });
                         Some(stmt)
@@ -87,7 +88,7 @@ impl DeriveExpander {
                         self.records.push(ExpansionRecord {
                             macro_name: "derive(Clone)".to_string(),
                             target_type: "struct".to_string(),
-                            location: format!("struct {}", name),
+                            location: format!("struct {name}"),
                             generated_stmts: 1,
                         });
                         Some(stmt)
@@ -97,7 +98,7 @@ impl DeriveExpander {
                         self.records.push(ExpansionRecord {
                             macro_name: "derive(Copy)".to_string(),
                             target_type: "struct".to_string(),
-                            location: format!("struct {}", name),
+                            location: format!("struct {name}"),
                             generated_stmts: 1,
                         });
                         Some(stmt)
@@ -107,7 +108,7 @@ impl DeriveExpander {
                         self.records.push(ExpansionRecord {
                             macro_name: "derive(PartialEq)".to_string(),
                             target_type: "struct".to_string(),
-                            location: format!("struct {}", name),
+                            location: format!("struct {name}"),
                             generated_stmts: 1,
                         });
                         Some(stmt)
@@ -117,7 +118,7 @@ impl DeriveExpander {
                         self.records.push(ExpansionRecord {
                             macro_name: "derive(Default)".to_string(),
                             target_type: "struct".to_string(),
-                            location: format!("struct {}", name),
+                            location: format!("struct {name}"),
                             generated_stmts: 1,
                         });
                         Some(stmt)
@@ -144,7 +145,7 @@ impl DeriveExpander {
         let debug_body: Vec<Stmt> = vec![
             Stmt::Expr(Box::new(Expr::Call {
                 func: Box::new(Expr::Ident("print".to_string())),
-                args: vec![Expr::StringLiteral(format!("[DEBUG] {}", name))],
+                args: vec![Expr::StringLiteral(format!("[DEBUG] {name}"))],
             })),
             Stmt::Return(None),
         ];
@@ -175,7 +176,7 @@ impl DeriveExpander {
         let body: Vec<Stmt> = vec![
             Stmt::Expr(Box::new(Expr::Call {
                 func: Box::new(Expr::Ident("println".to_string())),
-                args: vec![Expr::StringLiteral(format!("clone {}", name))],
+                args: vec![Expr::StringLiteral(format!("clone {name}"))],
             })),
             Stmt::Return(Some(Box::new(Expr::IntLiteral(0)))),
         ];
@@ -314,15 +315,18 @@ impl Default for MacroRegistry {
 }
 
 impl MacroRegistry {
+    #[must_use] 
     pub fn new() -> Self {
         Self {
             macros: HashMap::new(),
         }
     }
 
+    #[must_use] 
     pub fn len(&self) -> usize {
         self.macros.len()
     }
+    #[must_use] 
     pub fn is_empty(&self) -> bool {
         self.macros.is_empty()
     }
@@ -331,6 +335,7 @@ impl MacroRegistry {
         self.macros.insert(key, val)
     }
 
+    #[must_use] 
     pub fn get(&self, key: &str) -> Option<&MacroDef> {
         self.macros.get(key)
     }
@@ -358,6 +363,7 @@ pub fn register_macro_decls(registry: &mut MacroRegistry, macros: &[MacroDecl]) 
     }
 }
 
+#[must_use] 
 pub fn extract_macro_decls(_stmts: &[Stmt]) -> Vec<MacroDecl> {
     // Simplified: scan for macro rules declarations in AST
     // Full implementation would walk the AST looking for macro_rules! patterns
@@ -384,6 +390,7 @@ impl Default for MacroExpander {
 }
 
 impl MacroExpander {
+    #[must_use] 
     pub fn new() -> Self {
         Self {
             derive_expander: DeriveExpander::new(),
@@ -393,6 +400,7 @@ impl MacroExpander {
     }
 
     /// 执行完整的宏展开管线
+    #[must_use] 
     pub fn expand(&self, program: &Program) -> MacroExpansion {
         let mut expanded = program.clone();
 
@@ -451,6 +459,7 @@ impl Default for BuiltinMacros {
 }
 
 impl BuiltinMacros {
+    #[must_use] 
     pub fn new() -> Self {
         let mut macros = HashMap::new();
 
@@ -517,6 +526,7 @@ impl BuiltinMacros {
         Self { macros }
     }
 
+    #[must_use] 
     pub fn expand_call(&self, name: &str, args: &[Expr]) -> Option<Vec<Stmt>> {
         self.macros.get(name).and_then(|mac| {
             if mac.num_args == 0 || mac.is_variadic || args.len() >= mac.num_args {

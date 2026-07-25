@@ -1,4 +1,4 @@
-/// Legacy run_agents_demo() — agent concurrency demo
+/// Legacy `run_agents_demo()` — agent concurrency demo
 use dalin_runtime::interpreter;
 
 pub fn run() -> Result<(), String> {
@@ -20,7 +20,7 @@ pub fn run() -> Result<(), String> {
 
     match interpreter::run_source(src) {
         Ok(_) => println!("\nAgent-Native 并发演示完成"),
-        Err(e) => println!("\n{}", e),
+        Err(e) => println!("\n{e}"),
     }
 
     Ok(())

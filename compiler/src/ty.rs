@@ -1,6 +1,6 @@
 /// Dalin L — HM 类型推断引擎
 /// 完整的 Robinson Unification + 函数签名推导 + 多态
-use crate::ast::*;
+use crate::ast::{TypeRef, BaseType, Program, Stmt, Expr, FnParam, MatchArm};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -23,7 +23,7 @@ impl TypeVar {
     pub fn new() -> Self {
         let n = TYPE_VAR_COUNTER.fetch_add(1, Ordering::SeqCst);
         Self {
-            id: format!("α{}", n),
+            id: format!("α{n}"),
         }
     }
 }
@@ -39,7 +39,7 @@ pub enum TypeOrVar {
 impl std::fmt::Display for TypeOrVar {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Concrete(t) => write!(f, "{}", t),
+            Self::Concrete(t) => write!(f, "{t}"),
             Self::Variable(v) => write!(f, "{}", v.id),
         }
     }
@@ -60,6 +60,7 @@ impl Default for TypeEnv {
 }
 
 impl TypeEnv {
+    #[must_use] 
     pub fn new() -> Self {
         Self {
             types: HashMap::new(),
@@ -67,6 +68,7 @@ impl TypeEnv {
         }
     }
 
+    #[must_use] 
     pub fn child(&self) -> Self {
         Self {
             types: HashMap::new(),
@@ -78,6 +80,7 @@ impl TypeEnv {
         self.types.insert(name.to_string(), typ);
     }
 
+    #[must_use] 
     pub fn lookup(&self, name: &str) -> Option<TypeOrVar> {
         if let Some(t) = self.types.get(name) {
             return Some(t.clone());
@@ -104,21 +107,27 @@ impl std::fmt::Display for TypeError {
 
 // ── 内置类型常量 ──
 
+#[must_use] 
 pub fn int_type() -> TypeRef {
     TypeRef::new(BaseType::Int)
 }
+#[must_use] 
 pub fn float_type() -> TypeRef {
     TypeRef::new(BaseType::Float)
 }
+#[must_use] 
 pub fn string_type() -> TypeRef {
     TypeRef::new(BaseType::String)
 }
+#[must_use] 
 pub fn bool_type() -> TypeRef {
     TypeRef::new(BaseType::Bool)
 }
+#[must_use] 
 pub fn none_type() -> TypeRef {
     TypeRef::new(BaseType::None)
 }
+#[must_use] 
 pub fn unknown_type() -> TypeRef {
     TypeRef::new(BaseType::Unknown)
 }
@@ -224,7 +233,7 @@ pub fn unify(
         (TypeOrVar::Concrete(a), TypeOrVar::Concrete(b)) => {
             if a.base != b.base {
                 return Err(TypeError {
-                    message: format!("Type mismatch: expected {}, got {}", a, b),
+                    message: format!("Type mismatch: expected {a}, got {b}"),
                 });
             }
             match (&a.generic_arg, &b.generic_arg) {
@@ -235,7 +244,7 @@ pub fn unify(
                 )?,
                 (Some(_), None) | (None, Some(_)) => {
                     return Err(TypeError {
-                        message: format!("Type mismatch: {} vs {}", a, b),
+                        message: format!("Type mismatch: {a} vs {b}"),
                     });
                 }
                 _ => {}
@@ -245,7 +254,7 @@ pub fn unify(
                     &TypeOrVar::Concrete(*ea.clone()),
                     &TypeOrVar::Concrete(*eb.clone()),
                     subst,
-                )?
+                )?;
             }
             Ok(())
         }
@@ -269,6 +278,7 @@ impl Default for TypeInferencer {
 }
 
 impl TypeInferencer {
+    #[must_use] 
     pub fn new() -> Self {
         Self {
             env: TypeEnv::new(),
@@ -324,8 +334,7 @@ impl TypeInferencer {
             Stmt::Match { target, arms } => self.infer_match(target, arms),
             Stmt::Return(v) => v
                 .as_ref()
-                .map(|e| self.infer_expr(e))
-                .unwrap_or(TypeOrVar::Concrete(none_type())),
+                .map_or(TypeOrVar::Concrete(none_type()), |e| self.infer_expr(e)),
             Stmt::Expr(e) => self.infer_expr(e),
             _ => TypeOrVar::Concrete(none_type()),
         }
@@ -441,8 +450,7 @@ impl TypeInferencer {
         let body_type = body
             .iter()
             .last()
-            .map(|s| self.infer_stmt(s))
-            .unwrap_or(TypeOrVar::Concrete(none_type()));
+            .map_or(TypeOrVar::Concrete(none_type()), |s| self.infer_stmt(s));
         self.env = old_env;
 
         // Unify return type
@@ -479,13 +487,10 @@ impl TypeInferencer {
     }
 
     fn infer_ident(&mut self, name: &str) -> TypeOrVar {
-        match self.env.lookup(name) {
-            Some(t) => t,
-            None => {
-                let tv = TypeOrVar::Variable(TypeVar::new());
-                self.env.declare(name, tv.clone());
-                tv
-            }
+        if let Some(t) = self.env.lookup(name) { t } else {
+            let tv = TypeOrVar::Variable(TypeVar::new());
+            self.env.declare(name, tv.clone());
+            tv
         }
     }
 
@@ -716,13 +721,11 @@ impl TypeInferencer {
         let then_type = then_body
             .iter()
             .last()
-            .map(|s| self.infer_stmt(s))
-            .unwrap_or(TypeOrVar::Concrete(none_type()));
+            .map_or(TypeOrVar::Concrete(none_type()), |s| self.infer_stmt(s));
         let else_type = else_body
             .iter()
             .last()
-            .map(|s| self.infer_stmt(s))
-            .unwrap_or(TypeOrVar::Concrete(none_type()));
+            .map_or(TypeOrVar::Concrete(none_type()), |s| self.infer_stmt(s));
 
         match (&then_type, &else_type) {
             (TypeOrVar::Concrete(t), _) if t.base == BaseType::None => else_type,
@@ -736,16 +739,14 @@ impl TypeInferencer {
         self.env.declare(target, TypeOrVar::Concrete(int_type()));
         body.iter()
             .last()
-            .map(|s| self.infer_stmt(s))
-            .unwrap_or(TypeOrVar::Concrete(none_type()))
+            .map_or(TypeOrVar::Concrete(none_type()), |s| self.infer_stmt(s))
     }
 
     fn infer_while(&mut self, condition: &Expr, body: &[Stmt]) -> TypeOrVar {
         let _cond = self.infer_expr(condition);
         body.iter()
             .last()
-            .map(|s| self.infer_stmt(s))
-            .unwrap_or(TypeOrVar::Concrete(none_type()))
+            .map_or(TypeOrVar::Concrete(none_type()), |s| self.infer_stmt(s))
     }
 
     fn infer_match(&mut self, target: &Expr, arms: &[MatchArm]) -> TypeOrVar {
@@ -762,21 +763,22 @@ impl TypeInferencer {
             .unwrap_or(TypeOrVar::Concrete(none_type()))
     }
 
+    #[must_use] 
     pub fn print_report(&self) -> String {
         let mut lines = vec!["\n=== Type Inference Report ===".to_string()];
         lines.push("\nInferred Types:".into());
         let mut sorted: Vec<_> = self.inferred_types.iter().collect();
         sorted.sort_by_key(|(k, _)| (*k).clone());
         for (name, typ) in &sorted {
-            lines.push(format!("  {}: {}", name, typ));
+            lines.push(format!("  {name}: {typ}"));
         }
-        if !self.errors.is_empty() {
+        if self.errors.is_empty() {
+            lines.push("\n✅ No type errors!".into());
+        } else {
             lines.push("\nErrors:".into());
             for err in &self.errors {
-                lines.push(format!("  ❌ {}", err));
+                lines.push(format!("  ❌ {err}"));
             }
-        } else {
-            lines.push("\n✅ No type errors!".into());
         }
         lines.push(String::new());
         lines.join("\n")

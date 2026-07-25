@@ -77,6 +77,7 @@ pub enum ChannelError {
 }
 
 impl ChannelError {
+    #[must_use] 
     pub fn code(&self) -> &str {
         match self {
             ChannelError::EffectViolation { .. } => "E001",
@@ -101,7 +102,7 @@ impl fmt::Display for ChannelError {
                 detail,
             } => {
                 writeln!(f, "error[{}]: 效应违规", self.code())?;
-                writeln!(f, "  --> {}", location)?;
+                writeln!(f, "  --> {location}")?;
                 writeln!(f, "   |")?;
                 writeln!(f, "   | 上下文效应: {context}, 需要: {required}")?;
                 writeln!(f, "   | {detail}")
@@ -113,7 +114,7 @@ impl fmt::Display for ChannelError {
                 detail,
             } => {
                 writeln!(f, "error[{}]: 能力违规", self.code())?;
-                writeln!(f, "  --> {}", location)?;
+                writeln!(f, "  --> {location}")?;
                 writeln!(f, "   |")?;
                 writeln!(f, "   | 上下文能力: {context}, 需要: {required}")?;
                 writeln!(f, "   | {detail}")
@@ -125,7 +126,7 @@ impl fmt::Display for ChannelError {
                 detail,
             } => {
                 writeln!(f, "error[{}]: 置信度不足", self.code())?;
-                writeln!(f, "  --> {}", location)?;
+                writeln!(f, "  --> {location}")?;
                 writeln!(f, "   |")?;
                 writeln!(f, "   | 实际: {actual}, 需要: {required}")?;
                 writeln!(f, "   | {detail}")
@@ -137,7 +138,7 @@ impl fmt::Display for ChannelError {
                 detail,
             } => {
                 writeln!(f, "error[{}]: 认知循环违规", self.code())?;
-                writeln!(f, "  --> {}", location)?;
+                writeln!(f, "  --> {location}")?;
                 writeln!(f, "   |")?;
                 writeln!(f, "   | 上下文: {context}, 需要: {required}")?;
                 writeln!(f, "   | {detail}")
@@ -149,7 +150,7 @@ impl fmt::Display for ChannelError {
                 detail,
             } => {
                 writeln!(f, "error[{}]: 治理违规", self.code())?;
-                writeln!(f, "  --> {}", location)?;
+                writeln!(f, "  --> {location}")?;
                 writeln!(f, "   |")?;
                 writeln!(f, "   | 需要: {required}, 当前: {actual}")?;
                 writeln!(f, "   | {detail}")
@@ -161,7 +162,7 @@ impl fmt::Display for ChannelError {
                 detail,
             } => {
                 writeln!(f, "error[{}]: 延迟超限", self.code())?;
-                writeln!(f, "  --> {}", location)?;
+                writeln!(f, "  --> {location}")?;
                 writeln!(f, "   |")?;
                 writeln!(
                     f,
@@ -174,13 +175,13 @@ impl fmt::Display for ChannelError {
             }
             ChannelError::TypeError { location, message } => {
                 writeln!(f, "error[{}]: 类型错误", self.code())?;
-                writeln!(f, "  --> {}", location)?;
+                writeln!(f, "  --> {location}")?;
                 writeln!(f, "   |")?;
                 writeln!(f, "   | {message}")
             }
             ChannelError::SyntaxError { location, message } => {
                 writeln!(f, "error[{}]: 语法错误", self.code())?;
-                writeln!(f, "  --> {}", location)?;
+                writeln!(f, "  --> {location}")?;
                 writeln!(f, "   |")?;
                 writeln!(f, "   | {message}")
             }

@@ -1,8 +1,8 @@
 //! gRPC 控制面服务实现（Phase 2 调度入口）
 //!
 //! 把注册表 / 调度器 / 事件总线 / 派发总线 / Agent 注册表串起来：
-//! SubmitTask 做能力放置 → 写入任务树 → 经 DispatchBroker 派发到对应
-//! capability topic → 状态变更推给 WatchTasks 订阅者 + 事件总线。
+//! `SubmitTask` 做能力放置 → 写入任务树 → 经 `DispatchBroker` 派发到对应
+//! capability topic → 状态变更推给 `WatchTasks` 订阅者 + 事件总线。
 
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
@@ -165,7 +165,7 @@ impl ControlPlane for ControlPlaneService {
             Some(rec) => Ok(Response::new(GetTaskResponse {
                 task: Some(task_to_proto(&rec, rec.node.clone())),
             })),
-            None => Err(Status::not_found(format!("task not found: {}", id))),
+            None => Err(Status::not_found(format!("task not found: {id}"))),
         }
     }
 
@@ -217,7 +217,7 @@ impl ControlPlane for ControlPlaneService {
         let stream = BroadcastStream::new(rx).filter_map(move |ev| {
             let parent = parent.clone();
             match ev {
-                Ok(TaskEvent::Submitted(rec)) | Ok(TaskEvent::StatusChanged(rec)) => {
+                Ok(TaskEvent::Submitted(rec) | TaskEvent::StatusChanged(rec)) => {
                     let matches = if parent.is_empty() {
                         true
                     } else {
@@ -236,7 +236,7 @@ impl ControlPlane for ControlPlaneService {
     }
 }
 
-/// 启动 gRPC 控制面服务（ControlPlane + AgentRegistry）。
+/// 启动 gRPC 控制面服务（ControlPlane + `AgentRegistry`）。
 pub async fn serve(
     addr: std::net::SocketAddr,
     registry: Arc<dyn TaskStore>,

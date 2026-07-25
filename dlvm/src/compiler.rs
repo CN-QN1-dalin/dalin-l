@@ -27,6 +27,7 @@ impl Default for BytecodeCompiler {
 }
 
 impl BytecodeCompiler {
+    #[must_use] 
     pub fn new() -> Self {
         Self {
             functions: Vec::new(),
@@ -212,12 +213,12 @@ impl BytecodeCompiler {
                 if jmp_false_idx < self.code.len()
                     && let Opcode::JmpIfNot(offset) = &mut self.code[jmp_false_idx]
                 {
-                    *offset = false_offset
+                    *offset = false_offset;
                 }
                 if jmp_end_idx < self.code.len()
                     && let Opcode::Jmp(offset) = &mut self.code[jmp_end_idx]
                 {
-                    *offset = end_offset
+                    *offset = end_offset;
                 }
             }
 

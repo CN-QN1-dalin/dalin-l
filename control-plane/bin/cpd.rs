@@ -66,7 +66,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let store: Arc<dyn TaskStore> = match build_task_store(&task_store_url, &node_id).await {
         Ok(s) => s,
         Err(StoreFactoryError::UnknownScheme(s)) => {
-            eprintln!("❌ 未知 TASK_STORE scheme：{}", s);
+            eprintln!("❌ 未知 TASK_STORE scheme：{s}");
             std::process::exit(2);
         }
         Err(e) => {
@@ -83,7 +83,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let bus: Arc<dyn EventBus> = match NatsEventBus::connect(&nats_urls).await {
         Ok(nats) => Arc::new(nats),
         Err(e) => {
-            eprintln!("⚠️  NATS 连接失败（{}），降级到内存事件总线", e);
+            eprintln!("⚠️  NATS 连接失败（{e}），降级到内存事件总线");
             Arc::new(InMemoryEventBus::new())
         }
     };

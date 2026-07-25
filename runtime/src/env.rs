@@ -53,21 +53,21 @@ pub struct FnValue {
 impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Value::Int(v) => write!(f, "{}", v),
-            Value::Float(v) => write!(f, "{}", v),
-            Value::String(v) => write!(f, "{}", v),
-            Value::Bool(v) => write!(f, "{}", v),
-            Value::Char(v) => write!(f, "{}", v),
+            Value::Int(v) => write!(f, "{v}"),
+            Value::Float(v) => write!(f, "{v}"),
+            Value::String(v) => write!(f, "{v}"),
+            Value::Bool(v) => write!(f, "{v}"),
+            Value::Char(v) => write!(f, "{v}"),
             Value::None => write!(f, "none"),
             Value::Array(arr) => {
-                let items: Vec<String> = arr.iter().map(|v| format!("{}", v)).collect();
+                let items: Vec<String> = arr.iter().map(|v| format!("{v}")).collect();
                 write!(f, "[{}]", items.join(", "))
             }
-            Value::Option(true, Some(v)) => write!(f, "Some({})", v),
+            Value::Option(true, Some(v)) => write!(f, "Some({v})"),
             Value::Option(true, None) => write!(f, "Some(None)"),
             Value::Option(false, _) => write!(f, "None"),
-            Value::Result(true, Some(v), _) => write!(f, "Ok({})", v),
-            Value::Result(false, _, Some(e)) => write!(f, "Err({})", e),
+            Value::Result(true, Some(v), _) => write!(f, "Ok({v})"),
+            Value::Result(false, _, Some(e)) => write!(f, "Err({e})"),
             Value::Result(_, _, _) => write!(f, "Result"),
             Value::Function(fv) => write!(f, "<fn {}>", fv.name),
             Value::Struct(map) => {
@@ -84,11 +84,11 @@ impl fmt::Display for Value {
                 let inner: Vec<String> = map
                     .iter()
                     .filter(|(k, _)| k.as_str() != DALIN_TYPE_KEY)
-                    .map(|(k, v)| format!("{} = {}", k, v))
+                    .map(|(k, v)| format!("{k} = {v}"))
                     .collect();
                 write!(f, "{} {{ {} }}", ty, inner.join(", "))
             }
-            Value::EnumVariant(en, vn) => write!(f, "{}::{}", en, vn),
+            Value::EnumVariant(en, vn) => write!(f, "{en}::{vn}"),
             Value::Task(_) => write!(f, "<task>"),
             Value::ChannelSender(_) => write!(f, "<sender>"),
             Value::ChannelReceiver(_) => write!(f, "<receiver>"),
@@ -110,6 +110,7 @@ impl Default for Environment {
 }
 
 impl Environment {
+    #[must_use] 
     pub fn new() -> Self {
         Self {
             vars: HashMap::new(),
@@ -117,6 +118,7 @@ impl Environment {
         }
     }
 
+    #[must_use] 
     pub fn child(&self) -> Self {
         Self {
             vars: HashMap::new(),
@@ -128,6 +130,7 @@ impl Environment {
         self.vars.insert(name.to_string(), value);
     }
 
+    #[must_use] 
     pub fn lookup(&self, name: &str) -> Option<Value> {
         if let Some(v) = self.vars.get(name) {
             return Some(v.clone());

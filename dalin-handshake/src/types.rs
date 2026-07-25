@@ -17,6 +17,7 @@ impl AgentId {
     }
 
     /// 生成随机 Agent ID
+    #[must_use] 
     pub fn generate() -> Self {
         Self(uuid::Uuid::new_v4().to_string())
     }
@@ -37,6 +38,7 @@ impl SessionId {
         Self(id.into())
     }
 
+    #[must_use] 
     pub fn generate() -> Self {
         Self(uuid::Uuid::new_v4().to_string())
     }
@@ -63,6 +65,7 @@ impl MessageId {
         Self(id.into())
     }
 
+    #[must_use] 
     pub fn generate() -> Self {
         Self(uuid::Uuid::new_v4().to_string())
     }
@@ -125,7 +128,7 @@ impl std::fmt::Display for TransportKind {
             TransportKind::Unix => write!(f, "unix"),
             TransportKind::Tcp => write!(f, "tcp"),
             TransportKind::Memory => write!(f, "memory"),
-            TransportKind::Other(s) => write!(f, "{}", s),
+            TransportKind::Other(s) => write!(f, "{s}"),
         }
     }
 }
@@ -217,6 +220,7 @@ pub struct Message {
 }
 
 impl Message {
+    #[must_use] 
     pub fn new(
         msg_type: MessageType,
         from: AgentId,
@@ -237,6 +241,7 @@ impl Message {
     }
 
     /// 创建 ping 消息
+    #[must_use] 
     pub fn ping(from: AgentId, to: AgentId, session: SessionId) -> Self {
         let mut msg = Self::new(MessageType::Ping, from, to, serde_json::json!({}));
         msg.session_id = Some(session);
@@ -244,6 +249,7 @@ impl Message {
     }
 
     /// 创建 pong 消息（响应 ping）
+    #[must_use] 
     pub fn pong(ping: &Message) -> Self {
         let mut msg = Self::new(
             MessageType::Pong,
@@ -257,6 +263,7 @@ impl Message {
     }
 
     /// 创建 data 消息
+    #[must_use] 
     pub fn data(
         from: AgentId,
         to: AgentId,
@@ -336,6 +343,7 @@ impl Session {
     }
 
     /// 检查心跳是否超时
+    #[must_use] 
     pub fn is_heartbeat_expired(&self, max_missed: u32) -> bool {
         let elapsed = chrono::Utc::now() - self.last_heartbeat;
         elapsed

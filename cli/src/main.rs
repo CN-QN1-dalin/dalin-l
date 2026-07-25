@@ -98,7 +98,7 @@ enum Commands {
     /// V2 seven-channel demo
     V2 {},
 
-    /// TaskSpec demo
+    /// `TaskSpec` demo
     Tasks {},
 
     /// Agent-concurrency demo
@@ -288,7 +288,7 @@ fn main() {
     };
 
     if let Err(e) = result {
-        eprintln!("Error: {}", e);
+        eprintln!("Error: {e}");
         std::process::exit(1);
     }
 }

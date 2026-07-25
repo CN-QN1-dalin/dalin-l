@@ -5,10 +5,10 @@ use std::time::Duration;
 
 pub fn run(input: &str, watch: bool, verbose: bool) -> Result<(), String> {
     let banner = util::banner("RUN");
-    println!("{}", banner);
+    println!("{banner}");
 
     if !std::path::Path::new(input).exists() {
-        return Err(format!("Source file '{}' does not exist", input));
+        return Err(format!("Source file '{input}' does not exist"));
     }
 
     // Resolve project root for cache dir
@@ -17,9 +17,7 @@ pub fn run(input: &str, watch: bool, verbose: bool) -> Result<(), String> {
         cwd.clone()
     } else {
         Path::new(input)
-            .parent()
-            .map(|p| p.to_path_buf())
-            .unwrap_or_else(|| cwd.clone())
+            .parent().map_or_else(|| cwd.clone(), std::path::Path::to_path_buf)
     };
 
     let mut compiled_ok = false;
@@ -33,19 +31,17 @@ pub fn run(input: &str, watch: bool, verbose: bool) -> Result<(), String> {
         }
 
         let src = std::fs::read_to_string(input)
-            .map_err(|e| format!("Cannot read '{}': {}", input, e))?;
+            .map_err(|e| format!("Cannot read '{input}': {e}"))?;
 
         // Check cache first
         let needs_compile =
             !dalin_compiler::cache::is_cached(Path::new(input), &src, &project_root);
         if needs_compile {
             if verbose {
-                println!("  🔨 Compiling {} ...", input);
+                println!("  🔨 Compiling {input} ...");
             }
-        } else {
-            if verbose {
-                println!("  ✓ Cache hit, skipping compilation");
-            }
+        } else if verbose {
+            println!("  ✓ Cache hit, skipping compilation");
         }
 
         use dalin_compiler::{lexer, parser};
@@ -78,23 +74,23 @@ pub fn run(input: &str, watch: bool, verbose: bool) -> Result<(), String> {
                                 }
                             }
                             Err(e) => {
-                                println!("\n  ❌ Runtime error: {}", e);
+                                println!("\n  ❌ Runtime error: {e}");
                                 if !watch {
-                                    return Err(format!("{}", e));
+                                    return Err(format!("{e}"));
                                 }
                             }
                         }
                     }
                     Err(e) => {
                         if !watch {
-                            return Err(format!("{}", e));
+                            return Err(format!("{e}"));
                         }
                     }
                 }
             }
             Err(e) => {
                 if !watch {
-                    return Err(format!("{}", e));
+                    return Err(format!("{e}"));
                 }
             }
         }

@@ -4,21 +4,21 @@ use std::path::Path;
 /// dalib profile <file.dal>
 pub fn run_profile(input: &str, verbose: bool) -> Result<(), String> {
     if !Path::new(input).exists() {
-        return Err(format!("Source file '{}' does not exist", input));
+        return Err(format!("Source file '{input}' does not exist"));
     }
 
     println!("=== Dalin L 3.0 Profiler ===");
-    println!("Profile target: {}\n", input);
+    println!("Profile target: {input}\n");
 
     let mut profiler = Profiler::new();
 
     // Profile: tokenize
     let src =
-        std::fs::read_to_string(input).map_err(|e| format!("Cannot read '{}': {}", input, e))?;
+        std::fs::read_to_string(input).map_err(|e| format!("Cannot read '{input}': {e}"))?;
 
     profiler.start_call("tokenize");
     let mut lex = dalin_compiler::lexer::Lexer::new(&src);
-    let tokens = lex.tokenize().map_err(|e| format!("Lexer error: {}", e))?;
+    let tokens = lex.tokenize().map_err(|e| format!("Lexer error: {e}"))?;
     profiler.end_call("tokenize");
 
     if verbose {
@@ -28,7 +28,7 @@ pub fn run_profile(input: &str, verbose: bool) -> Result<(), String> {
     // Profile: parse
     profiler.start_call("parse");
     let mut parser = dalin_compiler::parser::Parser::new(tokens);
-    let prog = parser.parse().map_err(|e| format!("Parse error: {}", e))?;
+    let prog = parser.parse().map_err(|e| format!("Parse error: {e}"))?;
     profiler.end_call("parse");
 
     if verbose {
@@ -64,7 +64,7 @@ pub fn run_profile(input: &str, verbose: bool) -> Result<(), String> {
         }
         Err(e) => {
             profiler.end_call("run");
-            return Err(format!("Runtime error: {}", e));
+            return Err(format!("Runtime error: {e}"));
         }
     }
     profiler.end_call("run");

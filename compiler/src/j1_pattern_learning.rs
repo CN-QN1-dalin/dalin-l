@@ -33,7 +33,7 @@ pub struct ErrorRecord {
     pub id: u64,
     /// ISO 8601 时间戳
     pub timestamp: String,
-    /// 错误类型：panic, channel_error, latency_violation, governance_reject, recovery_event
+    /// 错误类型：panic, `channel_error`, `latency_violation`, `governance_reject`, `recovery_event`
     pub error_type: String,
     /// 错误消息描述
     pub message: String,
@@ -97,7 +97,7 @@ fn tokenize(msg: &str) -> Vec<String> {
 
 const EMBED_DIM: usize = 64;
 
-/// 语义嵌入：使用 error_type + 关键词作为主要特征
+/// 语义嵌入：使用 `error_type` + 关键词作为主要特征
 fn embed_error(error: &ErrorRecord, dim: usize) -> Vec<f32> {
     let mut vec = vec![0.0_f32; dim];
 
@@ -127,7 +127,7 @@ fn embed_error(error: &ErrorRecord, dim: usize) -> Vec<f32> {
 fn djb2_hash(s: &str) -> u64 {
     let mut hash: u64 = 5381;
     for byte in s.bytes() {
-        hash = hash.wrapping_mul(33).wrapping_add(byte as u64);
+        hash = hash.wrapping_mul(33).wrapping_add(u64::from(byte));
     }
     hash
 }
@@ -212,7 +212,7 @@ fn dbscan(embeddings: &[Vec<f32>], eps: f32, min_points: usize) -> Vec<Vec<usize
 pub struct ErrorClusteringEngine {
     /// 错误日志（追加不可变）
     errors: Vec<ErrorRecord>,
-    /// 倒排索引：keyword -> error_ids
+    /// 倒排索引：keyword -> `error_ids`
     index: HashMap<String, Vec<usize>>,
 }
 
@@ -223,6 +223,7 @@ impl Default for ErrorClusteringEngine {
 }
 
 impl ErrorClusteringEngine {
+    #[must_use] 
     pub fn new() -> Self {
         Self {
             errors: Vec::new(),
@@ -246,11 +247,13 @@ impl ErrorClusteringEngine {
     }
 
     /// 返回当前错误总数
+    #[must_use] 
     pub fn error_count(&self) -> usize {
         self.errors.len()
     }
 
     /// 计算错误的语义向量（hash-based embedding）
+    #[must_use] 
     pub fn embed(&self, error: &ErrorRecord) -> Vec<f32> {
         embed_error(error, EMBED_DIM)
     }
@@ -263,6 +266,7 @@ impl ErrorClusteringEngine {
     ///
     /// # Returns
     /// 每个簇包含的错误索引列表
+    #[must_use] 
     pub fn cluster(&self, eps: f32, min_points: usize) -> Vec<Vec<usize>> {
         if self.errors.len() < 2 {
             return Vec::new();
@@ -275,6 +279,7 @@ impl ErrorClusteringEngine {
     /// 提取通用修复模板
     ///
     /// 对每个 cluster 取关键词交集，归纳共性修复策略
+    #[must_use] 
     pub fn extract_templates(&self, clusters: &[Vec<usize>]) -> Vec<Template> {
         clusters
             .iter()
@@ -309,7 +314,7 @@ impl ErrorClusteringEngine {
                 // 基于共有词构建修复策略
                 let mut fix_strategy: Vec<String> = common_vec
                     .iter()
-                    .map(|t| format!("针对 '{}' 问题应用标准化修复", t))
+                    .map(|t| format!("针对 '{t}' 问题应用标准化修复"))
                     .collect();
                 if fix_strategy.is_empty() {
                     fix_strategy.push("人工审查并更新知识库".to_string());
@@ -353,9 +358,9 @@ impl ErrorClusteringEngine {
         let templates = self.extract_templates(&clusters);
 
         let dir = Path::new(output_path).parent().unwrap_or(Path::new("."));
-        fs::create_dir_all(dir).map_err(|e| format!("创建目录失败: {}", e))?;
+        fs::create_dir_all(dir).map_err(|e| format!("创建目录失败: {e}"))?;
 
-        let mut file = fs::File::create(output_path).map_err(|e| format!("创建文件失败: {}", e))?;
+        let mut file = fs::File::create(output_path).map_err(|e| format!("创建文件失败: {e}"))?;
         use std::io::Write;
         for tmpl in &templates {
             let line = format!(
@@ -377,9 +382,9 @@ impl ErrorClusteringEngine {
                 tmpl.regression_count,
             );
             file.write_all(line.as_bytes())
-                .map_err(|e| format!("写入失败: {}", e))?;
+                .map_err(|e| format!("写入失败: {e}"))?;
             file.write_all(b"\n")
-                .map_err(|e| format!("写入失败: {}", e))?;
+                .map_err(|e| format!("写入失败: {e}"))?;
         }
 
         Ok(())

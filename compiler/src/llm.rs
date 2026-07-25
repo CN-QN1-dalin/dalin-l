@@ -9,7 +9,7 @@
 //!     → 七通道类型检查 → 代码生成 → 链接进二进制
 //! ```
 //!
-//! 置信度集成：@llm 生成的代码自动标记为 Confidence::Generated，
+//! 置信度集成：@llm 生成的代码自动标记为 `Confidence::Generated`，
 //! 调用方必须显式处理低置信度路径。
 
 use crate::ast::{Expr, Stmt};
@@ -47,6 +47,7 @@ impl LlmEngine {
     ///
     /// Phase B: 模板匹配和骨架生成（无 QN1 后端时的默认路径）
     /// Phase D: 通过 QN1/SFA 调用 LLM 实时生成
+    #[must_use] 
     pub fn process_directive(prompt: &str, target: Option<&str>) -> LlmGeneratedCode {
         let statements = Self::prompt_to_ast(prompt, target);
         let confidence = if Self::is_pattern_match(prompt) {
@@ -66,7 +67,8 @@ impl LlmEngine {
     ///
     /// Phase D 核心入口：
     /// 1. 如果有 QN1 后端 → 调用 QN1 生成代码（置信度 + 延迟跟踪）
-    /// 2. 无 QN1 后端 → 回落至 process_directive() 模板匹配
+    /// 2. 无 QN1 后端 → 回落至 `process_directive()` 模板匹配
+    #[must_use] 
     pub fn process_with_qn1(
         prompt: &str,
         target: Option<&str>,
@@ -74,7 +76,7 @@ impl LlmEngine {
     ) -> LlmGeneratedCode {
         if let Some(qn1) = qn1 {
             let mut ctx = GenerationContext::new();
-            ctx.fn_name = target.map(|s| s.to_string());
+            ctx.fn_name = target.map(std::string::ToString::to_string);
             let result = qn1.generate(prompt, &ctx);
 
             LlmGeneratedCode {
@@ -144,7 +146,7 @@ impl LlmEngine {
         let p = prompt.trim().to_lowercase();
 
         // filter > threshold
-        if p.contains("filter") && (p.contains("greater") || p.contains(">")) {
+        if p.contains("filter") && (p.contains("greater") || p.contains('>')) {
             return Some(vec![Stmt::Fn {
                 name: "filter_fn".to_string(),
                 params: vec![],

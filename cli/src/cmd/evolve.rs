@@ -59,7 +59,7 @@ impl TestCoverage {
         } else {
             "\u{26a0}\u{fe0f}"
         };
-        format!("Unit {} Integration {} E2E {}", ui, ii, ei)
+        format!("Unit {ui} Integration {ii} E2E {ei}")
     }
 }
 
@@ -91,7 +91,7 @@ pub struct AuditLog {
 
 // ───────────────────── Real Phase J data sources ─────────────────────
 
-/// 从 J1 ErrorClusteringEngine 提取聚类数据，映射为 EvolutionChange
+/// 从 J1 `ErrorClusteringEngine` 提取聚类数据，映射为 `EvolutionChange`
 /// 获取真实进化数据（优先使用）
 #[allow(dead_code)]
 fn current_evolutions() -> Vec<EvolutionChange> {
@@ -153,7 +153,7 @@ fn fetch_j1_clusters() -> Vec<EvolutionChange> {
         .collect()
 }
 
-/// 从 J2 StrategyGenerator 提取策略数据
+/// 从 J2 `StrategyGenerator` 提取策略数据
 fn fetch_j2_strategies() -> Vec<EvolutionChange> {
     let mut strategy_gen = StrategyGenerator::new();
     // 注入成功修复记录
@@ -208,7 +208,7 @@ fn fetch_j2_strategies() -> Vec<EvolutionChange> {
         .collect()
 }
 
-/// 从 J3 EvolutionVerificationEngine 提取验证结果
+/// 从 J3 `EvolutionVerificationEngine` 提取验证结果
 fn fetch_j3_results() -> Result<Vec<EvolutionChange>, String> {
     let mut engine = EvolutionVerificationEngine::new();
 
@@ -226,9 +226,9 @@ fn fetch_j3_results() -> Result<Vec<EvolutionChange>, String> {
         Ok::<EvolutionChange, String>(EvolutionChange {
             id: 50,
             module: "j3_verify".into(),
-            description: format!("AB实验: {} vs {}", a_name, b_name),
-            diff: format!("scores: {:.2} → {:.2}", a_score, b_score),
-            impact: format!("experiment {}", id),
+            description: format!("AB实验: {a_name} vs {b_name}"),
+            diff: format!("scores: {a_score:.2} → {b_score:.2}"),
+            impact: format!("experiment {id}"),
             expected_benefit: "新策略胜出".into(),
             risk_level: RiskLevel::LOW,
             test_coverage: TestCoverage {
@@ -321,7 +321,7 @@ pub fn j_status_report() -> Result<String, String> {
          J2 Strategy Gen: {} known rules, {} weight channels updated\n\
          J3 Verification: 1 experiment run — {}",
         engine.error_count(),
-        clusters.iter().map(|c| c.len()).sum::<usize>(),
+        clusters.iter().map(std::vec::Vec::len).sum::<usize>(),
         templates.len(),
         rules.len(),
         total_weight_keys,
@@ -448,7 +448,7 @@ fn audit_log_dir() -> PathBuf {
 
 fn ensure_audit_dir() -> Result<(), String> {
     let dir = audit_log_dir();
-    fs::create_dir_all(&dir).map_err(|e| format!("Cannot create audit dir: {}", e))?;
+    fs::create_dir_all(&dir).map_err(|e| format!("Cannot create audit dir: {e}"))?;
     Ok(())
 }
 
@@ -464,10 +464,10 @@ fn load_audit_log() -> AuditLog {
 }
 
 fn save_audit_log(log: &AuditLog) -> Result<(), String> {
-    fs::create_dir_all(audit_log_dir()).map_err(|e| format!("Cannot create dir: {}", e))?;
+    fs::create_dir_all(audit_log_dir()).map_err(|e| format!("Cannot create dir: {e}"))?;
     let path = audit_log_dir().join("_index.json");
-    let content = serde_json::to_string_pretty(log).map_err(|e| format!("JSON error: {}", e))?;
-    fs::write(path, content).map_err(|e| format!("Cannot write file: {}", e))?;
+    let content = serde_json::to_string_pretty(log).map_err(|e| format!("JSON error: {e}"))?;
+    fs::write(path, content).map_err(|e| format!("Cannot write file: {e}"))?;
     Ok(())
 }
 
@@ -485,15 +485,15 @@ fn record_entry(change_id: u64, action: &str, reason: Option<String>) -> Result<
     let now = Local::now();
     let day = now.format("%d").to_string();
     let ym = now.format("%Y-%m").to_string();
-    let padded = format!("{:03}", change_id);
+    let padded = format!("{change_id:03}");
     let file_path = audit_log_dir()
         .join(&ym)
-        .join(format!("{}_{}_{}.json", day, action, padded));
+        .join(format!("{day}_{action}_{padded}.json"));
     if let Some(parent) = file_path.parent() {
-        fs::create_dir_all(parent).map_err(|e| format!("Cannot create dir: {}", e))?;
+        fs::create_dir_all(parent).map_err(|e| format!("Cannot create dir: {e}"))?;
     }
-    let content = serde_json::to_string_pretty(&entry).map_err(|e| format!("JSON error: {}", e))?;
-    fs::write(&file_path, content).map_err(|e| format!("Cannot write file: {}", e))?;
+    let content = serde_json::to_string_pretty(&entry).map_err(|e| format!("JSON error: {e}"))?;
+    fs::write(&file_path, content).map_err(|e| format!("Cannot write file: {e}"))?;
 
     let mut updated = AuditLog {
         entries: log.entries,
@@ -513,11 +513,11 @@ fn get_snapshot_base() -> PathBuf {
 fn do_revert(target_epoch: u64, current: &[EvolutionChange]) -> Result<String, String> {
     ensure_audit_dir()?;
     let snap_dir = get_snapshot_base();
-    fs::create_dir_all(&snap_dir).map_err(|e| format!("Cannot create dir: {}", e))?;
+    fs::create_dir_all(&snap_dir).map_err(|e| format!("Cannot create dir: {e}"))?;
     let max_id = current.iter().map(|c| c.id).max().unwrap_or(0);
-    let snapshot_name = format!("snapshot-epoch-{}", max_id);
+    let snapshot_name = format!("snapshot-epoch-{max_id}");
     let snapshot_path = snap_dir.join(&snapshot_name);
-    fs::create_dir_all(&snapshot_path).map_err(|e| format!("Cannot create snapshot: {}", e))?;
+    fs::create_dir_all(&snapshot_path).map_err(|e| format!("Cannot create snapshot: {e}"))?;
 
     let applied_count = current.iter().filter(|c| c.id > target_epoch).count();
     let changes_json = serde_json::to_string_pretty(
@@ -527,9 +527,9 @@ fn do_revert(target_epoch: u64, current: &[EvolutionChange]) -> Result<String, S
             .cloned()
             .collect::<Vec<_>>(),
     )
-    .map_err(|e| format!("JSON error: {}", e))?;
+    .map_err(|e| format!("JSON error: {e}"))?;
     fs::write(snapshot_path.join("baseline.json"), changes_json)
-        .map_err(|e| format!("Cannot write snapshot: {}", e))?;
+        .map_err(|e| format!("Cannot write snapshot: {e}"))?;
 
     Ok(format!(
         "已回滚至 epoch {}\n撤销 {} 个进化变更\nSnapshot 已保存到 evolution/{}",
@@ -602,11 +602,11 @@ fn auto_assign_risk(change: &EvolutionChange) -> RiskLevel {
 // ───────────────────── Output helpers ─────────────────────
 
 fn fmt_divider(title: &str) -> String {
-    format!("\u{2550}{:<58}\u{2550}", format!(" {} ", title).trim_end())
+    format!("\u{2550}{:<58}\u{2550}", format!(" {title} ").trim_end())
 }
 
 fn fmt_section(label: &str, value: &str) -> String {
-    let mut s = format!("  {}:", label);
+    let mut s = format!("  {label}:");
     s.push_str(&" ".repeat(22 - s.chars().count()));
     s.push_str(value);
     s
@@ -686,10 +686,8 @@ fn cmd_review(json: bool) -> Result<(), String> {
     let input = input.trim();
     if input.eq_ignore_ascii_case("q") || input.eq_ignore_ascii_case("quit") {
         println!("  \u{2714} 审查结束");
-    } else {
-        if let Ok(id) = input.trim_start_matches('#').trim().parse::<u64>() {
-            handle_view(id, true)?;
-        }
+    } else if let Ok(id) = input.trim_start_matches('#').trim().parse::<u64>() {
+        handle_view(id, true)?;
     }
     Ok(())
 }
@@ -700,7 +698,7 @@ fn cmd_view(change_id: Option<u64>, json: bool) -> Result<(), String> {
     let change = changes
         .iter()
         .find(|c| c.id == target_id)
-        .ok_or_else(|| format!("Evolution change #{} not found", target_id))?;
+        .ok_or_else(|| format!("Evolution change #{target_id} not found"))?;
     if json {
         println!("{}", serde_json::to_string_pretty(&change).unwrap());
         return Ok(());
@@ -713,7 +711,7 @@ fn handle_view(change_id: u64, _interactive: bool) -> Result<(), String> {
     let change = changes
         .iter()
         .find(|c| c.id == change_id)
-        .ok_or_else(|| format!("Evolution change #{} not found", change_id))?;
+        .ok_or_else(|| format!("Evolution change #{change_id} not found"))?;
     println!(
         "\n{}",
         fmt_divider(&format!("进化变更 #{} — {}", change.id, change.module))
@@ -728,7 +726,7 @@ fn handle_view(change_id: u64, _interactive: bool) -> Result<(), String> {
     println!("{}", fmt_section("测试覆盖", &change.test_coverage.fmt()));
     println!("\n  --- Diff ---");
     for line in change.diff.lines() {
-        println!("  {}", line);
+        println!("  {line}");
     }
     Ok(())
 }
@@ -737,10 +735,10 @@ fn cmd_accept(change_id: Option<u64>) -> Result<(), String> {
     let changes = mock_changes();
     let id = change_id.unwrap_or(42);
     if !changes.iter().any(|c| c.id == id) {
-        return Err(format!("Evolution change #{} not found", id));
+        return Err(format!("Evolution change #{id} not found"));
     }
     record_entry(id, "accept", None)?;
-    println!("  \u{2705} 进化变更 #{} 已审批", id);
+    println!("  \u{2705} 进化变更 #{id} 已审批");
     Ok(())
 }
 
@@ -748,22 +746,22 @@ fn cmd_reject(change_id: Option<u64>, reason: Option<String>) -> Result<(), Stri
     let changes = mock_changes();
     let id = change_id.unwrap_or(42);
     if !changes.iter().any(|c| c.id == id) {
-        return Err(format!("Evolution change #{} not found", id));
+        return Err(format!("Evolution change #{id} not found"));
     }
     record_entry(id, "reject", reason)?;
-    println!("  \u{274C} 进化变更 #{} 已拒绝", id);
+    println!("  \u{274C} 进化变更 #{id} 已拒绝");
     Ok(())
 }
 
 fn cmd_revert(to_epoch: u64) -> Result<(), String> {
     let changes = mock_changes();
     let result = do_revert(to_epoch, &changes)?;
-    println!("  \u{23ea} {}", result);
+    println!("  \u{23ea} {result}");
     let max_id = changes.iter().map(|c| c.id).max().unwrap_or(0);
     record_entry(
         max_id,
         "revert",
-        Some(format!("reverted to epoch {}", to_epoch)),
+        Some(format!("reverted to epoch {to_epoch}")),
     )?;
     Ok(())
 }
@@ -804,11 +802,11 @@ fn cmd_stats(json: bool) -> Result<(), String> {
 pub fn run(subcmd: &str, args: &HashMap<String, String>) -> Result<(), String> {
     match subcmd {
         "review" => {
-            let jf = args.get("json").map(|v| v == "true").unwrap_or(false);
+            let jf = args.get("json").is_some_and(|v| v == "true");
             cmd_review(jf)
         }
         "view" => {
-            let jf = args.get("json").map(|v| v == "true").unwrap_or(false);
+            let jf = args.get("json").is_some_and(|v| v == "true");
             let id = args.get("id").and_then(|s| s.parse::<u64>().ok());
             cmd_view(id, jf)
         }
@@ -829,14 +827,14 @@ pub fn run(subcmd: &str, args: &HashMap<String, String>) -> Result<(), String> {
             cmd_revert(to)
         }
         "stats" => {
-            let jf = args.get("json").map(|v| v == "true").unwrap_or(false);
+            let jf = args.get("json").is_some_and(|v| v == "true");
             cmd_stats(jf)
         }
         "status" => {
             let report = j_status_report()?;
             println!("\n{}\n", fmt_divider("Phase J 自进化状态"));
             for line in report.lines() {
-                println!("{}", line);
+                println!("{line}");
             }
             println!("{}", fmt_divider(""));
             Ok(())
@@ -868,8 +866,7 @@ pub fn run(subcmd: &str, args: &HashMap<String, String>) -> Result<(), String> {
             Ok(())
         }
         other => Err(format!(
-            "Unknown evolve subcommand: {}. Available: review, view, accept, reject, revert, stats",
-            other
+            "Unknown evolve subcommand: {other}. Available: review, view, accept, reject, revert, stats"
         )),
     }
 }

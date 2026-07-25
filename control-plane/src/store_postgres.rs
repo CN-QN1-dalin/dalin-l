@@ -1,14 +1,14 @@
-//! PostgresTaskStore — `TaskStore` 的 Postgres 后端（关系型 / 强一致）
+//! `PostgresTaskStore` — `TaskStore` 的 Postgres 后端（关系型 / 强一致）
 //!
 //! 数据布局（规范化 + 索引，符合关系型最佳实践）：
 //!   - `tasks` 表：id(PK) / name / parent(NULL=根) / effect / capability /
-//!     idempotency_key / status / node / submitted_at
+//!     `idempotency_key` / status / node / `submitted_at`
 //!   - 索引：`idx_tasks_parent`（parent 上的部分索引）
 //!   - 幂等：按 `(parent, idempotency_key)` 查询复用既有记录
 //!
 //! 跨节点事件：当前不支持 Postgres NOTIFY（tokio-postgres 0.7 + PG 18 下
 //! 跨连接通知不可达）。本地 `subscribe()` 在同一进程内可靠工作。
-//! 多实例分布式场景请使用 RedisTaskStore 或 EtcdTaskStore。
+//! 多实例分布式场景请使用 `RedisTaskStore` 或 `EtcdTaskStore`。
 
 use async_trait::async_trait;
 use tokio::sync::broadcast;
@@ -76,7 +76,7 @@ impl TaskStore for PostgresTaskStore {
         capability: &str,
         idempotency_key: &str,
     ) -> TaskRecord {
-        let parent_val: Option<String> = parent.map(|s| s.to_string());
+        let parent_val: Option<String> = parent.map(std::string::ToString::to_string);
         let idem = idempotency_key.to_string();
         // 幂等：同 (parent, idem) 已存在则复用
         if let Ok(rows) = self
@@ -190,21 +190,18 @@ impl TaskStore for PostgresTaskStore {
     }
 
     async fn list(&self, parent: Option<&str>) -> Vec<TaskRecord> {
-        match parent {
-            Some(p) => self.children_of(p).await,
-            None => {
-                let rows = self
-                    .client
-                    .query(
-                        "SELECT id,name,parent,effect,capability,idempotency_key,status,node,submitted_at \
-                         FROM tasks",
-                        &[],
-                    )
-                    .await
-                    .ok()
-                    .unwrap_or_default();
-                rows.iter().map(row_to_record).collect()
-            }
+        if let Some(p) = parent { self.children_of(p).await } else {
+            let rows = self
+                .client
+                .query(
+                    "SELECT id,name,parent,effect,capability,idempotency_key,status,node,submitted_at \
+                     FROM tasks",
+                    &[],
+                )
+                .await
+                .ok()
+                .unwrap_or_default();
+            rows.iter().map(row_to_record).collect()
         }
     }
 
@@ -252,8 +249,7 @@ fn str_to_status(s: &str) -> TaskStatus {
 fn now_ms() -> i64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_millis() as i64)
-        .unwrap_or(0)
+        .map_or(0, |d| d.as_millis() as i64)
 }
 
 #[cfg(test)]

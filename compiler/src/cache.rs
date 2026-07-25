@@ -19,9 +19,10 @@ fn hash_str(s: &str) -> u64 {
 }
 
 /// 计算"类 SHA-256"哈希值并返回 hex 编码。
+#[must_use] 
 pub fn sha256(data: &[u8]) -> String {
     let h = hash_bytes(data);
-    format!("{:016x}", h)
+    format!("{h:016x}")
 }
 
 fn hash_bytes(data: &[u8]) -> u64 {
@@ -33,6 +34,7 @@ fn hash_bytes(data: &[u8]) -> u64 {
 }
 
 /// 获取缓存目录路径。
+#[must_use] 
 pub fn cache_dir(project_root: &Path) -> PathBuf {
     project_root.join(".dalin_cache")
 }
@@ -45,24 +47,26 @@ pub fn ensure_cache_dir(project_root: &Path) -> std::io::Result<PathBuf> {
 }
 
 /// 计算文件的缓存 key。
+#[must_use] 
 pub fn compute_cache_key(file_path: &Path, content: &str) -> String {
     let file_hash = sha256(content.as_bytes());
     let file_name = file_path
         .file_stem()
         .map(|s| s.to_string_lossy())
         .unwrap_or_default();
-    format!("{}_{}", file_name, file_hash)
+    format!("{file_name}_{file_hash}")
 }
 
 /// 从缓存目录加载缓存文件的内容。
+#[must_use] 
 pub fn load_cache(project_root: &Path, cache_key: &str) -> Option<Vec<u8>> {
     let dir = cache_dir(project_root);
-    let cache_file = dir.join(format!("{}.cache", cache_key));
+    let cache_file = dir.join(format!("{cache_key}.cache"));
     if cache_file.exists() {
         match fs::read(&cache_file) {
             Ok(data) => Some(data),
             Err(e) => {
-                eprintln!("  ⚠ Failed to read cache {}: {}", cache_key, e);
+                eprintln!("  ⚠ Failed to read cache {cache_key}: {e}");
                 None
             }
         }
@@ -74,12 +78,13 @@ pub fn load_cache(project_root: &Path, cache_key: &str) -> Option<Vec<u8>> {
 /// 将编译结果写入缓存。
 pub fn write_cache(project_root: &Path, cache_key: &str, data: &[u8]) -> std::io::Result<()> {
     let dir = cache_dir(project_root);
-    let cache_file = dir.join(format!("{}.cache", cache_key));
+    let cache_file = dir.join(format!("{cache_key}.cache"));
     fs::write(cache_file, data)
 }
 
 /// 检查源文件是否需要重新编译。
 /// 如果缓存存在且源文件未变更（hash 相同），返回 true。
+#[must_use] 
 pub fn is_cached(file_path: &Path, content: &str, project_root: &Path) -> bool {
     let cache_key = compute_cache_key(file_path, content);
     load_cache(project_root, &cache_key).is_some()
@@ -102,8 +107,7 @@ where
         // TODO: 反序列化 cached_data 并返回
         // 现在简单地跳过缓存（无正确序列化结构可用）
         println!(
-            "  ℹ Cache miss (format not yet supported), recompiling {} ...",
-            cache_key
+            "  ℹ Cache miss (format not yet supported), recompiling {cache_key} ..."
         );
     }
 

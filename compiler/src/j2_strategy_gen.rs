@@ -1,6 +1,6 @@
 /// Phase J — J2: 策略自动生成 (Strategy Auto-Generation)
 ///
-/// 从成功修复的案例中归纳出新 recovery rule，更新 ConfidenceCalibrator 权重，
+/// 从成功修复的案例中归纳出新 recovery rule，更新 `ConfidenceCalibrator` 权重，
 /// 并在知识库积累到阈值时触发 hot-recompile 建议。
 ///
 /// # 示例
@@ -166,6 +166,7 @@ impl Default for StrategyGenerator {
 }
 
 impl StrategyGenerator {
+    #[must_use] 
     pub fn new() -> Self {
         Self {
             fix_history: Vec::new(),
@@ -183,7 +184,7 @@ impl StrategyGenerator {
 
     /// 从成功修复案例中归纳新规则
     ///
-    /// 对最近的成功修复按 RecoveryMode 分组，统计出现频率最高的模式作为新规则。
+    /// 对最近的成功修复按 `RecoveryMode` 分组，统计出现频率最高的模式作为新规则。
     /// 只有出现 >= 2 次的模式才会被生成为规则。
     pub fn infer_new_rules(&mut self) -> Vec<RecoveryRule> {
         let successful: Vec<&FixRecord> = self.fix_history.iter().filter(|r| r.success).collect();
@@ -206,7 +207,7 @@ impl StrategyGenerator {
                 let conf_rounded = (conf * 10000.0).round() / 10000.0;
                 new_rules.push(RecoveryRule {
                     rule_id: format!("rule_{}_{}", self.rule_seq, mode),
-                    triggers_on: format!("{:?} 恢复模式成功修复 {} 次", mode, count),
+                    triggers_on: format!("{mode:?} 恢复模式成功修复 {count} 次"),
                     applies_mode: mode.clone(),
                     confidence: conf_rounded,
                     tested: false,
@@ -256,15 +257,16 @@ impl StrategyGenerator {
         new_rules
     }
 
-    /// 根据历史准确率做梯度下降更新 ConfidenceCalibrator 权重
+    /// 根据历史准确率做梯度下降更新 `ConfidenceCalibrator` 权重
     ///
-    /// 每通道权重 ∈ [WEIGHT_MIN, WEIGHT_MAX]
+    /// 每通道权重 ∈ [`WEIGHT_MIN`, `WEIGHT_MAX`]
     pub fn update_calibrator_weights(&mut self) -> HashMap<String, f64> {
         self.weights.update_from_fixes(&self.fix_history);
         self.weights.get_weights()
     }
 
     /// 当知识库中有 N+ 条未测试的新规则时触发热编译建议
+    #[must_use] 
     pub fn suggest_hot_recompile(&self, threshold: u64) -> Option<HotRecompilePlan> {
         let new_rules = self.known_rules.iter().filter(|r| !r.tested).count() as u64;
 
@@ -292,16 +294,19 @@ impl StrategyGenerator {
     }
 
     /// 返回当前已知规则列表
+    #[must_use] 
     pub fn known_rules(&self) -> &[RecoveryRule] {
         &self.known_rules
     }
 
     /// 返回修复历史长度
+    #[must_use] 
     pub fn history_len(&self) -> usize {
         self.fix_history.len()
     }
 
     /// 返回所有修复记录
+    #[must_use] 
     pub fn fix_history(&self) -> &[FixRecord] {
         &self.fix_history
     }

@@ -1,4 +1,4 @@
-/// Legacy run_demo_with_vm() — DLVM bytecode VM demo
+/// Legacy `run_demo_with_vm()` — DLVM bytecode VM demo
 use dalin_compiler::{lexer, parser};
 use dalin_dlvm::BytecodeCompiler;
 use dalin_runtime::interpreter;
@@ -30,7 +30,7 @@ pub fn run(mode: &str) -> Result<(), String> {
     "#;
 
     println!("============================================================");
-    println!("  Dalin L — DLVM (mode={})", mode);
+    println!("  Dalin L — DLVM (mode={mode})");
     println!("============================================================");
 
     let mut lex = lexer::Lexer::new(demo);
@@ -44,21 +44,21 @@ pub fn run(mode: &str) -> Result<(), String> {
                         let funcs = compiler.compile(&prog);
                         let mut vm = dalin_dlvm::Vm::new(funcs);
                         match vm.run() {
-                            Ok(val) => println!("\n  ✅ DLVM OK: {}", val),
-                            Err(e) => println!("\n  ❌ DLVM error: {}", e),
+                            Ok(val) => println!("\n  ✅ DLVM OK: {val}"),
+                            Err(e) => println!("\n  ❌ DLVM error: {e}"),
                         }
                     } else {
                         let mut interp = interpreter::Interpreter::new();
                         match interp.interpret(&prog) {
                             Ok(_) => println!("\n  ✅ Interpreter OK"),
-                            Err(e) => println!("\n  ❌ Runtime error: {}", e),
+                            Err(e) => println!("\n  ❌ Runtime error: {e}"),
                         }
                     }
                 }
-                Err(e) => println!("  ❌ Parser error: {}", e),
+                Err(e) => println!("  ❌ Parser error: {e}"),
             }
         }
-        Err(e) => println!("  ❌ Lexer error: {}", e),
+        Err(e) => println!("  ❌ Lexer error: {e}"),
     }
 
     Ok(())

@@ -35,6 +35,7 @@ pub enum Effect {
 }
 
 impl Effect {
+    #[must_use] 
     pub fn resource_hints(&self) -> (&'static str, &'static str) {
         match self {
             Effect::Pure => ("100m", "128Mi"),
@@ -53,7 +54,7 @@ impl std::str::FromStr for Effect {
             "io" => Ok(Effect::Io),
             "async" => Ok(Effect::Async),
             "spawn" => Ok(Effect::Spawn),
-            other => Err(format!("Unknown effect: {}", other)),
+            other => Err(format!("Unknown effect: {other}")),
         }
     }
 }
@@ -71,6 +72,7 @@ pub enum Capability {
 }
 
 impl Capability {
+    #[must_use] 
     pub fn node_selector(&self) -> std::collections::HashMap<String, String> {
         match self {
             Capability::Gpu => {
@@ -94,10 +96,12 @@ impl Capability {
         }
     }
 
+    #[must_use] 
     pub fn needs_gpu(&self) -> bool {
         matches!(self, Capability::Gpu | Capability::Mixed)
     }
 
+    #[must_use] 
     pub fn needs_sfa(&self) -> bool {
         *self == Capability::Sfa
     }
@@ -112,7 +116,7 @@ impl std::str::FromStr for Capability {
             "sfa" => Ok(Capability::Sfa),
             "net" => Ok(Capability::Net),
             "mixed" => Ok(Capability::Mixed),
-            other => Err(format!("Unknown capability: {}", other)),
+            other => Err(format!("Unknown capability: {other}")),
         }
     }
 }
@@ -130,6 +134,7 @@ pub enum ConfidenceLevel {
 }
 
 impl ConfidenceLevel {
+    #[must_use] 
     pub fn replica_strategy(&self, requested: u32) -> ReplicaStrategy {
         match self {
             ConfidenceLevel::Verified if requested >= 2 => {
@@ -151,7 +156,7 @@ impl std::str::FromStr for ConfidenceLevel {
             "high" => Ok(ConfidenceLevel::High),
             "verified" => Ok(ConfidenceLevel::Verified),
             "auto_recover" => Ok(ConfidenceLevel::AutoRecover),
-            other => Err(format!("Unknown confidence: {}", other)),
+            other => Err(format!("Unknown confidence: {other}")),
         }
     }
 }
@@ -177,7 +182,7 @@ impl std::str::FromStr for GovernanceLevel {
             "audit" => Ok(GovernanceLevel::Audit),
             "trace" => Ok(GovernanceLevel::Trace),
             "full" => Ok(GovernanceLevel::Full),
-            other => Err(format!("Unknown governance: {}", other)),
+            other => Err(format!("Unknown governance: {other}")),
         }
     }
 }
@@ -205,7 +210,7 @@ impl std::str::FromStr for CognitiveLoopType {
             "act" => Ok(CognitiveLoopType::Act),
             "reflect" => Ok(CognitiveLoopType::Reflect),
             "sense" => Ok(CognitiveLoopType::Sense),
-            other => Err(format!("Unknown cognitive loop: {}", other)),
+            other => Err(format!("Unknown cognitive loop: {other}")),
         }
     }
 }
@@ -351,8 +356,8 @@ impl DalinTaskStatus {
         self.conditions.push(TaskCondition {
             r#type: "PhaseChange".into(),
             status: "True".into(),
-            last_transition_time: format!("{}ms", ts),
-            message: Some(format!("Phase changed to {:?}", new_phase)),
+            last_transition_time: format!("{ts}ms"),
+            message: Some(format!("Phase changed to {new_phase:?}")),
         });
     }
 }
@@ -381,7 +386,7 @@ impl ResourceResolver {
                 l.cpu = Some(format!("{}x2", cpu.trim_end_matches('m')));
             }
             if let Some(ref mem) = r.memory {
-                l.memory = Some(format!("{}x2", mem));
+                l.memory = Some(format!("{mem}x2"));
             }
         }
 
@@ -409,18 +414,22 @@ impl ResourceResolver {
         Ok(reqs)
     }
 
+    #[must_use] 
     pub fn node_selector(spec: &DalinTaskSpec) -> std::collections::HashMap<String, String> {
         spec.capability.node_selector()
     }
 
+    #[must_use] 
     pub fn replica_strategy(spec: &DalinTaskSpec) -> ReplicaStrategy {
         spec.confidence.replica_strategy(spec.replicas)
     }
 
+    #[must_use] 
     pub fn deployment_name(function_id: &str) -> String {
-        format!("dalin-task-{}", function_id)
+        format!("dalin-task-{function_id}")
     }
 
+    #[must_use] 
     pub fn pod_labels(spec: &DalinTaskSpec) -> std::collections::HashMap<String, String> {
         let mut labels = std::collections::HashMap::new();
         labels.insert("app.dalin.ai/task".into(), spec.function_id.clone());
@@ -436,7 +445,7 @@ impl ResourceResolver {
             "app.dalin.ai/confidence".into(),
             format!("{:?}", spec.confidence)
                 .to_lowercase()
-                .replace("_", "-"),
+                .replace('_', "-"),
         );
         for tag in &spec.tags {
             labels.insert(format!("tag/{}", tag.replace('/', "-")), "true".into());

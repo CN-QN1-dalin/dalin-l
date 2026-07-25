@@ -59,7 +59,7 @@ impl DocumentManager {
 // ---------------------------------------------------------------------------
 
 /// Wraps the compiler pipeline for LSP use.
-/// compile_file(uri) => list of diagnostic JSON objects ready for publishDiagnostics
+/// `compile_file(uri)` => list of diagnostic JSON objects ready for publishDiagnostics
 struct LspCompiler {
     doc_manager: DocumentManager,
     last_diagnostics: HashMap<String, Vec<Value>>,
@@ -86,7 +86,7 @@ impl LspCompiler {
         let tokens = match lex.tokenize() {
             Ok(t) => t,
             Err(e) => {
-                return vec![json_diagnostic(&format!("词法错误: {}", e), 1, 1, 0, 1, 20)];
+                return vec![json_diagnostic(&format!("词法错误: {e}"), 1, 1, 0, 1, 20)];
             }
         };
 
@@ -95,7 +95,7 @@ impl LspCompiler {
         let prog = match parser.parse() {
             Ok(p) => p,
             Err(e) => {
-                return vec![json_diagnostic(&format!("语法错误: {}", e), 1, 1, 0, 1, 40)];
+                return vec![json_diagnostic(&format!("语法错误: {e}"), 1, 1, 0, 1, 40)];
             }
         };
 
@@ -135,7 +135,7 @@ impl LspCompiler {
     ) {
         for err in errors {
             diags.push(json_diagnostic(
-                &format!("{}: {}", prefix, err),
+                &format!("{prefix}: {err}"),
                 1,
                 0,
                 1,
@@ -146,7 +146,7 @@ impl LspCompiler {
     }
 
     #[allow(dead_code)]
-    fn get_version(&self) -> &str {
+    fn get_version(&self) -> &'static str {
         "3.0.0-dev"
     }
 
@@ -338,12 +338,10 @@ impl HoverProvider {
         let current_line = lines[line];
         let word_start = current_line[..character]
             .rfind(|c: char| c.is_alphanumeric() || c == '_')
-            .map(|i| i + 1)
-            .unwrap_or(0);
+            .map_or(0, |i| i + 1);
         let word_end = current_line[character..]
             .find(|c: char| !c.is_alphanumeric() && c != '_')
-            .map(|i| i + character)
-            .unwrap_or(character);
+            .map_or(character, |i| i + character);
 
         if word_start == word_end {
             return None;
@@ -352,7 +350,7 @@ impl HoverProvider {
         let word = &current_line[word_start..word_end];
 
         // Check for seven-channel annotation
-        if word.starts_with("@") {
+        if word.starts_with('@') {
             return Some(json!({
                 "contents": {
                     "kind": "markdown",
@@ -503,7 +501,7 @@ fn main() {
                         let uri = doc.get("uri").and_then(|u| u.as_str()).unwrap_or("");
                         let text = doc.get("text").and_then(|t| t.as_str()).unwrap_or("");
                         let version =
-                            doc.get("version").and_then(|v| v.as_i64()).unwrap_or(1) as i32;
+                            doc.get("version").and_then(serde_json::Value::as_i64).unwrap_or(1) as i32;
 
                         compiler.doc_manager.open(uri, version, text);
 
@@ -537,7 +535,7 @@ fn main() {
                                 .and_then(|t| t.as_str())
                                 .unwrap_or("");
                             let version =
-                                doc.get("version").and_then(|v| v.as_i64()).unwrap_or(1) as i32;
+                                doc.get("version").and_then(serde_json::Value::as_i64).unwrap_or(1) as i32;
                             compiler.doc_manager.change(uri, version, text);
 
                             // Push updated diagnostics
@@ -571,15 +569,12 @@ fn main() {
                         .unwrap_or("");
                     let _position = text_doc.and_then(|d| d.get("position"));
 
-                    let content = match compiler.doc_manager.get_content(uri) {
-                        Some(c) => c.to_string(),
-                        None => {
-                            send_response(
-                                &mut stdout,
-                                &json!({"jsonrpc": "2.0", "id": req.get("id"), "result": json!([])}),
-                            );
-                            continue;
-                        }
+                    let content = if let Some(c) = compiler.doc_manager.get_content(uri) { c.to_string() } else {
+                        send_response(
+                            &mut stdout,
+                            &json!({"jsonrpc": "2.0", "id": req.get("id"), "result": json!([])}),
+                        );
+                        continue;
                     };
 
                     // Recompile to update completions
@@ -603,23 +598,20 @@ fn main() {
                     let line = position
                         .as_ref()
                         .and_then(|l| l.get("line"))
-                        .and_then(|l| l.as_u64())
+                        .and_then(serde_json::Value::as_u64)
                         .unwrap_or(0) as usize;
                     let character = position
                         .as_ref()
                         .and_then(|c| c.get("character"))
-                        .and_then(|c| c.as_u64())
+                        .and_then(serde_json::Value::as_u64)
                         .unwrap_or(0) as usize;
 
-                    let content = match compiler.doc_manager.get_content(uri) {
-                        Some(c) => c.to_string(),
-                        None => {
-                            send_response(
-                                &mut stdout,
-                                &json!({"jsonrpc": "2.0", "id": req.get("id"), "result": null}),
-                            );
-                            continue;
-                        }
+                    let content = if let Some(c) = compiler.doc_manager.get_content(uri) { c.to_string() } else {
+                        send_response(
+                            &mut stdout,
+                            &json!({"jsonrpc": "2.0", "id": req.get("id"), "result": null}),
+                        );
+                        continue;
                     };
 
                     let hover = hover_provider.provide_hover(&content, line, character);
@@ -638,15 +630,12 @@ fn main() {
                         .and_then(|d| d.get("uri").and_then(|u| u.as_str()))
                         .unwrap_or("");
 
-                    let content = match compiler.doc_manager.get_content(uri) {
-                        Some(c) => c.to_string(),
-                        None => {
-                            send_response(
-                                &mut stdout,
-                                &json!({"jsonrpc": "2.0", "id": req.get("id"), "result": null}),
-                            );
-                            continue;
-                        }
+                    let content = if let Some(c) = compiler.doc_manager.get_content(uri) { c.to_string() } else {
+                        send_response(
+                            &mut stdout,
+                            &json!({"jsonrpc": "2.0", "id": req.get("id"), "result": null}),
+                        );
+                        continue;
                     };
 
                     let sig_help = signature_helper.provide_signature_help(&content);

@@ -2,8 +2,8 @@
 //!
 //! 管理分布式 Worker 节点的生命周期：
 //! - 注册时声明能力集合（Cpu/Gpu/Sfa/Net）与效应支持（Pure/Io/Async/Spawn）
-//! - 心跳每 15s 刷新，超过 HEARTBEAT_TTL 未心跳 → 节点标记过期
-//! - gRPC `AgentRegistry` 服务提供 RegisterNode / Heartbeat / ListNodes
+//! - 心跳每 15s 刷新，超过 `HEARTBEAT_TTL` 未心跳 → 节点标记过期
+//! - gRPC `AgentRegistry` 服务提供 `RegisterNode` / Heartbeat / `ListNodes`
 //! - 调度器通过 `fresh_nodes()` 获取在线节点列表
 
 use std::collections::HashMap;
@@ -43,6 +43,7 @@ impl Default for NodeRegistry {
 }
 
 impl NodeRegistry {
+    #[must_use] 
     pub fn new() -> Self {
         Self {
             nodes: Mutex::new(HashMap::new()),
@@ -69,7 +70,7 @@ impl NodeRegistry {
         (is_new, msg)
     }
 
-    /// 接收心跳，刷新节点的 last_heartbeat。
+    /// 接收心跳，刷新节点的 `last_heartbeat`。
     /// 返回是否成功（false = 节点未注册）。
     pub fn heartbeat(&self, beat: &NodeBeat) -> bool {
         let mut nodes = self.nodes.lock().unwrap();
@@ -115,7 +116,7 @@ impl NodeRegistry {
     }
 }
 
-/// 把 proto NodeSpec 转为调度器的 Node。
+/// 把 proto `NodeSpec` 转为调度器的 Node。
 /// 默认配额 4（避免无限堆积），配额在首次 place 时按需调整。
 fn node_spec_to_scheduler_node(spec: &NodeSpec) -> Node {
     let mut caps = std::collections::HashSet::new();

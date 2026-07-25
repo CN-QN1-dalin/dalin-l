@@ -193,7 +193,7 @@ pub fn run() -> Result<(), String> {
     println!("============================================================");
 
     if failed > 0 {
-        Err(format!("{} tests failed", failed))
+        Err(format!("{failed} tests failed"))
     } else {
         Ok(())
     }

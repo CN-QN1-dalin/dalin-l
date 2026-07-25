@@ -2,7 +2,7 @@
 
 use crate::error::{HandshakeError, Result};
 use crate::transport::Transport;
-use crate::types::*;
+use crate::types::{AgentId, HandshakeState, SessionId, Session, Message, MessageType, PeerInfo};
 use std::collections::HashMap;
 use std::time::Duration;
 
@@ -64,16 +64,19 @@ impl HandshakeProtocol {
     }
 
     /// 获取当前状态
+    #[must_use] 
     pub fn state(&self) -> &HandshakeState {
         &self.state
     }
 
     /// 获取活跃会话列表
+    #[must_use] 
     pub fn sessions(&self) -> &HashMap<SessionId, Session> {
         &self.sessions
     }
 
     /// 获取传输层引用
+    #[must_use] 
     pub fn transport(&self) -> &dyn Transport {
         &*self.transport
     }
@@ -126,8 +129,8 @@ impl HandshakeProtocol {
 
     /// 向指定 peer 发起握手
     ///
-    /// 1. 发送 HANDSHAKE_REQ
-    /// 2. 等待 HANDSHAKE_RESP
+    /// 1. 发送 `HANDSHAKE_REQ`
+    /// 2. 等待 `HANDSHAKE_RESP`
     /// 3. 建立 Session
     pub fn handshake(&mut self, peer: &PeerInfo) -> Result<Session> {
         if self.state == HandshakeState::Closed {
@@ -179,7 +182,7 @@ impl HandshakeProtocol {
     /// 处理接收到的消息
     ///
     /// 自动路由到对应 handler：
-    /// - HandshakeReq → HandshakeResp
+    /// - `HandshakeReq` → `HandshakeResp`
     /// - Ping → Pong
     /// - Data → 返回消息
     /// - Disconnect → 清理会话
@@ -302,8 +305,7 @@ impl HandshakeProtocol {
             .and_then(|r| r.as_str())
             .unwrap_or("unknown");
         Err(HandshakeError::Auth(format!(
-            "Handshake rejected: {}",
-            reason
+            "Handshake rejected: {reason}"
         )))
     }
 
@@ -369,8 +371,7 @@ impl HandshakeProtocol {
             Ok(())
         } else {
             Err(HandshakeError::Session(format!(
-                "Session not found: {}",
-                session_id
+                "Session not found: {session_id}"
             )))
         }
     }
@@ -394,7 +395,8 @@ impl HandshakeProtocol {
         expired
     }
 
-    /// 获取 agent_id
+    /// 获取 `agent_id`
+    #[must_use] 
     pub fn agent_id(&self) -> &AgentId {
         &self.agent_id
     }

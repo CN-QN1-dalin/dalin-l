@@ -13,8 +13,8 @@
 /// ```
 ///
 /// 接口设计原则：
-/// - Qn1Backend trait 是纯异步/同步皆可的接口
-/// - MockQn1Backend 用于无 QN1 环境下的开发/测试
+/// - `Qn1Backend` trait 是纯异步/同步皆可的接口
+/// - `MockQn1Backend` 用于无 QN1 环境下的开发/测试
 /// - 真实 QN1 后端只需实现该 trait 即可接入
 use crate::ast::{Expr, Stmt};
 use std::collections::HashMap;
@@ -37,7 +37,7 @@ pub struct Qn1GeneratedCode {
 /// QN1 后端 trait — 可插拔接口
 ///
 /// 实现此 trait 即可让 @llm 通过真实 QN1 认知架构进行代码生成。
-/// 目前提供 Mock 实现；真实 QN1 后端需要实现 generate() 方法。
+/// 目前提供 Mock 实现；真实 QN1 后端需要实现 `generate()` 方法。
 pub trait Qn1Backend: std::fmt::Debug {
     /// 根据自然语言描述生成代码
     /// - prompt: @llm("...") 中的自然语言指令
@@ -66,6 +66,7 @@ impl Default for GenerationContext {
 }
 
 impl GenerationContext {
+    #[must_use] 
     pub fn new() -> Self {
         Self {
             fn_name: None,
@@ -93,7 +94,7 @@ impl Default for Qn1BackendConfig {
     }
 }
 
-/// 真实 QN1 后端 — 通过 OpenAI 兼容 API 调用 LLM 生成代码
+/// 真实 QN1 后端 — 通过 `OpenAI` 兼容 API 调用 LLM 生成代码
 #[derive(Debug)]
 pub struct RealQn1Backend {
     api_key: String,
@@ -103,6 +104,7 @@ pub struct RealQn1Backend {
 }
 
 impl RealQn1Backend {
+    #[must_use] 
     pub fn new(config: Qn1BackendConfig) -> Self {
         Self {
             api_key: config.api_key,
@@ -112,6 +114,7 @@ impl RealQn1Backend {
         }
     }
 
+    #[must_use] 
     pub fn with_latency(mut self, latency_ms: u64) -> Self {
         self.estimated_latency_ms = latency_ms;
         self
@@ -160,8 +163,7 @@ impl Qn1Backend for RealQn1Backend {
                             .to_string();
 
                         let statements = vec![Stmt::Expr(Box::new(Expr::StringLiteral(format!(
-                            "// LLM generated: {}",
-                            code
+                            "// LLM generated: {code}"
                         ))))];
 
                         Qn1GeneratedCode {
@@ -200,7 +202,7 @@ impl Qn1Backend for RealQn1Backend {
         }
     }
 
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "real-qn1-openai"
     }
 }
@@ -208,7 +210,7 @@ impl Qn1Backend for RealQn1Backend {
 /// Mock QN1 后端 — 用于开发测试
 ///
 /// 模拟 QN1 认知架构的行为：
-/// - 对已知模式做"认知匹配"（对应 SFA 的 PatternMatch 阶段）
+/// - 对已知模式做"认知匹配"（对应 SFA 的 `PatternMatch` 阶段）
 /// - 对未知模式做"推理生成"（对应 Act 阶段）
 /// - 返回合理的置信度和延迟估值
 #[derive(Debug)]
@@ -221,6 +223,7 @@ impl Default for MockQn1Backend {
 }
 
 impl MockQn1Backend {
+    #[must_use] 
     pub fn new() -> Self {
         Self
     }
@@ -246,7 +249,7 @@ impl Qn1Backend for MockQn1Backend {
                         "act".into(),
                     ],
                 )
-            } else if p.contains("filter") && (p.contains(">") || p.contains("greater")) {
+            } else if p.contains("filter") && (p.contains('>') || p.contains("greater")) {
                 (
                     vec![Stmt::Expr(Box::new(Expr::StringLiteral(
                         "// QN1: filtered > threshold".into(),
@@ -276,8 +279,7 @@ impl Qn1Backend for MockQn1Backend {
                 // 未知模式：QN1 推理生成（置信度较低，但比纯模板降级高）
                 (
                     vec![Stmt::Expr(Box::new(Expr::StringLiteral(format!(
-                        "// QN1 generated: {}",
-                        prompt
+                        "// QN1 generated: {prompt}"
                     ))))],
                     0.75,
                     vec![
@@ -299,7 +301,7 @@ impl Qn1Backend for MockQn1Backend {
         }
     }
 
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "mock-qn1"
     }
 }
@@ -313,11 +315,13 @@ pub struct Qn1CodeGenerator {
 
 impl Qn1CodeGenerator {
     /// 创建 QN1 代码生成器，指定后端实现
+    #[must_use] 
     pub fn new(backend: Box<dyn Qn1Backend>) -> Self {
         Self { backend }
     }
 
     /// 创建使用 Mock 后端的 QN1 代码生成器
+    #[must_use] 
     pub fn new_mock() -> Self {
         Self {
             backend: Box::new(MockQn1Backend::new()),
@@ -325,6 +329,7 @@ impl Qn1CodeGenerator {
     }
 
     /// 创建使用真实 LLM 后端的 QN1 代码生成器
+    #[must_use] 
     pub fn new_real(config: Qn1BackendConfig) -> Self {
         Self {
             backend: Box::new(RealQn1Backend::new(config)),
@@ -332,11 +337,13 @@ impl Qn1CodeGenerator {
     }
 
     /// 生成代码 + 返回置信度和延迟
+    #[must_use] 
     pub fn generate(&self, prompt: &str, context: &GenerationContext) -> Qn1GeneratedCode {
         self.backend.generate(prompt, context)
     }
 
     /// 后端名称
+    #[must_use] 
     pub fn backend_name(&self) -> &str {
         self.backend.name()
     }

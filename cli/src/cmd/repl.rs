@@ -42,13 +42,13 @@ pub fn run() -> Result<(), String> {
                                 }
 
                                 if let Err(e) = interpreter::run_source(&line) {
-                                    println!("  ❌ Runtime: {}", e);
+                                    println!("  ❌ Runtime: {e}");
                                 }
                             }
-                            Err(e) => println!("  ❌ Parse: {}", e),
+                            Err(e) => println!("  ❌ Parse: {e}"),
                         }
                     }
-                    Err(e) => println!("  ❌ Lex: {}", e),
+                    Err(e) => println!("  ❌ Lex: {e}"),
                 }
             }
         }

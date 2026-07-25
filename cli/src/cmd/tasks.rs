@@ -1,4 +1,4 @@
-/// Legacy run_tasks_demo() — TaskSpec demo
+/// Legacy `run_tasks_demo()` — `TaskSpec` demo
 use dalin_compiler::{lexer, parser, task_spec, ty2};
 
 pub fn run() -> Result<(), String> {
@@ -40,10 +40,10 @@ pub fn run() -> Result<(), String> {
                         );
                     }
                 }
-                Err(e) => println!("  Parse error: {}", e),
+                Err(e) => println!("  Parse error: {e}"),
             }
         }
-        Err(e) => println!("  Lex error: {}", e),
+        Err(e) => println!("  Lex error: {e}"),
     }
 
     Ok(())

@@ -1,11 +1,11 @@
-//! RedisTaskStore — `TaskStore` 的 Redis 后端（生产级分布式持久化）
+//! `RedisTaskStore` — `TaskStore` 的 Redis 后端（生产级分布式持久化）
 //!
 //! 数据布局（均存 JSON 字符串，简单且对 schema 演进友好）：
-//!   - `dalin:task:{id}`                 → TaskRecord JSON
+//!   - `dalin:task:{id}`                 → `TaskRecord` JSON
 //!   - `dalin:idem:{parent}/{key}`       → task id（幂等索引）
 //!   - `dalin:children:{parent}`         → SET<task id>（直接子任务）
 //!   - `dalin:tasks`                     → SET<task id>（全部任务）
-//!   - 事件：`PUBLISH dalin:tasks:events` WireEvent JSON（跨节点传播）
+//!   - 事件：`PUBLISH dalin:tasks:events` `WireEvent` JSON（跨节点传播）
 //!
 //! 跨节点事件：本地写入同时 (a) 发到本地 broadcast（本节点订阅者立即可见）
 //! 与 (b) PUBLISH 到 Redis 频道；后台订阅任务收到外部事件后，origin != self 才转发本地
@@ -101,7 +101,7 @@ impl RedisTaskStore {
 
     async fn get_record(&self, id: &str) -> Option<TaskRecord> {
         let mut conn = self.conn();
-        let key = format!("{}:task:{}", PREFIX, id);
+        let key = format!("{PREFIX}:task:{id}");
         let v: Option<String> = conn.get(key).await.ok().flatten();
         v.and_then(|s| serde_json::from_str(&s).ok())
     }
@@ -119,7 +119,7 @@ impl TaskStore for RedisTaskStore {
     ) -> TaskRecord {
         let mut conn = self.conn();
         let idem_key = format!("{}/{}", parent.unwrap_or(""), idempotency_key);
-        let idem_redis = format!("{}:idem:{}", PREFIX, idem_key);
+        let idem_redis = format!("{PREFIX}:idem:{idem_key}");
         if let Some(existing_id) = conn
             .get::<_, Option<String>>(&idem_redis)
             .await
@@ -141,18 +141,18 @@ impl TaskStore for RedisTaskStore {
             node: None,
             submitted_at: now_ms(),
         };
-        let task_key = format!("{}:task:{}", PREFIX, id);
+        let task_key = format!("{PREFIX}:task:{id}");
         let serialized = serde_json::to_string(&rec).unwrap_or_else(|e| {
-            eprintln!("[store_redis] serialize error: {}", e);
+            eprintln!("[store_redis] serialize error: {e}");
             String::new()
         });
         let _: redis::RedisResult<()> = conn.set(&task_key, &serialized).await;
         let _: redis::RedisResult<()> = conn.set(&idem_redis, &id).await;
         if let Some(p) = parent {
             let _: redis::RedisResult<()> =
-                conn.sadd(format!("{}:children:{}", PREFIX, p), &id).await;
+                conn.sadd(format!("{PREFIX}:children:{p}"), &id).await;
         }
-        let _: redis::RedisResult<()> = conn.sadd(format!("{}:tasks", PREFIX), &id).await;
+        let _: redis::RedisResult<()> = conn.sadd(format!("{PREFIX}:tasks"), &id).await;
         self.publish_event(TaskEvent::Submitted(rec.clone())).await;
         rec
     }
@@ -161,9 +161,9 @@ impl TaskStore for RedisTaskStore {
         let mut conn = self.conn();
         let rec = self.get_record(id).await?;
         let updated = TaskRecord { status, ..rec };
-        let task_key = format!("{}:task:{}", PREFIX, id);
+        let task_key = format!("{PREFIX}:task:{id}");
         let serialized = serde_json::to_string(&updated).unwrap_or_else(|e| {
-            eprintln!("[store_redis] serialize error: {}", e);
+            eprintln!("[store_redis] serialize error: {e}");
             String::new()
         });
         let _: redis::RedisResult<()> = conn.set(&task_key, &serialized).await;
@@ -176,9 +176,9 @@ impl TaskStore for RedisTaskStore {
         let mut conn = self.conn();
         if let Some(mut rec) = self.get_record(id).await {
             rec.node = Some(node.to_string());
-            let task_key = format!("{}:task:{}", PREFIX, id);
+            let task_key = format!("{PREFIX}:task:{id}");
             let serialized = serde_json::to_string(&rec).unwrap_or_else(|e| {
-                eprintln!("[store_redis] serialize error: {}", e);
+                eprintln!("[store_redis] serialize error: {e}");
                 String::new()
             });
             let _: redis::RedisResult<()> = conn.set(&task_key, &serialized).await;
@@ -190,9 +190,9 @@ impl TaskStore for RedisTaskStore {
         match self.get_record(id).await {
             Some(mut rec) => {
                 rec.status = TaskStatus::Canceled;
-                let task_key = format!("{}:task:{}", PREFIX, id);
+                let task_key = format!("{PREFIX}:task:{id}");
                 let serialized = serde_json::to_string(&rec).unwrap_or_else(|e| {
-                    eprintln!("[store_redis] serialize error: {}", e);
+                    eprintln!("[store_redis] serialize error: {e}");
                     String::new()
                 });
                 let _: redis::RedisResult<()> = conn.set(&task_key, &serialized).await;
@@ -210,22 +210,19 @@ impl TaskStore for RedisTaskStore {
 
     async fn children_of(&self, parent: &str) -> Vec<TaskRecord> {
         let mut conn = self.conn();
-        let key = format!("{}:children:{}", PREFIX, parent);
+        let key = format!("{PREFIX}:children:{parent}");
         let ids: Vec<String> = conn.smembers(key).await.unwrap_or_default();
         self.fetch_many(&ids).await
     }
 
     async fn list(&self, parent: Option<&str>) -> Vec<TaskRecord> {
-        match parent {
-            Some(p) => self.children_of(p).await,
-            None => {
-                let mut conn = self.conn();
-                let ids: Vec<String> = conn
-                    .smembers(format!("{}:tasks", PREFIX))
-                    .await
-                    .unwrap_or_default();
-                self.fetch_many(&ids).await
-            }
+        if let Some(p) = parent { self.children_of(p).await } else {
+            let mut conn = self.conn();
+            let ids: Vec<String> = conn
+                .smembers(format!("{PREFIX}:tasks"))
+                .await
+                .unwrap_or_default();
+            self.fetch_many(&ids).await
         }
     }
 
@@ -249,8 +246,7 @@ impl RedisTaskStore {
 fn now_ms() -> i64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_millis() as i64)
-        .unwrap_or(0)
+        .map_or(0, |d| d.as_millis() as i64)
 }
 
 #[cfg(test)]

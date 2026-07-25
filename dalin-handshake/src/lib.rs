@@ -34,7 +34,7 @@ pub mod transport;
 pub mod types;
 
 pub mod prelude {
-    //! 便捷导入：use dalin_handshake::prelude::*;
+    //! 便捷导入：use `dalin_handshake::prelude::`*;
     pub use crate::agent::Agent;
     pub use crate::agent::AgentBuilder;
     pub use crate::error::*;

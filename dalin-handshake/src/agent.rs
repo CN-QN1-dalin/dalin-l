@@ -3,7 +3,7 @@
 use crate::error::Result;
 use crate::protocol::HandshakeProtocol;
 use crate::transport::Transport;
-use crate::types::*;
+use crate::types::{Capability, PeerInfo, Session, SessionId, Message, AgentId};
 
 /// 高层 Agent 实例
 ///
@@ -32,6 +32,7 @@ pub struct Agent {
 
 impl Agent {
     /// 创建 Agent 构建器
+    #[must_use] 
     pub fn builder() -> AgentBuilder {
         AgentBuilder::new()
     }
@@ -80,21 +81,25 @@ impl Agent {
     }
 
     /// 获取本 Agent 的 ID
+    #[must_use] 
     pub fn id(&self) -> &AgentId {
         self.protocol.agent_id()
     }
 
     /// 获取能力列表
+    #[must_use] 
     pub fn capabilities(&self) -> &[Capability] {
         &self.capabilities
     }
 
     /// 获取活跃会话
+    #[must_use] 
     pub fn sessions(&self) -> &std::collections::HashMap<SessionId, Session> {
         self.protocol.sessions()
     }
 
     /// 是否已启动
+    #[must_use] 
     pub fn is_started(&self) -> bool {
         self.started
     }
@@ -118,6 +123,7 @@ impl Default for AgentBuilder {
 }
 
 impl AgentBuilder {
+    #[must_use] 
     pub fn new() -> Self {
         Self {
             agent_id: None,
@@ -155,6 +161,7 @@ impl AgentBuilder {
     }
 
     /// 设置传输层
+    #[must_use] 
     pub fn transport(mut self, transport: Box<dyn Transport>) -> Self {
         self.transport = Some(transport);
         self

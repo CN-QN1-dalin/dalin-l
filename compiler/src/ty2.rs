@@ -8,6 +8,7 @@ use std::fmt;
 
 /// 把 AST 上的效应注解字符串解析为 `Effect` 枚举。
 /// 未知/缺失注解安全回落到最严格的 `Pure`（最小权限默认）。
+#[must_use] 
 pub fn parse_effect(s: &str) -> Effect {
     match s {
         "pure" => Effect::Pure,
@@ -20,6 +21,7 @@ pub fn parse_effect(s: &str) -> Effect {
 
 /// 把 AST 上的能力注解字符串解析为 `Capability` 枚举。
 /// 未知/缺失注解安全回落到最通用的 `Cpu`（默认本地执行）。
+#[must_use] 
 pub fn parse_confidence(s: &str) -> Confidence {
     match s {
         "proven" => Confidence::Proven,
@@ -37,6 +39,7 @@ pub fn parse_confidence(s: &str) -> Confidence {
 
 /// 把 AST 上的能力注解字符串解析为 `Capability` 枚举。
 /// 未知/缺失注解安全回落到最通用的 `Cpu`（默认本地执行）。
+#[must_use] 
 pub fn parse_capability(s: &str) -> Capability {
     match s {
         "cpu" => Capability::Cpu,
@@ -63,12 +66,13 @@ pub enum Effect {
 
 impl Effect {
     /// 效应偏序：a ≤ b 当且仅当 a 比 b "更纯"
+    #[must_use] 
     pub fn leq(&self, other: &Effect) -> bool {
-        use Effect::*;
+        use Effect::{Pure, Io, Async, Spawn};
         match (self, other) {
             (Pure, _) => true,  // pure 可以出现在任何上下文中
             (_, Pure) => false, // 非 pure 不能出现在 pure 上下文中
-            (Io, Io) | (Io, Async) => true,
+            (Io, Io | Async) => true,
             (Async, Async) => true,
             (Spawn, Spawn) => true,
             _ => false,
@@ -77,8 +81,9 @@ impl Effect {
 
     /// 最小上界（join）：两个效应都满足的最小效应
     /// 如果不可比则返回 None（效应违规）
+    #[must_use] 
     pub fn join(a: &Effect, b: &Effect) -> Option<Effect> {
-        use Effect::*;
+        use Effect::{Pure, Io, Async, Spawn};
         match (a, b) {
             (Pure, x) | (x, Pure) => Some(x.clone()),
             (Io, Io) => Some(Io),
@@ -117,8 +122,9 @@ pub enum Capability {
 }
 
 impl Capability {
+    #[must_use] 
     pub fn leq(&self, other: &Capability) -> bool {
-        use Capability::*;
+        use Capability::{Cpu, Gpu, Sfa, Net};
         match (self, other) {
             (Cpu, _) => true,  // cpu 可以出现在任何执行上下文中
             (_, Cpu) => false, // 非 cpu 不能出现在 cpu 上下文中
@@ -130,8 +136,9 @@ impl Capability {
     }
 
     /// 能力 join：取同时满足两个能力的最小上界
+    #[must_use] 
     pub fn join(a: &Capability, b: &Capability) -> Option<Capability> {
-        use Capability::*;
+        use Capability::{Cpu, Gpu, Sfa, Net};
         match (a, b) {
             (Cpu, x) | (x, Cpu) => Some(x.clone()),
             (Gpu, Gpu) => Some(Gpu),
@@ -177,8 +184,9 @@ pub enum Confidence {
 impl Confidence {
     /// 置信度偏序：a <= b 表示 a 比 b "更不确定"
     /// Proven > Verified > Inferred > Generated > Uncertain
+    #[must_use] 
     pub fn leq(&self, other: &Confidence) -> bool {
-        use Confidence::*;
+        use Confidence::{Uncertain, Generated, Inferred, Verified, Proven};
         match (self, other) {
             (Uncertain, _) => true,
             (_, Uncertain) => false,
@@ -198,8 +206,9 @@ impl Confidence {
     }
 
     /// 置信度 join：取两个中最不确定的（最保守估计）
+    #[must_use] 
     pub fn join(a: &Confidence, b: &Confidence) -> Confidence {
-        use Confidence::*;
+        use Confidence::{Proven, Verified, Inferred, Generated, Uncertain};
         let order = |c: &Confidence| -> u8 {
             match c {
                 Proven => 4,
@@ -217,6 +226,7 @@ impl Confidence {
     }
 
     /// 置信度的数值表达（用于报告和接口消费）
+    #[must_use] 
     pub fn score(&self) -> f64 {
         match self {
             Confidence::Proven => 1.0,
@@ -257,8 +267,9 @@ pub enum CognitiveLoop {
 
 impl CognitiveLoop {
     /// 认知循环偏序
+    #[must_use] 
     pub fn leq(&self, other: &CognitiveLoop) -> bool {
-        use CognitiveLoop::*;
+        use CognitiveLoop::{Perceive, Reason, Decide, Act, Loop};
         match (self, other) {
             (Perceive, _) => true,
             (Reason, x) if *x == Reason || *x == Decide || *x == Act || *x == Loop => true,
@@ -273,8 +284,9 @@ impl CognitiveLoop {
     }
 
     /// 认知循环 join：取最高阶的
+    #[must_use] 
     pub fn join(a: &CognitiveLoop, b: &CognitiveLoop) -> CognitiveLoop {
-        use CognitiveLoop::*;
+        use CognitiveLoop::{Perceive, Reason, Decide, Act, Loop};
         let order = |c: &CognitiveLoop| -> u8 {
             match c {
                 Perceive => 0,
@@ -319,8 +331,9 @@ pub enum GovernanceLevel {
 }
 
 impl GovernanceLevel {
+    #[must_use] 
     pub fn leq(&self, other: &GovernanceLevel) -> bool {
-        use GovernanceLevel::*;
+        use GovernanceLevel::{Prepare, Suggest, Approve, Execute};
         match (self, other) {
             (Prepare, _) => true,  // prepare 可以出现在任何上下文
             (_, Prepare) => false, // 非 prepare 不能出现在 prepare 上下文
@@ -334,8 +347,9 @@ impl GovernanceLevel {
     }
 
     /// 治理级别 join：取更高权限（更严格）
+    #[must_use] 
     pub fn join(a: &GovernanceLevel, b: &GovernanceLevel) -> GovernanceLevel {
-        use GovernanceLevel::*;
+        use GovernanceLevel::{Prepare, Suggest, Approve, Execute};
         let order = |g: &GovernanceLevel| -> u8 {
             match g {
                 Prepare => 0,
@@ -385,6 +399,7 @@ impl Default for TimeConstraint {
 }
 
 impl TimeConstraint {
+    #[must_use] 
     pub fn new() -> Self {
         Self {
             latency_ms: None,
@@ -394,6 +409,7 @@ impl TimeConstraint {
     }
 
     /// 合并两个约束：取最严格的值（最小值）
+    #[must_use] 
     pub fn meet(a: &TimeConstraint, b: &TimeConstraint) -> TimeConstraint {
         TimeConstraint {
             latency_ms: match (a.latency_ms, b.latency_ms) {
@@ -419,6 +435,7 @@ impl TimeConstraint {
 
     /// 检查时间约束是否满足要求
     /// actual 实际约束必须 ≥ required 要求（latency 更小=更好, throughput 更大=更好）
+    #[must_use] 
     pub fn satisfies(&self, required: &TimeConstraint) -> bool {
         if let Some(req_lat) = required.latency_ms
             && let Some(act_lat) = self.latency_ms
@@ -446,13 +463,13 @@ impl fmt::Display for TimeConstraint {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut parts = Vec::new();
         if let Some(ms) = self.latency_ms {
-            parts.push(format!("latency({}ms)", ms));
+            parts.push(format!("latency({ms}ms)"));
         }
         if let Some(ms) = self.timeout_ms {
-            parts.push(format!("timeout({}ms)", ms));
+            parts.push(format!("timeout({ms}ms)"));
         }
         if let Some(t) = self.throughput {
-            parts.push(format!("throughput({}/s)", t));
+            parts.push(format!("throughput({t}/s)"));
         }
         if parts.is_empty() {
             write!(f, "no-time-constraint")
@@ -462,7 +479,8 @@ impl fmt::Display for TimeConstraint {
     }
 }
 
-/// 从字符串解析时间约束：@latency(50ms) → TimeConstraint { latency_ms: Some(50), ... }
+/// 从字符串解析时间约束：@latency(50ms) → `TimeConstraint` { `latency_ms`: Some(50), ... }
+#[must_use] 
 pub fn parse_time_constraint(key: &str, value: &str) -> TimeConstraint {
     let mut tc = TimeConstraint::new();
     match key {
@@ -472,9 +490,9 @@ pub fn parse_time_constraint(key: &str, value: &str) -> TimeConstraint {
         }
         "timeout" => {
             // "5s" → 5000, "500ms" → 500
-            if value.ends_with("s") && !value.ends_with("ms") {
+            if value.ends_with('s') && !value.ends_with("ms") {
                 tc.timeout_ms = value
-                    .trim_end_matches("s")
+                    .trim_end_matches('s')
                     .trim()
                     .parse::<u64>()
                     .ok()
@@ -505,6 +523,7 @@ impl Default for TimeConstraintInferencer {
 }
 
 impl TimeConstraintInferencer {
+    #[must_use] 
     pub fn new() -> Self {
         Self { errors: Vec::new() }
     }
@@ -546,13 +565,13 @@ impl TimeConstraintInferencer {
     pub fn check(&mut self, actual: &TimeConstraint, required: &TimeConstraint, location: &str) {
         if !actual.satisfies(required) {
             self.errors.push(format!(
-                "时间约束违规: {} 需要 {}，但实际仅 {}",
-                location, required, actual
+                "时间约束违规: {location} 需要 {required}，但实际仅 {actual}"
             ));
         }
     }
 }
 
+#[must_use] 
 pub fn parse_cognitive_loop(s: &str) -> CognitiveLoop {
     match s {
         "perceive" => CognitiveLoop::Perceive,
@@ -564,6 +583,7 @@ pub fn parse_cognitive_loop(s: &str) -> CognitiveLoop {
     }
 }
 
+#[must_use] 
 pub fn parse_governance(s: &str) -> GovernanceLevel {
     match s {
         "prepare" => GovernanceLevel::Prepare,
@@ -587,6 +607,7 @@ impl Default for ConfidenceInferencer {
 }
 
 impl ConfidenceInferencer {
+    #[must_use] 
     pub fn new() -> Self {
         Self { errors: Vec::new() }
     }
@@ -713,6 +734,7 @@ impl Default for SevenChannelType {
 }
 
 impl SevenChannelType {
+    #[must_use] 
     pub fn new() -> Self {
         Self {
             value: None,
@@ -725,6 +747,7 @@ impl SevenChannelType {
         }
     }
 
+    #[must_use] 
     pub fn value(typ: TypeRef) -> Self {
         Self {
             value: Some(typ),
@@ -741,27 +764,27 @@ impl SevenChannelType {
 impl fmt::Display for SevenChannelType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(v) = &self.value {
-            write!(f, "{}", v)?;
+            write!(f, "{v}")?;
         } else {
             write!(f, "?")?;
         }
         if let Some(e) = &self.effect {
-            write!(f, " @ {}", e)?;
+            write!(f, " @ {e}")?;
         }
         if let Some(c) = &self.capability {
-            write!(f, " @ {}", c)?;
+            write!(f, " @ {c}")?;
         }
         if let Some(conf) = &self.confidence {
-            write!(f, " @ {}", conf)?;
+            write!(f, " @ {conf}")?;
         }
         if let Some(cl) = &self.cognitive_loop {
-            write!(f, " @ loop({})", cl)?;
+            write!(f, " @ loop({cl})")?;
         }
         if let Some(g) = &self.governance {
-            write!(f, " @ gov({})", g)?;
+            write!(f, " @ gov({g})")?;
         }
         if let Some(tc) = &self.time_constraint {
-            write!(f, " @ [{}]", tc)?;
+            write!(f, " @ [{tc}]")?;
         }
         Ok(())
     }
@@ -783,6 +806,7 @@ impl Default for EffectInferencer {
 }
 
 impl EffectInferencer {
+    #[must_use] 
     pub fn new() -> Self {
         Self { errors: Vec::new() }
     }
@@ -851,8 +875,7 @@ impl EffectInferencer {
     pub fn check(&mut self, context: &Effect, expr_eff: &Effect, location: &str) {
         if !expr_eff.leq(context) {
             self.errors.push(format!(
-                "效应违规: {} 需要 {}，但上下文要求 {}",
-                location, expr_eff, context
+                "效应违规: {location} 需要 {expr_eff}，但上下文要求 {context}"
             ));
         }
     }
@@ -865,7 +888,7 @@ impl EffectInferencer {
 #[derive(Debug)]
 pub struct CapabilityInferencer {
     pub errors: Vec<String>,
-    /// 函数名 → 能力标注（由 SevenChannelInferencer 填充）
+    /// 函数名 → 能力标注（由 `SevenChannelInferencer` 填充）
     pub fn_annotations: HashMap<String, Capability>,
 }
 
@@ -876,6 +899,7 @@ impl Default for CapabilityInferencer {
 }
 
 impl CapabilityInferencer {
+    #[must_use] 
     pub fn new() -> Self {
         Self {
             errors: Vec::new(),
@@ -944,8 +968,8 @@ impl CapabilityInferencer {
     }
 
     /// 内置函数 → 能力映射表。
-    /// sfa_encode/sfa_query → Sfa, gpu_* → Gpu, net_fetch/net_send → Net,
-    /// print/println/assert → Cpu, spawn_task → Cpu
+    /// `sfa_encode/sfa_query` → Sfa, gpu_* → Gpu, `net_fetch/net_send` → Net,
+    /// print/println/assert → Cpu, `spawn_task` → Cpu
     fn builtin_capability(&self, name: &str) -> Option<Capability> {
         match name {
             "sfa_encode" | "sfa_query" | "sfa_attend" => Some(Capability::Sfa),
@@ -972,6 +996,7 @@ impl Default for CognitiveLoopInferencer {
 }
 
 impl CognitiveLoopInferencer {
+    #[must_use] 
     pub fn new() -> Self {
         Self { errors: Vec::new() }
     }
@@ -1031,8 +1056,7 @@ impl CognitiveLoopInferencer {
     pub fn check(&mut self, context: &CognitiveLoop, expr_loop: &CognitiveLoop, location: &str) {
         if !expr_loop.leq(context) {
             self.errors.push(format!(
-                "认知循环违规: {} 需要 {}，但上下文要求 {}",
-                location, expr_loop, context
+                "认知循环违规: {location} 需要 {expr_loop}，但上下文要求 {context}"
             ));
         }
     }
@@ -1054,6 +1078,7 @@ impl Default for GovernanceInferencer {
 }
 
 impl GovernanceInferencer {
+    #[must_use] 
     pub fn new() -> Self {
         Self { errors: Vec::new() }
     }
@@ -1111,8 +1136,7 @@ impl GovernanceInferencer {
     pub fn check(&mut self, required: &GovernanceLevel, actual: &GovernanceLevel, location: &str) {
         if !actual.leq(required) {
             self.errors.push(format!(
-                "治理违规: {} 需要 {} 权限，但当前只有 {}",
-                location, actual, required
+                "治理违规: {location} 需要 {actual} 权限，但当前只有 {required}"
             ));
         }
     }
@@ -1141,6 +1165,7 @@ impl Default for SevenChannelInferencer {
 }
 
 impl SevenChannelInferencer {
+    #[must_use] 
     pub fn new() -> Self {
         Self {
             value: super::ty::TypeInferencer::new(),
@@ -1181,13 +1206,10 @@ impl SevenChannelInferencer {
             } = stmt
             {
                 let eff = effect
-                    .as_deref()
-                    .map(parse_effect)
-                    .unwrap_or_else(|| if *async_ { Effect::Async } else { Effect::Pure });
+                    .as_deref().map_or_else(|| if *async_ { Effect::Async } else { Effect::Pure }, parse_effect);
                 let cap = capability
                     .as_deref()
-                    .map(parse_capability)
-                    .unwrap_or(Capability::Cpu);
+                    .map_or(Capability::Cpu, parse_capability);
                 let conf = confidence.as_deref().map(parse_confidence);
                 let cl = cognitive_loop.as_deref().map(parse_cognitive_loop);
                 let gov = governance.as_deref().map(parse_governance);
@@ -1200,7 +1222,7 @@ impl SevenChannelInferencer {
                         t.timeout_ms = if to.ends_with("ms") {
                             to.trim_end_matches("ms").parse::<u64>().ok()
                         } else {
-                            to.trim_end_matches("s")
+                            to.trim_end_matches('s')
                                 .parse::<u64>()
                                 .ok()
                                 .map(|x| x * 1000)
@@ -1252,7 +1274,7 @@ impl SevenChannelInferencer {
     }
 
     /// 遍历函数体，对每个表达式做通道级检查：
-    /// 推断表达式在各通道上的值，然后对比函数声明的约束调用 check()。
+    /// 推断表达式在各通道上的值，然后对比函数声明的约束调用 `check()`。
     #[allow(clippy::too_many_arguments)]
     fn walk_body_and_check(
         &mut self,
@@ -1605,46 +1627,47 @@ impl SevenChannelInferencer {
         }
     }
 
+    #[must_use] 
     pub fn print_report(&self) -> String {
         let mut lines = vec!["\n=== Seven-Channel Type Report ===".to_string()];
         lines.push("\nInferred Types:".into());
         for (name, tct) in &self.results {
-            lines.push(format!("  {}: {}", name, tct));
+            lines.push(format!("  {name}: {tct}"));
         }
         if !self.effect.errors.is_empty() {
             lines.push("\nEffect Errors:".into());
             for err in &self.effect.errors {
-                lines.push(format!("  {}", err));
+                lines.push(format!("  {err}"));
             }
         }
         if !self.capability.errors.is_empty() {
             lines.push("\nCapability Errors:".into());
             for err in &self.capability.errors {
-                lines.push(format!("  {}", err));
+                lines.push(format!("  {err}"));
             }
         }
         if !self.confidence.errors.is_empty() {
             lines.push("\nConfidence Errors:".into());
             for err in &self.confidence.errors {
-                lines.push(format!("  {}", err));
+                lines.push(format!("  {err}"));
             }
         }
         if !self.cognitive_loop.errors.is_empty() {
             lines.push("\nCognitive Loop Errors:".into());
             for err in &self.cognitive_loop.errors {
-                lines.push(format!("  {}", err));
+                lines.push(format!("  {err}"));
             }
         }
         if !self.governance.errors.is_empty() {
             lines.push("\nGovernance Errors:".into());
             for err in &self.governance.errors {
-                lines.push(format!("  {}", err));
+                lines.push(format!("  {err}"));
             }
         }
         if !self.time_constraint.errors.is_empty() {
             lines.push("\nTime Constraint Errors:".into());
             for err in &self.time_constraint.errors {
-                lines.push(format!("  {}", err));
+                lines.push(format!("  {err}"));
             }
         }
         if self.value.errors.is_empty()

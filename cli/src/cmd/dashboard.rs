@@ -4,12 +4,12 @@ use std::net::TcpListener;
 
 pub fn run() -> Result<(), String> {
     let banner = util::banner("DASHBOARD");
-    println!("{}", banner);
+    println!("{banner}");
     println!("\n  Starting dashboard on http://127.0.0.1:9898 ...");
     println!("  Ctrl+C to stop");
 
     let listener =
-        TcpListener::bind("127.0.0.1:9898").map_err(|e| format!("Cannot bind :9898: {}", e))?;
+        TcpListener::bind("127.0.0.1:9898").map_err(|e| format!("Cannot bind :9898: {e}"))?;
 
     println!("\n  ✅ Dashboard listening on :9898\n");
 
@@ -36,7 +36,7 @@ pub fn run() -> Result<(), String> {
                     let _ = s.write(resp.as_bytes());
                 }
             }
-            Err(e) => eprintln!("  ❌ Stream: {}", e),
+            Err(e) => eprintln!("  ❌ Stream: {e}"),
         }
     }
     Ok(())

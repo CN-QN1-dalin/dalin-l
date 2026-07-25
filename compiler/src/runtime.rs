@@ -1,6 +1,6 @@
 /// Dalin L 3.0 — Phase E Runtime Execution Engine
 ///
-/// 把编译后的 Program + TaskSpec 真正跑起来。
+/// 把编译后的 Program + `TaskSpec` 真正跑起来。
 /// 内置七通道运行时检查：效应、能力、置信度、认知循环、治理、时间约束。
 use crate::ast::{Expr, FnParam, Program, Stmt};
 use crate::ty2::{
@@ -27,9 +27,9 @@ pub enum RuntimeValue {
     None,
     Array(Vec<RuntimeValue>),
     Struct(String, Vec<(String, RuntimeValue)>),
-    /// Result 类型: (is_ok, ok_value, err_value)
+    /// Result 类型: (`is_ok`, `ok_value`, `err_value`)
     Result(bool, Option<Box<RuntimeValue>>, Option<Box<RuntimeValue>>),
-    /// Option 类型: (is_some, value)
+    /// Option 类型: (`is_some`, value)
     Option(bool, Option<Box<RuntimeValue>>),
     /// 闭包/函数引用
     Func(String),
@@ -38,11 +38,11 @@ pub enum RuntimeValue {
 impl fmt::Display for RuntimeValue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            RuntimeValue::Int(v) => write!(f, "{}", v),
-            RuntimeValue::Float(v) => write!(f, "{}", v),
-            RuntimeValue::String(s) => write!(f, "\"{}\"", s),
-            RuntimeValue::Bool(b) => write!(f, "{}", b),
-            RuntimeValue::Char(c) => write!(f, "'{}'", c),
+            RuntimeValue::Int(v) => write!(f, "{v}"),
+            RuntimeValue::Float(v) => write!(f, "{v}"),
+            RuntimeValue::String(s) => write!(f, "\"{s}\""),
+            RuntimeValue::Bool(b) => write!(f, "{b}"),
+            RuntimeValue::Char(c) => write!(f, "'{c}'"),
             RuntimeValue::None => write!(f, "none"),
             RuntimeValue::Array(items) => {
                 write!(f, "[")?;
@@ -50,29 +50,29 @@ impl fmt::Display for RuntimeValue {
                     if i > 0 {
                         write!(f, ", ")?;
                     }
-                    write!(f, "{}", item)?;
+                    write!(f, "{item}")?;
                 }
                 write!(f, "]")
             }
             RuntimeValue::Struct(name, fields) => {
-                write!(f, "{} {{ ", name)?;
+                write!(f, "{name} {{ ")?;
                 for (i, (k, v)) in fields.iter().enumerate() {
                     if i > 0 {
                         write!(f, ", ")?;
                     }
-                    write!(f, "{}: {}", k, v)?;
+                    write!(f, "{k}: {v}")?;
                 }
                 write!(f, " }}")
             }
             RuntimeValue::Result(is_ok, ok_v, err_v) => {
                 if *is_ok {
                     if let Some(v) = ok_v {
-                        write!(f, "ok({})", v)
+                        write!(f, "ok({v})")
                     } else {
                         write!(f, "ok")
                     }
                 } else if let Some(e) = err_v {
-                    write!(f, "err({})", e)
+                    write!(f, "err({e})")
                 } else {
                     write!(f, "err")
                 }
@@ -80,7 +80,7 @@ impl fmt::Display for RuntimeValue {
             RuntimeValue::Option(is_some, v) => {
                 if *is_some {
                     if let Some(v) = v {
-                        write!(f, "some({})", v)
+                        write!(f, "some({v})")
                     } else {
                         write!(f, "some")
                     }
@@ -88,7 +88,7 @@ impl fmt::Display for RuntimeValue {
                     write!(f, "none")
                 }
             }
-            RuntimeValue::Func(name) => write!(f, "<fn {}>", name),
+            RuntimeValue::Func(name) => write!(f, "<fn {name}>"),
         }
     }
 }
@@ -141,8 +141,8 @@ pub enum RuntimeError {
 impl fmt::Display for RuntimeError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            RuntimeError::UndefinedVariable(name) => write!(f, "undefined variable: {}", name),
-            RuntimeError::UndefinedFunction(name) => write!(f, "undefined function: {}", name),
+            RuntimeError::UndefinedVariable(name) => write!(f, "undefined variable: {name}"),
+            RuntimeError::UndefinedFunction(name) => write!(f, "undefined function: {name}"),
             RuntimeError::TypeError {
                 expected,
                 actual,
@@ -150,8 +150,7 @@ impl fmt::Display for RuntimeError {
             } => {
                 write!(
                     f,
-                    "type error: expected {}, got {} — {}",
-                    expected, actual, detail
+                    "type error: expected {expected}, got {actual} — {detail}"
                 )
             }
             RuntimeError::DivisionByZero => write!(f, "division by zero"),
@@ -162,8 +161,7 @@ impl fmt::Display for RuntimeError {
             } => {
                 write!(
                     f,
-                    "effect violation in '{}': declared {:?} but {:?} required",
-                    fn_name, declared, required
+                    "effect violation in '{fn_name}': declared {declared:?} but {required:?} required"
                 )
             }
             RuntimeError::CognitiveLoopViolation {
@@ -173,8 +171,7 @@ impl fmt::Display for RuntimeError {
             } => {
                 write!(
                     f,
-                    "cognitive loop violation in '{}': declared {:?} but {:?} required",
-                    fn_name, declared, required
+                    "cognitive loop violation in '{fn_name}': declared {declared:?} but {required:?} required"
                 )
             }
             RuntimeError::GovernanceViolation {
@@ -184,8 +181,7 @@ impl fmt::Display for RuntimeError {
             } => {
                 write!(
                     f,
-                    "governance violation in '{}': declared {:?} but {:?} required",
-                    fn_name, declared, required
+                    "governance violation in '{fn_name}': declared {declared:?} but {required:?} required"
                 )
             }
             RuntimeError::TimeoutExceeded {
@@ -195,8 +191,7 @@ impl fmt::Display for RuntimeError {
             } => {
                 write!(
                     f,
-                    "timeout in '{}': limit {}ms, elapsed {}ms",
-                    fn_name, constraint_ms, elapsed_ms
+                    "timeout in '{fn_name}': limit {constraint_ms}ms, elapsed {elapsed_ms}ms"
                 )
             }
             RuntimeError::LatencyViolation {
@@ -206,14 +201,13 @@ impl fmt::Display for RuntimeError {
             } => {
                 write!(
                     f,
-                    "latency violation in '{}': declared {}ms but took {}ms",
-                    fn_name, declared_ms, actual_ms
+                    "latency violation in '{fn_name}': declared {declared_ms}ms but took {actual_ms}ms"
                 )
             }
             RuntimeError::AssertionFailed { message } => {
-                write!(f, "assertion failed: {}", message)
+                write!(f, "assertion failed: {message}")
             }
-            RuntimeError::RuntimePanic(msg) => write!(f, "runtime panic: {}", msg),
+            RuntimeError::RuntimePanic(msg) => write!(f, "runtime panic: {msg}"),
         }
     }
 }
@@ -252,6 +246,7 @@ impl Default for Environment {
 }
 
 impl Environment {
+    #[must_use] 
     pub fn new() -> Self {
         Self {
             frames: vec![HashMap::new()],
@@ -326,7 +321,7 @@ impl fmt::Display for CognitiveLoopPhase {
     }
 }
 
-/// 从 CognitiveLoop 枚举映射到运行时相位
+/// 从 `CognitiveLoop` 枚举映射到运行时相位
 fn cognitive_loop_to_phase(cl: &CognitiveLoop) -> CognitiveLoopPhase {
     match cl {
         CognitiveLoop::Perceive => CognitiveLoopPhase::Perceiving,
@@ -355,6 +350,7 @@ impl Default for CognitiveLoopMachine {
 }
 
 impl CognitiveLoopMachine {
+    #[must_use] 
     pub fn new() -> Self {
         Self {
             current_phase: CognitiveLoopPhase::Idle,
@@ -413,6 +409,7 @@ pub struct GovernanceChecker {
 }
 
 impl GovernanceChecker {
+    #[must_use] 
     pub fn new(session_level: GovernanceLevel) -> Self {
         Self {
             session_level,
@@ -430,8 +427,8 @@ impl GovernanceChecker {
             (GovernanceLevel::Approve, GovernanceLevel::Execute) => false,
             (GovernanceLevel::Approve, _) => true,
             // Suggest 只能执行 Prepare/Suggest
-            (GovernanceLevel::Suggest, GovernanceLevel::Approve)
-            | (GovernanceLevel::Suggest, GovernanceLevel::Execute) => false,
+            (GovernanceLevel::Suggest,
+GovernanceLevel::Approve | GovernanceLevel::Execute) => false,
             (GovernanceLevel::Suggest, _) => true,
             // Prepare 只能执行 Prepare
             (GovernanceLevel::Prepare, GovernanceLevel::Prepare) => true,
@@ -467,6 +464,7 @@ impl Default for TimeMonitor {
 }
 
 impl TimeMonitor {
+    #[must_use] 
     pub fn new() -> Self {
         Self {
             start: Instant::now(),
@@ -562,13 +560,14 @@ pub struct Runtime {
     /// max call depth to prevent stack overflow
     max_depth: usize,
     current_depth: usize,
-    /// Return 语句标志：当 exec_stmt 遇到 Return 时设置
+    /// Return 语句标志：当 `exec_stmt` 遇到 Return 时设置
     returned: bool,
     /// Return 语句的值
     return_value: RuntimeValue,
 }
 
 impl Runtime {
+    #[must_use] 
     pub fn new(session_governance: GovernanceLevel) -> Self {
         Self {
             env: Environment::new(),
@@ -606,11 +605,10 @@ impl Runtime {
             ..
         } = stmt
         {
-            let eff = effect.as_deref().map(parse_effect).unwrap_or(Effect::Pure);
+            let eff = effect.as_deref().map_or(Effect::Pure, parse_effect);
             let cap = capability
                 .as_deref()
-                .map(parse_capability)
-                .unwrap_or(Capability::Cpu);
+                .map_or(Capability::Cpu, parse_capability);
             let conf = confidence.as_deref().map(parse_confidence);
             let cl = cognitive_loop.as_deref().map(parse_cognitive_loop);
             let gov = governance.as_deref().map(parse_governance);
@@ -623,7 +621,7 @@ impl Runtime {
                     t.timeout_ms = if to.ends_with("ms") {
                         to.trim_end_matches("ms").parse::<u64>().ok()
                     } else {
-                        to.trim_end_matches("s")
+                        to.trim_end_matches('s')
                             .parse::<u64>()
                             .ok()
                             .map(|x| x * 1000)
@@ -730,7 +728,7 @@ impl Runtime {
             for err in &time_errors {
                 self.events.push(RuntimeEvent::TimeWarning {
                     fn_name: fn_def.name.clone(),
-                    warning: format!("{}", err),
+                    warning: format!("{err}"),
                 });
             }
             // 时间违规不阻断执行（仅警告），除非有特殊策略
@@ -845,7 +843,7 @@ impl Runtime {
                     other => {
                         return Err(RuntimeError::TypeError {
                             expected: "array or string".to_string(),
-                            actual: format!("{:?}", other),
+                            actual: format!("{other:?}"),
                             detail: "for loop requires iterable".to_string(),
                         });
                     }
@@ -897,7 +895,7 @@ impl Runtime {
                         self.env.push_scope();
                         if let Some(param) = catch_param {
                             self.env
-                                .define(param, RuntimeValue::String(format!("{}", err)));
+                                .define(param, RuntimeValue::String(format!("{err}")));
                         }
                         let result = self.exec_block(catch_body);
                         self.env.pop_scope();
@@ -930,11 +928,10 @@ impl Runtime {
                     ..
                 } = fn_decl.as_ref()
                 {
-                    let eff = effect.as_deref().map(parse_effect).unwrap_or(Effect::Spawn);
+                    let eff = effect.as_deref().map_or(Effect::Spawn, parse_effect);
                     let cap = capability
                         .as_deref()
-                        .map(parse_capability)
-                        .unwrap_or(Capability::Cpu);
+                        .map_or(Capability::Cpu, parse_capability);
                     self.env.register_fn(FnDef {
                         name: name.clone(),
                         params: params.clone(),
@@ -997,7 +994,7 @@ impl Runtime {
                         RuntimeValue::Float(v) => Ok(RuntimeValue::Float(-v)),
                         _ => Err(RuntimeError::TypeError {
                             expected: "number".to_string(),
-                            actual: format!("{}", val),
+                            actual: format!("{val}"),
                             detail: "unary negation".to_string(),
                         }),
                     },
@@ -1005,13 +1002,12 @@ impl Runtime {
                         RuntimeValue::Bool(v) => Ok(RuntimeValue::Bool(!v)),
                         _ => Err(RuntimeError::TypeError {
                             expected: "bool".to_string(),
-                            actual: format!("{}", val),
+                            actual: format!("{val}"),
                             detail: "logical not".to_string(),
                         }),
                     },
                     _ => Err(RuntimeError::RuntimePanic(format!(
-                        "unknown unary op: {}",
-                        op
+                        "unknown unary op: {op}"
                     ))),
                 }
             }
@@ -1023,7 +1019,7 @@ impl Runtime {
                     _ => {
                         return Err(RuntimeError::TypeError {
                             expected: "function".to_string(),
-                            actual: format!("{}", func_val),
+                            actual: format!("{func_val}"),
                             detail: "call target is not a function".to_string(),
                         });
                     }
@@ -1082,13 +1078,12 @@ impl Runtime {
                             }
                         }
                         Err(RuntimeError::UndefinedVariable(format!(
-                            "struct field '{}'",
-                            member
+                            "struct field '{member}'"
                         )))
                     }
                     _ => Err(RuntimeError::TypeError {
                         expected: "struct".to_string(),
-                        actual: format!("{}", obj),
+                        actual: format!("{obj}"),
                         detail: "member access".to_string(),
                     }),
                 }
@@ -1111,7 +1106,7 @@ impl Runtime {
                     }
                     _ => Err(RuntimeError::TypeError {
                         expected: "array[index]".to_string(),
-                        actual: format!("{}[{}]", arr, idx),
+                        actual: format!("{arr}[{idx}]"),
                         detail: "indexing".to_string(),
                     }),
                 }
@@ -1126,7 +1121,7 @@ impl Runtime {
                             let fn_name = match op_expr {
                                 Expr::Ident(name) => name.clone(),
                                 Expr::StringLiteral(s) => s.clone(),
-                                _ => format!("{:?}", op_expr),
+                                _ => format!("{op_expr:?}"),
                             };
                             let fn_def = self.env.lookup_fn(&fn_name)?.clone();
                             val = self.call_fn(&fn_def, &[val])?;
@@ -1163,7 +1158,7 @@ impl Runtime {
                     }
                     _ => Err(RuntimeError::TypeError {
                         expected: "int..int".to_string(),
-                        actual: format!("{}..{}", s, e),
+                        actual: format!("{s}..{e}"),
                         detail: "range requires integers".to_string(),
                     }),
                 }
@@ -1275,7 +1270,7 @@ impl Runtime {
             (RuntimeValue::Bool(a), "!=", RuntimeValue::Bool(b)) => Ok(RuntimeValue::Bool(a != b)),
             // 字符串拼接
             (RuntimeValue::String(a), "+", RuntimeValue::String(b)) => {
-                Ok(RuntimeValue::String(format!("{}{}", a, b)))
+                Ok(RuntimeValue::String(format!("{a}{b}")))
             }
             // 逻辑
             (RuntimeValue::Bool(a), "&&", RuntimeValue::Bool(b)) => {
@@ -1286,9 +1281,9 @@ impl Runtime {
             }
             // 类型不匹配
             _ => Err(RuntimeError::TypeError {
-                expected: format!("{} {} {}", left, op, right),
-                actual: format!("{} {} {}", left, op, right),
-                detail: format!("incompatible types for operator '{}'", op),
+                expected: format!("{left} {op} {right}"),
+                actual: format!("{left} {op} {right}"),
+                detail: format!("incompatible types for operator '{op}'"),
             }),
         }
     }
@@ -1301,7 +1296,7 @@ impl Runtime {
             RuntimeValue::String(s) => Ok(!s.is_empty()),
             _ => Err(RuntimeError::TypeError {
                 expected: "bool".to_string(),
-                actual: format!("{}", val),
+                actual: format!("{val}"),
                 detail: "expected boolean value".to_string(),
             }),
         }
@@ -1333,7 +1328,7 @@ impl Runtime {
                     _ => {
                         // Match by name equality (for unnamed enum variants like Red, Green)
                         // We use format string comparison as a proxy for variant name matching
-                        let value_str = format!("{:?}", value);
+                        let value_str = format!("{value:?}");
                         let pattern_name = &pattern.name;
                         value_str.contains(pattern_name)
                     }
@@ -1422,6 +1417,7 @@ pub struct SelfHealingRuntime {
 }
 
 impl SelfHealingRuntime {
+    #[must_use] 
     pub fn new(session_governance: GovernanceLevel) -> Self {
         Self {
             inner: Runtime::new(session_governance),
@@ -1533,6 +1529,7 @@ impl SelfHealingRuntime {
     }
 
     /// 返回恢复事件总数
+    #[must_use] 
     pub fn recovery_count(&self) -> usize {
         self.recovery_log.len()
     }
@@ -1546,6 +1543,7 @@ pub struct ConfidenceCalibrator {
 }
 
 impl ConfidenceCalibrator {
+    #[must_use] 
     pub fn new(step_size: f64) -> Self {
         Self {
             calibration_table: HashMap::new(),
@@ -1568,6 +1566,7 @@ impl ConfidenceCalibrator {
     }
 
     /// 计算校准后的置信度
+    #[must_use] 
     pub fn calibrated_confidence(&self, fn_name: &str) -> f64 {
         if let Some(entries) = self.calibration_table.get(fn_name) {
             if entries.is_empty() {
@@ -1583,6 +1582,7 @@ impl ConfidenceCalibrator {
     }
 
     /// 获取某个函数的历史统计
+    #[must_use] 
     pub fn stats(&self, fn_name: &str) -> Option<(usize, f64)> {
         self.calibration_table.get(fn_name).map(|entries| {
             let total = entries.len();
@@ -1599,6 +1599,7 @@ pub struct RuntimeSelfEvolution {
 }
 
 impl RuntimeSelfEvolution {
+    #[must_use] 
     pub fn new(backend: Box<dyn crate::qn1::Qn1Backend>) -> Self {
         Self {
             qn1_generator: Qn1CodeGenerator::new(backend),
@@ -1606,6 +1607,7 @@ impl RuntimeSelfEvolution {
         }
     }
 
+    #[must_use] 
     pub fn new_mock() -> Self {
         Self {
             qn1_generator: Qn1CodeGenerator::new_mock(),

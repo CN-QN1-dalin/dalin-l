@@ -20,18 +20,20 @@ pub trait EventBus: Send + Sync {
     async fn publish(&self, event: &TaskEvent);
 }
 
-/// 内存总线：单机 / 测试用。内部用 broadcast，可被 WatchTasks 之外的订阅者观察。
+/// 内存总线：单机 / 测试用。内部用 broadcast，可被 `WatchTasks` 之外的订阅者观察。
 #[derive(Clone)]
 pub struct InMemoryEventBus {
     tx: broadcast::Sender<TaskEvent>,
 }
 
 impl InMemoryEventBus {
+    #[must_use] 
     pub fn new() -> Self {
         let (tx, _rx) = broadcast::channel(1024);
         Self { tx }
     }
 
+    #[must_use] 
     pub fn subscribe(&self) -> broadcast::Receiver<TaskEvent> {
         self.tx.subscribe()
     }
@@ -53,7 +55,7 @@ impl EventBus for InMemoryEventBus {
 /// NATS 总线：生产多节点事件传播。subject = `dalin.tasks`。
 ///
 /// 事件以 JSON 序列化发布到 `dalin.tasks`；集群内任意订阅者（worker / 其它控制面副本）
-/// 均可接收，实现跨节点传播。生产环境可在 NATS 侧开启 JetStream 以获得持久化与重投。
+/// 均可接收，实现跨节点传播。生产环境可在 NATS 侧开启 `JetStream` 以获得持久化与重投。
 pub struct NatsEventBus {
     client: async_nats::Client,
     subject: String,
@@ -80,6 +82,7 @@ impl NatsEventBus {
     }
 
     /// 事件 subject（便于测试 / 运维核对）。
+    #[must_use] 
     pub fn subject(&self) -> &str {
         &self.subject
     }

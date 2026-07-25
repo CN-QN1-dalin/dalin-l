@@ -55,6 +55,7 @@ pub struct ModuleTree {
 }
 
 impl ModuleTree {
+    #[must_use] 
     pub fn new(root_name: &str) -> Self {
         Self {
             root: ModuleNode::module(root_name),
@@ -96,6 +97,7 @@ impl ModuleTree {
         }
     }
 
+    #[must_use] 
     pub fn resolve_path(&self, path: &[String]) -> ResolveResult {
         if path.is_empty() {
             return ResolveResult::NotFound;
@@ -160,6 +162,7 @@ pub struct ModuleNode {
 }
 
 impl ModuleNode {
+    #[must_use] 
     pub fn module(name: &str) -> Self {
         Self {
             name: name.to_string(),
@@ -168,6 +171,7 @@ impl ModuleNode {
         }
     }
 
+    #[must_use] 
     pub fn exported_items(&self) -> Vec<&str> {
         self.items
             .iter()
@@ -198,6 +202,7 @@ impl Default for DependencyGraph {
 }
 
 impl DependencyGraph {
+    #[must_use] 
     pub fn new() -> Self {
         Self {
             modules: HashMap::new(),
@@ -208,6 +213,7 @@ impl DependencyGraph {
         self.modules.insert(name.to_string(), deps);
     }
 
+    #[must_use] 
     pub fn has_cycle(&self) -> bool {
         let mut visited = HashSet::new();
         let mut rec_stack = HashSet::new();
@@ -287,10 +293,10 @@ impl DependencyGraph {
             }
         }
 
-        if result.len() != self.modules.len() {
-            Err("Circular dependency detected!".into())
-        } else {
+        if result.len() == self.modules.len() {
             Ok(result)
+        } else {
+            Err("Circular dependency detected!".into())
         }
     }
 }
@@ -333,6 +339,7 @@ impl Default for Namespace {
 }
 
 impl Namespace {
+    #[must_use] 
     pub fn new() -> Self {
         Self {
             names: HashMap::new(),
@@ -342,14 +349,14 @@ impl Namespace {
     pub fn register(&mut self, name: &str, location: SymbolLocation) -> Result<(), String> {
         if let Some(existing) = self.names.get(name) {
             return Err(format!(
-                "命名冲突: '{}' 已经在 {} 中定义，当前位置为 {}",
-                name, existing, location
+                "命名冲突: '{name}' 已经在 {existing} 中定义，当前位置为 {location}"
             ));
         }
         self.names.insert(name.to_string(), location);
         Ok(())
     }
 
+    #[must_use] 
     pub fn lookup(&self, name: &str) -> Option<&SymbolLocation> {
         self.names.get(name)
     }
@@ -368,6 +375,7 @@ impl Namespace {
         conflicts
     }
 
+    #[must_use] 
     pub fn check_import_conflicts(&self, imports: &[String], source_module: &str) -> Vec<String> {
         let mut conflicts = Vec::new();
         for import_name in imports {
@@ -388,6 +396,7 @@ impl Namespace {
 //  模块解析器 (从 .dalin 文件解析)
 // ═══════════════════════════════
 
+#[must_use] 
 pub fn parse_module_from_source(source: &str, module_name: &str) -> ModuleDecl {
     let mut items = Vec::new();
     for line in source.lines() {
@@ -416,7 +425,7 @@ pub fn parse_module_from_source(source: &str, module_name: &str) -> ModuleDecl {
             let path: Vec<String> = body
                 .trim_end_matches(';')
                 .split("::")
-                .map(|s| s.to_string())
+                .map(std::string::ToString::to_string)
                 .collect();
             items.push(ModuleItem::Use(ImportItem {
                 path,
@@ -427,7 +436,7 @@ pub fn parse_module_from_source(source: &str, module_name: &str) -> ModuleDecl {
             let path: Vec<String> = body
                 .trim_end_matches(';')
                 .split("::")
-                .map(|s| s.to_string())
+                .map(std::string::ToString::to_string)
                 .collect();
             items.push(ModuleItem::Use(ImportItem {
                 path,
@@ -479,9 +488,7 @@ pub fn parse_module_from_source(source: &str, module_name: &str) -> ModuleDecl {
 
 fn extract_name(s: &str) -> String {
     let s = s.trim();
-    s.find(|c: char| !c.is_alphanumeric() && c != '_')
-        .map(|pos| s[..pos].to_string())
-        .unwrap_or_else(|| s.to_string())
+    s.find(|c: char| !c.is_alphanumeric() && c != '_').map_or_else(|| s.to_string(), |pos| s[..pos].to_string())
 }
 
 // ═══════════════════════════════
@@ -496,6 +503,7 @@ pub struct ModuleResolver {
 }
 
 impl ModuleResolver {
+    #[must_use] 
     pub fn new(base_dir: PathBuf) -> Self {
         Self {
             base_dir,
@@ -515,7 +523,7 @@ impl ModuleResolver {
             is_inline: false,
             items: Vec::new(),
         };
-        let path = self.base_dir.join(format!("{}.dalin", module_name));
+        let path = self.base_dir.join(format!("{module_name}.dalin"));
         self.loaded_modules.insert(module_name.to_string(), decl);
         self.module_paths.insert(module_name.to_string(), path);
         Ok(self.loaded_modules.get(module_name).unwrap())
@@ -557,6 +565,7 @@ impl ModuleResolver {
         Ok(())
     }
 
+    #[must_use] 
     pub fn list_modules(&self) -> Vec<String> {
         let mut mods: Vec<String> = self.loaded_modules.keys().cloned().collect();
         mods.sort();

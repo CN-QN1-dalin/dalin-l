@@ -1,7 +1,7 @@
 //! Dalin L 包注册表 — 包发布 / 版本管理 / 依赖解析
 //!
 //! Schema 与架构设计文档对齐：
-//! packages(id PK, name, version, capability, effect_level, artifact_url, signature, created_at)
+//! packages(id PK, name, version, capability, `effect_level`, `artifact_url`, signature, `created_at`)
 
 use std::collections::HashMap;
 
@@ -24,6 +24,7 @@ pub struct PackageRegistry {
 }
 
 impl PackageRegistry {
+    #[must_use] 
     pub fn new() -> Self {
         Self {
             packages: HashMap::new(),
@@ -39,6 +40,7 @@ impl PackageRegistry {
         Ok(())
     }
 
+    #[must_use] 
     pub fn resolve(&self, name: &str, version_req: &str) -> Option<&Package> {
         match self.packages.get(name) {
             Some(pkgs) => {
@@ -52,6 +54,7 @@ impl PackageRegistry {
         }
     }
 
+    #[must_use] 
     pub fn search(&self, query: &str) -> Vec<&Package> {
         let q = query.to_lowercase();
         self.packages
@@ -63,6 +66,7 @@ impl PackageRegistry {
             .collect()
     }
 
+    #[must_use] 
     pub fn list(&self) -> Vec<&Package> {
         self.packages
             .values()

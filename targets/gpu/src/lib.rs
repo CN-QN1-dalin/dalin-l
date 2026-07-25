@@ -43,6 +43,7 @@ impl Default for GpuCompiler {
 
 impl GpuCompiler {
     /// 创建新的 GPU 编译器（自动检测后端）
+    #[must_use] 
     pub fn new() -> Self {
         Self {
             backend: GpuBackend::Auto,
@@ -96,6 +97,7 @@ impl GpuCompiler {
     }
 
     /// 获取后端名称
+    #[must_use] 
     pub fn backend_name(&self) -> &str {
         match self.backend {
             GpuBackend::Metal => "Metal",

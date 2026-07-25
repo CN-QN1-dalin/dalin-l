@@ -51,6 +51,7 @@ impl Default for Profiler {
 }
 
 impl Profiler {
+    #[must_use] 
     pub fn new() -> Self {
         Self {
             calls: HashMap::new(),
@@ -88,6 +89,7 @@ impl Profiler {
     }
 
     /// 返回按总时间排序的报告表格。
+    #[must_use] 
     pub fn report(&self) -> String {
         let mut items: Vec<_> = self.calls.iter().collect();
         items.sort_by(|a, b| {
@@ -100,7 +102,7 @@ impl Profiler {
 
         let mut out = String::new();
         writeln!(out, "=== Dalin L 3.0 Profiler Report ===").unwrap();
-        writeln!(out, "Total time: {:.1}ms", total_ms).unwrap();
+        writeln!(out, "Total time: {total_ms:.1}ms").unwrap();
         writeln!(out).unwrap();
         writeln!(
             out,

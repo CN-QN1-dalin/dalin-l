@@ -3,7 +3,7 @@
 //! 替换树遍历解释器，采用栈式字节码架构。
 //! 核心组件：
 //! - Opcode: 指令集（27 条指令）
-//! - BytecodeFunction: 编译后的函数表示
+//! - `BytecodeFunction`: 编译后的函数表示
 //! - Vm: 栈式执行引擎
 //! - compiler: AST → 字节码编译器
 
@@ -127,7 +127,7 @@ impl std::fmt::Display for Value {
             Value::Str(s) => write!(f, "{s}"),
             Value::None => write!(f, "none"),
             Value::Array(arr) => {
-                let items: Vec<String> = arr.iter().map(|v| v.to_string()).collect();
+                let items: Vec<String> = arr.iter().map(std::string::ToString::to_string).collect();
                 write!(f, "[{}]", items.join(", "))
             }
             Value::Closure(idx, _) => write!(f, "<closure fn#{idx}>"),
@@ -136,6 +136,7 @@ impl std::fmt::Display for Value {
 }
 
 impl Value {
+    #[must_use] 
     pub fn as_int(&self) -> Option<i64> {
         if let Value::Int(n) = self {
             Some(*n)
@@ -143,6 +144,7 @@ impl Value {
             None
         }
     }
+    #[must_use] 
     pub fn as_float(&self) -> Option<f64> {
         if let Value::Float(n) = self {
             Some(*n)
@@ -150,6 +152,7 @@ impl Value {
             None
         }
     }
+    #[must_use] 
     pub fn as_str(&self) -> Option<&str> {
         if let Value::Str(s) = self {
             Some(s)
@@ -201,8 +204,9 @@ impl std::fmt::Display for VmError {
 
 impl Vm {
     /// 创建新的 VM 实例，加载函数表。
+    #[must_use] 
     pub fn new(functions: Vec<BytecodeFunction>) -> Self {
-        let entry = functions.first().map(|_| 0).unwrap_or(0);
+        let entry = functions.first().map_or(0, |_| 0);
         Self {
             stack: Vec::with_capacity(1024),
             call_stack: Vec::with_capacity(64),
@@ -284,7 +288,7 @@ impl Vm {
                 let b = self.stack.pop().ok_or(VmError::StackUnderflow)?;
                 let a = self.stack.pop().ok_or(VmError::StackUnderflow)?;
                 let result = match (a, b) {
-                    (_, Value::Int(0)) | (_, Value::Float(0.0)) => {
+                    (_, Value::Int(0) | Value::Float(0.0)) => {
                         return Err(VmError::DivisionByZero);
                     }
                     (Value::Int(x), Value::Int(y)) => Value::Int(x / y),
@@ -440,8 +444,7 @@ impl Vm {
                     (Value::Str(s), Value::Int(i)) => {
                         if i < 0 || i as usize >= s.len() {
                             return Err(VmError::TypeError(format!(
-                                "string index {} out of bounds",
-                                i
+                                "string index {i} out of bounds"
                             )));
                         }
                         let chars: Vec<char> = s.chars().collect();
@@ -455,7 +458,7 @@ impl Vm {
                 let _func = &self.functions[self.current_fn];
                 let _field_name = field_idx;
                 match self.stack.last() {
-                    Some(Value::Str(_)) | Some(Value::Array(_)) => {
+                    Some(Value::Str(_) | Value::Array(_)) => {
                         // String/array member access returns type info
                         // Placeholder for Phase 2
                         self.stack.push(Value::None);

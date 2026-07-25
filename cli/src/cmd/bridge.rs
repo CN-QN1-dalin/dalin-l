@@ -1,4 +1,4 @@
-//! Dalin Bridge — Unix socket server for DalinX connection
+//! Dalin Bridge — Unix socket server for `DalinX` connection
 //!
 //! Bridges the Dalin L runtime to the QN1 cognitive engine via a Unix domain socket.
 //! Supports:
@@ -37,7 +37,7 @@ impl BridgeMessage {
     }
 }
 
-/// 处理单条消息的业务逻辑（可扩展为调用 DalinL 解释器）
+/// 处理单条消息的业务逻辑（可扩展为调用 `DalinL` 解释器）
 pub fn handle_message(msg: &BridgeMessage) -> BridgeMessage {
     let payload = match msg.r#type.as_str() {
         "run" => {
@@ -81,7 +81,7 @@ pub fn handle_message(msg: &BridgeMessage) -> BridgeMessage {
                         let stmt_count = match lexer::Lexer::new(code).tokenize() {
                             Ok(tokens) => {
                                 let prog = parser::Parser::new(tokens).parse().ok();
-                                prog.map(|p| p.statements.len()).unwrap_or(0)
+                                prog.map_or(0, |p| p.statements.len())
                             }
                             Err(_) => 0,
                         };
@@ -107,14 +107,14 @@ pub fn handle_message(msg: &BridgeMessage) -> BridgeMessage {
         }
         "eval" => {
             if let Some(expr_code) = msg.payload.get("expression").and_then(|v| v.as_str()) {
-                match dalin_runtime::interpreter::run_source(&format!("let _ = {}", expr_code)) {
+                match dalin_runtime::interpreter::run_source(&format!("let _ = {expr_code}")) {
                     Ok(results) => {
                         serde_json::json!({
                             "status": "evaluated",
-                            "result": if !results.is_empty() {
-                                format!("{:?}", results.last().unwrap())
-                            } else {
+                            "result": if results.is_empty() {
                                 "null".to_string()
+                            } else {
+                                format!("{:?}", results.last().unwrap())
                             }
                         })
                     }
@@ -148,13 +148,13 @@ pub fn serve(socket_path: &str) -> Result<(), String> {
     // 清理旧 socket
     if std::path::Path::new(socket_path).exists() {
         fs::remove_file(socket_path)
-            .map_err(|e| format!("Failed to remove existing socket '{}': {}", socket_path, e))?;
+            .map_err(|e| format!("Failed to remove existing socket '{socket_path}': {e}"))?;
     }
 
     let listener = UnixListener::bind(socket_path)
-        .map_err(|e| format!("Failed to bind socket '{}': {}", socket_path, e))?;
+        .map_err(|e| format!("Failed to bind socket '{socket_path}': {e}"))?;
 
-    println!("  [bridge] Listening on: {}", socket_path);
+    println!("  [bridge] Listening on: {socket_path}");
     println!("  [bridge] Ready for DalinX connections");
 
     let mut id_counter: u64 = 0;
@@ -163,7 +163,7 @@ pub fn serve(socket_path: &str) -> Result<(), String> {
         let (mut stream, _) = match listener.accept() {
             Ok(conn) => conn,
             Err(e) => {
-                eprintln!("  [bridge] Accept error: {}", e);
+                eprintln!("  [bridge] Accept error: {e}");
                 continue;
             }
         };
@@ -175,10 +175,10 @@ pub fn serve(socket_path: &str) -> Result<(), String> {
         let mut buffer = [0u8; 4096];
         let n = stream
             .read(&mut buffer)
-            .map_err(|e| format!("Read error: {}", e))?;
+            .map_err(|e| format!("Read error: {e}"))?;
         let request = String::from_utf8_lossy(&buffer[..n]);
 
-        println!("  [bridge] Received message #{}", message_id);
+        println!("  [bridge] Received message #{message_id}");
 
         // 尝试解析并处理
         let response = match BridgeMessage::from_json(&request) {
@@ -189,8 +189,8 @@ pub fn serve(socket_path: &str) -> Result<(), String> {
             }
             Err(e) => {
                 // 如果无法解析为 JSON-RPC，作为原始文本处理
-                eprintln!("  [bridge] Parse error: {}", e);
-                format!("{{\"error\": \"invalid request: {}\"}}", e)
+                eprintln!("  [bridge] Parse error: {e}");
+                format!("{{\"error\": \"invalid request: {e}\"}}")
             }
         };
 
@@ -201,6 +201,6 @@ pub fn serve(socket_path: &str) -> Result<(), String> {
         // 关闭连接（简单的一次性请求-响应模式）
         stream.shutdown(Shutdown::Both).ok();
 
-        println!("  [bridge] Response sent for #{}", message_id);
+        println!("  [bridge] Response sent for #{message_id}");
     }
 }

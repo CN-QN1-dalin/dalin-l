@@ -56,7 +56,7 @@ impl MemoryTransport {
         }
     }
 
-    /// 将另一个 MemoryTransport 连接为 peer
+    /// 将另一个 `MemoryTransport` 连接为 peer
     pub fn link(&self, other: &MemoryTransport) {
         let peer_info = PeerInfo {
             agent_id: crate::types::AgentId::new(&self.name),

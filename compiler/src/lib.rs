@@ -24,8 +24,8 @@ pub mod runtime;
 pub mod task_spec;
 /// Dalin L 3.0 — 编译器工具链 crate
 ///
-/// 把源码落到七通道类型系统的"可执行单元" (TaskSpec)：
-/// token → lexer → parser → [llm_expand] → (ty2 七通道推断) → task_spec。
+/// 把源码落到七通道类型系统的"可执行单元" (`TaskSpec`)：
+/// token → lexer → parser → [`llm_expand`] → (ty2 七通道推断) → `task_spec`。
 /// 纯编译期，无运行时并发依赖，可作为独立库被 runtime / control-plane 复用。
 pub mod token;
 pub mod ty;
@@ -51,23 +51,24 @@ use crate::task_spec::TaskSpec;
 use crate::ty2::SevenChannelInferencer;
 
 /// 完整的编译管线（含 @llm 扩展）：
-///   token → lexer → parser → llm_expand → ty2 inference → task_spec
+///   token → lexer → parser → `llm_expand` → ty2 inference → `task_spec`
 ///
-/// @llm 扩展阶段：扫描 AST 中所有 Stmt::Fn { llm_prompt: Some(prompt), .. }，
-/// 调用 LlmEngine.process_directive() 生成函数体骨架，替换原 body。
+/// @llm 扩展阶段：扫描 AST 中所有 `Stmt::Fn` { `llm_prompt`: Some(prompt), .. }，
+/// 调用 `LlmEngine.process_directive()` 生成函数体骨架，替换原 body。
+#[must_use] 
 pub fn compile_with_llm(src: &str) -> CompileResult {
     // Step 1: Lexer
     let mut lex = lexer::Lexer::new(src);
     let tokens = match lex.tokenize() {
         Ok(t) => t,
-        Err(e) => return CompileResult::Err(format!("{}", e)),
+        Err(e) => return CompileResult::Err(format!("{e}")),
     };
 
     // Step 2: Parser
     let mut parser = parser::Parser::new(tokens);
     let prog = match parser.parse() {
         Ok(p) => p,
-        Err(e) => return CompileResult::Err(format!("{}", e)),
+        Err(e) => return CompileResult::Err(format!("{e}")),
     };
 
     // Step 3: LLM 扩展
@@ -87,7 +88,7 @@ pub fn compile_with_llm(src: &str) -> CompileResult {
     if !latency_result.errors.is_empty() {
         report.push_str("\n=== Latency Violations ===\n");
         for err in &latency_result.errors {
-            report.push_str(&format!("  ❌ {}\n", err));
+            report.push_str(&format!("  ❌ {err}\n"));
         }
     }
 
@@ -112,7 +113,7 @@ pub fn compile_with_llm(src: &str) -> CompileResult {
     }
 }
 
-/// 编译结果：AST + 报告 + TaskSpec + 结构化错误
+/// 编译结果：AST + 报告 + `TaskSpec` + 结构化错误
 pub enum CompileResult {
     Err(String),
     Ok {
@@ -127,7 +128,7 @@ pub enum CompileResult {
 impl std::fmt::Display for CompileResult {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            CompileResult::Err(e) => write!(f, "Compile error: {}", e),
+            CompileResult::Err(e) => write!(f, "Compile error: {e}"),
             CompileResult::Ok {
                 program,
                 report,
@@ -135,9 +136,9 @@ impl std::fmt::Display for CompileResult {
                 errors,
             } => {
                 writeln!(f, "Compiled {} statements", program.statements.len())?;
-                write!(f, "{}", report)?;
+                write!(f, "{report}")?;
                 for err in errors {
-                    write!(f, "{}", err)?;
+                    write!(f, "{err}")?;
                 }
                 for spec in specs {
                     writeln!(
@@ -152,7 +153,7 @@ impl std::fmt::Display for CompileResult {
     }
 }
 
-/// LLM 扩展：遍历 AST，遇到 llm_prompt=Some 的函数则调用 LlmEngine
+/// LLM 扩展：遍历 AST，遇到 `llm_prompt=Some` 的函数则调用 `LlmEngine`
 fn expand_llm(prog: &Program) -> Program {
     let mut stmts = Vec::new();
     for stmt in &prog.statements {

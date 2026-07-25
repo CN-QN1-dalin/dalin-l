@@ -1,7 +1,7 @@
 /// Dalin L — 递归下降语法分析器
-use crate::ast::*;
-use crate::token::{Token, TokenType, TokenType::*};
-/// Nine annotation fields returned by parse_channel_annotations.
+use crate::ast::{Program, Stmt, FnParam, Expr, MatchArm, FieldDef, EnumVariant, TraitMethod, Pattern, TypeRef, BaseType};
+use crate::token::{Token, TokenType, TokenType::{Eof, KeywordLet, KeywordMut, KeywordFn, KeywordIf, KeywordWhile, KeywordFor, KeywordMatch, KeywordStruct, KeywordEnum, KeywordTrait, KeywordImpl, KeywordReturn, KeywordUse, KeywordExport, KeywordSpawn, KeywordAssert, KeywordChannel, KeywordAsync, KeywordTry, KeywordConst, KeywordType, Semicolon, Ident, Colon, Equal, At, LeftParen, StringLiteral, RightParen, IntLiteral, Slash, Arrow, Comma, KeywordElse, KeywordIn, LeftBrace, RightBrace, DoubleArrow, KeywordCatch, FloatLiteral, BoolLiteral, CharLiteral, Less, Greater, Pipe, Or, And, DoubleEqual, NotEqual, LessEqual, GreaterEqual, Plus, Minus, Star, Modulo, Not, DoubleDot, LeftBracket, RightBracket, Dot}};
+/// Nine annotation fields returned by `parse_channel_annotations`.
 pub type AnnotationResult = Result<
     (
         Option<String>,
@@ -36,6 +36,7 @@ pub struct Parser {
 }
 
 impl Parser {
+    #[must_use] 
     pub fn new(tokens: Vec<Token>) -> Self {
         Self { tokens, pos: 0 }
     }
@@ -314,7 +315,7 @@ impl Parser {
             Ok(text)
         } else {
             Err(ParseError {
-                message: format!("Invalid effect/capability type: {}", text),
+                message: format!("Invalid effect/capability type: {text}"),
                 line: tok.line,
                 column: tok.column,
             })
@@ -356,7 +357,7 @@ impl Parser {
 
     /// 解析 0..n 个多通道注解 `@X` / `@X(...)` / `@ llm("...")`。
     /// 自动判定为效应/能力/置信度/认知循环/治理/时间通道；顺序无关。
-    /// 返回 (effect, capability, llm_prompt, cognitive_loop, governance, latency, timeout, throughput, confidence)
+    /// 返回 (effect, capability, `llm_prompt`, `cognitive_loop`, governance, latency, timeout, throughput, confidence)
     /// 特殊语法：
     ///   @ llm("...") — LLM 编译指令
     ///   @ gov(level) — 治理级别（带括号值）
@@ -410,8 +411,7 @@ impl Parser {
                     _ => {
                         return Err(ParseError {
                             message: format!(
-                                "Unknown governance level: {}. Expected: prepare, suggest, approve, execute",
-                                level
+                                "Unknown governance level: {level}. Expected: prepare, suggest, approve, execute"
                             ),
                             line: self.current().line,
                             column: self.current().column,
@@ -434,9 +434,9 @@ impl Parser {
                 if self.current().token_type == Slash {
                     self.advance(); // consume /
                     let suffix = self.expect(Ident, "throughput unit")?.value.clone();
-                    unit = format!("/{}", suffix);
+                    unit = format!("/{suffix}");
                 }
-                let val = format!("{}{}", num, unit);
+                let val = format!("{num}{unit}");
                 self.expect(RightParen, "')'")?;
                 match tok.as_str() {
                     "latency" => latency = Some(val),
@@ -446,7 +446,7 @@ impl Parser {
                 }
             } else {
                 return Err(ParseError {
-                    message: format!("Unknown annotation token: {}", tok),
+                    message: format!("Unknown annotation token: {tok}"),
                     line: self.current().line,
                     column: self.current().column,
                 });
@@ -838,7 +838,7 @@ impl Parser {
         let mut stmts = Vec::new();
         while !self.check(RightBrace) && !self.check(Eof) {
             if let Some(s) = self.parse_statement()? {
-                stmts.push(s)
+                stmts.push(s);
             }
         }
         self.expect(RightBrace, "'}'")?;
@@ -1322,13 +1322,14 @@ fn stmt_to_expr_single(stmt: Stmt) -> Expr {
         Stmt::Expr(e) => *e,
         Stmt::Return(Some(e)) => *e,
         Stmt::Return(None) => Expr::IntLiteral(0),
-        Stmt::Let { value, .. } => value.map(|v| *v).unwrap_or(Expr::IntLiteral(0)),
+        Stmt::Let { value, .. } => value.map_or(Expr::IntLiteral(0), |v| *v),
         _ => Expr::IntLiteral(0),
     }
 }
 
 // ── AST 打印 ──
 
+#[must_use] 
 pub fn ast_to_string(node: &Program) -> String {
     let mut lines = Vec::new();
     lines.push("Program(".to_string());
@@ -1350,7 +1351,7 @@ fn stmt_to_string(stmt: &Stmt, indent: usize) -> String {
         } => {
             let mut s = format!("{}{}Let({}", p, if *mutable { "mut " } else { "" }, name);
             if let Some(t) = type_annotation {
-                s.push_str(&format!(": {}", t));
+                s.push_str(&format!(": {t}"));
             }
             if let Some(v) = value {
                 s.push_str(&format!(" = {}", expr_to_string(v, 0)));
@@ -1367,9 +1368,9 @@ fn stmt_to_string(stmt: &Stmt, indent: usize) -> String {
             let params_str: Vec<String> = params.iter().map(|p| p.name.clone()).collect();
             let ret = return_type
                 .as_ref()
-                .map(|t| format!(" -> {}", t))
+                .map(|t| format!(" -> {t}"))
                 .unwrap_or_default();
-            format!("{p}Fn({name}({:?}){ret})", params_str)
+            format!("{p}Fn({name}({params_str:?}){ret})")
         }
         Stmt::If {
             condition,
@@ -1432,12 +1433,12 @@ fn stmts_to_string(stmts: &[Stmt], indent: usize) -> String {
 
 fn expr_to_string(expr: &Expr, _indent: usize) -> String {
     match expr {
-        Expr::IntLiteral(v) => format!("Int({})", v),
-        Expr::FloatLiteral(v) => format!("Float({})", v),
-        Expr::StringLiteral(v) => format!("Str({:?})", v),
-        Expr::BoolLiteral(v) => format!("Bool({})", v),
-        Expr::CharLiteral(v) => format!("Char({:?})", v),
-        Expr::Ident(v) => format!("Ident({})", v),
+        Expr::IntLiteral(v) => format!("Int({v})"),
+        Expr::FloatLiteral(v) => format!("Float({v})"),
+        Expr::StringLiteral(v) => format!("Str({v:?})"),
+        Expr::BoolLiteral(v) => format!("Bool({v})"),
+        Expr::CharLiteral(v) => format!("Char({v:?})"),
+        Expr::Ident(v) => format!("Ident({v})"),
         Expr::BinaryOp { left, op, right } => format!(
             "Bin({}, {}, {})",
             expr_to_string(left, 0),
@@ -1518,6 +1519,7 @@ fn expr_to_string(expr: &Expr, _indent: usize) -> String {
 /// Expression variants for if/match that were converted from statements
 impl Expr {
     // Placeholder variants for if/match expressions
+    #[must_use] 
     pub fn dummy() -> Self {
         Expr::IntLiteral(0)
     }

@@ -31,6 +31,7 @@ impl Default for WasmBackend {
 
 impl WasmBackend {
     /// 创建新的 WASM 后端
+    #[must_use] 
     pub fn new() -> Self {
         Self {
             optimize: true,
@@ -61,6 +62,7 @@ impl WasmBackend {
     }
 
     /// 获取导出函数列表
+    #[must_use] 
     pub fn exports(&self) -> &[String] {
         &self.exports
     }

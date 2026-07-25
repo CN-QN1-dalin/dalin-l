@@ -2,14 +2,14 @@ use crate::util;
 
 pub fn run(input: &str, verbose: bool, json: bool) -> Result<(), String> {
     let banner = util::banner("CHECK");
-    println!("{}", banner);
+    println!("{banner}");
 
     if !std::path::Path::new(input).exists() {
-        return Err(format!("Source file '{}' does not exist", input));
+        return Err(format!("Source file '{input}' does not exist"));
     }
 
     let src =
-        std::fs::read_to_string(input).map_err(|e| format!("Cannot read '{}': {}", input, e))?;
+        std::fs::read_to_string(input).map_err(|e| format!("Cannot read '{input}': {e}"))?;
 
     use dalin_compiler::{lexer, parser, ty};
 
@@ -32,17 +32,17 @@ pub fn run(input: &str, verbose: bool, json: bool) -> Result<(), String> {
                     }
                 }
                 Err(e) => {
-                    return util::err("parser", &format!("{}", e)).map_err(|_| String::new());
+                    return util::err("parser", &format!("{e}")).map_err(|_| String::new());
                 }
             }
         }
         Err(e) => {
-            return util::err("lexer", &format!("{}", e)).map_err(|_| String::new());
+            return util::err("lexer", &format!("{e}")).map_err(|_| String::new());
         }
     }
 
     if json {
-        println!("\n{{ \"status\": \"ok\", \"file\": \"{}\" }}", input);
+        println!("\n{{ \"status\": \"ok\", \"file\": \"{input}\" }}");
     }
 
     println!("\n  ╔═══════════════════════════════════╗");

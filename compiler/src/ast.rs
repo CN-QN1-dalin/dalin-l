@@ -46,6 +46,7 @@ pub struct TypeRef {
 }
 
 impl TypeRef {
+    #[must_use] 
     pub fn new(base: BaseType) -> Self {
         Self {
             base,
@@ -54,6 +55,7 @@ impl TypeRef {
         }
     }
 
+    #[must_use] 
     pub fn generic(base: BaseType, arg: TypeRef) -> Self {
         Self {
             base,
@@ -62,6 +64,7 @@ impl TypeRef {
         }
     }
 
+    #[must_use] 
     pub fn result(ok: TypeRef, err: TypeRef) -> Self {
         Self {
             base: BaseType::Result,
@@ -76,7 +79,7 @@ impl fmt::Display for TypeRef {
         if let Some(arg) = &self.generic_arg {
             write!(f, "{}<{}>", self.base, arg)?;
             if let Some(err) = &self.result_err {
-                write!(f, ", {}>", err)?;
+                write!(f, ", {err}>")?;
             }
             Ok(())
         } else if let Some(err) = &self.result_err {
@@ -332,15 +335,15 @@ pub enum ModuleDecl {
 /// use 路径中的通配符 / 重命名
 #[derive(Debug, Clone)]
 pub enum UseTree {
-    /// use foo::bar;
+    /// use `foo::bar`;
     Path(Vec<String>),
-    /// use foo::*;
+    /// use `foo::`*;
     Glob,
-    /// use foo::{a, b, c};
+    /// use `foo::{a`, b, c};
     Group(Vec<(String, Option<String>)>),
 }
 
-/// 包版本字符串 (SemVer)
+/// 包版本字符串 (`SemVer`)
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SemVer {
     pub major: u64,
@@ -358,7 +361,7 @@ pub struct PackageManifest {
     pub stdlib_modules: Vec<String>, // 标准库模块列表
 }
 
-/// 编译时宏声明: macro_rules! foo { ... }
+/// 编译时宏声明: `macro_rules`! foo { ... }
 #[derive(Debug, Clone)]
 pub enum MacroDecl {
     Declarative {
@@ -372,7 +375,7 @@ pub enum MacroDecl {
     },
 }
 
-/// macro_rules! 单条规则
+/// `macro_rules`! 单条规则
 #[derive(Debug, Clone)]
 pub struct MacroRule {
     pub pattern: Vec<String>,   // token 模式
@@ -405,6 +408,7 @@ impl Default for Program {
 }
 
 impl Program {
+    #[must_use] 
     pub fn new() -> Self {
         Self {
             statements: Vec::new(),
@@ -420,6 +424,7 @@ impl Program {
         self.statements.push(stmt);
     }
 
+    #[must_use] 
     pub fn is_empty(&self) -> bool {
         self.statements.is_empty() && self.modules.is_empty()
     }

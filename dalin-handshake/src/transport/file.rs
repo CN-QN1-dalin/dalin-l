@@ -5,7 +5,7 @@
 
 use crate::error::{HandshakeError, Result};
 use crate::transport::Transport;
-use crate::types::*;
+use crate::types::{Discovery, PeerInfo, Message};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
@@ -108,7 +108,7 @@ impl FileTransport {
             let dir_name = path
                 .file_name()
                 .and_then(|n| n.to_str())
-                .map(|s| s.to_string())
+                .map(std::string::ToString::to_string)
                 .unwrap_or_default();
 
             // 跳过自己
@@ -149,9 +149,9 @@ impl Transport for FileTransport {
     fn start(&mut self) -> Result<()> {
         // 创建 Agent 目录结构
         std::fs::create_dir_all(&self.agent_dir)
-            .map_err(|e| HandshakeError::Io(format!("Failed to create agent dir: {}", e)))?;
+            .map_err(|e| HandshakeError::Io(format!("Failed to create agent dir: {e}")))?;
         std::fs::create_dir_all(self.agent_dir.join("inbox"))
-            .map_err(|e| HandshakeError::Io(format!("Failed to create inbox: {}", e)))?;
+            .map_err(|e| HandshakeError::Io(format!("Failed to create inbox: {e}")))?;
 
         // 写入 announce.json
         if let Some(discovery) = &self.discovery {

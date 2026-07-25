@@ -45,6 +45,7 @@ pub enum ChannelClass {
 }
 
 impl ChannelClass {
+    #[must_use] 
     pub fn from_function(fn_stmt: &Stmt) -> Option<Self> {
         if let Stmt::Fn {
             capability, effect, latency, governance, ..
@@ -123,6 +124,7 @@ impl Default for JitCompiler {
 
 impl JitCompiler {
     /// 创建新的 JIT 编译器实例
+    #[must_use] 
     pub fn new() -> Self {
         Self {
             enabled: true,
@@ -142,6 +144,7 @@ impl JitCompiler {
     }
 
     /// 检查是否已启用
+    #[must_use] 
     pub fn is_enabled(&self) -> bool {
         self.enabled
     }
@@ -224,6 +227,7 @@ impl JitCompiler {
     }
 
     /// 获取缓存中某函数的编译条目
+    #[must_use] 
     pub fn get_cached(&self, name: &str) -> Option<&CacheEntry> {
         self.cache.get(name)
     }
@@ -239,6 +243,7 @@ impl JitCompiler {
     }
 
     /// 获取编译统计快照
+    #[must_use] 
     pub fn snapshot_stats(&self) -> &CompileStats {
         &self.stats
     }
@@ -249,13 +254,15 @@ impl JitCompiler {
     }
 
     /// 获取缓存大小
+    #[must_use] 
     pub fn cache_size(&self) -> usize {
         self.cache.len()
     }
 
     /// 返回所有已编译的函数名列表
+    #[must_use] 
     pub fn compiled_functions(&self) -> Vec<&str> {
-        self.cache.keys().map(|k| k.as_str()).collect()
+        self.cache.keys().map(std::string::String::as_str).collect()
     }
 }
 
@@ -274,7 +281,7 @@ fn extract_fn_info(stmt: &Stmt) -> Result<(String, String), CompileError> {
 fn simple_hash(input: &str) -> u64 {
     let mut hash: u64 = 5381;
     for c in input.bytes() {
-        hash = hash.wrapping_mul(33).wrapping_add(c as u64);
+        hash = hash.wrapping_mul(33).wrapping_add(u64::from(c));
     }
     hash
 }
@@ -283,8 +290,7 @@ fn simple_hash(input: &str) -> u64 {
 fn nanos_since_epoch() -> u128 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_nanos())
-        .unwrap_or(0)
+        .map_or(0, |d| d.as_nanos())
 }
 
 /// 验证函数参数列表
@@ -335,7 +341,7 @@ impl std::fmt::Display for CompileError {
         match self {
             Self::Disabled => write!(f, "JIT compiler is disabled"),
             Self::NotAFunction => write!(f, "statement is not a function"),
-            Self::DuplicateParam(name) => write!(f, "duplicate parameter: {}", name),
+            Self::DuplicateParam(name) => write!(f, "duplicate parameter: {name}"),
             Self::EmptyParamName => write!(f, "empty parameter name"),
             Self::TypeResolutionFailed => write!(f, "cannot resolve type for expression"),
             Self::ConstantOverflow => write!(f, "constant folding overflow in literal"),

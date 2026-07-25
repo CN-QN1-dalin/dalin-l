@@ -6,11 +6,11 @@
 /// 类型系统是唯一事实源。
 ///
 /// 语义映射（lowering 阶段插入）：
-///   @spawn f(x) → 子 TaskSpec{ effect: Spawn, parent: current } 入队
-///   @async f(x) → TaskSpec{ effect: Async }，返回 Future handle，caller 非阻塞
-///   @net   f(x) → TaskSpec{ capability: Net }，调度器路由到远程网关（需 net 凭证）
-///   @sfa   f(x) → TaskSpec{ capability: Sfa }，路由到 SFA 路由服务（QN1）
-///   plain  f(x) → TaskSpec{ effect: Io|Pure, capability: Cpu }，本地 DLVM 执行
+///   @spawn f(x) → 子 `TaskSpec`{ effect: Spawn, parent: current } 入队
+///   @async f(x) → `TaskSpec`{ effect: Async }，返回 Future handle，caller 非阻塞
+///   @net   f(x) → `TaskSpec`{ capability: Net }，调度器路由到远程网关（需 net 凭证）
+///   @sfa   f(x) → `TaskSpec`{ capability: Sfa }，路由到 SFA 路由服务（QN1）
+///   plain  f(x) → `TaskSpec`{ effect: Io|Pure, capability: Cpu }，本地 DLVM 执行
 use crate::ast::{Program, Stmt};
 use crate::ty2::{
     Capability, Effect, GovernanceLevel, parse_capability, parse_effect, parse_governance,
@@ -37,7 +37,7 @@ pub struct TaskSpec {
 }
 
 impl TaskSpec {
-    /// 由函数名 + 七通道标注构造；幂等键用 (fn_id + 标注) 稳定哈希。
+    /// 由函数名 + 七通道标注构造；幂等键用 (`fn_id` + 标注) 稳定哈希。
     fn for_fn(
         name: &str,
         effect: Effect,
@@ -70,7 +70,8 @@ impl TaskSpec {
         }
     }
 
-    /// 由父任务派生一个 spawn 子任务规格（parent 指向父，is_spawn=true，继承父治理级别）
+    /// 由父任务派生一个 spawn 子任务规格（parent `指向父，is_spawn=true，继承父治理级别`）
+    #[must_use] 
     pub fn spawn_child(&self, child_name: &str, effect: Effect, capability: Capability) -> Self {
         let mut child = TaskSpec::for_fn(
             child_name,
@@ -85,7 +86,7 @@ impl TaskSpec {
     }
 }
 
-/// 从整份 Program 生成顶层 TaskSpec 列表（控制面消费的编译期契约）。
+/// 从整份 Program 生成顶层 `TaskSpec` 列表（控制面消费的编译期契约）。
 ///
 /// 这是"编译器 → 控制面"的边界：只暴露七通道标注，不暴露 AST 细节。
 pub fn from_program(prog: &Program) -> Vec<TaskSpec> {
@@ -101,15 +102,14 @@ pub fn from_program(prog: &Program) -> Vec<TaskSpec> {
             ..
         } = stmt
         {
-            let eff = effect.as_deref().map(parse_effect).unwrap_or(if *async_ {
+            let eff = effect.as_deref().map_or(if *async_ {
                 Effect::Async
             } else {
                 Effect::Pure
-            });
+            }, parse_effect);
             let cap = capability
                 .as_deref()
-                .map(parse_capability)
-                .unwrap_or(Capability::Cpu);
+                .map_or(Capability::Cpu, parse_capability);
             let gov = governance.as_deref().map(parse_governance);
             specs.push(TaskSpec::for_fn(
                 name,

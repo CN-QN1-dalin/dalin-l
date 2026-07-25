@@ -3,7 +3,7 @@
 // Pure Rust — no kube-rs dependency, integrates cleanly when added.
 // ============================================================
 
-use crate::k8s::operator_types::*;
+use crate::k8s::operator_types::{Capability, DalinTaskSpec, ResourceResolver, ReplicaStrategy, ResourceRequirements, Effect, ConfidenceLevel, TaskPhase, DalinTaskStatus, TaskCondition};
 use serde_json::{Map as JsonMap, json};
 
 // Re-import error type for method signatures
@@ -23,13 +23,14 @@ pub enum ReconcileResult {
 
 // ─── Scheduler Controller ──────────────────────────────────────
 
-/// Translates DalinTask CRD events into Kubernetes Deployment changes.
+/// Translates `DalinTask` CRD events into Kubernetes Deployment changes.
 pub struct SchedulerController {
     #[allow(dead_code)]
     namespace: String,
 }
 
 impl SchedulerController {
+    #[must_use] 
     pub fn new(namespace: String) -> Self {
         Self { namespace }
     }
@@ -92,6 +93,7 @@ pub struct DeploymentDesire {
 }
 
 impl DeploymentDesire {
+    #[must_use] 
     pub fn from_spec(spec: &DalinTaskSpec, namespace: &str) -> Self {
         let resources = ResourceResolver::resolve(spec).unwrap_or_default();
         let ns = ResourceResolver::node_selector(spec);
@@ -113,6 +115,7 @@ impl DeploymentDesire {
         }
     }
 
+    #[must_use] 
     pub fn to_json(&self) -> serde_json::Value {
         // defaults
         let req_cpu = self
@@ -224,12 +227,11 @@ impl DeploymentDesire {
         })
     }
 
+    #[must_use] 
     pub fn status_update(&self, phase: TaskPhase) -> DalinTaskStatus {
         use std::time::SystemTime;
         let ts = SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .map(|d| d.as_millis().to_string())
-            .unwrap_or_else(|_| "0".into());
+            .duration_since(SystemTime::UNIX_EPOCH).map_or_else(|_| "0".into(), |d| d.as_millis().to_string());
 
         let mut status = DalinTaskStatus {
             phase: phase.clone(),

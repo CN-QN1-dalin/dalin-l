@@ -2,7 +2,7 @@
 /// Dalin L 3.0 — DAP Protocol Types
 ///
 /// Minimal DAP type definitions covering the essential debugging workflow:
-/// Initialize → Launch → SetBreakpoints → StackTrace → Scopes → Variables → Continue/Step
+/// Initialize → Launch → `SetBreakpoints` → `StackTrace` → Scopes → Variables → Continue/Step
 use serde::{Deserialize, Serialize};
 
 // ── Base DAP Protocol ──

@@ -3,22 +3,22 @@ use dalin_compiler::{lexer, parser, ty};
 
 pub fn run(input: &str, verbose: bool, _json: bool) -> Result<(), String> {
     let banner = util::banner("ANALYZE");
-    println!("{}", banner);
+    println!("{banner}");
 
     if !std::path::Path::new(input).exists() {
-        return Err(format!("Source file '{}' does not exist", input));
+        return Err(format!("Source file '{input}' does not exist"));
     }
 
     let src =
-        std::fs::read_to_string(input).map_err(|e| format!("Cannot read '{}': {}", input, e))?;
+        std::fs::read_to_string(input).map_err(|e| format!("Cannot read '{input}': {e}"))?;
 
     let mut lex = lexer::Lexer::new(&src);
-    let tokens = lex.tokenize().map_err(|e| format!("Lexer: {}", e))?;
+    let tokens = lex.tokenize().map_err(|e| format!("Lexer: {e}"))?;
     let token_count = tokens.len();
 
     let prog = parser::Parser::new(tokens)
         .parse()
-        .map_err(|e| format!("Parse: {}", e))?;
+        .map_err(|e| format!("Parse: {e}"))?;
 
     let mut infer = ty::TypeInferencer::new();
     infer.infer_program(&prog);
@@ -33,11 +33,11 @@ pub fn run(input: &str, verbose: bool, _json: bool) -> Result<(), String> {
     println!("\n  ┌─────────────────────────────────┐");
     println!("  │  Source Analysis Report         │");
     println!("  ├─────────────────────────────────┤");
-    println!("  │  File:           {}          │", input);
+    println!("  │  File:           {input}          │");
     println!("  │  Lines:          {:<11}│", src.lines().count());
-    println!("  │  Tokens:         {:<11}│", token_count);
+    println!("  │  Tokens:         {token_count:<11}│");
     println!("  │  Statements:     {:<11}│", prog.statements.len());
-    println!("  │  Functions:      {:<11}│", func_count);
+    println!("  │  Functions:      {func_count:<11}│");
     println!("  └─────────────────────────────────┘");
 
     if verbose && !report.trim().is_empty() {

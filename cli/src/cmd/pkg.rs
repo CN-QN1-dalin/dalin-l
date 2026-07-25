@@ -46,13 +46,13 @@ fn write_manifest(path: &PathBuf, manifest: &PackageManifest) -> Result<(), Stri
         content.push_str(&format!("edition = \"{}\"\n", manifest.edition));
     }
     if let Some(ref desc) = manifest.description {
-        content.push_str(&format!("description = \"{}\"\n", desc));
+        content.push_str(&format!("description = \"{desc}\"\n"));
     }
     if !manifest.authors.is_empty() {
         content.push_str(&format!("authors = {:?}\n", manifest.authors));
     }
     if let Some(ref license) = manifest.license {
-        content.push_str(&format!("license = \"{}\"\n", license));
+        content.push_str(&format!("license = \"{license}\"\n"));
     }
 
     if !manifest.deps.is_empty() {
@@ -103,8 +103,7 @@ pub fn run(subcommand: &str, args: &HashMap<String, String>) -> Result<(), Strin
         "list" => cmd_list(args),
         "build" => cmd_build(args),
         _ => Err(format!(
-            "Unknown pkg subcommand: {}. Use: init/add/remove/list/build",
-            subcommand
+            "Unknown pkg subcommand: {subcommand}. Use: init/add/remove/list/build"
         )),
     }
 }
@@ -113,11 +112,9 @@ fn cmd_init(args: &HashMap<String, String>) -> Result<(), String> {
     let path_str = args.get("path").cloned().unwrap_or_else(|| ".".to_string());
     let pbuf = PathBuf::from(&path_str);
     let name = args.get("name").cloned().unwrap_or_else(|| {
-        pbuf.file_name()
-            .map(|s| s.to_string_lossy().to_string())
-            .unwrap_or_else(|| "my-dalin-project".to_string())
+        pbuf.file_name().map_or_else(|| "my-dalin-project".to_string(), |s| s.to_string_lossy().to_string())
     });
-    let lib_only = args.get("lib").map(|v| v == "true").unwrap_or(false);
+    let lib_only = args.get("lib").is_some_and(|v| v == "true");
 
     let out_dir = if pbuf.to_str() == Some(".") {
         PathBuf::from(&name)
@@ -134,16 +131,15 @@ fn cmd_init(args: &HashMap<String, String>) -> Result<(), String> {
         }
     }
 
-    fs::create_dir_all(out_dir.join("src")).map_err(|e| format!("Cannot create src/: {}", e))?;
+    fs::create_dir_all(out_dir.join("src")).map_err(|e| format!("Cannot create src/: {e}"))?;
     fs::create_dir_all(out_dir.join("tests"))
-        .map_err(|e| format!("Cannot create tests/: {}", e))?;
+        .map_err(|e| format!("Cannot create tests/: {e}"))?;
 
     let toml_content = format!(
-        "[package]\nname = \"{}\"\nversion = \"0.1.0\"\nedition = \"2026\"\n\n[dependencies]\n",
-        name
+        "[package]\nname = \"{name}\"\nversion = \"0.1.0\"\nedition = \"2026\"\n\n[dependencies]\n"
     );
     fs::write(out_dir.join("dalan.toml"), toml_content)
-        .map_err(|e| format!("Cannot write dalan.toml: {}", e))?;
+        .map_err(|e| format!("Cannot write dalan.toml: {e}"))?;
     println!("  Created dalan.toml");
 
     let main_code = if lib_only {
@@ -152,19 +148,19 @@ fn cmd_init(args: &HashMap<String, String>) -> Result<(), String> {
         "@main\nfn main() -> Int {\n    println(\"Hello, Dalin L 3.0!\");\n    return 0;\n}"
     };
     fs::write(out_dir.join("src/main.dal"), main_code)
-        .map_err(|e| format!("Cannot write src/main.dal: {}", e))?;
+        .map_err(|e| format!("Cannot write src/main.dal: {e}"))?;
     println!("  Created src/main.dal");
 
     let test_code = "?test\nfn test_basic() -> Bool { return true; }\n";
     fs::write(out_dir.join("tests/basic_test.dal"), test_code)
-        .map_err(|e| format!("Cannot write tests/basic_test.dal: {}", e))?;
+        .map_err(|e| format!("Cannot write tests/basic_test.dal: {e}"))?;
     println!("  Created tests/basic_test.dal");
 
     fs::write(
         out_dir.join(".gitignore"),
         "target/\n.dalan/\n*.rlib\n*.lock\n",
     )
-    .map_err(|e| format!("Cannot write .gitignore: {}", e))?;
+    .map_err(|e| format!("Cannot write .gitignore: {e}"))?;
     println!("  Created .gitignore");
 
     println!(
@@ -185,7 +181,7 @@ fn cmd_add(args: &HashMap<String, String>) -> Result<(), String> {
         None => "*".to_string(),
     };
     let git_url = args.get("git").cloned();
-    let optional = args.get("optional").map(|v| v == "true").unwrap_or(false);
+    let optional = args.get("optional").is_some_and(|v| v == "true");
 
     let toml_path = find_dalan_toml(&PathBuf::from("."))?;
     let mut manifest = read_manifest(&toml_path)?;
@@ -207,13 +203,12 @@ fn cmd_add(args: &HashMap<String, String>) -> Result<(), String> {
     write_manifest(&toml_path, &manifest)?;
 
     let src_display = match &git_url {
-        Some(u) => format!("@ git:{}", u),
-        None => "".to_string(),
+        Some(u) => format!("@ git:{u}"),
+        None => String::new(),
     };
 
     println!(
-        "  Added {} {}{} (optional={})",
-        name, version, src_display, optional
+        "  Added {name} {version}{src_display} (optional={optional})"
     );
     Ok(())
 }
@@ -229,9 +224,9 @@ fn cmd_remove(args: &HashMap<String, String>) -> Result<(), String> {
 
     if manifest.deps.remove(&name).is_some() {
         write_manifest(&toml_path, &manifest)?;
-        println!("  Removed {}", name);
+        println!("  Removed {name}");
     } else {
-        println!("  Warning: {} not found in dependencies", name);
+        println!("  Warning: {name} not found in dependencies");
     }
 
     Ok(())
@@ -240,7 +235,7 @@ fn cmd_remove(args: &HashMap<String, String>) -> Result<(), String> {
 fn cmd_list(args: &HashMap<String, String>) -> Result<(), String> {
     let toml_path = find_dalan_toml(&PathBuf::from("."))?;
     let manifest = read_manifest(&toml_path)?;
-    let as_json = args.get("json").map(|v| v == "true").unwrap_or(false);
+    let as_json = args.get("json").is_some_and(|v| v == "true");
 
     if manifest.deps.is_empty() {
         println!("  (no dependencies)");
@@ -269,9 +264,9 @@ fn cmd_list(args: &HashMap<String, String>) -> Result<(), String> {
     for (name, dep) in &manifest.deps {
         let opt_marker = if dep.optional { " (optional)" } else { "" };
         let src_info = match &dep.source {
-            DependencySource::Git(u) => format!(" [git: {}]", u),
-            DependencySource::Path(p) => format!(" [path: {}]", p),
-            DependencySource::Registry(r) => format!(" [registry: {}]", r),
+            DependencySource::Git(u) => format!(" [git: {u}]"),
+            DependencySource::Path(p) => format!(" [path: {p}]"),
+            DependencySource::Registry(r) => format!(" [registry: {r}]"),
         };
         println!("  {} @ {}{}{}", name, dep.version, opt_marker, src_info);
     }
@@ -314,7 +309,7 @@ fn cmd_build(_args: &HashMap<String, String>) -> Result<(), String> {
     let resolved = match graph.resolve_all() {
         Ok(r) => r,
         Err(e) => {
-            println!("  Note: Could not fully resolve graph: {}", e);
+            println!("  Note: Could not fully resolve graph: {e}");
             HashMap::new()
         }
     };
@@ -326,27 +321,24 @@ fn cmd_build(_args: &HashMap<String, String>) -> Result<(), String> {
         "# Package: {} v{}",
         manifest.name, manifest.version
     ));
-    lock_lines.push("".to_string());
+    lock_lines.push(String::new());
     for (name, ver) in &resolved {
-        lock_lines.push(format!("{}@{}", name, ver));
+        lock_lines.push(format!("{name}@{ver}"));
     }
     let lock_content = lock_lines.join("\n");
 
     let lock_path = PathBuf::from("dalan.lock");
-    fs::write(&lock_path, lock_content).map_err(|e| format!("Cannot write dalan.lock: {}", e))?;
+    fs::write(&lock_path, lock_content).map_err(|e| format!("Cannot write dalan.lock: {e}"))?;
     println!("  Resolved {} dependencies", resolved.len());
     println!("  Generated dalan.lock");
 
     println!("  Building stdlib...");
     let stdlib_path = PathBuf::from("stdlib");
     if stdlib_path.exists() && stdlib_path.is_dir() {
-        let entries = match fs::read_dir(&stdlib_path) {
-            Ok(e) => e,
-            Err(_) => {
-                println!("  Note: could not read stdlib/");
-                println!("\n  Build finished successfully!");
-                return Ok(());
-            }
+        let entries = if let Ok(e) = fs::read_dir(&stdlib_path) { e } else {
+            println!("  Note: could not read stdlib/");
+            println!("\n  Build finished successfully!");
+            return Ok(());
         };
         let mut count = 0;
         for entry in entries.flatten() {
@@ -357,7 +349,7 @@ fn cmd_build(_args: &HashMap<String, String>) -> Result<(), String> {
                 count += 1;
             }
         }
-        println!("  Compiled {} stdlib modules", count);
+        println!("  Compiled {count} stdlib modules");
     } else {
         println!("  Note: stdlib/ directory not found");
     }

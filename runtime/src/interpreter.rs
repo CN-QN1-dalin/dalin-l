@@ -1,6 +1,6 @@
-use crate::env::*;
+use crate::env::{Environment, FnValue, Value, DALIN_TYPE_KEY};
 /// Dalin L — 树遍历解释器
-use dalin_compiler::ast::*;
+use dalin_compiler::ast::{Program, Stmt, Expr, FnParam, TypeRef, MatchArm, Pattern};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc;
@@ -20,7 +20,7 @@ static TASK_SEQ: AtomicUsize = AtomicUsize::new(0);
 
 fn next_task_id(name: &str) -> String {
     let seq = TASK_SEQ.fetch_add(1, Ordering::SeqCst);
-    format!("{}_{}", name, seq)
+    format!("{name}_{seq}")
 }
 
 impl std::fmt::Display for RuntimeError {
@@ -56,6 +56,7 @@ impl Default for Interpreter {
 }
 
 impl Interpreter {
+    #[must_use] 
     pub fn new() -> Self {
         let mut interp = Self {
             global_env: Environment::new(),
@@ -143,8 +144,7 @@ impl Interpreter {
                 {
                     if effect.as_deref() != Some("spawn") {
                         return Err(RuntimeError(format!(
-                            "spawn 要求被派生的函数标注 @ spawn（{} 未标注效应）",
-                            name
+                            "spawn 要求被派生的函数标注 @ spawn（{name} 未标注效应）"
                         )));
                     }
                     if !params.is_empty() {
@@ -152,7 +152,7 @@ impl Interpreter {
                     }
                     let fnv = FnValue {
                         name: name.clone(),
-                        params: params.to_vec(),
+                        params: params.clone(),
                         body: body.to_vec(),
                         closure: env.clone(),
                         return_type: return_type.clone(),
@@ -221,11 +221,11 @@ impl Interpreter {
                         .as_ref()
                         .map(|m| {
                             self.eval_expr(m, env)
-                                .map(|v| format!("{}", v))
+                                .map(|v| format!("{v}"))
                                 .unwrap_or_default()
                         })
                         .unwrap_or_default();
-                    return Err(RuntimeError(format!("Assertion failed: {}", msg)));
+                    return Err(RuntimeError(format!("Assertion failed: {msg}")));
                 }
                 Ok(Value::None)
             }
@@ -441,7 +441,7 @@ impl Interpreter {
                 return Ok(Value::EnumVariant(enum_name.clone(), name.to_string()));
             }
         }
-        Err(RuntimeError(format!("Undefined variable: '{}'", name)))
+        Err(RuntimeError(format!("Undefined variable: '{name}'")))
     }
 
     fn eval_binary(
@@ -458,8 +458,7 @@ impl Interpreter {
                 Expr::Ident(name) => {
                     if !env.assign(name, right_val.clone()) {
                         return Err(RuntimeError(format!(
-                            "Cannot assign to undefined variable: '{}'",
-                            name
+                            "Cannot assign to undefined variable: '{name}'"
                         )));
                     }
                     return Ok(right_val);
@@ -489,12 +488,11 @@ impl Interpreter {
                 (Value::Float(a), Value::Float(b)) => Ok(Value::Float(a + b)),
                 (Value::Int(a), Value::Float(b)) => Ok(Value::Float(*a as f64 + b)),
                 (Value::Float(a), Value::Int(b)) => Ok(Value::Float(a + *b as f64)),
-                (Value::String(a), Value::String(b)) => Ok(Value::String(format!("{}{}", a, b))),
-                (Value::String(a), b) => Ok(Value::String(format!("{}{}", a, b))),
-                (a, Value::String(b)) => Ok(Value::String(format!("{}{}", a, b))),
+                (Value::String(a), Value::String(b)) => Ok(Value::String(format!("{a}{b}"))),
+                (Value::String(a), b) => Ok(Value::String(format!("{a}{b}"))),
+                (a, Value::String(b)) => Ok(Value::String(format!("{a}{b}"))),
                 _ => Err(RuntimeError(format!(
-                    "Cannot add {:?} and {:?}",
-                    left_val, right_val
+                    "Cannot add {left_val:?} and {right_val:?}"
                 ))),
             },
             "-" => match (&left_val, &right_val) {
@@ -503,8 +501,7 @@ impl Interpreter {
                 (Value::Int(a), Value::Float(b)) => Ok(Value::Float(*a as f64 - b)),
                 (Value::Float(a), Value::Int(b)) => Ok(Value::Float(a - *b as f64)),
                 _ => Err(RuntimeError(format!(
-                    "Cannot subtract {:?} and {:?}",
-                    left_val, right_val
+                    "Cannot subtract {left_val:?} and {right_val:?}"
                 ))),
             },
             "*" => match (&left_val, &right_val) {
@@ -513,23 +510,20 @@ impl Interpreter {
                 (Value::Int(a), Value::Float(b)) => Ok(Value::Float(*a as f64 * b)),
                 (Value::Float(a), Value::Int(b)) => Ok(Value::Float(a * *b as f64)),
                 _ => Err(RuntimeError(format!(
-                    "Cannot multiply {:?} and {:?}",
-                    left_val, right_val
+                    "Cannot multiply {left_val:?} and {right_val:?}"
                 ))),
             },
             "/" => match (&left_val, &right_val) {
                 (Value::Int(a), Value::Int(b)) => Ok(Value::Int(a / b)),
                 (Value::Float(a), Value::Float(b)) => Ok(Value::Float(a / b)),
                 _ => Err(RuntimeError(format!(
-                    "Cannot divide {:?} and {:?}",
-                    left_val, right_val
+                    "Cannot divide {left_val:?} and {right_val:?}"
                 ))),
             },
             "%" => match (&left_val, &right_val) {
                 (Value::Int(a), Value::Int(b)) => Ok(Value::Int(a % b)),
                 _ => Err(RuntimeError(format!(
-                    "Cannot modulo {:?} and {:?}",
-                    left_val, right_val
+                    "Cannot modulo {left_val:?} and {right_val:?}"
                 ))),
             },
             "==" => Ok(Value::Bool(self.values_equal(&left_val, &right_val))),
@@ -541,7 +535,7 @@ impl Interpreter {
             "||" => Ok(Value::Bool(
                 self.truthy(&left_val) || self.truthy(&right_val),
             )),
-            _ => Err(RuntimeError(format!("Unknown operator: {}", op))),
+            _ => Err(RuntimeError(format!("Unknown operator: {op}"))),
         }
     }
 
@@ -556,10 +550,10 @@ impl Interpreter {
             "-" => match val {
                 Value::Int(v) => Ok(Value::Int(-v)),
                 Value::Float(v) => Ok(Value::Float(-v)),
-                _ => Err(RuntimeError(format!("Cannot negate {:?}", val))),
+                _ => Err(RuntimeError(format!("Cannot negate {val:?}"))),
             },
             "!" => Ok(Value::Bool(!self.truthy(&val))),
-            _ => Err(RuntimeError(format!("Unknown unary op: {}", op))),
+            _ => Err(RuntimeError(format!("Unknown unary op: {op}"))),
         }
     }
 
@@ -624,10 +618,9 @@ impl Interpreter {
         }
         match env.lookup(&callee_name) {
             Some(Value::Function(fnv)) => self.call_function(&fnv, &arg_vals),
-            Some(_) => Err(RuntimeError(format!("'{}' is not callable", callee_name))),
+            Some(_) => Err(RuntimeError(format!("'{callee_name}' is not callable"))),
             None => Err(RuntimeError(format!(
-                "Undefined function: '{}'",
-                callee_name
+                "Undefined function: '{callee_name}'"
             ))),
         }
     }
@@ -659,12 +652,12 @@ impl Interpreter {
     fn call_builtin(&mut self, name: &str, args: &[Value]) -> Result<Value, RuntimeError> {
         match name {
             "println" | "println!" => {
-                let s: Vec<String> = args.iter().map(|a| format!("{}", a)).collect();
+                let s: Vec<String> = args.iter().map(|a| format!("{a}")).collect();
                 println!("{}", s.join(" "));
                 Ok(Value::None)
             }
             "print" | "print!" => {
-                let s: Vec<String> = args.iter().map(|a| format!("{}", a)).collect();
+                let s: Vec<String> = args.iter().map(|a| format!("{a}")).collect();
                 print!("{}", s.join(" "));
                 Ok(Value::None)
             }
@@ -725,7 +718,7 @@ impl Interpreter {
                             Ok(v) => Ok(v),
                             Err(_) => Ok(Value::None),
                         },
-                        None => Err(RuntimeError(format!("未知 task: {}", id))),
+                        None => Err(RuntimeError(format!("未知 task: {id}"))),
                     }
                 } else {
                     Err(RuntimeError("await 的参数必须是 task".into()))
@@ -737,7 +730,7 @@ impl Interpreter {
                 }
                 if let Value::ChannelSender(tx) = &args[0] {
                     match tx.send(args[1].clone()) {
-                        Ok(_) => Ok(Value::None),
+                        Ok(()) => Ok(Value::None),
                         Err(_) => Err(RuntimeError("send 失败：通道已关闭".into())),
                     }
                 } else {
@@ -758,7 +751,7 @@ impl Interpreter {
                                 Err(_) => Ok(Value::None),
                             }
                         }
-                        None => Err(RuntimeError(format!("未知 channel: {}", name))),
+                        None => Err(RuntimeError(format!("未知 channel: {name}"))),
                     }
                 } else {
                     Err(RuntimeError("recv 的参数必须是 channel".into()))
@@ -778,12 +771,11 @@ impl Interpreter {
                 };
                 let fnv = match self.functions.get(&fname).cloned() {
                     Some(f) => f,
-                    None => return Err(RuntimeError(format!("spawn_task: 未定义函数 {}", fname))),
+                    None => return Err(RuntimeError(format!("spawn_task: 未定义函数 {fname}"))),
                 };
                 if fnv.effect.as_deref() != Some("spawn") {
                     return Err(RuntimeError(format!(
-                        "spawn_task: {} 必须标注 @ spawn 才能被派生",
-                        fname
+                        "spawn_task: {fname} 必须标注 @ spawn 才能被派生"
                     )));
                 }
                 let call_args: Vec<Value> = args[1..].to_vec();
@@ -820,7 +812,7 @@ impl Interpreter {
                 });
                 Ok(Value::Task(child_id))
             }
-            _ => Err(RuntimeError(format!("Unknown builtin: {}", name))),
+            _ => Err(RuntimeError(format!("Unknown builtin: {name}"))),
         }
     }
 
@@ -838,15 +830,14 @@ impl Interpreter {
                 } else {
                     let ty = map
                         .get(DALIN_TYPE_KEY)
-                        .map(|v| format!("{}", v))
+                        .map(|v| format!("{v}"))
                         .unwrap_or_default();
                     Err(RuntimeError(format!(
-                        "Struct '{}' has no field '{}'",
-                        ty, member
+                        "Struct '{ty}' has no field '{member}'"
                     )))
                 }
             }
-            _ => Err(RuntimeError(format!("Cannot access member '{}'", member))),
+            _ => Err(RuntimeError(format!("Cannot access member '{member}'"))),
         }
     }
 
@@ -864,7 +855,7 @@ impl Interpreter {
                 if i < a.len() {
                     Ok(a[i].clone())
                 } else {
-                    Err(RuntimeError(format!("Index out of range: {}", i)))
+                    Err(RuntimeError(format!("Index out of range: {i}")))
                 }
             }
             _ => Err(RuntimeError("Invalid index operation".into())),
@@ -885,8 +876,7 @@ impl Interpreter {
                 }
                 _ => {
                     return Err(RuntimeError(format!(
-                        "Pipe target '{}' is not callable",
-                        name
+                        "Pipe target '{name}' is not callable"
                     )));
                 }
             }
@@ -1050,7 +1040,7 @@ impl Interpreter {
                 ">=" => ord.is_ge(),
                 _ => false,
             })),
-            None => Err(RuntimeError(format!("Cannot compare {:?} and {:?}", a, b))),
+            None => Err(RuntimeError(format!("Cannot compare {a:?} and {b:?}"))),
         }
     }
 
@@ -1063,6 +1053,7 @@ impl Interpreter {
     }
 
     /// 返回任务树的文本视图（控制面注册表的本地缩影）。
+    #[must_use] 
     pub fn describe_task_tree(&self) -> String {
         let tree = self.task_tree.lock().unwrap();
         let mut lines = vec!["=== 任务树（控制面注册表缩影）===".to_string()];
@@ -1092,7 +1083,7 @@ pub fn run_source(source: &str) -> Result<Vec<Value>, RuntimeError> {
 }
 
 /// 便捷入口：执行后返回任务树视图（嵌套 spawn 的注册表缩影）。
-/// 用于 `--tree` demo，展示 spawn_task 如何派生出带 parent 指针的子任务。
+/// 用于 `--tree` demo，展示 `spawn_task` 如何派生出带 parent 指针的子任务。
 pub fn run_source_with_tree(source: &str) -> Result<String, RuntimeError> {
     let mut lex = dalin_compiler::lexer::Lexer::new(source);
     let tokens = lex.tokenize().map_err(|e| RuntimeError(e.to_string()))?;
@@ -1108,8 +1099,7 @@ pub fn call_ffi(func_name: &str, _args: &[Value]) -> Result<Value, RuntimeError>
     // Stub: 在当前阶段不支持真实 C 调用
     // Phase 2: 使用 libloading 或 cbindgen 对接
     Err(RuntimeError(format!(
-        "C FFI not implemented for function: {}",
-        func_name
+        "C FFI not implemented for function: {func_name}"
     )))
 }
 

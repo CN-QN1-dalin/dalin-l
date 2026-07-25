@@ -1,11 +1,11 @@
-//! EtcdTaskStore — `TaskStore` 的 etcd 后端（强一致 / 多节点）
+//! `EtcdTaskStore` — `TaskStore` 的 etcd 后端（强一致 / 多节点）
 //!
 //! 数据布局（值均为 JSON 或空标记）：
-//!   - `dalin/task/{id}`            → TaskRecord JSON
+//!   - `dalin/task/{id}`            → `TaskRecord` JSON
 //!   - `dalin/idem/{parent}/{key}`  → task id（幂等索引）
 //!   - `dalin/children/{parent}/{id}` → 空标记（直接子任务，前缀 range 列出）
 //!   - `dalin/tasks/{id}`           → 空标记（全部任务，前缀 range 列出）
-//!   - 事件：`dalin/events/{uuid}`  → WireEvent JSON（watch 前缀传播）
+//!   - 事件：`dalin/events/{uuid}`  → `WireEvent` JSON（watch 前缀传播）
 //!
 //! 跨节点事件：etcd 无原生 pub/sub，改用 `watch dalin/events/` 前缀；本地写入同时
 //! (a) 发本地 broadcast 与 (b) PUT 一个事件键，watch 任务收到外部事件后 origin != self
@@ -89,7 +89,7 @@ impl EtcdTaskStore {
 
     async fn get_record(&self, id: &str) -> Option<TaskRecord> {
         let mut client = self.client.clone();
-        let key = format!("{}/task/{}", PREFIX, id);
+        let key = format!("{PREFIX}/task/{id}");
         let resp = client.get(key, None).await.ok()?;
         let kv = resp.kvs().first()?;
         serde_json::from_slice(kv.value()).ok()
@@ -108,7 +108,7 @@ impl TaskStore for EtcdTaskStore {
     ) -> TaskRecord {
         let mut client = self.client.clone();
         let idem_key = format!("{}/{}", parent.unwrap_or(""), idempotency_key);
-        let idem_etcd = format!("{}/idem/{}", PREFIX, idem_key);
+        let idem_etcd = format!("{PREFIX}/idem/{idem_key}");
         if let Ok(resp) = client.get(idem_etcd.as_str(), None).await
             && let Some(kv) = resp.kvs().first()
         {
@@ -129,7 +129,7 @@ impl TaskStore for EtcdTaskStore {
             node: None,
             submitted_at: now_ms(),
         };
-        let task_key = format!("{}/task/{}", PREFIX, id);
+        let task_key = format!("{PREFIX}/task/{id}");
         let _ = client
             .put(
                 task_key.into_bytes(),
@@ -143,7 +143,7 @@ impl TaskStore for EtcdTaskStore {
         if let Some(p) = parent {
             let _ = client
                 .put(
-                    format!("{}/children/{}/{}", PREFIX, p, id).into_bytes(),
+                    format!("{PREFIX}/children/{p}/{id}").into_bytes(),
                     Vec::new(),
                     None,
                 )
@@ -151,7 +151,7 @@ impl TaskStore for EtcdTaskStore {
         }
         let _ = client
             .put(
-                format!("{}/tasks/{}", PREFIX, id).into_bytes(),
+                format!("{PREFIX}/tasks/{id}").into_bytes(),
                 Vec::new(),
                 None,
             )
@@ -164,7 +164,7 @@ impl TaskStore for EtcdTaskStore {
         let mut client = self.client.clone();
         let rec = self.get_record(id).await?;
         let updated = TaskRecord { status, ..rec };
-        let task_key = format!("{}/task/{}", PREFIX, id);
+        let task_key = format!("{PREFIX}/task/{id}");
         let _ = client
             .put(
                 task_key.as_str(),
@@ -181,7 +181,7 @@ impl TaskStore for EtcdTaskStore {
         let mut client = self.client.clone();
         if let Some(mut rec) = self.get_record(id).await {
             rec.node = Some(node.to_string());
-            let task_key = format!("{}/task/{}", PREFIX, id);
+            let task_key = format!("{PREFIX}/task/{id}");
             let _ = client
                 .put(task_key, serde_json::to_vec(&rec).unwrap(), None)
                 .await;
@@ -193,7 +193,7 @@ impl TaskStore for EtcdTaskStore {
         match self.get_record(id).await {
             Some(mut rec) => {
                 rec.status = TaskStatus::Canceled;
-                let task_key = format!("{}/task/{}", PREFIX, id);
+                let task_key = format!("{PREFIX}/task/{id}");
                 let _ = client
                     .put(task_key, serde_json::to_vec(&rec).unwrap(), None)
                     .await;
@@ -211,7 +211,7 @@ impl TaskStore for EtcdTaskStore {
 
     async fn children_of(&self, parent: &str) -> Vec<TaskRecord> {
         let mut client = self.client.clone();
-        let prefix = format!("{}/children/{}/", PREFIX, parent);
+        let prefix = format!("{PREFIX}/children/{parent}/");
         let resp = client
             .get(prefix, Some(GetOptions::new().with_prefix()))
             .await
@@ -221,18 +221,15 @@ impl TaskStore for EtcdTaskStore {
     }
 
     async fn list(&self, parent: Option<&str>) -> Vec<TaskRecord> {
-        match parent {
-            Some(p) => self.children_of(p).await,
-            None => {
-                let mut client = self.client.clone();
-                let prefix = format!("{}/tasks/", PREFIX);
-                let resp = client
-                    .get(prefix, Some(GetOptions::new().with_prefix()))
-                    .await
-                    .ok();
-                let ids = extract_ids(resp);
-                self.fetch_many(&ids).await
-            }
+        if let Some(p) = parent { self.children_of(p).await } else {
+            let mut client = self.client.clone();
+            let prefix = format!("{PREFIX}/tasks/");
+            let resp = client
+                .get(prefix, Some(GetOptions::new().with_prefix()))
+                .await
+                .ok();
+            let ids = extract_ids(resp);
+            self.fetch_many(&ids).await
         }
     }
 
@@ -270,8 +267,7 @@ fn extract_ids(resp: Option<etcd_client::GetResponse>) -> Vec<String> {
 fn now_ms() -> i64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_millis() as i64)
-        .unwrap_or(0)
+        .map_or(0, |d| d.as_millis() as i64)
 }
 
 #[cfg(test)]

@@ -35,7 +35,7 @@ fn format_stmt(stmt: &dalin_compiler::ast::Stmt, indent: u8) -> String {
             if let Some(v) = value {
                 format!("{}let {} = {}", pad, name, format_expr(v, indent))
             } else {
-                format!("{}let {}", pad, name)
+                format!("{pad}let {name}")
             }
         }
         dalin_compiler::ast::Stmt::Fn {
@@ -58,12 +58,12 @@ fn format_stmt(stmt: &dalin_compiler::ast::Stmt, indent: u8) -> String {
         }
         dalin_compiler::ast::Stmt::Return(val) => match val {
             Some(v) => format!("{}return {}", pad, format_expr(v, indent)),
-            None => format!("{}return", pad),
+            None => format!("{pad}return"),
         },
         dalin_compiler::ast::Stmt::Expr(e) => {
             format!("{}{}", pad, format_expr(e, indent))
         }
-        _ => format!("{}?stmt", pad),
+        _ => format!("{pad}?stmt"),
     }
 }
 

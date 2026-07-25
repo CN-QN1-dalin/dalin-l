@@ -2,7 +2,7 @@ use crate::util;
 
 pub fn run(json: bool) -> Result<(), String> {
     let banner = util::banner("INFO");
-    println!("{}", banner);
+    println!("{banner}");
 
     println!("\n  +-----------------------------------------+");
     println!("  |  Dalin L Compiler Info                  |");
@@ -14,7 +14,7 @@ pub fn run(json: bool) -> Result<(), String> {
 
     println!("\n  Supported Phases:");
     for phase in &["A", "B", "C", "D", "E", "F", "G", "H"] {
-        println!("    [OK] Phase {} - Completed", phase);
+        println!("    [OK] Phase {phase} - Completed");
     }
 
     println!("\n  Features:");

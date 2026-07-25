@@ -1,13 +1,13 @@
 /// Dalin L 3.0 — 标准库加载器 (Standard Library Loader)
 ///
-/// 负责从 dalin.toml 配置中读取 stdlib_path，按模块名查找对应的 .dal 文件，
+/// 负责从 dalin.toml 配置中读取 `stdlib_path，按模块名查找对应的` .dal 文件，
 /// 将内容解析为 AST 片段并注入当前作用域。
 ///
 /// 使用方式：
-///   let loader = StdLibLoader::new("/path/to/project")?;
-///   let injected = loader.load_all()?;          // 一次性加载全部
-///   let core_ast = loader.load_module("core_types")?;  // 按需加载单个模块
-use crate::ast::*;
+///   let loader = `StdLibLoader::new("/path/to/project`")?;
+///   let injected = `loader.load_all()`?;          // 一次性加载全部
+///   let `core_ast` = `loader.load_module("core_types`")?;  // 按需加载单个模块
+use crate::ast::{PackageManifest, Program, Stmt, ModuleDecl};
 use crate::lexer::Lexer;
 use crate::parser::Parser;
 use crate::task_spec::TaskSpec;
@@ -30,14 +30,14 @@ pub struct StdLibConfig {
 }
 
 impl StdLibConfig {
-    /// 从 PackageManifest 构建配置
+    /// 从 `PackageManifest` 构建配置
+    #[must_use] 
     pub fn from_manifest(manifest: &PackageManifest) -> Self {
         let stdlib_path = PathBuf::from(
             manifest
                 .stdlib_modules
                 .first()
-                .map(|s| s.as_str())
-                .unwrap_or("stdlib"),
+                .map_or("stdlib", std::string::String::as_str),
         );
 
         Self {
@@ -118,7 +118,7 @@ impl StdLibLoader {
 
         let config = if manifest_file.exists() {
             let content = fs::read_to_string(&manifest_file)
-                .map_err(|e| format!("读取 dalin.toml 失败: {}", e))?;
+                .map_err(|e| format!("读取 dalin.toml 失败: {e}"))?;
             // 先尝试从 [stdlib] 段解析
             if content.contains("[stdlib]") {
                 StdLibConfig::from_toml(&content, &project_root)?
@@ -146,6 +146,7 @@ impl StdLibLoader {
     }
 
     /// 显式设置配置
+    #[must_use] 
     pub fn with_config(mut self, config: StdLibConfig) -> Self {
         self.config = config;
         self
@@ -155,8 +156,8 @@ impl StdLibLoader {
     ///
     /// 查找逻辑：
     ///   1. 检查缓存命中
-    ///   2. 在 stdlib_path/<module_name>.dal 查找
-    ///   3. 在 stdlib_path/core/<module_name>.dal 查找（子模块）
+    ///   2. 在 `stdlib_path`/<`module_name>.dal` 查找
+    ///   3. 在 `stdlib_path/core`/<`module_name>.dal` 查找（子模块）
     ///   4. 如果文件不存在，创建一个空的 Program 占位符
     pub fn load_module(&mut self, module_name: &str) -> Result<(), String> {
         // 缓存命中
@@ -167,21 +168,20 @@ impl StdLibLoader {
         // 循环依赖检测
         if self.loaded.contains(module_name) {
             return Err(format!(
-                "循环依赖: 正在加载 '{}' 时检测到重复引用",
-                module_name
+                "循环依赖: 正在加载 '{module_name}' 时检测到重复引用"
             ));
         }
 
         // 构建可能的文件路径
         let candidate_paths = vec![
-            self.config.stdlib_path.join(format!("{}.dal", module_name)),
+            self.config.stdlib_path.join(format!("{module_name}.dal")),
             self.config
                 .stdlib_path
                 .join("core")
-                .join(format!("{}.dal", module_name)),
+                .join(format!("{module_name}.dal")),
             self.config
                 .stdlib_path
-                .join(format!("{}.dalin", module_name)),
+                .join(format!("{module_name}.dalin")),
         ];
 
         let mut content: Option<String> = None;
@@ -242,7 +242,7 @@ impl StdLibLoader {
         Ok(())
     }
 
-    /// 一次性加载所有预置模块（prelude + core_types + 其他标记为 auto 的）
+    /// 一次性加载所有预置模块（prelude + `core_types` + 其他标记为 auto 的）
     pub fn load_prelude(&mut self) -> Result<Vec<String>, String> {
         let mut loaded = Vec::new();
         // Clone to avoid borrow conflict with mutable self.load_module()
@@ -254,7 +254,7 @@ impl StdLibLoader {
         Ok(loaded)
     }
 
-    /// 加载全部标准库模块（扫描 stdlib_path 下的所有 .dal 文件）
+    /// 加载全部标准库模块（扫描 `stdlib_path` 下的所有 .dal 文件）
     pub fn load_all(&mut self) -> Result<Vec<String>, String> {
         if !self.config.stdlib_path.exists() {
             return Err(format!(
@@ -265,9 +265,9 @@ impl StdLibLoader {
 
         let mut loaded = Vec::new();
         for entry in fs::read_dir(&self.config.stdlib_path)
-            .map_err(|e| format!("读取标准库目录失败: {}", e))?
+            .map_err(|e| format!("读取标准库目录失败: {e}"))?
         {
-            let entry = entry.map_err(|e| format!("读取目录条目失败: {}", e))?;
+            let entry = entry.map_err(|e| format!("读取目录条目失败: {e}"))?;
             let path = entry.path();
             if let Some(ext) = path.extension()
                 && ext == "dal"
@@ -349,13 +349,15 @@ impl StdLibLoader {
         Ok(())
     }
 
-    /// 获取某个模块的 TaskSpec 列表（用于控制面调度）
+    /// 获取某个模块的 `TaskSpec` 列表（用于控制面调度）
+    #[must_use] 
     pub fn get_task_specs(&self, module_name: &str) -> Option<Vec<TaskSpec>> {
         let prog = self.cache.get(module_name)?;
         Some(crate::task_spec::from_program(prog))
     }
 
     /// 获取所有已加载模块的统计信息
+    #[must_use] 
     pub fn stats(&self) -> StdLibStats {
         StdLibStats {
             total_loaded: self.loaded.len(),
@@ -370,7 +372,8 @@ impl StdLibLoader {
 //  工具函数：从 dalin.toml 读取 stdlib_path
 // ═══════════════════════════════
 
-/// 从 dalin.toml 中提取 stdlib_path 配置项
+/// 从 dalin.toml 中提取 `stdlib_path` 配置项
+#[must_use] 
 pub fn read_stdlib_path(project_root: &Path) -> Option<PathBuf> {
     let manifest = project_root.join("dalin.toml");
     if !manifest.exists() {

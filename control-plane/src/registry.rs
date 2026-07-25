@@ -1,7 +1,7 @@
-//! InMemoryTaskStore — TaskStore 的默认实现（单机 / 测试）
+//! `InMemoryTaskStore` — `TaskStore` 的默认实现（单机 / 测试）
 //!
 //! 复用 runtime 的 parent 指针 + 唯一 id 思路，扩展为带状态、node、事件广播的注册表。
-//! 内部用 `tokio::sync::broadcast` 把任务变更推给 WatchTasks 订阅者（无需 NATS 即可服务）。
+//! 内部用 `tokio::sync::broadcast` 把任务变更推给 `WatchTasks` 订阅者（无需 NATS 即可服务）。
 //! 通过 `TaskStore` trait 暴露，控制面可零改动切换到 Redis/Etcd 后端。
 
 use std::collections::HashMap;
@@ -43,7 +43,7 @@ pub enum TaskEvent {
 
 struct Inner {
     tasks: HashMap<String, TaskRecord>,
-    /// idempotency_key(+parent) → id，用于幂等去重
+    /// `idempotency_key(+parent)` → id，用于幂等去重
     idem: HashMap<String, String>,
     events: broadcast::Sender<TaskEvent>,
 }
@@ -60,6 +60,7 @@ impl Default for InMemoryTaskStore {
 }
 
 impl InMemoryTaskStore {
+    #[must_use] 
     pub fn new() -> Self {
         let (tx, _rx) = broadcast::channel(1024);
         Self {
@@ -74,8 +75,7 @@ impl InMemoryTaskStore {
     fn now() -> i64 {
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_millis() as i64)
-            .unwrap_or(0)
+            .map_or(0, |d| d.as_millis() as i64)
     }
 }
 

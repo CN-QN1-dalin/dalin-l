@@ -1,5 +1,5 @@
 /// Dalin L — 词法分析器
-use crate::token::{Token, TokenType, TokenType::*};
+use crate::token::{Token, TokenType, TokenType::{KeywordLet, KeywordFn, KeywordReturn, KeywordIf, KeywordElse, KeywordMatch, KeywordFor, KeywordIn, KeywordWhile, KeywordSpawn, KeywordAsync, KeywordTry, KeywordCatch, KeywordUse, KeywordTrait, KeywordAssert, KeywordChannel, KeywordMut, KeywordOk, KeywordError, KeywordExport, KeywordPub, KeywordImpl, KeywordStruct, KeywordEnum, KeywordType, KeywordConst, KeywordMod, BoolLiteral, FloatLiteral, IntLiteral, Ident, Eof, StringLiteral, CharLiteral, Attribute, Arrow, DoubleArrow, Pipe, DoubleEqual, NotEqual, LessEqual, GreaterEqual, And, Or, DoubleDot, DoubleColon, PlusEqual, MinusEqual, StarEqual, SlashEqual, Plus, Minus, Star, Slash, Modulo, Equal, Less, Greater, Not, QuestionMark, At, Dollar, Comma, Semicolon, Colon, LeftParen, RightParen, LeftBracket, RightBracket, LeftBrace, RightBrace, Dot}};
 use std::collections::HashMap;
 
 fn is_chinese_char(ch: char) -> bool {
@@ -75,6 +75,7 @@ pub struct Lexer {
 }
 
 impl Lexer {
+    #[must_use] 
     pub fn new(source: &str) -> Self {
         Self {
             chars: source.chars().collect(),
@@ -304,7 +305,7 @@ impl Lexer {
             ("/=", SlashEqual),
         ]
         .iter()
-        .cloned()
+        .copied()
         .collect();
 
         if let Some(&tt) = double_map.get(two_char.as_str()) {
@@ -339,7 +340,7 @@ impl Lexer {
             ('.', Dot),
         ]
         .iter()
-        .cloned()
+        .copied()
         .collect();
 
         if let Some(&tt) = single_map.get(&ch) {
@@ -349,7 +350,7 @@ impl Lexer {
 
         // Unknown
         self.advance();
-        Ok(Token::new(Ident, format!("?{}?", ch), line, col))
+        Ok(Token::new(Ident, format!("?{ch}?"), line, col))
     }
 
     pub fn tokenize(&mut self) -> Result<Vec<Token>, LexerError> {

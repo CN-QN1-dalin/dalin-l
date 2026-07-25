@@ -1,18 +1,18 @@
 /// Dalin L 3.0 — DAP Debug Server
 ///
-/// Debug Adapter Protocol server that communicates with VSCode over stdin/stdout.
+/// Debug Adapter Protocol server that communicates with `VSCode` over stdin/stdout.
 /// Provides: breakpoints, stepping, stack traces, variable inspection.
 mod protocol;
 
-use dalin_compiler::ast::*;
+use dalin_compiler::ast::Program;
 use dalin_compiler::lexer::Lexer;
 use dalin_compiler::parser::Parser;
 use dalin_dlvm::{BytecodeCompiler, VmError};
-use protocol::*;
+use protocol::{StackFrame, DapRequest, Capabilities, SourceBreakpoint, Source, Breakpoint, Scope, Variable, Thread, DapResponse, DapEvent};
 use std::collections::HashMap;
 use std::io::{self, BufRead, Read, Write};
 
-/// DebugVM wraps the DLVM and provides debugging capabilities
+/// `DebugVM` wraps the DLVM and provides debugging capabilities
 pub struct DebugVm {
     functions: Vec<dalin_dlvm::BytecodeFunction>,
     stopped: bool,
@@ -21,6 +21,7 @@ pub struct DebugVm {
 }
 
 impl DebugVm {
+    #[must_use] 
     pub fn new(functions: Vec<dalin_dlvm::BytecodeFunction>) -> Self {
         Self {
             functions,
@@ -31,6 +32,7 @@ impl DebugVm {
     }
 
     /// Get current function name
+    #[must_use] 
     pub fn get_current_function(&self) -> &str {
         if self.functions.is_empty() {
             "<none>"
@@ -60,16 +62,19 @@ impl DebugVm {
     }
 
     /// Get current state
+    #[must_use] 
     pub fn is_stopped(&self) -> bool {
         self.stopped
     }
 
     /// Get stop reason
+    #[must_use] 
     pub fn get_stop_reason(&self) -> &str {
         &self.stop_reason
     }
 
     /// Get current line number
+    #[must_use] 
     pub fn get_current_line(&self) -> usize {
         self.current_line
     }
@@ -93,6 +98,7 @@ impl Default for DebugServer {
 }
 
 impl DebugServer {
+    #[must_use] 
     pub fn new() -> Self {
         Self {
             program: None,
@@ -187,7 +193,7 @@ impl DebugServer {
 
         match std::fs::read_to_string(&program_path) {
             Ok(src) => match self.compile_and_debug(&src, &program_path) {
-                Ok(_) => {
+                Ok(()) => {
                     self.send_response(req, true, None, stdout)?;
                 }
                 Err(e) => {
@@ -370,7 +376,7 @@ impl DebugServer {
         // Continue execution in debug VM
         if let Some(ref mut debug_vm) = self.debug_vm {
             match debug_vm.continue_execution() {
-                Ok(_) => {
+                Ok(()) => {
                     self.send_response(
                         req,
                         true,
@@ -383,7 +389,7 @@ impl DebugServer {
                     self.send_event("terminated", None, stdout)?;
                 }
                 Err(e) => {
-                    eprintln!("[dap] VM continue error: {}", e);
+                    eprintln!("[dap] VM continue error: {e}");
                     self.send_response(req, false, None, stdout)?;
                 }
             }

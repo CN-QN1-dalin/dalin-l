@@ -2,20 +2,17 @@ use crate::util;
 
 pub fn run(package: &str) -> Result<(), String> {
     let banner = util::banner("TREE");
-    println!("{}", banner);
+    println!("{banner}");
 
     let toml_path = if package.is_empty() {
         "dalin.toml".to_string()
     } else {
-        format!("{}/dalin.toml", package)
+        format!("{package}/dalin.toml")
     };
 
-    let content = match std::fs::read_to_string(&toml_path) {
-        Ok(c) => c,
-        Err(_) => {
-            println!("\n  [mock] No dalin.toml found at '{}'", toml_path);
-            return mock_tree();
-        }
+    let content = if let Ok(c) = std::fs::read_to_string(&toml_path) { c } else {
+        println!("\n  [mock] No dalin.toml found at '{toml_path}'");
+        return mock_tree();
     };
 
     let mut deps = Vec::new();
@@ -41,7 +38,7 @@ pub fn run(package: &str) -> Result<(), String> {
     } else {
         println!("\n  Dependencies:");
         for (name, ver) in &deps {
-            println!("  - {} @ {}", name, ver);
+            println!("  - {name} @ {ver}");
         }
     }
 
@@ -55,7 +52,7 @@ pub fn run(package: &str) -> Result<(), String> {
         } else {
             "├──"
         };
-        println!("  │  {} {} @ {}", prefix, name, ver);
+        println!("  │  {prefix} {name} @ {ver}");
     }
     println!("  │  └── stdlib (built-in)         │");
     println!("  └─────────────────────────────────┘");
