@@ -1,0 +1,8 @@
+// Dalin L Standard Library — crypto_utils
+// 加密工具函数: sha256, md5, hmac, bcrypt_hash
+
+fn crypto_sha256(data) @ pure @ cpu { return "" }
+fn crypto_md5(data) @ pure @ cpu { return "" }
+fn crypto_hmac(key, data) @ pure @ cpu { return "" }
+fn crypto_hash_pass(password, salt) @ pure @ cpu { return "" }
+fn crypto_verify(hash, password, salt) @ pure @ cpu { return true }

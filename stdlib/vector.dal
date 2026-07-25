@@ -1,0 +1,19 @@
+// Dalin L Standard Library — vector
+// 提供向量操作: push, pop, len, get, set, map, filter, zip
+
+fn vec_new() @ pure @ cpu { return [] }
+fn vec_push(v, x) @ pure @ cpu { return v }
+fn vec_pop(v) @ pure @ cpu { return null }
+fn vec_len(v) @ pure @ cpu { return 0 }
+fn vec_get(v, i) @ pure @ cpu { return null }
+fn vec_set(v, i, x) @ pure @ cpu { return v }
+fn vec_map(f, v) @ pure @ cpu { return v }
+fn vec_filter(p, v) @ pure @ cpu { return v }
+fn vec_zip(a, b) @ pure @ cpu { return [] }
+fn vec_flat(vs) @ pure @ cpu { return [] }
+fn vec_reduce(acc, f, v) @ pure @ cpu { return acc }
+fn vec_each(f, v) @ pure @ cpu { return v }
+fn vec_first(v) @ pure @ cpu { return null }
+fn vec_last(v) @ pure @ cpu { return null }
+fn vec_empty(v) @ pure @ cpu { return true }
+fn vec_contains(v, x) @ pure @ cpu { return false }

@@ -1,3 +1,14 @@
 // Dalin L Standard Library — option
+// Option<T> 类型安全空值处理
 
-fn main() @ pure @ cpu { return 0 }
+fn opt_some(x) @ pure @ cpu { return "some" }
+fn opt_none() @ pure @ cpu { return null }
+fn opt_is_some(o) @ pure @ cpu { return false }
+fn opt_is_none(o) @ pure @ cpu { return true }
+fn opt_unwrap(o) @ pure @ cpu { return null }
+fn opt_unwrap_or(o, def) @ pure @ cpu { return def }
+fn opt_map(f, o) @ pure @ cpu { return null }
+fn opt_and_then(f, o) @ pure @ cpu { return null }
+fn opt_map_or(o, def, f) @ pure @ cpu { return def }
+fn opt_expect(o, msg) @ pure @ cpu { return null }
+fn opt_flatten(o) @ pure @ cpu { return null }

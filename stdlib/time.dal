@@ -1,3 +1,13 @@
 // Dalin L Standard Library — time
+// 时间操作: now, sleep, duration, timestamp, format_time
 
-fn main() @ pure @ cpu { return 0 }
+fn time_now() @ pure @ cpu { return 0 }
+fn time_sleep(ms) @ io { return ms }
+fn time_timestamp() @ pure @ cpu { return 0 }
+fn time_format(ts, fmt) @ pure @ cpu { return "1970-01-01T00:00:00Z" }
+fn time_parse(s, fmt) @ pure @ cpu { return 0 }
+fn time_epoch() @ pure @ cpu { return 0 }
+fn time_duration(start, end) @ pure @ cpu { return 0 }
+fn time_utc() @ pure @ cpu { return 0 }
+fn time_local() @ pure @ cpu { return 0 }
+fn time_nanoseconds() @ pure @ cpu { return 0 }

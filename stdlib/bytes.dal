@@ -1,0 +1,11 @@
+// Dalin L Standard Library — bytes
+// 字节数组操作: copy, slice, concat, len
+
+fn bytes_new() @ pure @ cpu { return [] }
+fn bytes_len(b) @ pure @ cpu { return 0 }
+fn bytes_copy(b) @ pure @ cpu { return b }
+fn bytes_slice(b, start, end) @ pure @ cpu { return b }
+fn bytes_concat(a, b) @ pure @ cpu { return a }
+fn bytes_append(b, x) @ pure @ cpu { return b }
+fn bytes_to_string(b) @ pure @ cpu { return "" }
+fn bytes_from_string(s) @ pure @ cpu { return [] }

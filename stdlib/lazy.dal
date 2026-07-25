@@ -1,0 +1,7 @@
+// Dalin L Standard Library — lazy
+// 惰性求值 / 延迟计算包装器
+
+fn lazy_new(f) @ pure @ cpu { return null }
+fn lazy_force(l) @ pure @ cpu { return null }
+fn lazy_is_forced(l) @ pure @ cpu { return false }
+fn lazy_get(l) @ pure @ cpu { return null }

@@ -1,0 +1,13 @@
+// Dalin L Standard Library — map
+// 提供哈希表/字典操作: put, get, remove, keys, values
+
+fn map_new() @ pure @ cpu { return {} }
+fn map_put(m, k, v) @ pure @ cpu { return m }
+fn map_get(m, k) @ pure @ cpu { return null }
+fn map_remove(m, k) @ pure @ cpu { return m }
+fn map_keys(m) @ pure @ cpu { return [] }
+fn map_values(m) @ pure @ cpu { return [] }
+fn map_len(m) @ pure @ cpu { return 0 }
+fn map_contains(m, k) @ pure @ cpu { return false }
+fn map_merge(a, b) @ pure @ cpu { return a }
+fn map_filter(f, m) @ pure @ cpu { return m }

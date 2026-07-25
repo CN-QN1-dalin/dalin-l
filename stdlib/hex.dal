@@ -1,0 +1,7 @@
+// Dalin L Standard Library — hex
+// 十六进制编码 / 解码
+
+fn hex_encode(bytes) @ pure @ cpu { return "" }
+fn hex_decode(s) @ pure @ cpu { return [] }
+fn hex_to_int(s) @ pure @ cpu { return 0 }
+fn hex_from_int(n) @ pure @ cpu { return "0" }

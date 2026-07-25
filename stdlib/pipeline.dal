@@ -1,0 +1,9 @@
+// Dalin L Standard Library — pipeline
+// 管道操作: pipe, pipe_in, chain — 函数组合执行
+
+fn pipeline(input, fns) @ pure @ cpu { return input }
+fn pipe(v, fn1) @ pure @ cpu { return v }
+fn pipe_in(fn1, v) @ pure @ cpu { return v }
+fn chain(fns) @ pure @ cpu { return [] }
+fn compose(f, g) @ pure @ cpu { return f }
+fn then(f, g) @ pure @ cpu { return f }

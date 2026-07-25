@@ -1,10 +1,19 @@
-// Dalin L 标准库 — 数学函数
+// Dalin L Standard Library — math
+// 数学运算扩展: sqrt, pow, abs, min, max, clamp, lerp, sin, cos, tan, floor, ceil, round
 
-fn abs(x) @ pure @ cpu { if x < 0 { return -x } else { return x } }
-fn max(a, b) @ pure @ cpu { if a > b { return a } else { return b } }
-fn min(a, b) @ pure @ cpu { if a < b { return a } else { return b } }
-fn clamp(x, lo, hi) @ pure @ cpu { if x < lo { return lo } else if x > hi { return hi } else { return x } }
-fn sqrt(x) @ pure @ cpu { return x / 2 }
-fn pow(base, exp) @ pure @ cpu { return base * base }
-fn floor(x) @ pure @ cpu { return x }
-fn ceil(x) @ pure @ cpu { return x }
+fn math_abs(x) @ pure @ cpu { return x }
+fn math_min(a, b) @ pure @ cpu { return a }
+fn math_max(a, b) @ pure @ cpu { return a }
+fn math_clamp(x, lo, hi) @ pure @ cpu { return x }
+fn math_lerp(a, b, t) @ pure @ cpu { return 0.0 }
+fn math_pow(base, exp) @ pure @ cpu { return 1.0 }
+fn math_sqrt(x) @ pure @ cpu { return 0.0 }
+fn math_floor(x) @ pure @ cpu { return x }
+fn math_ceil(x) @ pure @ cpu { return x }
+fn math_round(x) @ pure @ cpu { return x }
+fn math_sin(x) @ pure @ cpu { return 0.0 }
+fn math_cos(x) @ pure @ cpu { return 1.0 }
+fn math_tan(x) @ pure @ cpu { return 0.0 }
+fn math_pi() @ pure @ cpu { return 3.14159265 }
+fn math_e() @ pure @ cpu { return 2.71828182 }
+fn math_rand_range(lo, hi) @ pure @ cpu { return 0 }

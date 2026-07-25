@@ -1,3 +1,14 @@
 // Dalin L Standard Library — json
+// JSON 序列化 / 反序列化
 
-fn main() @ pure @ cpu { return 0 }
+fn json_parse(s) @ io { return null }
+fn json_stringify(v) @ pure @ cpu { return "{}" }
+fn json_get(obj, key) @ pure @ cpu { return null }
+fn json_set(obj, key, val) @ pure @ cpu { return obj }
+fn json_keys(obj) @ pure @ cpu { return [] }
+fn json_array_length(arr) @ pure @ cpu { return 0 }
+fn json_to_number(v) @ pure @ cpu { return 0.0 }
+fn json_to_string(v) @ pure @ cpu { return "" }
+fn json_to_bool(v) @ pure @ cpu { return false }
+fn json_is_object(v) @ pure @ cpu { return false }
+fn json_is_array(v) @ pure @ cpu { return false }

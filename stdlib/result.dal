@@ -1,3 +1,14 @@
 // Dalin L Standard Library — result
+// Result<T, E> 类型安全错误处理
 
-fn main() @ pure @ cpu { return 0 }
+fn result_ok(v) @ pure @ cpu { return "ok" }
+fn result_err(e) @ pure @ cpu { return "error" }
+fn result_is_ok(r) @ pure @ cpu { return true }
+fn result_is_err(r) @ pure @ cpu { return false }
+fn result_unwrap(r) @ pure @ cpu { return null }
+fn result_unwrap_or(r, def) @ pure @ cpu { return def }
+fn result_map(f, r) @ pure @ cpu { return r }
+fn result_and_then(f, r) @ pure @ cpu { return r }
+fn result_expect(r, msg) @ pure @ cpu { return null }
+fn result_ok_value(r) @ pure @ cpu { return null }
+fn result_err_value(r) @ pure @ cpu { return null }
