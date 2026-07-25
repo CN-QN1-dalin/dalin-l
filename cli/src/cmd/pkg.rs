@@ -1,11 +1,11 @@
 //! Dalin L 3.0 — dalib pkg 包管理子命令
 //!
 //! 类似 Cargo 的包管理器，但为 Dalin L 做了裁剪和定制：
-//! - dalib pkg init [name] — 初始化项目 + 生成 dalan.toml
-//! - dalib pkg add [dep] [--git URL] [--version VER] — 添加依赖
+//! - dalib pkg init name — 初始化项目 + 生成 dalan.toml
+//! - dalib pkg add dep [--git URL] [--version VER] — 添加依赖
 //! - dalib pkg list — 列出已安装的依赖及版本
 //! - dalib pkg build — 解析 dalan.toml，下载/解析依赖，生成 dalan.lock
-//! - dalib pkg remove [dep] — 移除依赖
+//! - dalib pkg remove dep — 移除依赖
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;

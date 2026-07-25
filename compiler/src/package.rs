@@ -136,9 +136,9 @@ pub struct PackageManifest {
     pub description: Option<String>,
     pub authors: Vec<String>,
     pub license: Option<String>,
-    /// [dependencies] 区域
+    /// dependencies 区域
     pub deps: HashMap<String, DependencyEntry>,
-    /// [dev-dependencies] 开发依赖
+    /// dev-dependencies 开发依赖
     pub dev_deps: HashMap<String, DependencyEntry>,
     /// 内联标准库模块引用
     pub stdlib_modules: Vec<String>,

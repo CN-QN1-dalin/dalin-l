@@ -25,7 +25,7 @@ pub mod task_spec;
 /// Dalin L 3.0 — 编译器工具链 crate
 ///
 /// 把源码落到七通道类型系统的"可执行单元" (`TaskSpec`)：
-/// token → lexer → parser → [`llm_expand`] → (ty2 七通道推断) → `task_spec`。
+/// token → lexer → parser → 宏展开/LLM扩展 → (ty2 七通道推断) → `task_spec`。
 /// 纯编译期，无运行时并发依赖，可作为独立库被 runtime / control-plane 复用。
 pub mod token;
 pub mod ty;
@@ -51,7 +51,7 @@ use crate::task_spec::TaskSpec;
 use crate::ty2::SevenChannelInferencer;
 
 /// 完整的编译管线（含 @llm 扩展）：
-///   token → lexer → parser → `llm_expand` → ty2 inference → `task_spec`
+///   token → lexer → parser → 宏展开/LLM扩展 → ty2 inference → `task_spec`
 ///
 /// @llm 扩展阶段：扫描 AST 中所有 `Stmt::Fn` { `llm_prompt`: Some(prompt), .. }，
 /// 调用 `LlmEngine.process_directive()` 生成函数体骨架，替换原 body。
