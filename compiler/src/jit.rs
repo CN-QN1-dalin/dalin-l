@@ -237,22 +237,24 @@ impl JitCompiler {
         } = fn_stmt
         {
             let mut ir = String::new();
-            ir.push_str(&format!("; Function: {}({} params, {} stmts)\n", name, params.len(), body.len()));
-            ir.push_str("; Generated Dalin L → LLVM IR (string-based stub)\n\n");
-            
-            // 生成一个简单的 IR stub，标记这是 Dalan L 3.0 编译产物
             ir.push_str(&format!(
-                "; stub: fn {} {{ len={} }}\n",
-                name, body.len()
+                "; Function: {}({} params, {} stmts)\n",
+                name,
+                params.len(),
+                body.len()
             ));
-            
+            ir.push_str("; Generated Dalin L → LLVM IR (string-based stub)\n\n");
+
+            // 生成一个简单的 IR stub，标记这是 Dalan L 3.0 编译产物
+            ir.push_str(&format!("; stub: fn {} {{ len={} }}\n", name, body.len()));
+
             return Ok(ir);
         }
         Err(CompileError::NotAFunction)
     }
 
     /// 对 IR 进行优化处理
-    /// 
+    ///
     /// 如果启用 inkwell feature，调用 LLVM pass manager；否则返回原样。
     pub fn optimize_ir(&self, ir: &str, _opt_level: OptLevel) -> Result<String, CompileError> {
         // 简单标注优化级别
@@ -917,14 +919,14 @@ mod tests {
     fn test_full_pipeline_compile_to_optimize() {
         let mut jit = JitCompiler::new();
         let fn_stmt = make_test_fn("calc");
-        
+
         // Step 1: compile to get cache entry
         let entry = jit.compile_function(&fn_stmt).unwrap();
         assert_eq!(entry.opt_level, OptLevel::O2);
-        
+
         // Step 2: compile to IR
         let ir = jit.compile_to_ir(&fn_stmt).unwrap();
-        
+
         // Step 3: optimize IR
         let optimized = jit.optimize_ir(&ir, OptLevel::O2).unwrap();
         assert!(optimized.contains("O2"));
