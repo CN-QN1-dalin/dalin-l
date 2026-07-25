@@ -61,32 +61,67 @@
         "command": "editor.action.triggerParameterHints",
         "key": "ctrl+shift+space",
         "when": "editorTextFocus && editorLangId == dalan"
+      },
+      {
+        "command": "dalan.run",
+        "key": "ctrl+alt+r",
+        "when": "editorTextFocus && editorLangId == dalan"
+      },
+      {
+        "command": "dalan.compile",
+        "key": "ctrl+alt+c",
+        "when": "editorTextFocus && editorLangId == dalan"
+      },
+      {
+        "command": "dalan.goToDefinition",
+        "key": "f12",
+        "when": "editorTextFocus && editorLangId == dalan"
+      },
+      {
+        "command": "dalan.formatDocument",
+        "key": "shift+alt+f",
+        "when": "editorLangId == dalan"
       }
     ],
     "commands": [
       {
         "command": "dalan.restartLsp",
-        "title": "Dalin L: Restart Language Server",
+        "title": "Restart Language Server",
         "category": "Dalin L"
       },
       {
         "command": "dalan.showDiagnostics",
-        "title": "Dalin L: Show All Diagnostics",
+        "title": "Show All Diagnostics",
         "category": "Dalin L"
       },
       {
         "command": "dalan.compile",
-        "title": "Dalin L: Compile Current File",
+        "title": "Compile Current File",
         "category": "Dalin L"
       },
       {
         "command": "dalan.run",
-        "title": "Dalin L: Run Current File",
+        "title": "Run Current File",
         "category": "Dalin L"
       },
       {
         "command": "dalan.initProject",
-        "title": "Dalin L: Initialize New Project",
+        "title": "Initialize New Project",
+        "category": "Dalin L"
+      },
+      {
+        "command": "dalan.goToDefinition",
+        "title": "Go to Definition",
+        "category": "Dalin L"
+      },
+      {
+        "command": "dalan.formatDocument",
+        "title": "Format Document",
+        "category": "Dalin L"
+      },
+      {
+        "command": "dalan.runTests",
+        "title": "Run Tests in File",
         "category": "Dalin L"
       }
     ],
@@ -96,7 +131,10 @@
         { "command": "dalan.showDiagnostics" },
         { "command": "dalan.compile" },
         { "command": "dalan.run" },
-        { "command": "dalan.initProject" }
+        { "command": "dalan.initProject" },
+        { "command": "dalan.goToDefinition" },
+        { "command": "dalan.formatDocument" },
+        { "command": "dalan.runTests" }
       ],
       "editor/context": [
         {
@@ -108,6 +146,21 @@
           "command": "dalan.run",
           "when": "editorLangId == dalan",
           "group": "1_dalin"
+        },
+        {
+          "command": "dalan.goToDefinition",
+          "when": "editorLangId == dalan",
+          "group": "1_dalin"
+        },
+        {
+          "command": "dalan.formatDocument",
+          "when": "editorLangId == dalan",
+          "group": "2_dalin"
+        },
+        {
+          "command": "dalan.runTests",
+          "when": "editorLangId == dalan",
+          "group": "2_dalin"
         }
       ]
     },

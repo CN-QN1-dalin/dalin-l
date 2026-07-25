@@ -42,6 +42,8 @@ pub mod j2_strategy_gen;
 pub mod j3_evolution_verify;
 // Bytecode cache for incremental compilation
 pub mod cache;
+// Phase JIT: LLVM ORC JIT 编译器骨架
+pub mod jit;
 
 use crate::ast::{Program, Stmt};
 use crate::error::ChannelError;

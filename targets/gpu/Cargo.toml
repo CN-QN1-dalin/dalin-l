@@ -1,0 +1,7 @@
+[package]
+name = "dalin-target-gpu"
+version.workspace = true
+edition.workspace = true
+description = "Dalin L 3.0 — GPU computation target (Metal / CUDA)"
+
+[dependencies]

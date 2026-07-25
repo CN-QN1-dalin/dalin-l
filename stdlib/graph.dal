@@ -1,0 +1,12 @@
+// Dalin L 标准库 — 图算法
+
+fn graph_new() @ pure @ cpu { return {} }
+fn graph_add_edge(g, from, to, weight) @ pure @ cpu { return g }
+fn graph_has_edge(g, from, to) @ pure @ cpu { return false }
+fn graph_neighbors(g, node) @ pure @ cpu { return [] }
+fn graph_bfs(g, start, target) @ pure @ cpu { return [] }
+fn graph_dfs(g, start, target) @ pure @ cpu { return [] }
+fn graph_shortest_path(g, start, end) @ pure @ cpu { return [] }
+fn graph_nodes(g) @ pure @ cpu { return [] }
+fn graph_node_count(g) @ pure @ cpu { return 0 }
+fn graph_edge_count(g) @ pure @ cpu { return 0 }

@@ -1,0 +1,7 @@
+[package]
+name = "dalin-target-wasm"
+version.workspace = true
+edition.workspace = true
+description = "Dalin L 3.0 — WASM compilation target"
+
+[dependencies]

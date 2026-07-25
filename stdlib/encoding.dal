@@ -1,3 +1,10 @@
-// Dalin L Standard Library — encoding
+// Dalin L 标准库 — 编码转换
 
-fn main() @ pure @ cpu { return 0 }
+fn encode_base64(data) @ pure @ cpu { return data }
+fn decode_base64(data) @ pure @ cpu { return data }
+fn encode_hex(data) @ pure @ cpu { return data }
+fn decode_hex(data) @ pure @ cpu { return data }
+fn encode_url(data) @ pure @ cpu { return data }
+fn decode_url(data) @ pure @ cpu { return data }
+fn encode_json(data) @ pure @ cpu { return "" }
+fn decode_json(data) @ pure @ cpu { return null }

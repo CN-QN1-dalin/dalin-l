@@ -1,0 +1,10 @@
+// Dalin L 标准库 — 堆操作
+
+fn heap_new() @ pure @ cpu { return [] }
+fn heap_push(heap, val) @ pure @ cpu { return heap }
+fn heap_pop(heap) @ pure @ cpu { return null }
+fn heap_peek(heap) @ pure @ cpu { return null }
+fn heap_len(heap) @ pure @ cpu { return 0 }
+fn heap_is_empty(heap) @ pure @ cpu { return true }
+fn heap_clear() @ pure @ cpu { return [] }
+fn heap_to_sorted_list(heap) @ pure @ cpu { return [] }

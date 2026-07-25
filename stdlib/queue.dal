@@ -1,0 +1,8 @@
+// Dalin L 标准库 — 队列操作
+
+fn queue_new() @ pure @ cpu { return [] }
+fn queue_enqueue(q, val) @ pure @ cpu { return q }
+fn queue_dequeue(q) @ pure @ cpu { return null }
+fn queue_peek(q) @ pure @ cpu { return null }
+fn queue_len(q) @ pure @ cpu { return 0 }
+fn queue_is_empty(q) @ pure @ cpu { return true }

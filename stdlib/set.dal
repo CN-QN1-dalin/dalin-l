@@ -1,0 +1,11 @@
+// Dalin L 标准库 — 集合操作
+
+fn set_new() @ pure @ cpu { return [] }
+fn set_add(s, val) @ pure @ cpu { return s }
+fn set_remove(s, val) @ pure @ cpu { return s }
+fn set_contains(s, val) @ pure @ cpu { return false }
+fn set_union(a, b) @ pure @ cpu { return a }
+fn set_intersection(a, b) @ pure @ cpu { return a }
+fn set_difference(a, b) @ pure @ cpu { return a }
+fn set_len(s) @ pure @ cpu { return 0 }
+fn set_to_list(s) @ pure @ cpu { return s }

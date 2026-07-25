@@ -7,9 +7,12 @@
     { "include": "#block-comment" },
     { "include": "#string-literal" },
     { "include": "#number-literal" },
+    { "include": "#boolean-literal" },
     { "include": "#keyword" },
+    { "include": "#channel-annotation" },
     { "include": "#attribute" },
     { "include": "#function-declaration" },
+    { "include": "#function-call" },
     { "include": "#identifier" }
   ],
   "repository": {
@@ -43,6 +46,10 @@
         }
       ]
     },
+    "boolean-literal": {
+      "name": "constant.language.boolean.dalan",
+      "match": "\\b(true|false|null|none)\\b"
+    },
     "keyword": {
       "patterns": [
         {
@@ -59,7 +66,11 @@
         },
         {
           "name": "keyword.type.dalan",
-          "match": "\\b(int|float|string|bool|void|option|array|map|result)\\b"
+          "match": "\\b(int|float|string|bool|void|option|result|list|map|any)\\b"
+        },
+        {
+          "name": "keyword.module.dalan",
+          "match": "\\b(use|module|package|import|export|as)\\b"
         },
         {
           "name": "keyword.operator.dalan",
@@ -67,13 +78,24 @@
         },
         {
           "name": "keyword.operator.pipe.dalan",
-          "match": "([^<>!=]|^)>[^>]"
+          "match": "\\|>"
+        }
+      ]
+    },
+    "channel-annotation": {
+      "name": "meta.channel-annotation.dalan",
+      "begin": "@(pure|io|cpu|net|perceive|observe|reflect|act|gov|latency|llm|verified|test|bench)",
+      "end": "(?=[\\s,;(])",
+      "patterns": [
+        {
+          "name": "entity.other.attribute-name.channel.dalan",
+          "match": "\\w+"
         }
       ]
     },
     "attribute": {
-      "name": "meta.attribute.dalan punctuation.definition.attribute.dalan",
-      "begin": "@",
+      "name": "meta.attribute.dalan",
+      "begin": "@(?!pure|io|cpu|net|perceive|observe|reflect|act|gov|latency|llm|verified|test|bench)",
       "end": "(?=[\\s,;(])",
       "patterns": [
         {
@@ -89,11 +111,12 @@
         "1": { "name": "keyword.function.dalan" },
         "2": { "name": "entity.name.function.dalan" }
       },
-      "end": "\\{",
+      "end": "\\{|$",
       "patterns": [
         { "include": "#string-literal" },
         { "include": "#number-literal" },
         { "include": "#keyword" },
+        { "include": "#channel-annotation" },
         { "include": "#attribute" },
         {
           "name": "variable.parameter.function.dalan",
@@ -101,11 +124,25 @@
         }
       ]
     },
+    "function-call": {
+      "name": "meta.function-call.dalan",
+      "begin": "\\b([a-zA-Z_]\\w*)\\s*\\(",
+      "beginCaptures": {
+        "1": { "name": "entity.name.function.call.dalan" }
+      },
+      "end": "\\)",
+      "patterns": [
+        { "include": "#string-literal" },
+        { "include": "#number-literal" },
+        { "include": "#boolean-literal" },
+        { "include": "#keyword" }
+      ]
+    },
     "identifier": {
       "patterns": [
         {
           "name": "variable.other.readwrite.dalan",
-          "match": "\\b[a-zA-Z_]\\w*\\b(?=[\\s]*\\()"
+          "match": "\\b[a-zA-Z_]\\w*\\b(?=\\s*\\()"
         }
       ]
     }

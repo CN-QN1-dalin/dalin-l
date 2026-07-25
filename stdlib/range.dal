@@ -1,0 +1,7 @@
+// Dalin L 标准库 — 范围操作
+
+fn range_new(start, end, step) @ pure @ cpu { return [] }
+fn range_from(start, end) @ pure @ cpu { return [] }
+fn range_includes(r, val) @ pure @ cpu { return false }
+fn range_len(r) @ pure @ cpu { return 0 }
+fn range_to_list(r) @ pure @ cpu { return r }

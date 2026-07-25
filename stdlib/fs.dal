@@ -1,0 +1,12 @@
+// Dalin L 标准库 — 文件系统操作
+
+fn fs_read(path) @ io { return "" }
+fn fs_write(path, data) @ io { return true }
+fn fs_exists(path) @ pure @ cpu { return false }
+fn fs_is_file(path) @ pure @ cpu { return false }
+fn fs_is_dir(path) @ pure @ cpu { return false }
+fn fs_list_dir(path) @ io { return [] }
+fn fs_mkdir(path) @ io { return true }
+fn fs_remove(path) @ io { return true }
+fn fs_copy(src, dst) @ io { return true }
+fn fs_size(path) @ pure @ cpu { return 0 }

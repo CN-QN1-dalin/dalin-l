@@ -1,0 +1,10 @@
+// Dalin L 标准库 — 进程管理
+
+fn process_pid() @ pure @ cpu { return 0 }
+fn process_sleep(ms) @ cpu { return true }
+fn process_exit(code) @ cpu {}
+fn process_env(key) @ pure @ cpu { return "" }
+fn process_args() @ pure @ cpu { return [] }
+fn process_cwd() @ pure @ cpu { return "" }
+fn process_now() @ pure @ cpu { return 0 }
+fn process_platform() @ pure @ cpu { return "" }

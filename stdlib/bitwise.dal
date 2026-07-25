@@ -1,0 +1,8 @@
+// Dalin L 标准库 — 位运算
+
+fn bit_and(a, b) @ pure @ cpu { return 0 }
+fn bit_or(a, b) @ pure @ cpu { return 0 }
+fn bit_xor(a, b) @ pure @ cpu { return 0 }
+fn bit_not(a) @ pure @ cpu { return 0 }
+fn bit_shl(a, n) @ pure @ cpu { return 0 }
+fn bit_shr(a, n) @ pure @ cpu { return 0 }

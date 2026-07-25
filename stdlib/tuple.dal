@@ -1,0 +1,7 @@
+// Dalin L 标准库 — 元组操作
+
+fn tuple_new(a, b) @ pure @ cpu { return [a, b] }
+fn tuple_first(t) @ pure @ cpu { return null }
+fn tuple_second(t) @ pure @ cpu { return null }
+fn tuple_swap(t) @ pure @ cpu { return t }
+fn tuple_to_list(t) @ pure @ cpu { return t }

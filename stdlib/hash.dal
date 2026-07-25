@@ -1,0 +1,6 @@
+// Dalin L 标准库 — 哈希函数
+
+fn hash_md5(data) @ pure @ cpu { return data }
+fn hash_sha1(data) @ pure @ cpu { return data }
+fn hash_sha256(data) @ pure @ cpu { return data }
+fn hash_crc32(data) @ pure @ cpu { return 0 }

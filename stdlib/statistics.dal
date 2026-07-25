@@ -1,0 +1,13 @@
+// Dalin L 标准库 — 描述性统计
+
+fn stats_mean(data) @ pure @ cpu { return 0 }
+fn stats_median(data) @ pure @ cpu { return 0 }
+fn stats_stddev(data) @ pure @ cpu { return 0 }
+fn stats_variance(data) @ pure @ cpu { return 0 }
+fn stats_min(data) @ pure @ cpu { return 0 }
+fn stats_max(data) @ pure @ cpu { return 0 }
+fn stats_sum(data) @ pure @ cpu { return 0 }
+fn stats_count(data) @ pure @ cpu { return 0 }
+fn stats_quantile(data, q) @ pure @ cpu { return 0 }
+fn stats_covariance(a, b) @ pure @ cpu { return 0 }
+fn stats_correlation(a, b) @ pure @ cpu { return 0 }

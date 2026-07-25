@@ -1,0 +1,13 @@
+// Dalin L 标准库 — 字符串工具
+
+fn str_reverse(s) @ pure @ cpu { return s }
+fn str_starts_with(s, prefix) @ pure @ cpu { return false }
+fn str_ends_with(s, suffix) @ pure @ cpu { return false }
+fn str_repeat(s, n) @ pure @ cpu { return s }
+fn str_replace(s, from, to) @ pure @ cpu { return s }
+fn str_pad_left(s, len, ch) @ pure @ cpu { return s }
+fn str_pad_right(s, len, ch) @ pure @ cpu { return s }
+fn str_count(s, sub) @ pure @ cpu { return 0 }
+fn str_capitalize(s) @ pure @ cpu { return s }
+fn str_is_empty(s) @ pure @ cpu { return true }
+fn str_is_blank(s) @ pure @ cpu { return true }

@@ -1,0 +1,8 @@
+// Dalin L 标准库 — 栈操作
+
+fn stack_new() @ pure @ cpu { return [] }
+fn stack_push(s, val) @ pure @ cpu { return s }
+fn stack_pop(s) @ pure @ cpu { return null }
+fn stack_peek(s) @ pure @ cpu { return null }
+fn stack_len(s) @ pure @ cpu { return 0 }
+fn stack_is_empty(s) @ pure @ cpu { return true }
