@@ -17,7 +17,8 @@ pub fn run(input: &str, watch: bool, verbose: bool) -> Result<(), String> {
         cwd.clone()
     } else {
         Path::new(input)
-            .parent().map_or_else(|| cwd.clone(), std::path::Path::to_path_buf)
+            .parent()
+            .map_or_else(|| cwd.clone(), std::path::Path::to_path_buf)
     };
 
     let mut compiled_ok = false;
@@ -30,8 +31,8 @@ pub fn run(input: &str, watch: bool, verbose: bool) -> Result<(), String> {
             compiled_ok = true;
         }
 
-        let src = std::fs::read_to_string(input)
-            .map_err(|e| format!("Cannot read '{input}': {e}"))?;
+        let src =
+            std::fs::read_to_string(input).map_err(|e| format!("Cannot read '{input}': {e}"))?;
 
         // Check cache first
         let needs_compile =

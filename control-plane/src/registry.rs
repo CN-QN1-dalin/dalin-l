@@ -60,7 +60,7 @@ impl Default for InMemoryTaskStore {
 }
 
 impl InMemoryTaskStore {
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         let (tx, _rx) = broadcast::channel(1024);
         Self {

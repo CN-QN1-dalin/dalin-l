@@ -28,32 +28,34 @@ pub mod list {
 
 /// 字符串操作
 pub mod string {
-    #[must_use] 
+    #[must_use]
     pub fn split(s: &str, delim: &str) -> Vec<String> {
-        s.split(delim).map(std::string::ToString::to_string).collect()
+        s.split(delim)
+            .map(std::string::ToString::to_string)
+            .collect()
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn trim(s: &str) -> String {
         s.trim().to_string()
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn to_upper(s: &str) -> String {
         s.to_uppercase()
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn to_lower(s: &str) -> String {
         s.to_lowercase()
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn len(s: &str) -> usize {
         s.len()
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn contains(s: &str, sub: &str) -> bool {
         s.contains(sub)
     }
@@ -69,7 +71,7 @@ pub mod io {
         println!("{s}");
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn read_line() -> String {
         let mut buf = String::new();
         std::io::stdin().read_line(&mut buf).ok();
@@ -79,17 +81,17 @@ pub mod io {
 
 /// 数学操作
 pub mod math {
-    #[must_use] 
+    #[must_use]
     pub fn abs(x: i64) -> i64 {
         x.abs()
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn max(a: i64, b: i64) -> i64 {
         a.max(b)
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn min(a: i64, b: i64) -> i64 {
         a.min(b)
     }

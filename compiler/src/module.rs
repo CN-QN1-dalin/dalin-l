@@ -55,7 +55,7 @@ pub struct ModuleTree {
 }
 
 impl ModuleTree {
-    #[must_use] 
+    #[must_use]
     pub fn new(root_name: &str) -> Self {
         Self {
             root: ModuleNode::module(root_name),
@@ -97,7 +97,7 @@ impl ModuleTree {
         }
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn resolve_path(&self, path: &[String]) -> ResolveResult {
         if path.is_empty() {
             return ResolveResult::NotFound;
@@ -162,7 +162,7 @@ pub struct ModuleNode {
 }
 
 impl ModuleNode {
-    #[must_use] 
+    #[must_use]
     pub fn module(name: &str) -> Self {
         Self {
             name: name.to_string(),
@@ -171,7 +171,7 @@ impl ModuleNode {
         }
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn exported_items(&self) -> Vec<&str> {
         self.items
             .iter()
@@ -202,7 +202,7 @@ impl Default for DependencyGraph {
 }
 
 impl DependencyGraph {
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             modules: HashMap::new(),
@@ -213,7 +213,7 @@ impl DependencyGraph {
         self.modules.insert(name.to_string(), deps);
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn has_cycle(&self) -> bool {
         let mut visited = HashSet::new();
         let mut rec_stack = HashSet::new();
@@ -339,7 +339,7 @@ impl Default for Namespace {
 }
 
 impl Namespace {
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             names: HashMap::new(),
@@ -356,7 +356,7 @@ impl Namespace {
         Ok(())
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn lookup(&self, name: &str) -> Option<&SymbolLocation> {
         self.names.get(name)
     }
@@ -375,7 +375,7 @@ impl Namespace {
         conflicts
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn check_import_conflicts(&self, imports: &[String], source_module: &str) -> Vec<String> {
         let mut conflicts = Vec::new();
         for import_name in imports {
@@ -396,7 +396,7 @@ impl Namespace {
 //  模块解析器 (从 .dalin 文件解析)
 // ═══════════════════════════════
 
-#[must_use] 
+#[must_use]
 pub fn parse_module_from_source(source: &str, module_name: &str) -> ModuleDecl {
     let mut items = Vec::new();
     for line in source.lines() {
@@ -488,7 +488,8 @@ pub fn parse_module_from_source(source: &str, module_name: &str) -> ModuleDecl {
 
 fn extract_name(s: &str) -> String {
     let s = s.trim();
-    s.find(|c: char| !c.is_alphanumeric() && c != '_').map_or_else(|| s.to_string(), |pos| s[..pos].to_string())
+    s.find(|c: char| !c.is_alphanumeric() && c != '_')
+        .map_or_else(|| s.to_string(), |pos| s[..pos].to_string())
 }
 
 // ═══════════════════════════════
@@ -503,7 +504,7 @@ pub struct ModuleResolver {
 }
 
 impl ModuleResolver {
-    #[must_use] 
+    #[must_use]
     pub fn new(base_dir: PathBuf) -> Self {
         Self {
             base_dir,
@@ -565,7 +566,7 @@ impl ModuleResolver {
         Ok(())
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn list_modules(&self) -> Vec<String> {
         let mut mods: Vec<String> = self.loaded_modules.keys().cloned().collect();
         mods.sort();

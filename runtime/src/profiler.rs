@@ -51,7 +51,7 @@ impl Default for Profiler {
 }
 
 impl Profiler {
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             calls: HashMap::new(),
@@ -89,7 +89,7 @@ impl Profiler {
     }
 
     /// 返回按总时间排序的报告表格。
-    #[must_use] 
+    #[must_use]
     pub fn report(&self) -> String {
         let mut items: Vec<_> = self.calls.iter().collect();
         items.sort_by(|a, b| {

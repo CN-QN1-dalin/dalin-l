@@ -24,8 +24,7 @@ use std::collections::{HashMap, HashSet};
 use crate::ast::{FnParam, Program, Stmt};
 
 /// JIT 编译优化级别
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum OptLevel {
     O0, // 无优化 — 适合 @io @net，保留完整调试信息
     #[default]
@@ -34,21 +33,24 @@ pub enum OptLevel {
     O3, // 激进优化 — 仅 @verified 函数
 }
 
-
 /// 通道注解优先级
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ChannelClass {
-    Pure,      // @pure @cpu — CPU-bound 计算
-    SideEffect,// @io @net — I/O bound
-    Cognitive, // @perceive @observe @reflect — 认知循环
-    Managed,   // @gov @latency @throughput — 有管理约束
+    Pure,       // @pure @cpu — CPU-bound 计算
+    SideEffect, // @io @net — I/O bound
+    Cognitive,  // @perceive @observe @reflect — 认知循环
+    Managed,    // @gov @latency @throughput — 有管理约束
 }
 
 impl ChannelClass {
-    #[must_use] 
+    #[must_use]
     pub fn from_function(fn_stmt: &Stmt) -> Option<Self> {
         if let Stmt::Fn {
-            capability, effect, latency, governance, ..
+            capability,
+            effect,
+            latency,
+            governance,
+            ..
         } = fn_stmt
         {
             // 优先级: latency/governance > specific effects > cognitive_loop > default
@@ -119,12 +121,14 @@ pub struct JitCompiler {
 }
 
 impl Default for JitCompiler {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl JitCompiler {
     /// 创建新的 JIT 编译器实例
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             enabled: true,
@@ -144,7 +148,7 @@ impl JitCompiler {
     }
 
     /// 检查是否已启用
-    #[must_use] 
+    #[must_use]
     pub fn is_enabled(&self) -> bool {
         self.enabled
     }
@@ -227,7 +231,7 @@ impl JitCompiler {
     }
 
     /// 获取缓存中某函数的编译条目
-    #[must_use] 
+    #[must_use]
     pub fn get_cached(&self, name: &str) -> Option<&CacheEntry> {
         self.cache.get(name)
     }
@@ -243,7 +247,7 @@ impl JitCompiler {
     }
 
     /// 获取编译统计快照
-    #[must_use] 
+    #[must_use]
     pub fn snapshot_stats(&self) -> &CompileStats {
         &self.stats
     }
@@ -254,13 +258,13 @@ impl JitCompiler {
     }
 
     /// 获取缓存大小
-    #[must_use] 
+    #[must_use]
     pub fn cache_size(&self) -> usize {
         self.cache.len()
     }
 
     /// 返回所有已编译的函数名列表
-    #[must_use] 
+    #[must_use]
     pub fn compiled_functions(&self) -> Vec<&str> {
         self.cache.keys().map(std::string::String::as_str).collect()
     }
@@ -457,7 +461,10 @@ mod tests {
         let mut jit = JitCompiler::new();
         let fn_stmt = make_test_fn("add");
         let result = jit.compile_function(&fn_stmt);
-        assert!(result.is_ok(), "compile_function should succeed for valid fn");
+        assert!(
+            result.is_ok(),
+            "compile_function should succeed for valid fn"
+        );
         let entry = result.unwrap();
         assert_eq!(entry.name, "add");
         assert_eq!(entry.opt_level, OptLevel::O2); // @cpu → O2
@@ -482,7 +489,10 @@ mod tests {
     fn test_compile_net_fn_gets_o0_optimization() {
         let mut jit = JitCompiler::new();
         let mut fn_stmt = make_test_fn("send_request");
-        if let Stmt::Fn { effect, capability, .. } = &mut fn_stmt {
+        if let Stmt::Fn {
+            effect, capability, ..
+        } = &mut fn_stmt
+        {
             *effect = Some("net".to_string());
             *capability = None;
         }

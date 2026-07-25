@@ -122,7 +122,7 @@ pub fn analyze_for_gpu(source: &str) -> GpuAnalysis {
                     is_parallel: false,
                     loop_count: 0,
                     has_nested_loops: false,
-                }
+                };
             }
         };
         let paren_end = paren_start + paren_end_rel;
@@ -135,7 +135,11 @@ pub fn analyze_for_gpu(source: &str) -> GpuAnalysis {
                     let p_type = param[colon + 1..].trim().to_string();
                     let is_array = p_type.contains("[[") && p_type.contains("]]");
                     let base_type = if is_array {
-                        p_type.replace("[[", "").replace("]]", "").trim().to_string()
+                        p_type
+                            .replace("[[", "")
+                            .replace("]]", "")
+                            .trim()
+                            .to_string()
                     } else {
                         p_type.clone()
                     };
@@ -334,10 +338,7 @@ pub fn compile_to_cuda(source: &str) -> Result<String, String> {
     out.push_str("}\n\n");
 
     // Launch helper
-    out.push_str(&format!(
-        "// Launch helper for {}\n",
-        analysis.fn_name
-    ));
+    out.push_str(&format!("// Launch helper for {}\n", analysis.fn_name));
     out.push_str(&format!(
         "static inline __host__ void launch_{}\n",
         analysis.fn_name
@@ -472,11 +473,7 @@ impl GpuCompiler {
     }
 
     /// 编译为指定后端的 GPU 代码
-    pub fn compile_to_backend(
-        &self,
-        source: &str,
-        target: GpuBackend,
-    ) -> Result<String, String> {
+    pub fn compile_to_backend(&self, source: &str, target: GpuBackend) -> Result<String, String> {
         match target {
             GpuBackend::Metal => self.compile_to_metal(source),
             GpuBackend::Cuda => self.compile_to_cuda(source),
@@ -621,7 +618,10 @@ mod tests {
     #[test]
     fn test_dal_array_type_to_gpu_metal() {
         assert_eq!(dal_array_type_to_gpu("Int", "metal"), "const device int*");
-        assert_eq!(dal_array_type_to_gpu("Float", "metal"), "const device float*");
+        assert_eq!(
+            dal_array_type_to_gpu("Float", "metal"),
+            "const device float*"
+        );
     }
 
     #[test]
@@ -705,7 +705,8 @@ mod tests {
 
     #[test]
     fn test_analyze_no_loop_fn_not_parallel() {
-        let source = "fn max_of_two(a: Int, b: Int) -> Int { if a > b { return a } else { return b } }";
+        let source =
+            "fn max_of_two(a: Int, b: Int) -> Int { if a > b { return a } else { return b } }";
         let analysis = analyze_for_gpu(source);
         assert!(!analysis.is_parallel);
         assert_eq!(analysis.loop_count, 0);

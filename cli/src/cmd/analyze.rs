@@ -9,8 +9,7 @@ pub fn run(input: &str, verbose: bool, _json: bool) -> Result<(), String> {
         return Err(format!("Source file '{input}' does not exist"));
     }
 
-    let src =
-        std::fs::read_to_string(input).map_err(|e| format!("Cannot read '{input}': {e}"))?;
+    let src = std::fs::read_to_string(input).map_err(|e| format!("Cannot read '{input}': {e}"))?;
 
     let mut lex = lexer::Lexer::new(&src);
     let tokens = lex.tokenize().map_err(|e| format!("Lexer: {e}"))?;

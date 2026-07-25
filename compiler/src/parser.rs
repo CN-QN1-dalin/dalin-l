@@ -1,6 +1,21 @@
 /// Dalin L — 递归下降语法分析器
-use crate::ast::{Program, Stmt, FnParam, Expr, MatchArm, FieldDef, EnumVariant, TraitMethod, Pattern, TypeRef, BaseType};
-use crate::token::{Token, TokenType, TokenType::{Eof, KeywordLet, KeywordMut, KeywordFn, KeywordIf, KeywordWhile, KeywordFor, KeywordMatch, KeywordStruct, KeywordEnum, KeywordTrait, KeywordImpl, KeywordReturn, KeywordUse, KeywordExport, KeywordSpawn, KeywordAssert, KeywordChannel, KeywordAsync, KeywordTry, KeywordConst, KeywordType, Semicolon, Ident, Colon, Equal, At, LeftParen, StringLiteral, RightParen, IntLiteral, Slash, Arrow, Comma, KeywordElse, KeywordIn, LeftBrace, RightBrace, DoubleArrow, KeywordCatch, FloatLiteral, BoolLiteral, CharLiteral, Less, Greater, Pipe, Or, And, DoubleEqual, NotEqual, LessEqual, GreaterEqual, Plus, Minus, Star, Modulo, Not, DoubleDot, LeftBracket, RightBracket, Dot}};
+use crate::ast::{
+    BaseType, EnumVariant, Expr, FieldDef, FnParam, MatchArm, Pattern, Program, Stmt, TraitMethod,
+    TypeRef,
+};
+use crate::token::{
+    Token, TokenType,
+    TokenType::{
+        And, Arrow, At, BoolLiteral, CharLiteral, Colon, Comma, Dot, DoubleArrow, DoubleDot,
+        DoubleEqual, Eof, Equal, FloatLiteral, Greater, GreaterEqual, Ident, IntLiteral,
+        KeywordAssert, KeywordAsync, KeywordCatch, KeywordChannel, KeywordConst, KeywordElse,
+        KeywordEnum, KeywordExport, KeywordFn, KeywordFor, KeywordIf, KeywordImpl, KeywordIn,
+        KeywordLet, KeywordMatch, KeywordMut, KeywordReturn, KeywordSpawn, KeywordStruct,
+        KeywordTrait, KeywordTry, KeywordType, KeywordUse, KeywordWhile, LeftBrace, LeftBracket,
+        LeftParen, Less, LessEqual, Minus, Modulo, Not, NotEqual, Or, Pipe, Plus, RightBrace,
+        RightBracket, RightParen, Semicolon, Slash, Star, StringLiteral,
+    },
+};
 /// Nine annotation fields returned by `parse_channel_annotations`.
 pub type AnnotationResult = Result<
     (
@@ -36,7 +51,7 @@ pub struct Parser {
 }
 
 impl Parser {
-    #[must_use] 
+    #[must_use]
     pub fn new(tokens: Vec<Token>) -> Self {
         Self { tokens, pos: 0 }
     }
@@ -1329,7 +1344,7 @@ fn stmt_to_expr_single(stmt: Stmt) -> Expr {
 
 // ── AST 打印 ──
 
-#[must_use] 
+#[must_use]
 pub fn ast_to_string(node: &Program) -> String {
     let mut lines = Vec::new();
     lines.push("Program(".to_string());
@@ -1519,7 +1534,7 @@ fn expr_to_string(expr: &Expr, _indent: usize) -> String {
 /// Expression variants for if/match that were converted from statements
 impl Expr {
     // Placeholder variants for if/match expressions
-    #[must_use] 
+    #[must_use]
     pub fn dummy() -> Self {
         Expr::IntLiteral(0)
     }

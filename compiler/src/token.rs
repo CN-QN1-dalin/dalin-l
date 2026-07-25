@@ -94,7 +94,7 @@ pub enum TokenType {
 }
 
 impl TokenType {
-    #[must_use] 
+    #[must_use]
     pub fn name(&self) -> &'static str {
         match self {
             Self::KeywordLet => "KEYWORD_LET",
@@ -185,7 +185,7 @@ pub struct Token {
 }
 
 impl Token {
-    #[must_use] 
+    #[must_use]
     pub fn new(token_type: TokenType, value: String, line: usize, column: usize) -> Self {
         Self {
             token_type,

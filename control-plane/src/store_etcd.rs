@@ -221,7 +221,9 @@ impl TaskStore for EtcdTaskStore {
     }
 
     async fn list(&self, parent: Option<&str>) -> Vec<TaskRecord> {
-        if let Some(p) = parent { self.children_of(p).await } else {
+        if let Some(p) = parent {
+            self.children_of(p).await
+        } else {
             let mut client = self.client.clone();
             let prefix = format!("{PREFIX}/tasks/");
             let resp = client

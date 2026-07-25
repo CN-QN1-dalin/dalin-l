@@ -10,7 +10,9 @@ pub fn run(package: &str) -> Result<(), String> {
         format!("{package}/dalin.toml")
     };
 
-    let content = if let Ok(c) = std::fs::read_to_string(&toml_path) { c } else {
+    let content = if let Ok(c) = std::fs::read_to_string(&toml_path) {
+        c
+    } else {
         println!("\n  [mock] No dalin.toml found at '{toml_path}'");
         return mock_tree();
     };

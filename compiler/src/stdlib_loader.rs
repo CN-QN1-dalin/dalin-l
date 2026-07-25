@@ -7,7 +7,7 @@
 ///   let loader = `StdLibLoader::new("/path/to/project`")?;
 ///   let injected = `loader.load_all()`?;          // 一次性加载全部
 ///   let `core_ast` = `loader.load_module("core_types`")?;  // 按需加载单个模块
-use crate::ast::{PackageManifest, Program, Stmt, ModuleDecl};
+use crate::ast::{ModuleDecl, PackageManifest, Program, Stmt};
 use crate::lexer::Lexer;
 use crate::parser::Parser;
 use crate::task_spec::TaskSpec;
@@ -31,7 +31,7 @@ pub struct StdLibConfig {
 
 impl StdLibConfig {
     /// 从 `PackageManifest` 构建配置
-    #[must_use] 
+    #[must_use]
     pub fn from_manifest(manifest: &PackageManifest) -> Self {
         let stdlib_path = PathBuf::from(
             manifest
@@ -146,7 +146,7 @@ impl StdLibLoader {
     }
 
     /// 显式设置配置
-    #[must_use] 
+    #[must_use]
     pub fn with_config(mut self, config: StdLibConfig) -> Self {
         self.config = config;
         self
@@ -179,9 +179,7 @@ impl StdLibLoader {
                 .stdlib_path
                 .join("core")
                 .join(format!("{module_name}.dal")),
-            self.config
-                .stdlib_path
-                .join(format!("{module_name}.dalin")),
+            self.config.stdlib_path.join(format!("{module_name}.dalin")),
         ];
 
         let mut content: Option<String> = None;
@@ -350,14 +348,14 @@ impl StdLibLoader {
     }
 
     /// 获取某个模块的 `TaskSpec` 列表（用于控制面调度）
-    #[must_use] 
+    #[must_use]
     pub fn get_task_specs(&self, module_name: &str) -> Option<Vec<TaskSpec>> {
         let prog = self.cache.get(module_name)?;
         Some(crate::task_spec::from_program(prog))
     }
 
     /// 获取所有已加载模块的统计信息
-    #[must_use] 
+    #[must_use]
     pub fn stats(&self) -> StdLibStats {
         StdLibStats {
             total_loaded: self.loaded.len(),
@@ -373,7 +371,7 @@ impl StdLibLoader {
 // ═══════════════════════════════
 
 /// 从 dalin.toml 中提取 `stdlib_path` 配置项
-#[must_use] 
+#[must_use]
 pub fn read_stdlib_path(project_root: &Path) -> Option<PathBuf> {
     let manifest = project_root.join("dalin.toml");
     if !manifest.exists() {

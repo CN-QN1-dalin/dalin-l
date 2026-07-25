@@ -1,5 +1,19 @@
 /// Dalin L — 词法分析器
-use crate::token::{Token, TokenType, TokenType::{KeywordLet, KeywordFn, KeywordReturn, KeywordIf, KeywordElse, KeywordMatch, KeywordFor, KeywordIn, KeywordWhile, KeywordSpawn, KeywordAsync, KeywordTry, KeywordCatch, KeywordUse, KeywordTrait, KeywordAssert, KeywordChannel, KeywordMut, KeywordOk, KeywordError, KeywordExport, KeywordPub, KeywordImpl, KeywordStruct, KeywordEnum, KeywordType, KeywordConst, KeywordMod, BoolLiteral, FloatLiteral, IntLiteral, Ident, Eof, StringLiteral, CharLiteral, Attribute, Arrow, DoubleArrow, Pipe, DoubleEqual, NotEqual, LessEqual, GreaterEqual, And, Or, DoubleDot, DoubleColon, PlusEqual, MinusEqual, StarEqual, SlashEqual, Plus, Minus, Star, Slash, Modulo, Equal, Less, Greater, Not, QuestionMark, At, Dollar, Comma, Semicolon, Colon, LeftParen, RightParen, LeftBracket, RightBracket, LeftBrace, RightBrace, Dot}};
+use crate::token::{
+    Token, TokenType,
+    TokenType::{
+        And, Arrow, At, Attribute, BoolLiteral, CharLiteral, Colon, Comma, Dollar, Dot,
+        DoubleArrow, DoubleColon, DoubleDot, DoubleEqual, Eof, Equal, FloatLiteral, Greater,
+        GreaterEqual, Ident, IntLiteral, KeywordAssert, KeywordAsync, KeywordCatch, KeywordChannel,
+        KeywordConst, KeywordElse, KeywordEnum, KeywordError, KeywordExport, KeywordFn, KeywordFor,
+        KeywordIf, KeywordImpl, KeywordIn, KeywordLet, KeywordMatch, KeywordMod, KeywordMut,
+        KeywordOk, KeywordPub, KeywordReturn, KeywordSpawn, KeywordStruct, KeywordTrait,
+        KeywordTry, KeywordType, KeywordUse, KeywordWhile, LeftBrace, LeftBracket, LeftParen, Less,
+        LessEqual, Minus, MinusEqual, Modulo, Not, NotEqual, Or, Pipe, Plus, PlusEqual,
+        QuestionMark, RightBrace, RightBracket, RightParen, Semicolon, Slash, SlashEqual, Star,
+        StarEqual, StringLiteral,
+    },
+};
 use std::collections::HashMap;
 
 fn is_chinese_char(ch: char) -> bool {
@@ -75,7 +89,7 @@ pub struct Lexer {
 }
 
 impl Lexer {
-    #[must_use] 
+    #[must_use]
     pub fn new(source: &str) -> Self {
         Self {
             chars: source.chars().collect(),

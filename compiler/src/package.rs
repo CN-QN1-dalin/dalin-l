@@ -17,7 +17,7 @@ pub struct SemVer {
 }
 
 impl SemVer {
-    #[must_use] 
+    #[must_use]
     pub fn new(major: u64, minor: u64, patch: u64) -> Self {
         Self {
             major,
@@ -42,10 +42,7 @@ impl SemVer {
             .map_err(|_| format!("Invalid minor version: '{}'", parts[1]))?;
         let patch = if parts.len() == 3 {
             // Parse the leading numeric portion; ignore any pre-release/build suffix like "-alpha"
-            let num_part: String = parts[2]
-                .chars()
-                .take_while(char::is_ascii_digit)
-                .collect();
+            let num_part: String = parts[2].chars().take_while(char::is_ascii_digit).collect();
             if num_part.is_empty() {
                 // No leading digits at all (e.g. "alpha"), default to 0
                 0
@@ -64,7 +61,7 @@ impl SemVer {
 
     /// 比较两个版本: -1 (小于), 0 (等于), 1 (大于)
     #[allow(clippy::should_implement_trait)]
-    #[must_use] 
+    #[must_use]
     pub fn cmp(&self, other: &SemVer) -> i32 {
         if self.major != other.major {
             return (self.major as i32) - (other.major as i32);
@@ -76,7 +73,7 @@ impl SemVer {
     }
 
     /// 检查是否满足版本要求
-    #[must_use] 
+    #[must_use]
     pub fn satisfies(&self, requirement: &VersionRequirement) -> bool {
         match requirement {
             VersionRequirement::Exact(req) => self == req,
@@ -99,7 +96,7 @@ impl SemVer {
         }
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn display(&self) -> String {
         format!("{}.{}.{}", self.major, self.minor, self.patch)
     }
@@ -336,7 +333,7 @@ impl Default for DependencyGraph {
 }
 
 impl DependencyGraph {
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             packages: HashMap::new(),
@@ -416,7 +413,7 @@ pub struct PackageManager {
 }
 
 impl PackageManager {
-    #[must_use] 
+    #[must_use]
     pub fn new(cache_dir: String, registry_url: String) -> Self {
         Self {
             cache_dir,
@@ -478,7 +475,7 @@ impl PackageManager {
     }
 
     /// 获取缓存中的包列表
-    #[must_use] 
+    #[must_use]
     pub fn list_cached(&self) -> Vec<String> {
         let mut pkgs: Vec<String> = self
             .cached_packages

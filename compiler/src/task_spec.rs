@@ -71,7 +71,7 @@ impl TaskSpec {
     }
 
     /// 由父任务派生一个 spawn 子任务规格（parent `指向父，is_spawn=true，继承父治理级别`）
-    #[must_use] 
+    #[must_use]
     pub fn spawn_child(&self, child_name: &str, effect: Effect, capability: Capability) -> Self {
         let mut child = TaskSpec::for_fn(
             child_name,
@@ -102,11 +102,10 @@ pub fn from_program(prog: &Program) -> Vec<TaskSpec> {
             ..
         } = stmt
         {
-            let eff = effect.as_deref().map_or(if *async_ {
-                Effect::Async
-            } else {
-                Effect::Pure
-            }, parse_effect);
+            let eff = effect.as_deref().map_or(
+                if *async_ { Effect::Async } else { Effect::Pure },
+                parse_effect,
+            );
             let cap = capability
                 .as_deref()
                 .map_or(Capability::Cpu, parse_capability);

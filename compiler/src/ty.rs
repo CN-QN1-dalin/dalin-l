@@ -1,6 +1,6 @@
 /// Dalin L — HM 类型推断引擎
 /// 完整的 Robinson Unification + 函数签名推导 + 多态
-use crate::ast::{TypeRef, BaseType, Program, Stmt, Expr, FnParam, MatchArm};
+use crate::ast::{BaseType, Expr, FnParam, MatchArm, Program, Stmt, TypeRef};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -60,7 +60,7 @@ impl Default for TypeEnv {
 }
 
 impl TypeEnv {
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             types: HashMap::new(),
@@ -68,7 +68,7 @@ impl TypeEnv {
         }
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn child(&self) -> Self {
         Self {
             types: HashMap::new(),
@@ -80,7 +80,7 @@ impl TypeEnv {
         self.types.insert(name.to_string(), typ);
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn lookup(&self, name: &str) -> Option<TypeOrVar> {
         if let Some(t) = self.types.get(name) {
             return Some(t.clone());
@@ -107,27 +107,27 @@ impl std::fmt::Display for TypeError {
 
 // ── 内置类型常量 ──
 
-#[must_use] 
+#[must_use]
 pub fn int_type() -> TypeRef {
     TypeRef::new(BaseType::Int)
 }
-#[must_use] 
+#[must_use]
 pub fn float_type() -> TypeRef {
     TypeRef::new(BaseType::Float)
 }
-#[must_use] 
+#[must_use]
 pub fn string_type() -> TypeRef {
     TypeRef::new(BaseType::String)
 }
-#[must_use] 
+#[must_use]
 pub fn bool_type() -> TypeRef {
     TypeRef::new(BaseType::Bool)
 }
-#[must_use] 
+#[must_use]
 pub fn none_type() -> TypeRef {
     TypeRef::new(BaseType::None)
 }
-#[must_use] 
+#[must_use]
 pub fn unknown_type() -> TypeRef {
     TypeRef::new(BaseType::Unknown)
 }
@@ -278,7 +278,7 @@ impl Default for TypeInferencer {
 }
 
 impl TypeInferencer {
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             env: TypeEnv::new(),
@@ -487,7 +487,9 @@ impl TypeInferencer {
     }
 
     fn infer_ident(&mut self, name: &str) -> TypeOrVar {
-        if let Some(t) = self.env.lookup(name) { t } else {
+        if let Some(t) = self.env.lookup(name) {
+            t
+        } else {
             let tv = TypeOrVar::Variable(TypeVar::new());
             self.env.declare(name, tv.clone());
             tv
@@ -763,7 +765,7 @@ impl TypeInferencer {
             .unwrap_or(TypeOrVar::Concrete(none_type()))
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn print_report(&self) -> String {
         let mut lines = vec!["\n=== Type Inference Report ===".to_string()];
         lines.push("\nInferred Types:".into());

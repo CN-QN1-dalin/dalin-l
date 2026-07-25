@@ -26,7 +26,7 @@ pub enum Capability {
 
 impl Capability {
     /// 能力格偏序：a ≤ b 表示 a 的能力是 b 的子集（b 覆盖 a）。
-    #[must_use] 
+    #[must_use]
     pub fn leq(&self, other: &Capability) -> bool {
         (*self as u8) <= (*other as u8)
     }
@@ -68,7 +68,7 @@ impl Node {
     }
 
     /// 链式设置配额（背压阈值）。
-    #[must_use] 
+    #[must_use]
     pub fn with_quota(mut self, quota: usize) -> Self {
         self.quota = Some(quota);
         self
@@ -163,7 +163,7 @@ pub struct CapabilityScheduler {
 }
 
 impl CapabilityScheduler {
-    #[must_use] 
+    #[must_use]
     pub fn new(nodes: Vec<Node>) -> Self {
         let runtimes = nodes
             .into_iter()
@@ -180,7 +180,7 @@ impl CapabilityScheduler {
 
     /// 为任务选一个节点：能力覆盖（节点 ⊇ 任务能力）且熔断器允许 且 未到配额 的节点里选负载最低者。
     /// 找不到 → None（拒绝调度：背压 / 无节点 / 熔断）。
-    #[must_use] 
+    #[must_use]
     pub fn place(&self, required: &Capability) -> Option<Placement> {
         let mut best: Option<&NodeRuntime> = None;
         for n in &self.nodes {
@@ -236,7 +236,7 @@ impl CapabilityScheduler {
     }
 
     /// 当前各节点负载快照（可观测 / 调试）。
-    #[must_use] 
+    #[must_use]
     pub fn load_snapshot(&self) -> Vec<(String, usize)> {
         self.nodes
             .iter()
@@ -245,7 +245,7 @@ impl CapabilityScheduler {
     }
 
     /// 从注解字符串直接放置（未知能力回落 Cpu）。
-    #[must_use] 
+    #[must_use]
     pub fn place_by_spec(&self, capability: &str) -> Option<Placement> {
         let cap: Capability = capability.parse().unwrap_or(Capability::Cpu);
         self.place(&cap)
@@ -280,7 +280,7 @@ impl CapabilityScheduler {
     }
 
     /// 获取节点数量。
-    #[must_use] 
+    #[must_use]
     pub fn node_count(&self) -> usize {
         self.nodes.len()
     }

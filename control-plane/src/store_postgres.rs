@@ -190,7 +190,9 @@ impl TaskStore for PostgresTaskStore {
     }
 
     async fn list(&self, parent: Option<&str>) -> Vec<TaskRecord> {
-        if let Some(p) = parent { self.children_of(p).await } else {
+        if let Some(p) = parent {
+            self.children_of(p).await
+        } else {
             let rows = self
                 .client
                 .query(

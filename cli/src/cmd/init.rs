@@ -9,8 +9,7 @@ pub fn run(name: &str, lib_only: bool, git_init: bool) -> Result<(), String> {
         return Err(format!("Directory '{name}' already exists"));
     }
 
-    std::fs::create_dir_all(out_dir.join("src"))
-        .map_err(|e| format!("Cannot create src/: {e}"))?;
+    std::fs::create_dir_all(out_dir.join("src")).map_err(|e| format!("Cannot create src/: {e}"))?;
     std::fs::create_dir_all(out_dir.join("tests"))
         .map_err(|e| format!("Cannot create tests/: {e}"))?;
 

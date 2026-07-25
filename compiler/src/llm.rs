@@ -47,7 +47,7 @@ impl LlmEngine {
     ///
     /// Phase B: 模板匹配和骨架生成（无 QN1 后端时的默认路径）
     /// Phase D: 通过 QN1/SFA 调用 LLM 实时生成
-    #[must_use] 
+    #[must_use]
     pub fn process_directive(prompt: &str, target: Option<&str>) -> LlmGeneratedCode {
         let statements = Self::prompt_to_ast(prompt, target);
         let confidence = if Self::is_pattern_match(prompt) {
@@ -68,7 +68,7 @@ impl LlmEngine {
     /// Phase D 核心入口：
     /// 1. 如果有 QN1 后端 → 调用 QN1 生成代码（置信度 + 延迟跟踪）
     /// 2. 无 QN1 后端 → 回落至 `process_directive()` 模板匹配
-    #[must_use] 
+    #[must_use]
     pub fn process_with_qn1(
         prompt: &str,
         target: Option<&str>,

@@ -1,7 +1,7 @@
 /// Dalin L 3.0 — WASM 编译后端 (真实实现)
 ///
 /// 将 Dalan L AST 编译为 WebAssembly Text Format (.wat)
-use dalin_compiler::ast::{Expr, FnParam, Program, Stmt, BaseType};
+use dalin_compiler::ast::{BaseType, Expr, FnParam, Program, Stmt};
 
 /// 优化级别
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
@@ -28,8 +28,15 @@ impl OptLevel {
 /// WASM 操作码
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum WasmOp {
-    I32Add, I64Add, F64Add, I32Sub, I64Sub,
-    I32Mul, I64Mul, I32DivS, I64DivS,
+    I32Add,
+    I64Add,
+    F64Add,
+    I32Sub,
+    I64Sub,
+    I32Mul,
+    I64Mul,
+    I32DivS,
+    I64DivS,
     Return,
 }
 
@@ -40,14 +47,19 @@ pub struct WasmBackend {
 }
 
 impl Default for WasmBackend {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl WasmBackend {
     /// 创建新的 WASM 后端
     #[must_use]
     pub fn new() -> Self {
-        Self { optimize: true, exports: Vec::new() }
+        Self {
+            optimize: true,
+            exports: Vec::new(),
+        }
     }
 
     /// 设置是否启用优化
@@ -73,7 +85,11 @@ impl WasmBackend {
         let program = parse_source(source)?;
         let mut wat = String::from("(module\n");
 
-        let fn_count = program.statements.iter().filter(|s| matches!(s, Stmt::Fn { .. })).count();
+        let fn_count = program
+            .statements
+            .iter()
+            .filter(|s| matches!(s, Stmt::Fn { .. }))
+            .count();
         wat.push_str(&format!(
             "  ; Optimized: {}\n  ; Functions: {}\n",
             self.optimize, fn_count
@@ -81,8 +97,14 @@ impl WasmBackend {
 
         for stmt in &program.statements {
             if let Stmt::Fn {
-                name, params, return_type, body, pub_, ..
-            } = stmt {
+                name,
+                params,
+                return_type,
+                body,
+                pub_,
+                ..
+            } = stmt
+            {
                 if *pub_ {
                     wat.push_str(&format!("  ;; EXPORTED: {}\n", name));
                 }
@@ -104,10 +126,7 @@ impl WasmBackend {
                 // 函数体
                 let func_name = format!("dalin_{}", name);
                 let body_wat = generate_body_wat(body);
-                wat.push_str(&format!(
-                    "  (func ${}\n    {}\n  )\n",
-                    func_name, body_wat
-                ));
+                wat.push_str(&format!("  (func ${}\n    {}\n  )\n", func_name, body_wat));
             }
         }
 
@@ -117,10 +136,7 @@ impl WasmBackend {
                 let should_export = *pub_ || self.exports.is_empty();
                 if should_export {
                     let func_name = format!("dalin_{}", name);
-                    wat.push_str(&format!(
-                        "  (export \"{}\" (func ${}))\n",
-                        name, func_name
-                    ));
+                    wat.push_str(&format!("  (export \"{}\" (func ${}))\n", name, func_name));
                 }
             }
         }
@@ -131,12 +147,18 @@ impl WasmBackend {
 
     /// 获取导出函数列表
     #[must_use]
-    pub fn exports(&self) -> &[String] { &self.exports }
+    pub fn exports(&self) -> &[String] {
+        &self.exports
+    }
 
     /// 返回优化配置
     #[must_use]
     pub fn opt_level(&self) -> OptLevel {
-        if self.optimize { OptLevel::O2 } else { OptLevel::O0 }
+        if self.optimize {
+            OptLevel::O2
+        } else {
+            OptLevel::O0
+        }
     }
 }
 
@@ -155,7 +177,8 @@ fn type_to_wasm(base: BaseType) -> &'static str {
 }
 
 fn param_type_to_wasm(p: &FnParam) -> &'static str {
-    p.type_annotation.as_ref()
+    p.type_annotation
+        .as_ref()
         .map(|ty| type_to_wasm(ty.base.clone()))
         .unwrap_or("i64")
 }
@@ -184,7 +207,12 @@ fn stmt_to_wat(stmt: &Stmt) -> String {
                 String::from("  i64.const 0\n  return\n")
             }
         }
-        Stmt::Let { name, value, mutable: _, .. } => {
+        Stmt::Let {
+            name,
+            value,
+            mutable: _,
+            ..
+        } => {
             if let Some(expr) = value {
                 format!("let {} = {}\n", name, expr_to_wat(expr))
             } else {
@@ -192,9 +220,18 @@ fn stmt_to_wat(stmt: &Stmt) -> String {
             }
         }
         Stmt::Const { value, .. } => {
-            if let Some(expr) = value { expr_to_wat(expr) } else { String::new() }
+            if let Some(expr) = value {
+                expr_to_wat(expr)
+            } else {
+                String::new()
+            }
         }
-        Stmt::If { condition, then_body, else_body, .. } => {
+        Stmt::If {
+            condition,
+            then_body,
+            else_body,
+            ..
+        } => {
             let cond_wat = expr_to_wat(condition);
             let then_wat = generate_body_wat(then_body);
             let else_wat = if !else_body.is_empty() {
@@ -204,12 +241,18 @@ fn stmt_to_wat(stmt: &Stmt) -> String {
             };
             format!("{}\n  if\n    {}\n  {}end\n", cond_wat, then_wat, else_wat)
         }
-        Stmt::While { condition, body: wb, .. } => {
+        Stmt::While {
+            condition,
+            body: wb,
+            ..
+        } => {
             let cond_wat = expr_to_wat(condition);
             let body_wat = generate_body_wat(wb);
             format!("{}\n{}\n", cond_wat, body_wat)
         }
-        Stmt::For { iterable, body: fb, .. } => {
+        Stmt::For {
+            iterable, body: fb, ..
+        } => {
             format!("{}\n{}", expr_to_wat(iterable), generate_body_wat(fb))
         }
         Stmt::Match { target, arms } => {
@@ -240,13 +283,20 @@ fn expr_to_wat(expr: &Expr) -> String {
             let l = expr_to_wat(left);
             let r = expr_to_wat(right);
             let o = match op.as_str() {
-                "+" => "  i64.add", "-" => "  i64.sub",
-                "*" => "  i64.mul", "/" => "  i64.div_s",
-                "%" => "  i64.rem_s", "<" => "  i64.lt_s",
-                ">" => "  i64.gt_s", "<=" => "  i64.le_s",
-                ">=" => "  i64.ge_s", "==" => "  i64.eq",
-                "!=" => "  i64.ne", "&&" => "  i32.and",
-                "||" => "  i32.or", _ => "  i64.add",
+                "+" => "  i64.add",
+                "-" => "  i64.sub",
+                "*" => "  i64.mul",
+                "/" => "  i64.div_s",
+                "%" => "  i64.rem_s",
+                "<" => "  i64.lt_s",
+                ">" => "  i64.gt_s",
+                "<=" => "  i64.le_s",
+                ">=" => "  i64.ge_s",
+                "==" => "  i64.eq",
+                "!=" => "  i64.ne",
+                "&&" => "  i32.and",
+                "||" => "  i32.or",
+                _ => "  i64.add",
             };
             format!("{}\n{}\n{}", l, r, o)
         }
@@ -264,13 +314,20 @@ fn expr_to_wat(expr: &Expr) -> String {
                 _ => "unknown".to_string(),
             };
             let mut out = String::new();
-            for arg in args { out.push_str(&expr_to_wat(arg)); out.push('\n'); }
+            for arg in args {
+                out.push_str(&expr_to_wat(arg));
+                out.push('\n');
+            }
             out.push_str(&format!("  call ${}", fn_name));
             out
         }
         Expr::MemberAccess { .. } => String::from("  ;; member access stub"),
         Expr::Index { array, index } => {
-            format!("{}\n{}\n  ;; array.get", expr_to_wat(array), expr_to_wat(index))
+            format!(
+                "{}\n{}\n  ;; array.get",
+                expr_to_wat(array),
+                expr_to_wat(index)
+            )
         }
         Expr::Pipe { input, ops } => {
             let mut result = expr_to_wat(input);
@@ -281,34 +338,52 @@ fn expr_to_wat(expr: &Expr) -> String {
             }
             result
         }
-        Expr::Range { start, end, inclusive } => {
+        Expr::Range {
+            start,
+            end,
+            inclusive,
+        } => {
             format!(
                 "{}\n{}\n  ;; range [{:?}]",
-                expr_to_wat(start), expr_to_wat(end), inclusive
+                expr_to_wat(start),
+                expr_to_wat(end),
+                inclusive
             )
         }
         Expr::Array(items) => {
             let mut out = String::from("  ;; array init\n");
-            for item in items { out.push_str(&expr_to_wat(item)); out.push('\n'); }
+            for item in items {
+                out.push_str(&expr_to_wat(item));
+                out.push('\n');
+            }
             out.push_str("  ;; array.new");
             out
         }
         Expr::OptionValue { is_some, value } => {
             if *is_some {
-                let inner = value.as_ref()
+                let inner = value
+                    .as_ref()
                     .map(|v| expr_to_wat(v))
                     .unwrap_or(String::from("  i32.const 0"));
                 format!("{}\n  ;; option.some", inner)
-            } else { String::from("  i32.const 0") }
+            } else {
+                String::from("  i32.const 0")
+            }
         }
-        Expr::ResultValue { is_ok, value, error } => {
+        Expr::ResultValue {
+            is_ok,
+            value,
+            error,
+        } => {
             if *is_ok {
-                let inner = value.as_ref()
+                let inner = value
+                    .as_ref()
                     .map(|v| expr_to_wat(v))
                     .unwrap_or(String::from("  i32.const 0"));
                 format!("{}\n  ;; result.ok", inner)
             } else {
-                let inner = error.as_ref()
+                let inner = error
+                    .as_ref()
                     .map(|e| expr_to_wat(e))
                     .unwrap_or(String::from("  i32.const 0"));
                 format!("{}\n  ;; result.error", inner)
@@ -317,7 +392,9 @@ fn expr_to_wat(expr: &Expr) -> String {
         Expr::IfExpr(cond, then, els) => {
             format!(
                 "{}\nif\n  {}\nelse\n  {}\nend",
-                expr_to_wat(cond), expr_to_wat(then), expr_to_wat(els)
+                expr_to_wat(cond),
+                expr_to_wat(then),
+                expr_to_wat(els)
             )
         }
         Expr::MatchExpr(target, arms) => {

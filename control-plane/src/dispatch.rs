@@ -44,13 +44,13 @@ pub struct DispatchResult {
 }
 
 /// 能力 → NATS subject 映射
-#[must_use] 
+#[must_use]
 pub fn capability_subject(cap: &str) -> String {
     format!("dalin.task.{cap}")
 }
 
 /// 结果回传 subject
-#[must_use] 
+#[must_use]
 pub fn result_subject() -> &'static str {
     "dalin.task.result"
 }
@@ -70,7 +70,7 @@ pub struct NatsDispatchBroker {
 }
 
 impl NatsDispatchBroker {
-    #[must_use] 
+    #[must_use]
     pub fn new(nc: Arc<async_nats::Client>) -> Self {
         Self { nc }
     }
@@ -109,7 +109,7 @@ impl Default for InMemoryDispatchBroker {
 }
 
 impl InMemoryDispatchBroker {
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             history: std::sync::Mutex::new(Vec::new()),
@@ -134,7 +134,7 @@ impl DispatchBroker for InMemoryDispatchBroker {
 // ═══════════════════════════════
 
 /// 在 `submit_task` 流程中，完成 placement 后调用此函数。
-#[must_use] 
+#[must_use]
 pub fn build_dispatch_task(
     task_id: &str,
     fn_name: &str,

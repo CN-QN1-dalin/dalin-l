@@ -66,7 +66,7 @@ impl Default for GenerationContext {
 }
 
 impl GenerationContext {
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             fn_name: None,
@@ -104,7 +104,7 @@ pub struct RealQn1Backend {
 }
 
 impl RealQn1Backend {
-    #[must_use] 
+    #[must_use]
     pub fn new(config: Qn1BackendConfig) -> Self {
         Self {
             api_key: config.api_key,
@@ -114,7 +114,7 @@ impl RealQn1Backend {
         }
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn with_latency(mut self, latency_ms: u64) -> Self {
         self.estimated_latency_ms = latency_ms;
         self
@@ -223,7 +223,7 @@ impl Default for MockQn1Backend {
 }
 
 impl MockQn1Backend {
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self
     }
@@ -315,13 +315,13 @@ pub struct Qn1CodeGenerator {
 
 impl Qn1CodeGenerator {
     /// 创建 QN1 代码生成器，指定后端实现
-    #[must_use] 
+    #[must_use]
     pub fn new(backend: Box<dyn Qn1Backend>) -> Self {
         Self { backend }
     }
 
     /// 创建使用 Mock 后端的 QN1 代码生成器
-    #[must_use] 
+    #[must_use]
     pub fn new_mock() -> Self {
         Self {
             backend: Box::new(MockQn1Backend::new()),
@@ -329,7 +329,7 @@ impl Qn1CodeGenerator {
     }
 
     /// 创建使用真实 LLM 后端的 QN1 代码生成器
-    #[must_use] 
+    #[must_use]
     pub fn new_real(config: Qn1BackendConfig) -> Self {
         Self {
             backend: Box::new(RealQn1Backend::new(config)),
@@ -337,13 +337,13 @@ impl Qn1CodeGenerator {
     }
 
     /// 生成代码 + 返回置信度和延迟
-    #[must_use] 
+    #[must_use]
     pub fn generate(&self, prompt: &str, context: &GenerationContext) -> Qn1GeneratedCode {
         self.backend.generate(prompt, context)
     }
 
     /// 后端名称
-    #[must_use] 
+    #[must_use]
     pub fn backend_name(&self) -> &str {
         self.backend.name()
     }

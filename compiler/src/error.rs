@@ -77,7 +77,7 @@ pub enum ChannelError {
 }
 
 impl ChannelError {
-    #[must_use] 
+    #[must_use]
     pub fn code(&self) -> &str {
         match self {
             ChannelError::EffectViolation { .. } => "E001",

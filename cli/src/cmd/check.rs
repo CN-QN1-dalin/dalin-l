@@ -8,8 +8,7 @@ pub fn run(input: &str, verbose: bool, json: bool) -> Result<(), String> {
         return Err(format!("Source file '{input}' does not exist"));
     }
 
-    let src =
-        std::fs::read_to_string(input).map_err(|e| format!("Cannot read '{input}': {e}"))?;
+    let src = std::fs::read_to_string(input).map_err(|e| format!("Cannot read '{input}': {e}"))?;
 
     use dalin_compiler::{lexer, parser, ty};
 

@@ -8,7 +8,10 @@ use dalin_compiler::ast::Program;
 use dalin_compiler::lexer::Lexer;
 use dalin_compiler::parser::Parser;
 use dalin_dlvm::{BytecodeCompiler, VmError};
-use protocol::{StackFrame, DapRequest, Capabilities, SourceBreakpoint, Source, Breakpoint, Scope, Variable, Thread, DapResponse, DapEvent};
+use protocol::{
+    Breakpoint, Capabilities, DapEvent, DapRequest, DapResponse, Scope, Source, SourceBreakpoint,
+    StackFrame, Thread, Variable,
+};
 use std::collections::HashMap;
 use std::io::{self, BufRead, Read, Write};
 
@@ -21,7 +24,7 @@ pub struct DebugVm {
 }
 
 impl DebugVm {
-    #[must_use] 
+    #[must_use]
     pub fn new(functions: Vec<dalin_dlvm::BytecodeFunction>) -> Self {
         Self {
             functions,
@@ -32,7 +35,7 @@ impl DebugVm {
     }
 
     /// Get current function name
-    #[must_use] 
+    #[must_use]
     pub fn get_current_function(&self) -> &str {
         if self.functions.is_empty() {
             "<none>"
@@ -62,19 +65,19 @@ impl DebugVm {
     }
 
     /// Get current state
-    #[must_use] 
+    #[must_use]
     pub fn is_stopped(&self) -> bool {
         self.stopped
     }
 
     /// Get stop reason
-    #[must_use] 
+    #[must_use]
     pub fn get_stop_reason(&self) -> &str {
         &self.stop_reason
     }
 
     /// Get current line number
-    #[must_use] 
+    #[must_use]
     pub fn get_current_line(&self) -> usize {
         self.current_line
     }
@@ -98,7 +101,7 @@ impl Default for DebugServer {
 }
 
 impl DebugServer {
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             program: None,

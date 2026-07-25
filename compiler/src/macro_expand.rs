@@ -43,7 +43,7 @@ impl Default for DeriveExpander {
 }
 
 impl DeriveExpander {
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             records: Vec::new(),
@@ -315,18 +315,18 @@ impl Default for MacroRegistry {
 }
 
 impl MacroRegistry {
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             macros: HashMap::new(),
         }
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn len(&self) -> usize {
         self.macros.len()
     }
-    #[must_use] 
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.macros.is_empty()
     }
@@ -335,7 +335,7 @@ impl MacroRegistry {
         self.macros.insert(key, val)
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn get(&self, key: &str) -> Option<&MacroDef> {
         self.macros.get(key)
     }
@@ -363,7 +363,7 @@ pub fn register_macro_decls(registry: &mut MacroRegistry, macros: &[MacroDecl]) 
     }
 }
 
-#[must_use] 
+#[must_use]
 pub fn extract_macro_decls(_stmts: &[Stmt]) -> Vec<MacroDecl> {
     // Simplified: scan for macro rules declarations in AST
     // Full implementation would walk the AST looking for macro_rules! patterns
@@ -390,7 +390,7 @@ impl Default for MacroExpander {
 }
 
 impl MacroExpander {
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             derive_expander: DeriveExpander::new(),
@@ -400,7 +400,7 @@ impl MacroExpander {
     }
 
     /// 执行完整的宏展开管线
-    #[must_use] 
+    #[must_use]
     pub fn expand(&self, program: &Program) -> MacroExpansion {
         let mut expanded = program.clone();
 
@@ -459,7 +459,7 @@ impl Default for BuiltinMacros {
 }
 
 impl BuiltinMacros {
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         let mut macros = HashMap::new();
 
@@ -526,7 +526,7 @@ impl BuiltinMacros {
         Self { macros }
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn expand_call(&self, name: &str, args: &[Expr]) -> Option<Vec<Stmt>> {
         self.macros.get(name).and_then(|mac| {
             if mac.num_args == 0 || mac.is_variadic || args.len() >= mac.num_args {

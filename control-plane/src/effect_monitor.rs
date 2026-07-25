@@ -61,7 +61,7 @@ impl Default for EffectMonitor {
 
 impl EffectMonitor {
     /// 新建效应监视器，默认 Pure 上下文、64 子任务配额。
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             context_effect: "pure".to_string(),
@@ -163,7 +163,7 @@ impl Default for SessionManager {
 }
 
 impl SessionManager {
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             monitors: std::sync::Mutex::new(std::collections::HashMap::new()),

@@ -1,6 +1,6 @@
-use crate::env::{Environment, FnValue, Value, DALIN_TYPE_KEY};
+use crate::env::{DALIN_TYPE_KEY, Environment, FnValue, Value};
 /// Dalin L — 树遍历解释器
-use dalin_compiler::ast::{Program, Stmt, Expr, FnParam, TypeRef, MatchArm, Pattern};
+use dalin_compiler::ast::{Expr, FnParam, MatchArm, Pattern, Program, Stmt, TypeRef};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc;
@@ -56,7 +56,7 @@ impl Default for Interpreter {
 }
 
 impl Interpreter {
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         let mut interp = Self {
             global_env: Environment::new(),
@@ -619,9 +619,7 @@ impl Interpreter {
         match env.lookup(&callee_name) {
             Some(Value::Function(fnv)) => self.call_function(&fnv, &arg_vals),
             Some(_) => Err(RuntimeError(format!("'{callee_name}' is not callable"))),
-            None => Err(RuntimeError(format!(
-                "Undefined function: '{callee_name}'"
-            ))),
+            None => Err(RuntimeError(format!("Undefined function: '{callee_name}'"))),
         }
     }
 
@@ -1053,7 +1051,7 @@ impl Interpreter {
     }
 
     /// 返回任务树的文本视图（控制面注册表的本地缩影）。
-    #[must_use] 
+    #[must_use]
     pub fn describe_task_tree(&self) -> String {
         let tree = self.task_tree.lock().unwrap();
         let mut lines = vec!["=== 任务树（控制面注册表缩影）===".to_string()];

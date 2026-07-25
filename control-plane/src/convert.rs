@@ -8,13 +8,13 @@ use dalin_compiler::ty2::{Capability as CompilerCapability, Effect as CompilerEf
 use crate::TaskSpec as PbTaskSpec;
 
 /// 三通道效应枚举 → 小写注解字符串（pure / io / async / spawn）
-#[must_use] 
+#[must_use]
 pub fn effect_to_str(e: &CompilerEffect) -> String {
     format!("{e:?}").to_lowercase()
 }
 
 /// 三通道能力枚举 → 小写注解字符串（cpu / gpu / sfa / net）
-#[must_use] 
+#[must_use]
 pub fn capability_to_str(c: &CompilerCapability) -> String {
     format!("{c:?}").to_lowercase()
 }

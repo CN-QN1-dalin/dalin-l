@@ -35,7 +35,7 @@ pub enum Effect {
 }
 
 impl Effect {
-    #[must_use] 
+    #[must_use]
     pub fn resource_hints(&self) -> (&'static str, &'static str) {
         match self {
             Effect::Pure => ("100m", "128Mi"),
@@ -72,7 +72,7 @@ pub enum Capability {
 }
 
 impl Capability {
-    #[must_use] 
+    #[must_use]
     pub fn node_selector(&self) -> std::collections::HashMap<String, String> {
         match self {
             Capability::Gpu => {
@@ -96,12 +96,12 @@ impl Capability {
         }
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn needs_gpu(&self) -> bool {
         matches!(self, Capability::Gpu | Capability::Mixed)
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn needs_sfa(&self) -> bool {
         *self == Capability::Sfa
     }
@@ -134,7 +134,7 @@ pub enum ConfidenceLevel {
 }
 
 impl ConfidenceLevel {
-    #[must_use] 
+    #[must_use]
     pub fn replica_strategy(&self, requested: u32) -> ReplicaStrategy {
         match self {
             ConfidenceLevel::Verified if requested >= 2 => {
@@ -414,22 +414,22 @@ impl ResourceResolver {
         Ok(reqs)
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn node_selector(spec: &DalinTaskSpec) -> std::collections::HashMap<String, String> {
         spec.capability.node_selector()
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn replica_strategy(spec: &DalinTaskSpec) -> ReplicaStrategy {
         spec.confidence.replica_strategy(spec.replicas)
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn deployment_name(function_id: &str) -> String {
         format!("dalin-task-{function_id}")
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn pod_labels(spec: &DalinTaskSpec) -> std::collections::HashMap<String, String> {
         let mut labels = std::collections::HashMap::new();
         labels.insert("app.dalin.ai/task".into(), spec.function_id.clone());

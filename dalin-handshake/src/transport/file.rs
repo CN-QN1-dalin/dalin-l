@@ -5,7 +5,7 @@
 
 use crate::error::{HandshakeError, Result};
 use crate::transport::Transport;
-use crate::types::{Discovery, PeerInfo, Message};
+use crate::types::{Discovery, Message, PeerInfo};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 

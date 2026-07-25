@@ -66,7 +66,7 @@ pub async fn build_task_store(
 }
 
 /// 简短可读的后端名（用于启动日志）。
-#[must_use] 
+#[must_use]
 pub fn backend_name(url: &str) -> &'static str {
     let url = url.trim();
     if url.is_empty() || url.starts_with("memory://") {

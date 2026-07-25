@@ -27,7 +27,7 @@ impl Default for BytecodeCompiler {
 }
 
 impl BytecodeCompiler {
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             functions: Vec::new(),

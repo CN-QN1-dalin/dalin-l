@@ -13,8 +13,7 @@ pub fn run_profile(input: &str, verbose: bool) -> Result<(), String> {
     let mut profiler = Profiler::new();
 
     // Profile: tokenize
-    let src =
-        std::fs::read_to_string(input).map_err(|e| format!("Cannot read '{input}': {e}"))?;
+    let src = std::fs::read_to_string(input).map_err(|e| format!("Cannot read '{input}': {e}"))?;
 
     profiler.start_call("tokenize");
     let mut lex = dalin_compiler::lexer::Lexer::new(&src);

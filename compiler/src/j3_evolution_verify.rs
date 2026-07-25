@@ -71,7 +71,7 @@ impl EvolutionScore {
     /// 按设计文档的加权公式计算综合评分
     ///
     /// 权重: [regression: 0.4, performance: 0.3, memory: 0.1, coverage: 0.1, governance: 0.1]
-    #[must_use] 
+    #[must_use]
     pub fn composite(&self) -> f64 {
         let regression_part = self.regression_pass_rate * W_REGRESSION;
 
@@ -96,13 +96,13 @@ impl EvolutionScore {
     /// 检查综合评分是否通过阈值
     ///
     /// 默认阈值为 0.8
-    #[must_use] 
+    #[must_use]
     pub fn passes_threshold(&self, threshold: f64) -> bool {
         self.composite() >= threshold
     }
 
     /// 检查是否通过默认阈值 0.8
-    #[must_use] 
+    #[must_use]
     pub fn passes_default(&self) -> bool {
         self.passes_threshold(0.8)
     }
@@ -187,7 +187,7 @@ impl Default for EvolutionVerificationEngine {
 }
 
 impl EvolutionVerificationEngine {
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             experiments: Vec::new(),
@@ -259,7 +259,7 @@ impl EvolutionVerificationEngine {
     }
 
     /// 综合评估所有已运行实验
-    #[must_use] 
+    #[must_use]
     pub fn summary_report(&self) -> String {
         if self.experiments.is_empty() {
             return "No experiments run yet.".to_string();
@@ -294,13 +294,13 @@ impl EvolutionVerificationEngine {
     }
 
     /// 返回已运行的实验数量
-    #[must_use] 
+    #[must_use]
     pub fn experiment_count(&self) -> usize {
         self.experiments.len()
     }
 
     /// 获取最后一次实验结果
-    #[must_use] 
+    #[must_use]
     pub fn last_result(&self) -> Option<&ABExperimentResult> {
         self.experiments.last()
     }

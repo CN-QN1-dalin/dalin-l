@@ -110,7 +110,7 @@ impl Default for Environment {
 }
 
 impl Environment {
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             vars: HashMap::new(),
@@ -118,7 +118,7 @@ impl Environment {
         }
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn child(&self) -> Self {
         Self {
             vars: HashMap::new(),
@@ -130,7 +130,7 @@ impl Environment {
         self.vars.insert(name.to_string(), value);
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn lookup(&self, name: &str) -> Option<Value> {
         if let Some(v) = self.vars.get(name) {
             return Some(v.clone());

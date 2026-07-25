@@ -2,7 +2,7 @@
 
 use crate::error::{HandshakeError, Result};
 use crate::transport::Transport;
-use crate::types::{AgentId, HandshakeState, SessionId, Session, Message, MessageType, PeerInfo};
+use crate::types::{AgentId, HandshakeState, Message, MessageType, PeerInfo, Session, SessionId};
 use std::collections::HashMap;
 use std::time::Duration;
 
@@ -64,19 +64,19 @@ impl HandshakeProtocol {
     }
 
     /// 获取当前状态
-    #[must_use] 
+    #[must_use]
     pub fn state(&self) -> &HandshakeState {
         &self.state
     }
 
     /// 获取活跃会话列表
-    #[must_use] 
+    #[must_use]
     pub fn sessions(&self) -> &HashMap<SessionId, Session> {
         &self.sessions
     }
 
     /// 获取传输层引用
-    #[must_use] 
+    #[must_use]
     pub fn transport(&self) -> &dyn Transport {
         &*self.transport
     }
@@ -396,7 +396,7 @@ impl HandshakeProtocol {
     }
 
     /// 获取 `agent_id`
-    #[must_use] 
+    #[must_use]
     pub fn agent_id(&self) -> &AgentId {
         &self.agent_id
     }

@@ -223,7 +223,7 @@ impl Default for ErrorClusteringEngine {
 }
 
 impl ErrorClusteringEngine {
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             errors: Vec::new(),
@@ -247,13 +247,13 @@ impl ErrorClusteringEngine {
     }
 
     /// 返回当前错误总数
-    #[must_use] 
+    #[must_use]
     pub fn error_count(&self) -> usize {
         self.errors.len()
     }
 
     /// 计算错误的语义向量（hash-based embedding）
-    #[must_use] 
+    #[must_use]
     pub fn embed(&self, error: &ErrorRecord) -> Vec<f32> {
         embed_error(error, EMBED_DIM)
     }
@@ -266,7 +266,7 @@ impl ErrorClusteringEngine {
     ///
     /// # Returns
     /// 每个簇包含的错误索引列表
-    #[must_use] 
+    #[must_use]
     pub fn cluster(&self, eps: f32, min_points: usize) -> Vec<Vec<usize>> {
         if self.errors.len() < 2 {
             return Vec::new();
@@ -279,7 +279,7 @@ impl ErrorClusteringEngine {
     /// 提取通用修复模板
     ///
     /// 对每个 cluster 取关键词交集，归纳共性修复策略
-    #[must_use] 
+    #[must_use]
     pub fn extract_templates(&self, clusters: &[Vec<usize>]) -> Vec<Template> {
         clusters
             .iter()

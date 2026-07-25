@@ -6,8 +6,7 @@ pub fn run(input: &str, output: &str, verbose: bool) -> Result<(), String> {
     let banner = util::banner("BUILD");
     println!("{banner}");
 
-    let src =
-        std::fs::read_to_string(input).map_err(|e| format!("Cannot read '{input}': {e}"))?;
+    let src = std::fs::read_to_string(input).map_err(|e| format!("Cannot read '{input}': {e}"))?;
     if verbose {
         println!("\n  [src] {} bytes", src.len());
     }

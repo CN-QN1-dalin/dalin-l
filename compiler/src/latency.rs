@@ -28,7 +28,7 @@ impl Default for LatencyVerificationResult {
 }
 
 impl LatencyVerificationResult {
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             errors: Vec::new(),
@@ -45,7 +45,7 @@ impl LatencyVerifier {
     /// 1) 收集所有函数的 @latency 声明
     /// 2) 对每个函数，分析其 body 中的调用链
     /// 3) 校验调用链总延迟 ≤ 声明延迟
-    #[must_use] 
+    #[must_use]
     pub fn verify(prog: &Program) -> LatencyVerificationResult {
         let mut result = LatencyVerificationResult::new();
 

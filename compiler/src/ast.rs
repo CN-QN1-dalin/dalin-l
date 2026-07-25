@@ -46,7 +46,7 @@ pub struct TypeRef {
 }
 
 impl TypeRef {
-    #[must_use] 
+    #[must_use]
     pub fn new(base: BaseType) -> Self {
         Self {
             base,
@@ -55,7 +55,7 @@ impl TypeRef {
         }
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn generic(base: BaseType, arg: TypeRef) -> Self {
         Self {
             base,
@@ -64,7 +64,7 @@ impl TypeRef {
         }
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn result(ok: TypeRef, err: TypeRef) -> Self {
         Self {
             base: BaseType::Result,
@@ -408,7 +408,7 @@ impl Default for Program {
 }
 
 impl Program {
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             statements: Vec::new(),
@@ -424,7 +424,7 @@ impl Program {
         self.statements.push(stmt);
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.statements.is_empty() && self.modules.is_empty()
     }

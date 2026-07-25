@@ -55,7 +55,7 @@ use crate::ty2::SevenChannelInferencer;
 ///
 /// @llm 扩展阶段：扫描 AST 中所有 `Stmt::Fn` { `llm_prompt`: Some(prompt), .. }，
 /// 调用 `LlmEngine.process_directive()` 生成函数体骨架，替换原 body。
-#[must_use] 
+#[must_use]
 pub fn compile_with_llm(src: &str) -> CompileResult {
     // Step 1: Lexer
     let mut lex = lexer::Lexer::new(src);

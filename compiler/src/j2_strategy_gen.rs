@@ -166,7 +166,7 @@ impl Default for StrategyGenerator {
 }
 
 impl StrategyGenerator {
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             fix_history: Vec::new(),
@@ -266,7 +266,7 @@ impl StrategyGenerator {
     }
 
     /// 当知识库中有 N+ 条未测试的新规则时触发热编译建议
-    #[must_use] 
+    #[must_use]
     pub fn suggest_hot_recompile(&self, threshold: u64) -> Option<HotRecompilePlan> {
         let new_rules = self.known_rules.iter().filter(|r| !r.tested).count() as u64;
 
@@ -294,19 +294,19 @@ impl StrategyGenerator {
     }
 
     /// 返回当前已知规则列表
-    #[must_use] 
+    #[must_use]
     pub fn known_rules(&self) -> &[RecoveryRule] {
         &self.known_rules
     }
 
     /// 返回修复历史长度
-    #[must_use] 
+    #[must_use]
     pub fn history_len(&self) -> usize {
         self.fix_history.len()
     }
 
     /// 返回所有修复记录
-    #[must_use] 
+    #[must_use]
     pub fn fix_history(&self) -> &[FixRecord] {
         &self.fix_history
     }

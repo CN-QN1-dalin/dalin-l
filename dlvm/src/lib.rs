@@ -136,7 +136,7 @@ impl std::fmt::Display for Value {
 }
 
 impl Value {
-    #[must_use] 
+    #[must_use]
     pub fn as_int(&self) -> Option<i64> {
         if let Value::Int(n) = self {
             Some(*n)
@@ -144,7 +144,7 @@ impl Value {
             None
         }
     }
-    #[must_use] 
+    #[must_use]
     pub fn as_float(&self) -> Option<f64> {
         if let Value::Float(n) = self {
             Some(*n)
@@ -152,7 +152,7 @@ impl Value {
             None
         }
     }
-    #[must_use] 
+    #[must_use]
     pub fn as_str(&self) -> Option<&str> {
         if let Value::Str(s) = self {
             Some(s)
@@ -204,7 +204,7 @@ impl std::fmt::Display for VmError {
 
 impl Vm {
     /// 创建新的 VM 实例，加载函数表。
-    #[must_use] 
+    #[must_use]
     pub fn new(functions: Vec<BytecodeFunction>) -> Self {
         let entry = functions.first().map_or(0, |_| 0);
         Self {

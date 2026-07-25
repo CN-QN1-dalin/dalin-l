@@ -27,13 +27,13 @@ pub struct InMemoryEventBus {
 }
 
 impl InMemoryEventBus {
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         let (tx, _rx) = broadcast::channel(1024);
         Self { tx }
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn subscribe(&self) -> broadcast::Receiver<TaskEvent> {
         self.tx.subscribe()
     }
@@ -82,7 +82,7 @@ impl NatsEventBus {
     }
 
     /// 事件 subject（便于测试 / 运维核对）。
-    #[must_use] 
+    #[must_use]
     pub fn subject(&self) -> &str {
         &self.subject
     }

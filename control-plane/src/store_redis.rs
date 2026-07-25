@@ -149,8 +149,7 @@ impl TaskStore for RedisTaskStore {
         let _: redis::RedisResult<()> = conn.set(&task_key, &serialized).await;
         let _: redis::RedisResult<()> = conn.set(&idem_redis, &id).await;
         if let Some(p) = parent {
-            let _: redis::RedisResult<()> =
-                conn.sadd(format!("{PREFIX}:children:{p}"), &id).await;
+            let _: redis::RedisResult<()> = conn.sadd(format!("{PREFIX}:children:{p}"), &id).await;
         }
         let _: redis::RedisResult<()> = conn.sadd(format!("{PREFIX}:tasks"), &id).await;
         self.publish_event(TaskEvent::Submitted(rec.clone())).await;
@@ -216,7 +215,9 @@ impl TaskStore for RedisTaskStore {
     }
 
     async fn list(&self, parent: Option<&str>) -> Vec<TaskRecord> {
-        if let Some(p) = parent { self.children_of(p).await } else {
+        if let Some(p) = parent {
+            self.children_of(p).await
+        } else {
             let mut conn = self.conn();
             let ids: Vec<String> = conn
                 .smembers(format!("{PREFIX}:tasks"))

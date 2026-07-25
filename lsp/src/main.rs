@@ -500,8 +500,10 @@ fn main() {
                     if let Some(doc) = params {
                         let uri = doc.get("uri").and_then(|u| u.as_str()).unwrap_or("");
                         let text = doc.get("text").and_then(|t| t.as_str()).unwrap_or("");
-                        let version =
-                            doc.get("version").and_then(serde_json::Value::as_i64).unwrap_or(1) as i32;
+                        let version = doc
+                            .get("version")
+                            .and_then(serde_json::Value::as_i64)
+                            .unwrap_or(1) as i32;
 
                         compiler.doc_manager.open(uri, version, text);
 
@@ -534,8 +536,10 @@ fn main() {
                                 .get("text")
                                 .and_then(|t| t.as_str())
                                 .unwrap_or("");
-                            let version =
-                                doc.get("version").and_then(serde_json::Value::as_i64).unwrap_or(1) as i32;
+                            let version = doc
+                                .get("version")
+                                .and_then(serde_json::Value::as_i64)
+                                .unwrap_or(1) as i32;
                             compiler.doc_manager.change(uri, version, text);
 
                             // Push updated diagnostics
@@ -569,7 +573,9 @@ fn main() {
                         .unwrap_or("");
                     let _position = text_doc.and_then(|d| d.get("position"));
 
-                    let content = if let Some(c) = compiler.doc_manager.get_content(uri) { c.to_string() } else {
+                    let content = if let Some(c) = compiler.doc_manager.get_content(uri) {
+                        c.to_string()
+                    } else {
                         send_response(
                             &mut stdout,
                             &json!({"jsonrpc": "2.0", "id": req.get("id"), "result": json!([])}),
@@ -606,7 +612,9 @@ fn main() {
                         .and_then(serde_json::Value::as_u64)
                         .unwrap_or(0) as usize;
 
-                    let content = if let Some(c) = compiler.doc_manager.get_content(uri) { c.to_string() } else {
+                    let content = if let Some(c) = compiler.doc_manager.get_content(uri) {
+                        c.to_string()
+                    } else {
                         send_response(
                             &mut stdout,
                             &json!({"jsonrpc": "2.0", "id": req.get("id"), "result": null}),
@@ -630,7 +638,9 @@ fn main() {
                         .and_then(|d| d.get("uri").and_then(|u| u.as_str()))
                         .unwrap_or("");
 
-                    let content = if let Some(c) = compiler.doc_manager.get_content(uri) { c.to_string() } else {
+                    let content = if let Some(c) = compiler.doc_manager.get_content(uri) {
+                        c.to_string()
+                    } else {
                         send_response(
                             &mut stdout,
                             &json!({"jsonrpc": "2.0", "id": req.get("id"), "result": null}),

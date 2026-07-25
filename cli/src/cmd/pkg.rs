@@ -112,7 +112,10 @@ fn cmd_init(args: &HashMap<String, String>) -> Result<(), String> {
     let path_str = args.get("path").cloned().unwrap_or_else(|| ".".to_string());
     let pbuf = PathBuf::from(&path_str);
     let name = args.get("name").cloned().unwrap_or_else(|| {
-        pbuf.file_name().map_or_else(|| "my-dalin-project".to_string(), |s| s.to_string_lossy().to_string())
+        pbuf.file_name().map_or_else(
+            || "my-dalin-project".to_string(),
+            |s| s.to_string_lossy().to_string(),
+        )
     });
     let lib_only = args.get("lib").is_some_and(|v| v == "true");
 
@@ -132,8 +135,7 @@ fn cmd_init(args: &HashMap<String, String>) -> Result<(), String> {
     }
 
     fs::create_dir_all(out_dir.join("src")).map_err(|e| format!("Cannot create src/: {e}"))?;
-    fs::create_dir_all(out_dir.join("tests"))
-        .map_err(|e| format!("Cannot create tests/: {e}"))?;
+    fs::create_dir_all(out_dir.join("tests")).map_err(|e| format!("Cannot create tests/: {e}"))?;
 
     let toml_content = format!(
         "[package]\nname = \"{name}\"\nversion = \"0.1.0\"\nedition = \"2026\"\n\n[dependencies]\n"
@@ -207,9 +209,7 @@ fn cmd_add(args: &HashMap<String, String>) -> Result<(), String> {
         None => String::new(),
     };
 
-    println!(
-        "  Added {name} {version}{src_display} (optional={optional})"
-    );
+    println!("  Added {name} {version}{src_display} (optional={optional})");
     Ok(())
 }
 
@@ -335,7 +335,9 @@ fn cmd_build(_args: &HashMap<String, String>) -> Result<(), String> {
     println!("  Building stdlib...");
     let stdlib_path = PathBuf::from("stdlib");
     if stdlib_path.exists() && stdlib_path.is_dir() {
-        let entries = if let Ok(e) = fs::read_dir(&stdlib_path) { e } else {
+        let entries = if let Ok(e) = fs::read_dir(&stdlib_path) {
+            e
+        } else {
             println!("  Note: could not read stdlib/");
             println!("\n  Build finished successfully!");
             return Ok(());

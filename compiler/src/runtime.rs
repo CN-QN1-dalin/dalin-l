@@ -246,7 +246,7 @@ impl Default for Environment {
 }
 
 impl Environment {
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             frames: vec![HashMap::new()],
@@ -350,7 +350,7 @@ impl Default for CognitiveLoopMachine {
 }
 
 impl CognitiveLoopMachine {
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             current_phase: CognitiveLoopPhase::Idle,
@@ -409,7 +409,7 @@ pub struct GovernanceChecker {
 }
 
 impl GovernanceChecker {
-    #[must_use] 
+    #[must_use]
     pub fn new(session_level: GovernanceLevel) -> Self {
         Self {
             session_level,
@@ -427,8 +427,9 @@ impl GovernanceChecker {
             (GovernanceLevel::Approve, GovernanceLevel::Execute) => false,
             (GovernanceLevel::Approve, _) => true,
             // Suggest 只能执行 Prepare/Suggest
-            (GovernanceLevel::Suggest,
-GovernanceLevel::Approve | GovernanceLevel::Execute) => false,
+            (GovernanceLevel::Suggest, GovernanceLevel::Approve | GovernanceLevel::Execute) => {
+                false
+            }
             (GovernanceLevel::Suggest, _) => true,
             // Prepare 只能执行 Prepare
             (GovernanceLevel::Prepare, GovernanceLevel::Prepare) => true,
@@ -464,7 +465,7 @@ impl Default for TimeMonitor {
 }
 
 impl TimeMonitor {
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             start: Instant::now(),
@@ -567,7 +568,7 @@ pub struct Runtime {
 }
 
 impl Runtime {
-    #[must_use] 
+    #[must_use]
     pub fn new(session_governance: GovernanceLevel) -> Self {
         Self {
             env: Environment::new(),
@@ -1417,7 +1418,7 @@ pub struct SelfHealingRuntime {
 }
 
 impl SelfHealingRuntime {
-    #[must_use] 
+    #[must_use]
     pub fn new(session_governance: GovernanceLevel) -> Self {
         Self {
             inner: Runtime::new(session_governance),
@@ -1529,7 +1530,7 @@ impl SelfHealingRuntime {
     }
 
     /// 返回恢复事件总数
-    #[must_use] 
+    #[must_use]
     pub fn recovery_count(&self) -> usize {
         self.recovery_log.len()
     }
@@ -1543,7 +1544,7 @@ pub struct ConfidenceCalibrator {
 }
 
 impl ConfidenceCalibrator {
-    #[must_use] 
+    #[must_use]
     pub fn new(step_size: f64) -> Self {
         Self {
             calibration_table: HashMap::new(),
@@ -1566,7 +1567,7 @@ impl ConfidenceCalibrator {
     }
 
     /// 计算校准后的置信度
-    #[must_use] 
+    #[must_use]
     pub fn calibrated_confidence(&self, fn_name: &str) -> f64 {
         if let Some(entries) = self.calibration_table.get(fn_name) {
             if entries.is_empty() {
@@ -1582,7 +1583,7 @@ impl ConfidenceCalibrator {
     }
 
     /// 获取某个函数的历史统计
-    #[must_use] 
+    #[must_use]
     pub fn stats(&self, fn_name: &str) -> Option<(usize, f64)> {
         self.calibration_table.get(fn_name).map(|entries| {
             let total = entries.len();
@@ -1599,7 +1600,7 @@ pub struct RuntimeSelfEvolution {
 }
 
 impl RuntimeSelfEvolution {
-    #[must_use] 
+    #[must_use]
     pub fn new(backend: Box<dyn crate::qn1::Qn1Backend>) -> Self {
         Self {
             qn1_generator: Qn1CodeGenerator::new(backend),
@@ -1607,7 +1608,7 @@ impl RuntimeSelfEvolution {
         }
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn new_mock() -> Self {
         Self {
             qn1_generator: Qn1CodeGenerator::new_mock(),

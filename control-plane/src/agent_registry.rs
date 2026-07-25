@@ -43,7 +43,7 @@ impl Default for NodeRegistry {
 }
 
 impl NodeRegistry {
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             nodes: Mutex::new(HashMap::new()),
