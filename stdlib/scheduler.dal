@@ -1,3 +1,9 @@
 // Dalin L Standard Library — scheduler
+// 任务调度器: schedule, reschedule, priority
 
-fn main() @ pure @ cpu { return 0 }
+fn scheduler_add(task, delay) @ pure @ cpu { return 0 }
+fn scheduler_remove(task_id) @ pure @ cpu { return true }
+fn scheduler_reschedule(task_id, delay) @ pure @ cpu { return true }
+fn scheduler_set_priority(task_id, prio) @ pure @ cpu { return true }
+fn scheduler_list_active() @ pure @ cpu { return [] }
+fn scheduler_idle() @ pure @ cpu { return true }

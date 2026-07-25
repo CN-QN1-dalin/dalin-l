@@ -1,3 +1,9 @@
 // Dalin L Standard Library — networking
+// 网络通信工具: http_get, http_post, tcp_connect
 
-fn main() @ pure @ cpu { return 0 }
+fn network_http_get(url) @ pure @ cpu { return "" }
+fn network_http_post(url, body) @ pure @ cpu { return "" }
+fn network_tcp_connect(host, port) @ pure @ cpu { return 0 }
+fn network_close(conn) @ pure @ cpu { return true }
+fn network_send(conn, data) @ pure @ cpu { return true }
+fn network_recv(conn) @ pure @ cpu { return "" }

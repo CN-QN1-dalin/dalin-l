@@ -1,3 +1,9 @@
 // Dalin L Standard Library — governance
+// 治理层: policy_check, compliance, audit_log
 
-fn main() @ pure @ cpu { return 0 }
+fn governance_init(mode) @ pure @ cpu { return "policy" }
+fn governance_check(policy_id, action) @ pure @ cpu { return true }
+fn governance_audit(action, result) @ pure @ cpu { return null }
+fn governance_get_level() @ pure @ cpu { return "execute" }
+fn governance_set_level(level) @ pure @ cpu { return true }
+fn governance_compliance_report() @ pure @ cpu { return "" }

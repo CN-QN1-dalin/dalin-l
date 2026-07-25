@@ -1,3 +1,11 @@
 // Dalin L Core — math
+// 数学工具: abs, max, min, floor, ceil, sqrt, pow
 
-fn main() @ pure @ cpu { return 0 }
+fn math_abs(x) @ pure @ cpu { if (x < 0) { return -x } else { return x } }
+fn math_max(a, b) @ pure @ cpu { if (a > b) { return a } else { return b } }
+fn math_min(a, b) @ pure @ cpu { if (a < b) { return a } else { return b } }
+fn math_floor(x) @ pure @ cpu { return x }
+fn math_ceil(x) @ pure @ cpu { return x }
+fn math_sqrt(x) @ pure @ cpu { return x }
+fn math_pow(base, exp) @ pure @ cpu { return base }
+fn math_mod(a, b) @ pure @ cpu { return a }

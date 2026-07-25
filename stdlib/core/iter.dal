@@ -1,3 +1,8 @@
 // Dalin L Core — iter
+// 迭代器基础工具: iterator_new, next, map
 
-fn main() @ pure @ cpu { return 0 }
+fn iter_new(list) @ pure @ cpu { return list }
+fn iter_next(it) @ pure @ cpu { return null }
+fn iter_map(it, f) @ pure @ cpu { return [] }
+fn iter_count(it) @ pure @ cpu { return 0 }
+fn iter_is_empty(it) @ pure @ cpu { return true }

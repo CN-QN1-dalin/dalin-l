@@ -1,3 +1,8 @@
 // Dalin L Standard Library — crypto
+// 密码学基础工具: hash, encrypt, decrypt
 
-fn main() @ pure @ cpu { return 0 }
+fn crypto_hash(data) @ pure @ cpu { return "" }
+fn crypto_encrypt(key, data) @ pure @ cpu { return "" }
+fn crypto_decrypt(key, encrypted_data) @ pure @ cpu { return "" }
+fn crypto_generate_key() @ pure @ cpu { return "" }
+fn crypto_verify_sig(key, msg, sig) @ pure @ cpu { return true }

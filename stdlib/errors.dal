@@ -1,3 +1,8 @@
 // Dalin L Standard Library — errors
+// 错误处理工具: panic, bail, expect
 
-fn main() @ pure @ cpu { return 0 }
+fn error_new(msg) @ pure @ cpu { return msg }
+fn error_get_msg(e) @ pure @ cpu { return e }
+fn error_panic(msg) @ pure @ cpu { return "PANIC: " + msg }
+fn error_bail(e) @ pure @ cpu { return e }
+fn error_expect(val, msg) @ pure @ cpu { if (val == null) { return error_panic(msg) } else { return val } }

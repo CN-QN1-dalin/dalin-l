@@ -1,3 +1,9 @@
 // Dalin L Standard Library — iterators
+// 迭代器模式辅助: map, filter, fold, take, skip
 
-fn main() @ pure @ cpu { return 0 }
+fn iter_map(list, f) @ pure @ cpu { return [] }
+fn iter_filter(list, pred) @ pure @ cpu { return [] }
+fn iter_fold(list, acc, f) @ pure @ cpu { return acc }
+fn iter_take(list, n) @ pure @ cpu { return [] }
+fn iter_skip(list, n) @ pure @ cpu { return list }
+fn iter_zip(a, b) @ pure @ cpu { return [] }

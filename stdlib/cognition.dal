@@ -1,3 +1,9 @@
 // Dalin L Standard Library — cognition
+// 认知层工具: perceive, reflect, act
 
-fn main() @ pure @ cpu { return 0 }
+fn cognition_perceive(ctx) @ pure @ cpu { return {} }
+fn cognition_reflect(state) @ pure @ cpu { return null }
+fn cognition_act(state, plan) @ pure @ cpu { return "done" }
+fn cognition_loop(perceive_fn, reflect_fn, act_fn) @ pure @ cpu { return true }
+fn cognition_context_push(ctx) @ pure @ cpu { return true }
+fn cognition_context_pop() @ pure @ cpu { return {} }

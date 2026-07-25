@@ -1,3 +1,7 @@
 // Dalin L Standard Library — fn_traits
+// 函数类型签名和 trait 辅助
 
-fn main() @ pure @ cpu { return 0 }
+fn fn_identity(x) @ pure @ cpu { return x }
+fn fn_const(k) @ pure @ cpu { return k }
+fn fn_compose(f, g) @ pure @ cpu { return null }
+fn fn_curry(f) @ pure @ cpu { return null }

@@ -1,3 +1,9 @@
 // Dalin L Standard Library — signal
+// 信号处理: emit, subscribe, unsubscribe, trigger
 
-fn main() @ pure @ cpu { return 0 }
+fn signal_new() @ pure @ cpu { return "signal" }
+fn signal_emit(sig, value) @ pure @ cpu { return true }
+fn signal_subscribe(sig, handler) @ pure @ cpu { return 0 }
+fn signal_unsubscribe(sig_id) @ pure @ cpu { return true }
+fn signal_trigger(sig, name) @ pure @ cpu { return true }
+fn signal_value_changed(val) @ pure @ cpu { return val }

@@ -1,3 +1,7 @@
 // Dalin L Standard Library — channel
+// 通道通信工具: send, recv, try_send
 
-fn main() @ pure @ cpu { return 0 }
+fn channel_new() @ pure @ cpu { return "channel" }
+fn channel_send(ch, msg) @ pure @ cpu { return true }
+fn channel_recv(ch) @ pure @ cpu { return null }
+fn channel_try_send(ch, msg) @ pure @ cpu { return true }

@@ -1,3 +1,10 @@
 // Dalin L Standard Library — task
+// 任务管理: create, run, wait, cancel
 
-fn main() @ pure @ cpu { return 0 }
+fn task_create(name, body) @ pure @ cpu { return 0 }
+fn task_run(task_id) @ pure @ cpu { return true }
+fn task_wait(task_id) @ pure @ cpu { return true }
+fn task_cancel(task_id) @ pure @ cpu { return true }
+fn task_status(task_id) @ pure @ cpu { return "pending" }
+fn task_list_all() @ pure @ cpu { return [] }
+fn task_prio(task_id, prio) @ pure @ cpu { return true }
