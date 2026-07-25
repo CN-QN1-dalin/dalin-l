@@ -12,8 +12,7 @@ struct TestMessage {
 }
 
 fn send_and_recv(socket_path: &str, msg: TestMessage) -> Result<String, String> {
-    let mut stream =
-        UnixStream::connect(socket_path).map_err(|e| format!("Connect error: {e}"))?;
+    let mut stream = UnixStream::connect(socket_path).map_err(|e| format!("Connect error: {e}"))?;
 
     let json = serde_json::to_string(&msg).map_err(|e| format!("Serialize error: {e}"))?;
     stream
