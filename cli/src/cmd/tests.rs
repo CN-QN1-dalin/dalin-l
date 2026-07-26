@@ -34,8 +34,8 @@ pub fn run() -> Result<(), String> {
                 Ok(tokens) => {
                     let mut p = parser::Parser::new(tokens);
                     match p.parse() {
-                        Ok(prog) => {
-                            if !prog.is_empty() {
+                        Ok((prog, _errs)) => {
+                            if !prog.statements.is_empty() {
                                 passed += 1;
                                 println!("  [parser] {}: ok", $name);
                             } else {
@@ -64,7 +64,7 @@ pub fn run() -> Result<(), String> {
                 Ok(tokens) => {
                     let mut p = parser::Parser::new(tokens);
                     match p.parse() {
-                        Ok(prog) => {
+                        Ok((prog, _errs)) => {
                             let mut infer = ty::TypeInferencer::new();
                             let types = infer.infer_program(&prog);
                             let mut ok = true;

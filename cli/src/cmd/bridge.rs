@@ -80,8 +80,9 @@ pub fn handle_message(msg: &BridgeMessage) -> BridgeMessage {
                         use dalin_compiler::parser;
                         let stmt_count = match lexer::Lexer::new(code).tokenize() {
                             Ok(tokens) => {
-                                let prog = parser::Parser::new(tokens).parse().ok();
-                                prog.map_or(0, |p| p.statements.len())
+                                let (p, _) =
+                                    parser::Parser::new(tokens).parse().ok().unwrap_or_default();
+                                p.statements.len()
                             }
                             Err(_) => 0,
                         };

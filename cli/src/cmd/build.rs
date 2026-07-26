@@ -40,7 +40,7 @@ pub fn run(input: &str, output: &str, verbose: bool) -> Result<(), String> {
         util::section("Parser");
         let mut lex = lexer::Lexer::new(&src);
         let tokens = lex.tokenize().map_err(|e| format!("{e}"))?;
-        let prog = parser::Parser::new(tokens)
+        let (prog, _errs) = parser::Parser::new(tokens)
             .parse()
             .map_err(|e| format!("{e}"))?;
         println!("  ✅ {} statements", prog.statements.len());
@@ -51,7 +51,7 @@ pub fn run(input: &str, output: &str, verbose: bool) -> Result<(), String> {
         util::section("Type Inference");
         let mut lex = lexer::Lexer::new(&src);
         let tokens = lex.tokenize().map_err(|e| format!("{e}"))?;
-        let prog = parser::Parser::new(tokens)
+        let (prog, _errs) = parser::Parser::new(tokens)
             .parse()
             .map_err(|e| format!("{e}"))?;
         let mut infer = ty::TypeInferencer::new();
@@ -70,7 +70,7 @@ pub fn run(input: &str, output: &str, verbose: bool) -> Result<(), String> {
         util::section("Bytecode Compiler");
         let mut lex = lexer::Lexer::new(&src);
         let tokens = lex.tokenize().map_err(|e| format!("{e}"))?;
-        let prog = parser::Parser::new(tokens)
+        let (prog, _errs) = parser::Parser::new(tokens)
             .parse()
             .map_err(|e| format!("{e}"))?;
         let funcs = BytecodeCompiler::new().compile(&prog);

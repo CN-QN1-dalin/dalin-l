@@ -41,7 +41,7 @@ mod tests {
     fn compiler_spec_converts_to_proto() {
         let src = "fn worker() @ spawn @ cpu { return 1 }";
         let toks = Lexer::new(src).tokenize().unwrap();
-        let prog = Parser::new(toks).parse().unwrap();
+        let prog = Parser::new(toks).parse().unwrap().0;
         let specs = from_program(&prog);
         assert!(!specs.is_empty(), "应至少为 worker 生成一个 TaskSpec");
         let pb: PbTaskSpec = (&specs[0]).into();

@@ -47,7 +47,7 @@ pub fn run() -> Result<(), String> {
             println!("\n--- 2. Parser ---");
             let mut p = parser::Parser::new(tokens);
             match p.parse() {
-                Ok(prog) => {
+                Ok((prog, _errs)) => {
                     println!("  ✅ Parser OK ({} statements)", prog.statements.len());
 
                     // Step 3: Type Inference

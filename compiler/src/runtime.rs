@@ -1722,7 +1722,8 @@ mod tests {
         let mut lex = Lexer::new(src);
         let tokens = lex.tokenize().expect("lex failed");
         let mut parser = Parser::new(tokens);
-        parser.parse().expect("parse failed")
+        let (prog, _) = parser.parse().expect("parse failed");
+        prog
     }
 
     // ── Core Expression Tests ──

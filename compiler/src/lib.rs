@@ -71,7 +71,7 @@ pub fn compile_with_llm(src: &str) -> CompileResult {
     // Step 2: Parser
     let mut parser = parser::Parser::new(tokens);
     let prog = match parser.parse() {
-        Ok(p) => p,
+        Ok((p, _)) => p,
         Err(e) => return CompileResult::Err(format!("{e}")),
     };
 

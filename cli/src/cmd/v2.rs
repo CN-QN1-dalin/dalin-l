@@ -36,7 +36,7 @@ pub fn run() -> Result<(), String> {
         Ok(tokens) => {
             let mut parser = parser::Parser::new(tokens);
             match parser.parse() {
-                Ok(prog) => {
+                Ok((prog, _errs)) => {
                     let mut infer = ty2::SevenChannelInferencer::new();
                     infer.infer_program(&prog);
                     print!("{}", infer.print_report());

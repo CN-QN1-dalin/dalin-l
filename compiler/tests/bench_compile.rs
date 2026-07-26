@@ -32,7 +32,7 @@ fn bench_parse(src: &str) -> (usize, u128) {
     let start = Instant::now();
     let tokens = Lexer::new(src).tokenize().unwrap_or_default();
     let tok_len = tokens.len();
-    let _prog = Parser::new(tokens).parse().unwrap_or_default();
+    let _prog = Parser::new(tokens).parse().unwrap_or_default().0;
     let duration = start.elapsed().as_micros();
     (tok_len, duration)
 }
@@ -186,16 +186,19 @@ fn bench_ty2_full_inference_fast() {
 
     let prog_str = generate_sample_program(5);
     let tokens = lexer::Lexer::new(&prog_str).tokenize().unwrap_or_default();
-    let prog = parser::Parser::new(tokens)
-        .parse()
-        .unwrap_or_else(|_| ast::Program {
-            statements: Vec::new(),
-            derive_attrs: Vec::new(),
-            macros: Vec::new(),
-            modules: Vec::new(),
-            uses: Vec::new(),
-            package_manifest: None,
-        });
+    let (prog, _) = parser::Parser::new(tokens).parse().unwrap_or_else(|_| {
+        (
+            ast::Program {
+                statements: Vec::new(),
+                derive_attrs: Vec::new(),
+                macros: Vec::new(),
+                modules: Vec::new(),
+                uses: Vec::new(),
+                package_manifest: None,
+            },
+            Vec::new(),
+        )
+    });
 
     // Type inference on a small program should complete quickly
     let start = Instant::now();

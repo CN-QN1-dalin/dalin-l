@@ -233,7 +233,7 @@ impl DebugServer {
             .map_err(|e| format!("Lex error [{}:{}]: {}", e.line, e.column, e.message))?;
 
         // Parse
-        let prog = Parser::new(tokens)
+        let (prog, _) = Parser::new(tokens)
             .parse()
             .map_err(|e| format!("Parse error [{}:{}]: {}", e.line, e.column, e.message))?;
         self.program = Some(prog.clone());

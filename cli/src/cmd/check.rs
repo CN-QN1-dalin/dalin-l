@@ -19,7 +19,7 @@ pub fn run(input: &str, verbose: bool, json: bool, quality: bool) -> Result<(), 
 
             let mut p = parser::Parser::new(tokens);
             match p.parse() {
-                Ok(prog) => {
+                Ok((prog, _errs)) => {
                     println!("  ✅ Parser passed ({} stmts)", prog.statements.len());
 
                     if verbose {

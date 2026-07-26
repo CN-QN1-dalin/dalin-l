@@ -217,7 +217,7 @@ impl StdLibLoader {
 
         let mut parser = Parser::new(tokens);
         let prog = match parser.parse() {
-            Ok(p) => p,
+            Ok((p, _)) => p,
             Err(e) => {
                 return Err(format!(
                     "{} 语法错误 [{}:{}]: {}",

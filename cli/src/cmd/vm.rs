@@ -38,7 +38,7 @@ pub fn run(mode: &str) -> Result<(), String> {
         Ok(tokens) => {
             let mut parser = parser::Parser::new(tokens);
             match parser.parse() {
-                Ok(prog) => {
+                Ok((prog, _errs)) => {
                     if mode == "bytecode" {
                         let mut compiler = BytecodeCompiler::new();
                         let funcs = compiler.compile(&prog);

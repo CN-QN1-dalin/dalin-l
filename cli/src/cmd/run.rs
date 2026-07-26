@@ -52,7 +52,7 @@ pub fn run(input: &str, watch: bool, verbose: bool) -> Result<(), String> {
             Ok(tokens) => {
                 let mut p = parser::Parser::new(tokens);
                 match p.parse() {
-                    Ok(prog) => {
+                    Ok((prog, _errs)) => {
                         let _ =
                             util::ok("compile", &format!("{} statements", prog.statements.len()));
 

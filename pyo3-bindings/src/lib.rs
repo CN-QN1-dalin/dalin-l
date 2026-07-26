@@ -17,7 +17,7 @@ fn compile(source: &str) -> PyResult<String> {
         .tokenize()
         .map_err(|e| PyErr::new::<pyo3::exceptions::PySyntaxError, _>(format!("词法错误: {e}")))?;
     let mut parser = Parser::new(tokens);
-    let prog = parser
+    let (prog, _errs) = parser
         .parse()
         .map_err(|e| PyErr::new::<pyo3::exceptions::PySyntaxError, _>(format!("语法错误: {e}")))?;
     let names: Vec<String> = prog.statements.iter().map(|s| format!("{s:?}")).collect();

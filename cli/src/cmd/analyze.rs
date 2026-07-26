@@ -15,7 +15,7 @@ pub fn run(input: &str, verbose: bool, _json: bool) -> Result<(), String> {
     let tokens = lex.tokenize().map_err(|e| format!("Lexer: {e}"))?;
     let token_count = tokens.len();
 
-    let prog = parser::Parser::new(tokens)
+    let (prog, _errs) = parser::Parser::new(tokens)
         .parse()
         .map_err(|e| format!("Parse: {e}"))?;
 

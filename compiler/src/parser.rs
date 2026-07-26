@@ -33,7 +33,51 @@ pub type AnnotationResult = Result<
     ParseError,
 >;
 
-#[derive(Debug)]
+/// Multi-error parse result: (program, errors)
+/// Errors are collected so compilation can proceed past syntax mistakes.
+pub type ParseResult = Result<(Program, Vec<ParseError>), ParseError>;
+
+#[derive(Debug, Clone)]
+pub struct RecoveryError {
+    pub error: ParseError,
+    pub recovered: bool,
+}
+
+impl RecoveryError {
+    #[must_use]
+    pub fn unrecoverable(err: ParseError) -> Self {
+        Self {
+            error: err,
+            recovered: false,
+        }
+    }
+    #[must_use]
+    pub fn recoverable(err: ParseError) -> Self {
+        Self {
+            error: err,
+            recovered: true,
+        }
+    }
+}
+
+impl std::fmt::Display for RecoveryError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "[{}:{}] {} ({})",
+            self.error.line,
+            self.error.column,
+            self.error.message,
+            if self.recovered {
+                "recovered"
+            } else {
+                "unrecoverable"
+            }
+        )
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct ParseError {
     pub message: String,
     pub line: usize,
@@ -49,12 +93,82 @@ impl std::fmt::Display for ParseError {
 pub struct Parser {
     tokens: Vec<Token>,
     pos: usize,
+    errors: Vec<ParseError>,
 }
 
 impl Parser {
     #[must_use]
     pub fn new(tokens: Vec<Token>) -> Self {
-        Self { tokens, pos: 0 }
+        Self {
+            tokens,
+            pos: 0,
+            errors: Vec::new(),
+        }
+    }
+
+    /// Get all collected parse errors
+    #[must_use]
+    pub fn errors(&self) -> &[ParseError] {
+        &self.errors
+    }
+
+    /// Record an error and decide if recovery is possible
+    fn record_error(&mut self, message: String, line: usize, column: usize) {
+        self.errors.push(ParseError {
+            message,
+            line,
+            column,
+        });
+    }
+
+    /// Skip to next synchronization point in statement context.
+    /// Sync points: `;`, `fn`, `let`, `mut`, `return`, `}`, `}`, `for`, `while`, `if`, `match`, `struct`, `enum`, `trait`, `impl`, `use`, `export`, `channel`, `spawn`, `assert`, `async`, `try`, `const`, `type`
+    fn skip_to_sync(&mut self, stop_at_brace: bool) {
+        loop {
+            if self.check(Eof) {
+                return;
+            }
+            match self.current().token_type {
+                Semicolon => {
+                    self.advance(); // consume the ;
+                    return;
+                }
+                RightBrace if stop_at_brace => return,
+                KeywordFn | KeywordLet | KeywordMut | KeywordReturn | KeywordFor | KeywordWhile
+                | KeywordIf | KeywordMatch | KeywordStruct | KeywordEnum | KeywordTrait
+                | KeywordImpl | KeywordUse | KeywordExport | KeywordChannel | KeywordSpawn
+                | KeywordAssert | KeywordAsync | KeywordTry | KeywordConst | KeywordType
+                | RightBrace => return,
+                _ => {
+                    self.advance();
+                }
+            }
+        }
+    }
+
+    /// Skip to sync in expression context (inside parens/brackets)
+    fn skip_expr_to_sync(&mut self) {
+        // Simple heuristic: skip tokens until we hit a statement sync point or expression terminator
+        loop {
+            if self.check(Eof)
+                || self.check(Semicolon)
+                || self.check(RightParen)
+                || self.check(RightBracket)
+                || self.check(RightBrace)
+            {
+                return;
+            }
+            // Check for statement-level keywords that signal end of expression
+            match self.current().token_type {
+                KeywordFn | KeywordLet | KeywordMut | KeywordReturn | KeywordFor | KeywordWhile
+                | KeywordIf | KeywordMatch | KeywordStruct | KeywordEnum | KeywordTrait
+                | KeywordImpl | KeywordUse | KeywordExport | KeywordChannel | KeywordSpawn
+                | KeywordAssert | KeywordAsync | KeywordTry | KeywordConst | KeywordType => return,
+                _ => {
+                    self.advance();
+                }
+            }
+        }
     }
 
     fn current(&self) -> &Token {
@@ -132,15 +246,22 @@ impl Parser {
     //  主要入口
     // ═══════════════════════════════
 
-    pub fn parse(&mut self) -> Result<Program, ParseError> {
+    pub fn parse(&mut self) -> Result<(Program, Vec<ParseError>), ParseError> {
         let mut prog = Program::new();
         while !self.check(Eof) {
-            let stmt = self.parse_statement()?;
-            if let Some(s) = stmt {
-                prog.add(s);
+            match self.parse_statement() {
+                Ok(Some(s)) => prog.add(s),
+                Err(_) => {
+                    // Error already recorded; skip to sync point
+                    self.skip_to_sync(false);
+                }
+                Ok(None) => {
+                    self.advance();
+                }
             }
         }
-        Ok(prog)
+        let errors = std::mem::take(&mut self.errors);
+        Ok((prog, errors))
     }
 
     fn parse_statement(&mut self) -> Result<Option<Stmt>, ParseError> {
@@ -243,7 +364,23 @@ impl Parser {
 
     fn parse_let(&mut self) -> Result<Stmt, ParseError> {
         let mutable = self.match_token(KeywordMut);
-        let name = self.expect(Ident, "identifier")?.value.clone();
+        let name_tok = match self.current().token_type {
+            Ident => self.advance(),
+            _ => {
+                self.record_error(
+                    "Expected identifier after 'let'".into(),
+                    self.current().line,
+                    self.current().column,
+                );
+                return Ok(Stmt::Let {
+                    name: String::new(),
+                    value: None,
+                    type_annotation: None,
+                    mutable,
+                });
+            }
+        };
+        let name = name_tok.value.clone();
         let type_ann = if self.match_token(Colon) {
             Some(self.parse_type()?)
         } else {
@@ -263,7 +400,23 @@ impl Parser {
     }
 
     fn parse_mut_let(&mut self) -> Result<Stmt, ParseError> {
-        let name = self.expect(Ident, "identifier")?.value.clone();
+        let name_tok = match self.current().token_type {
+            Ident => self.advance(),
+            _ => {
+                self.record_error(
+                    "Expected identifier after 'mut'".into(),
+                    self.current().line,
+                    self.current().column,
+                );
+                return Ok(Stmt::Let {
+                    name: String::new(),
+                    value: None,
+                    type_annotation: None,
+                    mutable: true,
+                });
+            }
+        };
+        let name = name_tok.value.clone();
         let type_ann = if self.match_token(Colon) {
             Some(self.parse_type()?)
         } else {
@@ -751,8 +904,18 @@ impl Parser {
         if self.check(RightBrace) || self.check(Semicolon) {
             Ok(Stmt::Return(None))
         } else {
-            let expr = self.parse_expression()?;
-            Ok(Stmt::Return(Some(Box::new(expr))))
+            match self.parse_expression() {
+                Ok(expr) => Ok(Stmt::Return(Some(Box::new(expr)))),
+                Err(e) => {
+                    self.skip_expr_to_sync();
+                    self.record_error(
+                        format!("Failed to parse return expression: {}", e.message),
+                        e.line,
+                        e.column,
+                    );
+                    Ok(Stmt::Return(None))
+                }
+            }
         }
     }
 
@@ -850,14 +1013,34 @@ impl Parser {
     }
 
     fn parse_block(&mut self) -> Result<Vec<Stmt>, ParseError> {
-        self.expect(LeftBrace, "'{'")?;
+        match self.current().token_type {
+            LeftBrace => {
+                self.advance();
+            }
+            _ => {
+                self.record_error(
+                    "Expected '{' for block".into(),
+                    self.current().line,
+                    self.current().column,
+                );
+                return Ok(Vec::new());
+            }
+        }
         let mut stmts = Vec::new();
         while !self.check(RightBrace) && !self.check(Eof) {
             if let Some(s) = self.parse_statement()? {
                 stmts.push(s);
             }
         }
-        self.expect(RightBrace, "'}'")?;
+        if self.check(RightBrace) {
+            self.advance();
+        } else {
+            self.record_error(
+                "Expected '}' to close block".into(),
+                self.current().line,
+                self.current().column,
+            );
+        }
         Ok(stmts)
     }
 
@@ -1018,7 +1201,21 @@ impl Parser {
 
         let mut ops = Vec::new();
         while self.match_token(Pipe) {
-            let name = self.expect(Ident, "pipe function name")?.value.clone();
+            let name = match self.current().token_type {
+                Ident => {
+                    let tok = self.advance();
+                    tok.value
+                }
+                _ => {
+                    self.record_error(
+                        "Expected pipe function name".into(),
+                        self.current().line,
+                        self.current().column,
+                    );
+                    self.skip_expr_to_sync();
+                    return Ok(left);
+                }
+            };
             ops.push((name.clone(), Expr::Ident(name)));
         }
 
@@ -1257,11 +1454,23 @@ impl Parser {
             loop {
                 // Member access: obj.field
                 if self.match_token(Dot) {
-                    let member = self.expect(Ident, "field name")?.value.clone();
-                    obj = Expr::MemberAccess {
-                        object: Box::new(obj),
-                        member,
-                    };
+                    match self.current().token_type {
+                        Ident => {
+                            let member = self.advance().value;
+                            obj = Expr::MemberAccess {
+                                object: Box::new(obj),
+                                member,
+                            };
+                        }
+                        _ => {
+                            self.record_error(
+                                "Expected field name after '.'".into(),
+                                self.current().line,
+                                self.current().column,
+                            );
+                            break;
+                        }
+                    }
                 }
                 // Call: obj(args)
                 else if self.match_token(LeftParen) {
@@ -1272,20 +1481,46 @@ impl Parser {
                             args.push(self.parse_expression()?);
                         }
                     }
-                    self.expect(RightParen, "')'")?;
-                    obj = Expr::Call {
-                        func: Box::new(obj),
-                        args,
-                    };
+                    match self.current().token_type {
+                        RightParen => {
+                            self.advance();
+                            obj = Expr::Call {
+                                func: Box::new(obj),
+                                args,
+                            };
+                        }
+                        _ => {
+                            self.record_error(
+                                "Expected ')'".into(),
+                                self.current().line,
+                                self.current().column,
+                            );
+                            self.skip_expr_to_sync();
+                            break;
+                        }
+                    }
                 }
                 // Index: obj[index]
                 else if self.match_token(LeftBracket) {
                     let idx = self.parse_expression()?;
-                    self.expect(RightBracket, "']'")?;
-                    obj = Expr::Index {
-                        array: Box::new(obj),
-                        index: Box::new(idx),
-                    };
+                    match self.current().token_type {
+                        RightBracket => {
+                            self.advance();
+                            obj = Expr::Index {
+                                array: Box::new(obj),
+                                index: Box::new(idx),
+                            };
+                        }
+                        _ => {
+                            self.record_error(
+                                "Expected ']'".into(),
+                                self.current().line,
+                                self.current().column,
+                            );
+                            self.skip_expr_to_sync();
+                            break;
+                        }
+                    }
                 } else {
                     break;
                 }

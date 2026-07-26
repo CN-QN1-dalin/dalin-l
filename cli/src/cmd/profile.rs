@@ -27,7 +27,7 @@ pub fn run_profile(input: &str, verbose: bool) -> Result<(), String> {
     // Profile: parse
     profiler.start_call("parse");
     let mut parser = dalin_compiler::parser::Parser::new(tokens);
-    let prog = parser.parse().map_err(|e| format!("Parse error: {e}"))?;
+    let (prog, _errs) = parser.parse().map_err(|e| format!("Parse error: {e}"))?;
     profiler.end_call("parse");
 
     if verbose {

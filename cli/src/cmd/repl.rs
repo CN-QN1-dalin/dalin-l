@@ -33,7 +33,7 @@ pub fn run() -> Result<(), String> {
                     Ok(tokens) => {
                         let mut p = parser::Parser::new(tokens);
                         match p.parse() {
-                            Ok(prog) => {
+                            Ok((prog, _errs)) => {
                                 let mut infer = ty::TypeInferencer::new();
                                 infer.infer_program(&prog);
                                 let report = infer.print_report();

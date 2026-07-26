@@ -1075,7 +1075,7 @@ pub fn run_source(source: &str) -> Result<Vec<Value>, RuntimeError> {
     let mut lex = dalin_compiler::lexer::Lexer::new(source);
     let tokens = lex.tokenize().map_err(|e| RuntimeError(e.to_string()))?;
     let mut parser = dalin_compiler::parser::Parser::new(tokens);
-    let prog = parser.parse().map_err(|e| RuntimeError(e.to_string()))?;
+    let (prog, _errs) = parser.parse().map_err(|e| RuntimeError(e.to_string()))?;
     let mut interp = Interpreter::new();
     interp.interpret(&prog)
 }
@@ -1086,7 +1086,7 @@ pub fn run_source_with_tree(source: &str) -> Result<String, RuntimeError> {
     let mut lex = dalin_compiler::lexer::Lexer::new(source);
     let tokens = lex.tokenize().map_err(|e| RuntimeError(e.to_string()))?;
     let mut parser = dalin_compiler::parser::Parser::new(tokens);
-    let prog = parser.parse().map_err(|e| RuntimeError(e.to_string()))?;
+    let (prog, _errs) = parser.parse().map_err(|e| RuntimeError(e.to_string()))?;
     let mut interp = Interpreter::new();
     interp.interpret(&prog)?;
     Ok(interp.describe_task_tree())
@@ -1108,7 +1108,7 @@ mod tests {
     fn run(src: &str) -> Result<Vec<Value>, RuntimeError> {
         let mut lex = dalin_compiler::lexer::Lexer::new(src);
         let toks = lex.tokenize().map_err(|e| RuntimeError(e.to_string()))?;
-        let prog = dalin_compiler::parser::Parser::new(toks)
+        let (prog, _errs) = dalin_compiler::parser::Parser::new(toks)
             .parse()
             .map_err(|e| RuntimeError(e.to_string()))?;
         let mut interp = Interpreter::new();
