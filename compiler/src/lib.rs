@@ -46,6 +46,8 @@ pub mod j3_evolution_verify;
 pub mod cache;
 // Phase JIT: LLVM ORC JIT 编译器骨架
 pub mod jit;
+/// Static code quality analyzer — industry benchmarked lint rules
+pub mod quality;
 
 use crate::ast::{Program, Stmt};
 use crate::error::ChannelError;
