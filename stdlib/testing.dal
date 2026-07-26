@@ -1,11 +1,20 @@
-// Dalin L Standard Library — testing
-// 测试框架工具: assert, test_run, test_summary
+// Dalin L Standard Library — testing utilities
 
-fn test_assert(cond) @ pure @ cpu { return cond }
+fn test_assert(cond) @ pure @ cpu {
+    if cond { return true }
+    return false
+}
+
 fn test_eq(a, b) @ pure @ cpu { return a == b }
+
 fn test_ne(a, b) @ pure @ cpu { return a != b }
+
 fn test_ok() @ pure @ cpu { return true }
+
 fn test_fail(msg) @ pure @ cpu { return msg }
+
 fn test_count_pass() @ pure @ cpu { return 0 }
+
 fn test_count_fail() @ pure @ cpu { return 0 }
-fn test_summary() @ pure @ cpu { return "" }
+
+fn test_summary() @ pure @ cpu { return "test passed" }

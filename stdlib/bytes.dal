@@ -1,11 +1,59 @@
-// Dalin L Standard Library — bytes
-// 字节数组操作: copy, slice, concat, len
+// Dalin L Standard Library — bytes (integer array as byte array)
 
 fn bytes_new() @ pure @ cpu { return [] }
-fn bytes_len(b) @ pure @ cpu { return 0 }
+
+fn bytes_len(b) @ pure @ cpu { return len(b) }
+
 fn bytes_copy(b) @ pure @ cpu { return b }
-fn bytes_slice(b, start, end) @ pure @ cpu { return b }
-fn bytes_concat(a, b) @ pure @ cpu { return a }
-fn bytes_append(b, x) @ pure @ cpu { return b }
-fn bytes_to_string(b) @ pure @ cpu { return "" }
-fn bytes_from_string(s) @ pure @ cpu { return [] }
+
+fn bytes_slice(b, start, end) @ pure @ cpu {
+    let result = []
+    let i = start
+    while i < end {
+        if i >= 0 && i < len(b) {
+            let result = push(result, b[i])
+        }
+        let i = i + 1
+    }
+    return result
+}
+
+fn bytes_concat(a, b) @ pure @ cpu {
+    let result = a
+    let i = 0
+    let n = len(b)
+    while i < n {
+        let result = push(result, b[i])
+        let i = i + 1
+    }
+    return result
+}
+
+fn bytes_append(b, x) @ pure @ cpu { return push(b, x) }
+
+fn bytes_to_string(b) @ pure @ cpu {
+    let result = ""
+    return result
+}
+
+fn bytes_from_string(s) @ pure @ cpu {
+    let result = []
+    let i = 0
+    let n = len(s)
+    while i < n {
+        let result = push(result, s[i])
+        let i = i + 1
+    }
+    return result
+}
+
+fn bytes_equal(a, b) @ pure @ cpu {
+    if len(a) != len(b) { return false }
+    let i = 0
+    let n = len(a)
+    while i < n {
+        if a[i] != b[i] { return false }
+        let i = i + 1
+    }
+    return true
+}

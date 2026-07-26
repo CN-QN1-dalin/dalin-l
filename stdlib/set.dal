@@ -1,11 +1,75 @@
-// Dalin L 标准库 — 集合操作
+// Dalin L Standard Library — set operations (using lists)
 
 fn set_new() @ pure @ cpu { return [] }
-fn set_add(s, val) @ pure @ cpu { return s }
-fn set_remove(s, val) @ pure @ cpu { return s }
-fn set_contains(s, val) @ pure @ cpu { return false }
-fn set_union(a, b) @ pure @ cpu { return a }
-fn set_intersection(a, b) @ pure @ cpu { return a }
-fn set_difference(a, b) @ pure @ cpu { return a }
-fn set_len(s) @ pure @ cpu { return 0 }
+
+fn set_add(s, val) @ pure @ cpu {
+    if set_contains(s, val) { return s }
+    let result = push(s, val)
+    return result
+}
+
+fn set_remove(s, val) @ pure @ cpu {
+    let result = []
+    let i = 0
+    let n = len(s)
+    while i < n {
+        if s[i] != val {
+            let result = push(result, s[i])
+        }
+        let i = i + 1
+    }
+    return result
+}
+
+fn set_contains(s, val) @ pure @ cpu {
+    let i = 0
+    let n = len(s)
+    while i < n {
+        if s[i] == val { return true }
+        let i = i + 1
+    }
+    return false
+}
+
+fn set_union(a, b) @ pure @ cpu {
+    let result = a
+    let i = 0
+    let n = len(b)
+    while i < n {
+        let result = set_add(result, b[i])
+        let i = i + 1
+    }
+    return result
+}
+
+fn set_intersection(a, b) @ pure @ cpu {
+    let result = []
+    let i = 0
+    let n = len(b)
+    while i < n {
+        if set_contains(a, b[i]) {
+            let result = push(result, b[i])
+        }
+        let i = i + 1
+    }
+    return result
+}
+
+fn set_difference(a, b) @ pure @ cpu {
+    let result = []
+    let i = 0
+    let n = len(a)
+    while i < n {
+        if !set_contains(b, a[i]) {
+            let result = push(result, a[i])
+        }
+        let i = i + 1
+    }
+    return result
+}
+
+fn set_len(s) @ pure @ cpu { return len(s) }
+
+fn set_is_empty(s) @ pure @ cpu { return len(s) == 0 }
+
 fn set_to_list(s) @ pure @ cpu { return s }
