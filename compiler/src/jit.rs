@@ -22,7 +22,7 @@
 use std::collections::{HashMap, HashSet};
 use std::fmt::Write;
 
-use crate::ast::{FnParam, Program, Stmt};
+use crate::ast::{Expr, FnParam, Program, Stmt};
 
 /// JIT 编译优化级别
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
@@ -104,6 +104,8 @@ pub struct CompileStats {
     pub errors: usize,
     pub pure_functions: usize,
     pub io_functions: usize,
+    /// 常量折叠命中次数 (P2: JIT 常量折叠)
+    pub constant_folds: usize,
 }
 
 /// Dalin L JIT 编译器
@@ -225,7 +227,8 @@ impl JitCompiler {
         }
 
         // 常量折叠分析 (编译前置优化)
-        analyze_constants(fn_stmt);
+        let const_analysis = analyze_constants(fn_stmt);
+        self.stats.constant_folds += const_analysis.folded_count;
 
         self.cache.insert(name, entry.clone());
         Ok(entry)
@@ -364,10 +367,278 @@ fn validate_params(params: &[FnParam]) -> Result<(), CompileError> {
     Ok(())
 }
 
-/// 常量折叠分析: 找出函数体内所有可静态求值的表达式
-fn analyze_constants(_stmt: &Stmt) {
-    // TODO: 在 AST 上递归遍历, 收集所有 IntLiteral/FloatLiteral 二元运算以支持常量折叠优化
-    let _ = _stmt;
+/// 常量值 — 编译时可静态求值的表达式结果
+#[derive(Debug, Clone, PartialEq)]
+pub enum ConstValue {
+    Int(i64),
+    Float(f64),
+    String(String),
+    Bool(bool),
+    Char(char),
+}
+
+impl ConstValue {
+    /// 转回 Expr 字面量节点
+    #[must_use]
+    pub fn to_expr(&self) -> Expr {
+        match self {
+            Self::Int(v) => Expr::IntLiteral(*v),
+            Self::Float(v) => Expr::FloatLiteral(*v),
+            Self::String(s) => Expr::StringLiteral(s.clone()),
+            Self::Bool(b) => Expr::BoolLiteral(*b),
+            Self::Char(c) => Expr::CharLiteral(*c),
+        }
+    }
+}
+
+/// 常量折叠分析结果
+#[derive(Debug, Default, Clone)]
+pub struct ConstantAnalysis {
+    /// 可折叠的表达式数量 (不含已经是字面量的)
+    pub folded_count: usize,
+    /// 折叠示例 (最多保留 10 条用于调试)
+    pub foldable_examples: Vec<String>,
+}
+
+/// 常量折叠分析: 递归遍历函数体, 找出所有可静态求值的表达式
+///
+/// 支持:
+/// - 整数/浮点 四则运算 (+, -, *, /, %) 带溢出检查
+/// - 字符串拼接 (+)
+/// - 布尔逻辑 (&&, ||, !)
+/// - 比较运算 (==, !=, <, >, <=, >=)
+/// - 一元取负 (-) 和取反 (!)
+/// - 嵌套表达式递归折叠
+fn analyze_constants(stmt: &Stmt) -> ConstantAnalysis {
+    let mut analysis = ConstantAnalysis::default();
+
+    if let Stmt::Fn { body, .. } = stmt {
+        for s in body.iter() {
+            analyze_stmt_constants(s, &mut analysis);
+        }
+    }
+
+    analysis
+}
+
+/// 递归分析语句中的常量表达式
+fn analyze_stmt_constants(stmt: &Stmt, analysis: &mut ConstantAnalysis) {
+    match stmt {
+        Stmt::Let { value, .. } | Stmt::Const { value, .. } => {
+            if let Some(expr) = value {
+                analyze_expr_constants(expr, analysis);
+            }
+        }
+        Stmt::Return(Some(expr)) => {
+            analyze_expr_constants(expr, analysis);
+        }
+        Stmt::Expr(expr) => analyze_expr_constants(expr, analysis),
+        Stmt::If {
+            condition,
+            then_body,
+            else_body,
+        } => {
+            analyze_expr_constants(condition, analysis);
+            for s in then_body {
+                analyze_stmt_constants(s, analysis);
+            }
+            for s in else_body {
+                analyze_stmt_constants(s, analysis);
+            }
+        }
+        Stmt::While { condition, body } => {
+            analyze_expr_constants(condition, analysis);
+            for s in body {
+                analyze_stmt_constants(s, analysis);
+            }
+        }
+        Stmt::For { iterable, body, .. } => {
+            analyze_expr_constants(iterable, analysis);
+            for s in body {
+                analyze_stmt_constants(s, analysis);
+            }
+        }
+        Stmt::Assert { condition, message } => {
+            analyze_expr_constants(condition, analysis);
+            if let Some(msg) = message {
+                analyze_expr_constants(msg, analysis);
+            }
+        }
+        _ => {}
+    }
+}
+
+/// 递归分析表达式中的常量折叠机会
+fn analyze_expr_constants(expr: &Expr, analysis: &mut ConstantAnalysis) {
+    // 如果这个表达式可折叠且不是字面量本身, 计入统计
+    if !is_literal(expr) && try_eval_constant(expr).is_some() {
+        analysis.folded_count += 1;
+        if analysis.foldable_examples.len() < 10 {
+            analysis.foldable_examples.push(format_constant(expr));
+        }
+    }
+
+    // 递归子表达式
+    match expr {
+        Expr::BinaryOp { left, right, .. } => {
+            analyze_expr_constants(left, analysis);
+            analyze_expr_constants(right, analysis);
+        }
+        Expr::UnaryOp { operand, .. } => {
+            analyze_expr_constants(operand, analysis);
+        }
+        Expr::Call { args, .. } => {
+            for arg in args {
+                analyze_expr_constants(arg, analysis);
+            }
+        }
+        Expr::Array(elements) => {
+            for e in elements {
+                analyze_expr_constants(e, analysis);
+            }
+        }
+        Expr::MemberAccess { object, .. } => {
+            analyze_expr_constants(object, analysis);
+        }
+        Expr::Index { array, index } => {
+            analyze_expr_constants(array, analysis);
+            analyze_expr_constants(index, analysis);
+        }
+        _ => {}
+    }
+}
+
+/// 判断表达式是否已经是字面量 (无需折叠)
+fn is_literal(expr: &Expr) -> bool {
+    matches!(
+        expr,
+        Expr::IntLiteral(_)
+            | Expr::FloatLiteral(_)
+            | Expr::StringLiteral(_)
+            | Expr::BoolLiteral(_)
+            | Expr::CharLiteral(_)
+    )
+}
+
+/// 尝试将表达式静态求值为常量
+#[must_use]
+pub fn try_eval_constant(expr: &Expr) -> Option<ConstValue> {
+    match expr {
+        Expr::IntLiteral(v) => Some(ConstValue::Int(*v)),
+        Expr::FloatLiteral(v) => Some(ConstValue::Float(*v)),
+        Expr::StringLiteral(s) => Some(ConstValue::String(s.clone())),
+        Expr::BoolLiteral(b) => Some(ConstValue::Bool(*b)),
+        Expr::CharLiteral(c) => Some(ConstValue::Char(*c)),
+        Expr::BinaryOp { left, op, right } => {
+            let l = try_eval_constant(left)?;
+            let r = try_eval_constant(right)?;
+            eval_binary(&l, op, &r)
+        }
+        Expr::UnaryOp { op, operand } => {
+            let v = try_eval_constant(operand)?;
+            eval_unary(op, &v)
+        }
+        _ => None,
+    }
+}
+
+/// 对两个常量值执行二元运算
+fn eval_binary(l: &ConstValue, op: &str, r: &ConstValue) -> Option<ConstValue> {
+    match (l, r) {
+        (ConstValue::Int(a), ConstValue::Int(b)) => eval_int_binary(*a, op, *b),
+        (ConstValue::Float(a), ConstValue::Float(b)) => eval_float_binary(*a, op, *b),
+        (ConstValue::String(a), ConstValue::String(b)) => match op {
+            "+" => Some(ConstValue::String(format!("{a}{b}"))),
+            "==" => Some(ConstValue::Bool(a == b)),
+            "!=" => Some(ConstValue::Bool(a != b)),
+            _ => None,
+        },
+        (ConstValue::Bool(a), ConstValue::Bool(b)) => match op {
+            "&&" => Some(ConstValue::Bool(*a && *b)),
+            "||" => Some(ConstValue::Bool(*a || *b)),
+            "==" => Some(ConstValue::Bool(a == b)),
+            "!=" => Some(ConstValue::Bool(a != b)),
+            _ => None,
+        },
+        (ConstValue::Char(a), ConstValue::Char(b)) => match op {
+            "==" => Some(ConstValue::Bool(a == b)),
+            "!=" => Some(ConstValue::Bool(a != b)),
+            "<" => Some(ConstValue::Bool(a < b)),
+            ">" => Some(ConstValue::Bool(a > b)),
+            "<=" => Some(ConstValue::Bool(a <= b)),
+            ">=" => Some(ConstValue::Bool(a >= b)),
+            _ => None,
+        },
+        _ => None, // 类型不匹配
+    }
+}
+
+/// 整数二元运算 (带溢出检查)
+fn eval_int_binary(a: i64, op: &str, b: i64) -> Option<ConstValue> {
+    match op {
+        "+" => a.checked_add(b).map(ConstValue::Int),
+        "-" => a.checked_sub(b).map(ConstValue::Int),
+        "*" => a.checked_mul(b).map(ConstValue::Int),
+        "/" if b != 0 => Some(ConstValue::Int(a / b)),
+        "%" if b != 0 => Some(ConstValue::Int(a % b)),
+        "==" => Some(ConstValue::Bool(a == b)),
+        "!=" => Some(ConstValue::Bool(a != b)),
+        "<" => Some(ConstValue::Bool(a < b)),
+        ">" => Some(ConstValue::Bool(a > b)),
+        "<=" => Some(ConstValue::Bool(a <= b)),
+        ">=" => Some(ConstValue::Bool(a >= b)),
+        _ => None,
+    }
+}
+
+/// 浮点数二元运算
+fn eval_float_binary(a: f64, op: &str, b: f64) -> Option<ConstValue> {
+    match op {
+        "+" => Some(ConstValue::Float(a + b)),
+        "-" => Some(ConstValue::Float(a - b)),
+        "*" => Some(ConstValue::Float(a * b)),
+        "/" if b != 0.0 => Some(ConstValue::Float(a / b)),
+        "==" => Some(ConstValue::Bool(a == b)),
+        "!=" => Some(ConstValue::Bool(a != b)),
+        "<" => Some(ConstValue::Bool(a < b)),
+        ">" => Some(ConstValue::Bool(a > b)),
+        "<=" => Some(ConstValue::Bool(a <= b)),
+        ">=" => Some(ConstValue::Bool(a >= b)),
+        _ => None,
+    }
+}
+
+/// 一元运算
+fn eval_unary(op: &str, v: &ConstValue) -> Option<ConstValue> {
+    match (op, v) {
+        ("-", ConstValue::Int(n)) => n.checked_neg().map(ConstValue::Int),
+        ("-", ConstValue::Float(n)) => Some(ConstValue::Float(-n)),
+        ("!", ConstValue::Bool(b)) => Some(ConstValue::Bool(!*b)),
+        _ => None,
+    }
+}
+
+/// 格式化常量表达式用于调试输出
+fn format_constant(expr: &Expr) -> String {
+    match expr {
+        Expr::IntLiteral(v) => format!("{v}"),
+        Expr::FloatLiteral(v) => format!("{v}"),
+        Expr::StringLiteral(s) => format!("\"{s}\""),
+        Expr::BoolLiteral(b) => format!("{b}"),
+        Expr::CharLiteral(c) => format!("'{c}'"),
+        Expr::BinaryOp { left, op, right } => {
+            format!(
+                "({} {} {})",
+                format_constant(left),
+                op,
+                format_constant(right)
+            )
+        }
+        Expr::UnaryOp { op, operand } => {
+            format!("{}{}", op, format_constant(operand))
+        }
+        _ => "<expr>".to_string(),
+    }
 }
 
 // ═══════════════════════════════
@@ -943,5 +1214,324 @@ mod tests {
         // Step 3: optimize IR
         let optimized = jit.optimize_ir(&ir, OptLevel::O2).unwrap();
         assert!(optimized.contains("O2"));
+    }
+
+    // ─── 常量折叠测试 (P2) ──────────────────────────────────
+
+    fn make_fn_with_body(name: &str, body: Vec<Stmt>) -> Stmt {
+        Stmt::Fn {
+            name: name.to_string(),
+            params: vec![],
+            return_type: None,
+            effect: Some("pure".to_string()),
+            capability: Some("cpu".to_string()),
+            llm_prompt: None,
+            confidence: None,
+            cognitive_loop: None,
+            governance: None,
+            latency: None,
+            timeout: None,
+            throughput: None,
+            body: Box::new(body),
+            async_: false,
+            pub_: false,
+        }
+    }
+
+    fn int_lit(v: i64) -> Expr {
+        Expr::IntLiteral(v)
+    }
+
+    fn float_lit(v: f64) -> Expr {
+        Expr::FloatLiteral(v)
+    }
+
+    fn str_lit(s: &str) -> Expr {
+        Expr::StringLiteral(s.to_string())
+    }
+
+    fn bool_lit(b: bool) -> Expr {
+        Expr::BoolLiteral(b)
+    }
+
+    fn binary_expr(left: Expr, op: &str, right: Expr) -> Expr {
+        Expr::BinaryOp {
+            left: Box::new(left),
+            op: op.to_string(),
+            right: Box::new(right),
+        }
+    }
+
+    fn unary_expr(op: &str, operand: Expr) -> Expr {
+        Expr::UnaryOp {
+            op: op.to_string(),
+            operand: Box::new(operand),
+        }
+    }
+
+    #[test]
+    fn test_const_fold_int_addition() {
+        let expr = binary_expr(int_lit(1), "+", int_lit(2));
+        assert_eq!(try_eval_constant(&expr), Some(ConstValue::Int(3)));
+    }
+
+    #[test]
+    fn test_const_fold_int_multiplication() {
+        let expr = binary_expr(int_lit(3), "*", int_lit(4));
+        assert_eq!(try_eval_constant(&expr), Some(ConstValue::Int(12)));
+    }
+
+    #[test]
+    fn test_const_fold_int_subtraction() {
+        let expr = binary_expr(int_lit(10), "-", int_lit(7));
+        assert_eq!(try_eval_constant(&expr), Some(ConstValue::Int(3)));
+    }
+
+    #[test]
+    fn test_const_fold_int_division() {
+        let expr = binary_expr(int_lit(20), "/", int_lit(4));
+        assert_eq!(try_eval_constant(&expr), Some(ConstValue::Int(5)));
+    }
+
+    #[test]
+    fn test_const_fold_int_modulo() {
+        let expr = binary_expr(int_lit(17), "%", int_lit(5));
+        assert_eq!(try_eval_constant(&expr), Some(ConstValue::Int(2)));
+    }
+
+    #[test]
+    fn test_const_fold_int_div_by_zero() {
+        let expr = binary_expr(int_lit(1), "/", int_lit(0));
+        assert_eq!(try_eval_constant(&expr), None);
+    }
+
+    #[test]
+    fn test_const_fold_int_overflow() {
+        let expr = binary_expr(int_lit(i64::MAX), "+", int_lit(1));
+        assert_eq!(try_eval_constant(&expr), None);
+    }
+
+    #[test]
+    fn test_const_fold_float_addition() {
+        let expr = binary_expr(float_lit(1.5), "+", float_lit(2.5));
+        assert_eq!(try_eval_constant(&expr), Some(ConstValue::Float(4.0)));
+    }
+
+    #[test]
+    fn test_const_fold_float_multiplication() {
+        let expr = binary_expr(float_lit(3.0), "*", float_lit(0.5));
+        assert_eq!(try_eval_constant(&expr), Some(ConstValue::Float(1.5)));
+    }
+
+    #[test]
+    fn test_const_fold_string_concat() {
+        let expr = binary_expr(str_lit("hello"), "+", str_lit(" world"));
+        assert_eq!(
+            try_eval_constant(&expr),
+            Some(ConstValue::String("hello world".to_string()))
+        );
+    }
+
+    #[test]
+    fn test_const_fold_bool_and() {
+        let expr = binary_expr(bool_lit(true), "&&", bool_lit(false));
+        assert_eq!(try_eval_constant(&expr), Some(ConstValue::Bool(false)));
+    }
+
+    #[test]
+    fn test_const_fold_bool_or() {
+        let expr = binary_expr(bool_lit(true), "||", bool_lit(false));
+        assert_eq!(try_eval_constant(&expr), Some(ConstValue::Bool(true)));
+    }
+
+    #[test]
+    fn test_const_fold_comparison_int() {
+        let expr = binary_expr(int_lit(5), ">", int_lit(3));
+        assert_eq!(try_eval_constant(&expr), Some(ConstValue::Bool(true)));
+    }
+
+    #[test]
+    fn test_const_fold_comparison_string() {
+        let expr = binary_expr(str_lit("abc"), "==", str_lit("abc"));
+        assert_eq!(try_eval_constant(&expr), Some(ConstValue::Bool(true)));
+    }
+
+    #[test]
+    fn test_const_fold_unary_neg_int() {
+        let expr = unary_expr("-", int_lit(42));
+        assert_eq!(try_eval_constant(&expr), Some(ConstValue::Int(-42)));
+    }
+
+    #[test]
+    fn test_const_fold_unary_neg_float() {
+        let expr = unary_expr("-", float_lit(3.14));
+        assert_eq!(try_eval_constant(&expr), Some(ConstValue::Float(-3.14)));
+    }
+
+    #[test]
+    fn test_const_fold_unary_not_bool() {
+        let expr = unary_expr("!", bool_lit(true));
+        assert_eq!(try_eval_constant(&expr), Some(ConstValue::Bool(false)));
+    }
+
+    #[test]
+    fn test_const_fold_nested_binary() {
+        // (1 + 2) * 3 = 9
+        let expr = binary_expr(binary_expr(int_lit(1), "+", int_lit(2)), "*", int_lit(3));
+        assert_eq!(try_eval_constant(&expr), Some(ConstValue::Int(9)));
+    }
+
+    #[test]
+    fn test_const_fold_deeply_nested() {
+        // ((1 + 2) * (3 + 4)) - 5 = 16
+        let left = binary_expr(
+            binary_expr(int_lit(1), "+", int_lit(2)),
+            "*",
+            binary_expr(int_lit(3), "+", int_lit(4)),
+        );
+        let expr = binary_expr(left, "-", int_lit(5));
+        assert_eq!(try_eval_constant(&expr), Some(ConstValue::Int(16)));
+    }
+
+    #[test]
+    fn test_const_fold_ident_not_foldable() {
+        let expr = Expr::Ident("x".to_string());
+        assert_eq!(try_eval_constant(&expr), None);
+    }
+
+    #[test]
+    fn test_const_fold_mixed_types_not_foldable() {
+        let expr = binary_expr(int_lit(1), "+", float_lit(2.0));
+        assert_eq!(try_eval_constant(&expr), None);
+    }
+
+    #[test]
+    fn test_is_literal_recognizes_all_literals() {
+        assert!(is_literal(&int_lit(42)));
+        assert!(is_literal(&float_lit(1.0)));
+        assert!(is_literal(&str_lit("x")));
+        assert!(is_literal(&bool_lit(true)));
+        assert!(is_literal(&Expr::CharLiteral('a')));
+    }
+
+    #[test]
+    fn test_is_literal_rejects_non_literals() {
+        assert!(!is_literal(&Expr::Ident("x".to_string())));
+        assert!(!is_literal(&binary_expr(int_lit(1), "+", int_lit(2))));
+    }
+
+    #[test]
+    fn test_analyze_constants_empty_body() {
+        let fn_stmt = make_fn_with_body("empty", vec![]);
+        let analysis = analyze_constants(&fn_stmt);
+        assert_eq!(analysis.folded_count, 0);
+    }
+
+    #[test]
+    fn test_analyze_constants_counts_foldable() {
+        let body = vec![
+            Stmt::Let {
+                name: "x".to_string(),
+                value: Some(Box::new(binary_expr(int_lit(1), "+", int_lit(2)))),
+                type_annotation: None,
+                mutable: false,
+            },
+            Stmt::Let {
+                name: "y".to_string(),
+                value: Some(Box::new(binary_expr(int_lit(3), "*", int_lit(4)))),
+                type_annotation: None,
+                mutable: false,
+            },
+            Stmt::Let {
+                name: "z".to_string(),
+                value: Some(Box::new(binary_expr(
+                    Expr::Ident("x".to_string()),
+                    "+",
+                    Expr::Ident("y".to_string()),
+                ))),
+                type_annotation: None,
+                mutable: false,
+            },
+        ];
+        let fn_stmt = make_fn_with_body("demo", body);
+        let analysis = analyze_constants(&fn_stmt);
+        assert_eq!(analysis.folded_count, 2); // 1+2 and 3*4, NOT x+y
+    }
+
+    #[test]
+    fn test_analyze_constants_nested() {
+        // let z = (1 + 2) * 3; — counts both (1+2) and (1+2)*3
+        let body = vec![Stmt::Let {
+            name: "z".to_string(),
+            value: Some(Box::new(binary_expr(
+                binary_expr(int_lit(1), "+", int_lit(2)),
+                "*",
+                int_lit(3),
+            ))),
+            type_annotation: None,
+            mutable: false,
+        }];
+        let fn_stmt = make_fn_with_body("demo", body);
+        let analysis = analyze_constants(&fn_stmt);
+        assert_eq!(analysis.folded_count, 2);
+    }
+
+    #[test]
+    fn test_analyze_constants_return_stmt() {
+        let body = vec![Stmt::Return(Some(Box::new(binary_expr(
+            int_lit(6),
+            "*",
+            int_lit(7),
+        ))))];
+        let fn_stmt = make_fn_with_body("compute", body);
+        let analysis = analyze_constants(&fn_stmt);
+        assert_eq!(analysis.folded_count, 1);
+    }
+
+    #[test]
+    fn test_compile_tracks_constant_folds() {
+        let mut jit = JitCompiler::new();
+        let body = vec![Stmt::Let {
+            name: "x".to_string(),
+            value: Some(Box::new(binary_expr(int_lit(1), "+", int_lit(2)))),
+            type_annotation: None,
+            mutable: false,
+        }];
+        let fn_stmt = make_fn_with_body("foldable", body);
+        jit.compile_function(&fn_stmt).unwrap();
+        assert!(jit.stats.constant_folds > 0);
+    }
+
+    #[test]
+    fn test_const_value_to_expr_roundtrip() {
+        let val = ConstValue::Int(42);
+        let expr = val.to_expr();
+        assert_eq!(try_eval_constant(&expr), Some(ConstValue::Int(42)));
+
+        let val = ConstValue::Bool(true);
+        let expr = val.to_expr();
+        assert_eq!(try_eval_constant(&expr), Some(ConstValue::Bool(true)));
+
+        let val = ConstValue::String("hello".to_string());
+        let expr = val.to_expr();
+        assert_eq!(
+            try_eval_constant(&expr),
+            Some(ConstValue::String("hello".to_string()))
+        );
+    }
+
+    #[test]
+    fn test_const_fold_neg_overflow() {
+        let expr = unary_expr("-", int_lit(i64::MIN));
+        assert_eq!(try_eval_constant(&expr), None);
+    }
+
+    #[test]
+    fn test_format_constant_binary() {
+        let expr = binary_expr(int_lit(1), "+", int_lit(2));
+        let formatted = format_constant(&expr);
+        assert!(formatted.contains("1"));
+        assert!(formatted.contains("+"));
+        assert!(formatted.contains("2"));
     }
 }

@@ -90,7 +90,43 @@ pub fn is_cached(file_path: &Path, content: &str, project_root: &Path) -> bool {
     load_cache(project_root, &cache_key).is_some()
 }
 
-/// 获取或编译：先检查缓存，命中则返回缓存数据，否则执行编译函数并写入缓存。
+/// 可缓存 trait — 支持二进制序列化/反序列化的类型可实现此 trait
+///
+/// 实现了此 trait 的类型可通过 `get_or_compile` 自动参与缓存命中/写入。
+/// 内置实现: `Vec<u8>` (identity), `String` (UTF-8)。
+pub trait Cacheable {
+    /// 将自身序列化为二进制
+    fn serialize(&self) -> Vec<u8>;
+    /// 从二进制反序列化, 失败返回 None
+    fn deserialize(data: &[u8]) -> Option<Self>
+    where
+        Self: Sized;
+}
+
+/// Vec<u8> 的 Cacheable 实现 — identity (无额外编码)
+impl Cacheable for Vec<u8> {
+    fn serialize(&self) -> Vec<u8> {
+        self.clone()
+    }
+    fn deserialize(data: &[u8]) -> Option<Self> {
+        Some(data.to_vec())
+    }
+}
+
+/// String 的 Cacheable 实现 — UTF-8 编解码
+impl Cacheable for String {
+    fn serialize(&self) -> Vec<u8> {
+        self.as_bytes().to_vec()
+    }
+    fn deserialize(data: &[u8]) -> Option<Self> {
+        String::from_utf8(data.to_vec()).ok()
+    }
+}
+
+/// 获取或编译：先检查缓存，命中则反序列化返回，否则执行编译函数并写入缓存。
+///
+/// 泛型约束 `T: Cacheable` 确保只有可序列化的类型才能参与缓存。
+/// 缓存格式由 `Cacheable` trait 实现决定 (当前: Vec<u8>=identity, String=UTF-8)。
 pub fn get_or_compile<F, T>(
     file_path: &Path,
     content: &str,
@@ -98,24 +134,21 @@ pub fn get_or_compile<F, T>(
     compile_fn: F,
 ) -> T
 where
+    T: Cacheable,
     F: FnOnce() -> T,
 {
     let cache_key = compute_cache_key(file_path, content);
 
-    // 尝试从缓存加载
-    if let Some(_cached_data) = load_cache(project_root, &cache_key) {
-        // TODO: 实现二进制序列化/反序列化（如 MsgPack）以支持缓存命中时返回编译结果
-        // 当前策略：跳过缓存，始终重新编译以确保正确性
-        println!("  ℹ Cache miss (format not yet supported), recompiling {cache_key} ...");
+    // 尝试从缓存加载并反序列化
+    let result = load_cache(project_root, &cache_key).and_then(|data| T::deserialize(&data));
+    if let Some(result) = result {
+        return result;
     }
 
     // 编译并写入缓存
     let result = compile_fn();
-
-    // 将编译结果的二进制数据写入缓存
-    // 注意：这里需要 compile_fn 返回的数据是可序列化的
-    // 目前仅记录缓存键，实际缓存需要 bytecode 序列化格式
-    let _ = (&cache_key, &result);
+    let serialized = result.serialize();
+    let _ = write_cache(project_root, &cache_key, &serialized);
 
     result
 }
@@ -197,6 +230,144 @@ mod tests {
         assert_eq!(data, b"data");
 
         // Cleanup
+        let _ = fs::remove_dir_all(&temp_dir);
+    }
+
+    // ─── Cacheable trait 测试 ───────────────────────────────
+
+    #[test]
+    fn test_cacheable_vec_u8_roundtrip() {
+        let original: Vec<u8> = vec![1, 2, 3, 255, 0, 128];
+        let serialized = original.serialize();
+        let deserialized = Vec::<u8>::deserialize(&serialized);
+        assert_eq!(deserialized, Some(original));
+    }
+
+    #[test]
+    fn test_cacheable_string_roundtrip() {
+        let original = String::from("fn hello() { return 42 }");
+        let serialized = original.serialize();
+        let deserialized = String::deserialize(&serialized);
+        assert_eq!(deserialized.as_deref(), Some(original.as_str()));
+    }
+
+    #[test]
+    fn test_cacheable_string_invalid_utf8_returns_none() {
+        let bad_bytes = &[0xFF, 0xFE, 0xFD];
+        assert!(String::deserialize(bad_bytes).is_none());
+    }
+
+    #[test]
+    fn test_cacheable_empty_vec() {
+        let original: Vec<u8> = vec![];
+        let serialized = original.serialize();
+        assert!(serialized.is_empty());
+        let deserialized = Vec::<u8>::deserialize(&serialized);
+        assert_eq!(deserialized, Some(vec![]));
+    }
+
+    // ─── get_or_compile 集成测试 ────────────────────────────
+
+    #[test]
+    fn test_get_or_compile_cache_hit_string() {
+        let temp_dir = std::env::temp_dir().join(format!(
+            "dalin_goc_hit_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let _ = fs::remove_dir_all(&temp_dir);
+        fs::create_dir_all(&temp_dir).unwrap();
+        ensure_cache_dir(&temp_dir).unwrap();
+
+        let test_file = PathBuf::from("/tmp/test_goc.dal");
+        let content = "fn add(x, y) { return x + y }";
+
+        // 用计数器验证 compile_fn 只被调用一次
+        let call_count = std::cell::Cell::new(0u32);
+
+        // 第一次调用 — 缓存未命中, 执行 compile_fn
+        let result1 = get_or_compile(&test_file, content, &temp_dir, || {
+            call_count.set(call_count.get() + 1);
+            String::from("compiled_bytecode_v1")
+        });
+        assert_eq!(result1, "compiled_bytecode_v1");
+        assert_eq!(call_count.get(), 1);
+
+        // 第二次调用 — 缓存命中, compile_fn 不应执行
+        let result2 = get_or_compile(&test_file, content, &temp_dir, || {
+            call_count.set(call_count.get() + 1);
+            String::from("compiled_bytecode_v2") // 不应返回这个
+        });
+        assert_eq!(result2, "compiled_bytecode_v1"); // 返回缓存值
+        assert_eq!(call_count.get(), 1); // 仍然只调用了一次
+
+        let _ = fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn test_get_or_compile_cache_miss_on_content_change() {
+        let temp_dir = std::env::temp_dir().join(format!(
+            "dalin_goc_change_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let _ = fs::remove_dir_all(&temp_dir);
+        fs::create_dir_all(&temp_dir).unwrap();
+        ensure_cache_dir(&temp_dir).unwrap();
+
+        let test_file = PathBuf::from("/tmp/test_goc2.dal");
+
+        // 内容 V1
+        let content_v1 = "fn v1() {}";
+        let result1 = get_or_compile(&test_file, content_v1, &temp_dir, || {
+            String::from("v1_result")
+        });
+        assert_eq!(result1, "v1_result");
+
+        // 内容变更 → 新 cache_key → 缓存未命中
+        let content_v2 = "fn v2() { return 42 }";
+        let result2 = get_or_compile(&test_file, content_v2, &temp_dir, || {
+            String::from("v2_result")
+        });
+        assert_eq!(result2, "v2_result"); // 重新编译, 得到新结果
+
+        let _ = fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn test_get_or_compile_vec_u8() {
+        let temp_dir = std::env::temp_dir().join(format!(
+            "dalin_goc_vec_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let _ = fs::remove_dir_all(&temp_dir);
+        fs::create_dir_all(&temp_dir).unwrap();
+        ensure_cache_dir(&temp_dir).unwrap();
+
+        let test_file = PathBuf::from("/tmp/test_goc3.dal");
+        let content = "binary data test";
+
+        let result1 = get_or_compile(&test_file, content, &temp_dir, || {
+            vec![0x01u8, 0x02, 0x03, 0x04]
+        });
+        assert_eq!(result1, vec![0x01u8, 0x02, 0x03, 0x04]);
+
+        // 第二次应命中缓存
+        let result2 = get_or_compile(&test_file, content, &temp_dir, || {
+            vec![0xFFu8, 0xFF] // 不应返回这个
+        });
+        assert_eq!(result2, vec![0x01u8, 0x02, 0x03, 0x04]);
+
         let _ = fs::remove_dir_all(&temp_dir);
     }
 }
