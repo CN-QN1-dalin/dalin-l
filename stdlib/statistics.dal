@@ -1,13 +1,116 @@
-// Dalin L 标准库 — 描述性统计
+// Dalin L 标准库 — 描述性统计 (全部纯算法实现)
 
-fn stats_mean(data) @ pure @ cpu { return 0 }
-fn stats_median(data) @ pure @ cpu { return 0 }
-fn stats_stddev(data) @ pure @ cpu { return 0 }
-fn stats_variance(data) @ pure @ cpu { return 0 }
-fn stats_min(data) @ pure @ cpu { return 0 }
-fn stats_max(data) @ pure @ cpu { return 0 }
-fn stats_sum(data) @ pure @ cpu { return 0 }
-fn stats_count(data) @ pure @ cpu { return 0 }
-fn stats_quantile(data, q) @ pure @ cpu { return 0 }
-fn stats_covariance(a, b) @ pure @ cpu { return 0 }
-fn stats_correlation(a, b) @ pure @ cpu { return 0 }
+fn stats_count(data) @ pure @ cpu { return len(data) }
+
+fn stats_sum(data) @ pure @ cpu {
+    let i = 0
+    let total = 0
+    let n = len(data)
+    while i < n {
+        let total = total + data[i]
+        let i = i + 1
+    }
+    return total
+}
+
+fn stats_mean(data) @ pure @ cpu {
+    let n = len(data)
+    if n == 0 { return 0 }
+    return stats_sum(data) / n
+}
+
+fn stats_min(data) @ pure @ cpu {
+    if len(data) == 0 { return 0 }
+    let m = data[0]
+    let i = 1
+    let n = len(data)
+    while i < n {
+        if data[i] < m { m = data[i] }
+        let i = i + 1
+    }
+    return m
+}
+
+fn stats_max(data) @ pure @ cpu {
+    if len(data) == 0 { return 0 }
+    let m = data[0]
+    let i = 1
+    let n = len(data)
+    while i < n {
+        if data[i] > m { m = data[i] }
+        let i = i + 1
+    }
+    return m
+}
+
+fn stats_median(data) @ pure @ cpu {
+    let n = len(data)
+    if n == 0 { return 0 }
+    let sorted = sort_bubble(data)
+    if n % 2 == 1 { return sorted[n / 2] }
+    return (sorted[n / 2 - 1] + sorted[n / 2]) / 2
+}
+
+fn stats_variance(data) @ pure @ cpu {
+    let n = len(data)
+    if n <= 1 { return 0 }
+    let m = stats_mean(data)
+    let sum_sq = stats_sum(stats_map(data, x -> (x - m) * (x - m)))
+    return sum_sq / n
+}
+
+fn stats_stddev(data) @ pure @ cpu {
+    return sqrt(stats_variance(data))
+}
+
+fn stats_quantile(data, q) @ pure @ cpu {
+    let n = len(data)
+    if n == 0 { return 0 }
+    let pos = q * (n - 1)
+    let lower = floor(pos)
+    let frac = pos - lower
+    if lower + 1 < n {
+        return data[lower] + frac * (data[lower + 1] - data[lower])
+    }
+    return data[lower]
+}
+
+fn stats_covariance(a, b) @ pure @ cpu {
+    let n = len(a)
+    if n == 0 || len(b) != n { return 0 }
+    let ma = stats_mean(a)
+    let mb = stats_mean(b)
+    let sum = 0
+    let i = 0
+    while i < n {
+        let sum = sum + (a[i] - ma) * (b[i] - mb)
+        let i = i + 1
+    }
+    return sum / n
+}
+
+fn stats_correlation(a, b) @ pure @ cpu {
+    let cov = stats_covariance(a, b)
+    let sa = stats_stddev(a)
+    let sb = stats_stddev(b)
+    if sa == 0 || sb == 0 { return 0 }
+    return cov / (sa * sb)
+}
+
+fn stats_sort_descend(data) @ pure @ cpu {
+    return sort_selection(data)
+}
+
+fn stats_map(data, f) @ pure @ cpu {
+    let result = []
+    let i = 0
+    let n = len(data)
+    while i < n {
+        let result = result + [f(data[i])]
+        let i = i + 1
+    }
+    return result
+}
+
+fn sort_bubble(data) @ pure @ cpu { return sort.dal::sort_bubble(data) }
+fn sort_selection(data) @ pure @ cpu { return sort.dal::selection_sort(data) }

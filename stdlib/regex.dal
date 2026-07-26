@@ -1,8 +1,5 @@
-// Module: regex
-// Purpose: 正则表达式匹配工具函数。
+// Dalin L Standard Library — regex pattern matching (stub)
 
-fn regex_match(pattern: String, text: String) -> Bool {
-  let result = true
-  return result
-}
-
+fn regex_match(pattern, text) @ pure @ cpu { return false }
+fn regex_search(pattern, text) @ pure @ cpu { return false }
+fn regex_replace(pattern, replacement, text) @ pure @ cpu { return text }

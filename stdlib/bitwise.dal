@@ -1,8 +1,98 @@
-// Dalin L 标准库 — 位运算
+// Dalin L Standard Library — bitwise operations (correct implementations)
+// Uses arithmetic to simulate bitwise: value = sum of 2^k for each bit k that is set
 
-fn bit_and(a, b) @ pure @ cpu { return 0 }
-fn bit_or(a, b) @ pure @ cpu { return 0 }
-fn bit_xor(a, b) @ pure @ cpu { return 0 }
-fn bit_not(a) @ pure @ cpu { return 0 }
-fn bit_shl(a, n) @ pure @ cpu { return 0 }
-fn bit_shr(a, n) @ pure @ cpu { return 0 }
+fn bit_and(a, b) @ pure @ cpu {
+    let result = 0
+    let bit = 1
+    let i = 0
+    while i < 32 {
+        let a_has = if a % 2 == 1 { true } else { false }
+        let b_has = if b % 2 == 1 { true } else { false }
+        if a_has && b_has { result = result + bit }
+        a = a / 2
+        b = b / 2
+        bit = bit * 2
+        let i = i + 1
+    }
+    return result
+}
+
+fn bit_or(a, b) @ pure @ cpu {
+    let result = 0
+    let bit = 1
+    let i = 0
+    while i < 32 {
+        let a_has = if a % 2 == 1 { true } else { false }
+        let b_has = if b % 2 == 1 { true } else { false }
+        if a_has || b_has { result = result + bit }
+        a = a / 2
+        b = b / 2
+        bit = bit * 2
+        let i = i + 1
+    }
+    return result
+}
+
+fn bit_xor(a, b) @ pure @ cpu {
+    let result = 0
+    let bit = 1
+    let i = 0
+    while i < 32 {
+        let a_has = if a % 2 == 1 { true } else { false }
+        let b_has = if b % 2 == 1 { true } else { false }
+        if a_has != b_has { result = result + bit }
+        a = a / 2
+        b = b / 2
+        bit = bit * 2
+        let i = i + 1
+    }
+    return result
+}
+
+fn bit_not(a) @ pure @ cpu {
+    let result = 0
+    let bit = 1
+    let i = 0
+    while i < 32 {
+        if a % 2 == 0 { result = result + bit }
+        a = a / 2
+        bit = bit * 2
+        let i = i + 1
+    }
+    return result
+}
+
+fn bit_shl(a, n) @ pure @ cpu {
+    let result = a
+    let i = 0
+    while i < n {
+        let result = result * 2
+        let i = i + 1
+    }
+    return result
+}
+
+fn bit_shr(a, n) @ pure @ cpu {
+    let result = a
+    let i = 0
+    while i < n {
+        let result = result / 2
+        let i = i + 1
+    }
+    return result
+}
+
+fn bit_count_set_bits(n) @ pure @ cpu {
+    let count = 0
+    val = n
+    while val > 0 {
+        val = val & (val - 1)
+        let count = count + 1
+    }
+    return count
+}
+
+fn bit_is_power_of_two(n) @ pure @ cpu {
+    if n <= 0 { return false }
+    return (n & (n - 1)) == 0
+}

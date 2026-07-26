@@ -1,11 +1,22 @@
-// Dalin L Core — math
-// 数学工具: abs, max, min, floor, ceil, sqrt, pow
+// Dalin L Core — Math utilities (with Newton's method sqrt)
 
-fn math_abs(x) @ pure @ cpu { if (x < 0) { return -x } else { return x } }
-fn math_max(a, b) @ pure @ cpu { if (a > b) { return a } else { return b } }
-fn math_min(a, b) @ pure @ cpu { if (a < b) { return a } else { return b } }
-fn math_floor(x) @ pure @ cpu { return x }
-fn math_ceil(x) @ pure @ cpu { return x }
-fn math_sqrt(x) @ pure @ cpu { return x }
-fn math_pow(base, exp) @ pure @ cpu { return base }
-fn math_mod(a, b) @ pure @ cpu { return a }
+fn core_abs(x) @ pure @ cpu { return abs(x) }
+
+fn core_sqrt_approx(x) @ pure @ cpu {
+    if x <= 0 { return 0 }
+    let guess = x / 2.0
+    let i = 0
+    while i < 50 {
+        let new_guess = (guess + x / guess) / 2
+        if abs(new_guess - guess) < 0.00001 { break }
+        let guess = new_guess
+        let i = i + 1
+    }
+    return guess
+}
+
+fn core_clamp(val, min_v, max_v) @ pure @ cpu {
+    if val < min_v { return min_v }
+    if val > max_v { return max_v }
+    return val
+}

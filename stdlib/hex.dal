@@ -1,7 +1,75 @@
-// Dalin L Standard Library — hex
-// 十六进制编码 / 解码
+// Module: hex — 完整 Hex 编解码
 
-fn hex_encode(bytes) @ pure @ cpu { return "" }
-fn hex_decode(s) @ pure @ cpu { return [] }
-fn hex_to_int(s) @ pure @ cpu { return 0 }
-fn hex_from_int(n) @ pure @ cpu { return "0" }
+fn hex_encode(bytes) @ pure @ cpu {
+    let table = "0123456789abcdef"
+    let result = ""
+    let i = 0
+    let n = len(bytes)
+    while i < n {
+        let b = bytes[i]
+        let hi = b / 16
+        let lo = b % 16
+        let result = result + table[hi]
+        let result = result + table[lo]
+        let i = i + 1
+    }
+    return result
+}
+
+fn hex_decode(s) @ pure @ cpu {
+    let table = {}
+    let i = 0
+    while i < 10 {
+        let c = str('0' + i)
+        let table[c] = i
+        let i = i + 1
+    }
+    let result = []
+    let i = 0
+    let n = len(s)
+    while i + 1 < n {
+        let hi = table[s[i]]
+        let lo = table[s[i + 1]]
+        if hi >= 0 && lo >= 0 {
+            result = result + [hi * 16 + lo]
+        }
+        let i = i + 2
+    }
+    return result
+}
+
+fn hex_to_int(s) @ pure @ cpu {
+    let result = 0
+    let i = 0
+    let n = len(s)
+    while i < n {
+        let result = result * 16 + _hex_digit_val(s[i])
+        let i = i + 1
+    }
+    return result
+}
+
+fn hex_from_int(n) @ pure @ cpu {
+    if n == 0 { return "0" }
+    let table = "0123456789abcdef"
+    let digits = []
+    let val = n
+    while val > 0 {
+        digits = [table[val % 16]] + digits
+        let val = val / 16
+    }
+    let result = ""
+    let i = 0
+    while i < len(digits) {
+        let result = result + digits[i]
+        let i = i + 1
+    }
+    return result
+}
+
+fn _hex_digit_val(c) @ pure @ cpu {
+    if c >= '0' && c <= '9' { return ord(c) - ord('0') }
+    if c >= 'a' && c <= 'f' { return ord(c) - ord('a') + 10 }
+    if c >= 'A' && c <= 'F' { return ord(c) - ord('A') + 10 }
+    return 0
+}

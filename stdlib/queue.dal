@@ -1,8 +1,31 @@
-// Dalin L 标准库 — 队列操作
+// Dalin L Standard Library — queue operations using list array
 
 fn queue_new() @ pure @ cpu { return [] }
-fn queue_enqueue(q, val) @ pure @ cpu { return q }
-fn queue_dequeue(q) @ pure @ cpu { return null }
-fn queue_peek(q) @ pure @ cpu { return null }
-fn queue_len(q) @ pure @ cpu { return 0 }
-fn queue_is_empty(q) @ pure @ cpu { return true }
+
+fn queue_enqueue(q, val) @ pure @ cpu { return push(q, val) }
+
+fn queue_dequeue(q) @ pure @ cpu {
+    let n = len(q)
+    if n == 0 { return null }
+    return [q[0], _queue_pop_front(q)]
+}
+
+fn _queue_pop_front(q) @ pure @ cpu {
+    let result = []
+    let i = 1
+    let n = len(q)
+    while i < n {
+        let result = push(result, q[i])
+        let i = i + 1
+    }
+    return result
+}
+
+fn queue_peek(q) @ pure @ cpu {
+    if len(q) > 0 { return q[0] }
+    return null
+}
+
+fn queue_len(q) @ pure @ cpu { return len(q) }
+
+fn queue_is_empty(q) @ pure @ cpu { return len(q) == 0 }

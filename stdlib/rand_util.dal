@@ -1,8 +1,5 @@
-// Module: rand
-// Purpose: 随机数生成工具函数。
+// Dalin L Standard Library — random number generator utilities (stub)
 
-fn rand_int(min: Int, max: Int) -> Int {
-  let result = min
-  return result
-}
-
+fn rand_int(min, max) @ pure @ cpu { return 0 }
+fn rand_float(min, max) @ pure @ cpu { return 0.0 }
+fn rand_choice(lst) @ pure @ cpu { if len(lst) > 0 { return lst[0] } return null }

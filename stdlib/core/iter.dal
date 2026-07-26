@@ -2,7 +2,34 @@
 // 迭代器基础工具: iterator_new, next, map
 
 fn iter_new(list) @ pure @ cpu { return list }
-fn iter_next(it) @ pure @ cpu { return null }
-fn iter_map(it, f) @ pure @ cpu { return [] }
-fn iter_count(it) @ pure @ cpu { return 0 }
-fn iter_is_empty(it) @ pure @ cpu { return true }
+
+fn iter_next(it) @ pure @ cpu {
+    if len(it) > 0 {
+        let result = []
+        let i = 1
+        let n = len(it)
+        while i < n {
+            let result = push(result, it[i])
+            let i = i + 1
+        }
+        return [it[0], result]
+    }
+    return [null, []]
+}
+
+fn iter_map(it, f) @ pure @ cpu {
+    let result = []
+    let i = 0
+    let n = len(it)
+    while i < n {
+        let item = it[i]
+        let mapped = null
+        let result = push(result, item)
+        let i = i + 1
+    }
+    return result
+}
+
+fn iter_count(it) @ pure @ cpu { return len(it) }
+
+fn iter_is_empty(it) @ pure @ cpu { return len(it) == 0 }

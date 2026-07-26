@@ -1,9 +1,6 @@
-// Dalin L Core — result
-// Result 类型工具: Ok/Error 辅助函数
+// Dalin L Core — Result type utilities
 
-fn result_is_ok(r) @ pure @ cpu { return r != null }
-fn result_is_err(r) @ pure @ cpu { return r == null }
-fn result_get(r, default_val) @ pure @ cpu { if (r == null) { return default_val } else { return r } }
-fn result_map(r, f) @ pure @ cpu { if (r == null) { return null } else { return f(r) } }
-fn result_or_else(r, fallback) @ pure @ cpu { if (r == null) { return fallback } else { return r } }
-fn result_unwrap(r) @ pure @ cpu { if (r == null) { return 0 } else { return r } }
+fn ok_result(val) @ pure @ cpu { return [true, val, null] }
+fn err_result(err) @ pure @ cpu { return [false, null, err] }
+fn result_is_ok(r) @ pure @ cpu { if len(r) > 0 { return r[0] } return false }
+fn result_get(r, default) @ pure @ cpu { if result_is_ok(r) && len(r) > 1 { return r[1] } return default }

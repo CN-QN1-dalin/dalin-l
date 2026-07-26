@@ -1,9 +1,6 @@
-// Dalin L Standard Library — qn
-// QN (量子认知) 工具函数
+// Dalin L Standard Library — QN1 cognitive layer utilities
 
-fn qn_field_value(agent_id) @ pure @ cpu { return 0 }
-fn qn_cohesion() @ pure @ cpu { return 0.0 }
-fn qn_coherence() @ pure @ cpu { return 0.0 }
-fn qn_agency_level(agent_id) @ pure @ cpu { return "low" }
-fn qn_signal(agent_id, sig_type, strength) @ pure @ cpu { return true }
-fn qn_evaluate() @ pure @ cpu { return null }
+fn qn_perceive(ctx) @ pure @ cpu { return {} }
+fn qn_reflect(state) @ pure @ cpu { return null }
+fn qn_act(state, plan) @ pure @ cpu { return "done" }
+fn qn_loop(perceive_fn, reflect_fn, act_fn) @ pure @ cpu { return true }

@@ -1,9 +1,5 @@
-// Dalin L Standard Library — memory
-// 内存管理工具: alloc, dealloc, read, write, len
+// Dalin L Standard Library — memory management utilities
 
-fn memory_alloc(size) @ pure @ cpu { return [] }
-fn memory_dealloc(ptr) @ pure @ cpu { return true }
-fn memory_write(ptr, val) @ pure @ cpu { return true }
-fn memory_read(ptr) @ pure @ cpu { return null }
-fn memory_len(ptr) @ pure @ cpu { return 0 }
-fn memory_copy(src, dst) @ pure @ cpu { return true }
+fn memory_usage() @ pure @ cpu { return 0 }
+fn memory_limit(bytes) @ pure @ cpu { return true }
+fn memory_available() @ pure @ cpu { return 0 }

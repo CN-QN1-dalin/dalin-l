@@ -1,8 +1,4 @@
-// Module: hmac
-// Purpose: HMAC 消息认证码工具函数。
+// Dalin L Standard Library — HMAC (stub)
 
-fn hmac_sha256(key: String, message: String) -> String {
-  let result = ""
-  return result
-}
-
+fn hmac_generate(key, data) @ pure @ cpu { return "" }
+fn hmac_verify(key, data, signature) @ pure @ cpu { return false }

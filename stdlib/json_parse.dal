@@ -1,13 +1,231 @@
-// Module: json_parse
-// Purpose: JSON 解析与序列化增强工具函数。
+// Module: json_parse — 基础 JSON 解析与序列化
 
-fn json_parse(json_str: String) -> Map {
-  let result = map()
-  return result
+fn json_parse(json_str) @ pure @ cpu {
+    // Minimal: handles flat string-keyed objects and arrays of primitives
+    let trimmed = _trim_whitespace(json_str)
+    if trimmed == "{}" || trimmed == "" { return {} }
+    if trimmed == "[]" { return [] }
+    // Strip outer braces/brackets
+    let content = _json_strip_outer(trimmed)
+    return _json_parse_flat(content)
 }
 
-fn json_to_string(data: Map) -> String {
-  let result = ""
-  return result
+fn _trim_whitespace(s) @ pure @ cpu {
+    let start = 0
+    let end = len(s) - 1
+    let i = 0
+    while i < len(s) {
+        if s[i] != ' ' && s[i] != '\t' && s[i] != '\n' && s[i] != '\r' { start = i; break }
+        let i = i + 1
+    }
+    let j = 0
+    let li = len(s) - 1
+    while j <= li {
+        if s[li - j] != ' ' && s[li - j] != '\t' && s[li - j] != '\n' && s[li - j] != '\r' { end = li - j; break }
+        let j = j + 1
+    }
+    if end < start { return "" }
+    let result = ""
+    let k = start
+    while k <= end {
+        let result = result + s[k]
+        let k = k + 1
+    }
+    return result
 }
 
+fn _json_strip_outer(s) @ pure @ cpu {
+    if s == "{}" || s == "[]" { return "" }
+    let first = s[0]
+    if first == '{' || first == '[' { return _json_substring(s, 1, len(s) - 1) }
+    return s
+}
+
+fn _json_substring(s, start, end) @ pure @ cpu {
+    let result = ""
+    let i = start
+    while i < end && i < len(s) {
+        let result = result + s[i]
+        let i = i + 1
+    }
+    return result
+}
+
+fn _json_parse_flat(content) @ pure @ cpu {
+    // Handle simple "key": value pairs in a map
+    let result = {}
+    let parts = _json_split_commas(content)
+    let i = 0
+    let n = len(parts)
+    while i < n {
+        let part = parts[i]
+        let colon_pos = _json_find_char(part, ':')
+        if colon_pos > 0 {
+            let key = _json_strip_quotes(_json_trim_key(part, colon_pos))
+            let value_str = _json_trim_value(part, colon_pos)
+            result[key] = _json_parse_value(value_str)
+        }
+        let i = i + 1
+    }
+    return result
+}
+
+fn _json_split_commas(s) @ pure @ cpu {
+    let parts = []
+    let current = ""
+    let depth = 0
+    let i = 0
+    let n = len(s)
+    while i < n {
+        let c = s[i]
+        if c == '{' || c == '[' { depth = depth + 1 }
+        if c == '}' || c == ']' { depth = depth - 1 }
+        if c == ',' && depth == 0 {
+            parts = parts + [current]
+            current = ""
+        } else {
+            let current = current + c
+        }
+        let i = i + 1
+    }
+    if current != "" { parts = parts + [current] }
+    return parts
+}
+
+fn _json_find_char(s, ch) @ pure @ cpu {
+    let i = 0
+    let n = len(s)
+    while i < n {
+        if s[i] == ch { return i }
+        let i = i + 1
+    }
+    return -1
+}
+
+fn _json_trim_key(s, colon_pos) @ pure @ cpu {
+    let result = ""
+    let i = 0
+    while i < colon_pos {
+        if s[i] != ' ' && s[i] != '\t' {
+            let result = result + s[i]
+        }
+        let i = i + 1
+    }
+    return result
+}
+
+fn _json_trim_value(s, colon_pos) @ pure @ cpu {
+    let i = colon_pos + 1
+    let result = ""
+    while i < len(s) {
+        let result = result + s[i]
+        let i = i + 1
+    }
+    return result
+}
+
+fn _json_strip_quotes(s) @ pure @ cpu {
+    if len(s) >= 2 && s[0] == '"' && s[len(s) - 1] == '"' {
+        let result = ""
+        let i = 1
+        while i < len(s) - 1 {
+            let result = result + s[i]
+            let i = i + 1
+        }
+        return result
+    }
+    return s
+}
+
+fn _json_parse_value(v) @ pure @ cpu {
+    let trimmed = _json_trim_all_space(v)
+    if trimmed == "null" || trimmed == "" { return null }
+    if trimmed == "true" { return true }
+    if trimmed == "false" { return false }
+    // Check for number
+    let num = _json_parse_number(trimmed)
+    if num >= 0 { return num }
+    // String
+    if trimmed[0] == '"' {
+        let result = ""
+        let i = 1
+        while i < len(trimmed) - 1 {
+            let result = result + trimmed[i]
+            let i = i + 1
+        }
+        return result
+    }
+    return trimmed
+}
+
+fn _json_trim_all_space(s) @ pure @ cpu {
+    let result = ""
+    let i = 0
+    while i < len(s) {
+        if s[i] != ' ' && s[i] != '\t' {
+            let result = result + s[i]
+        }
+        let i = i + 1
+    }
+    return result
+}
+
+fn _json_parse_number(s) @ pure @ cpu {
+    let has_digit = false
+    let i = 0
+    let n = len(s)
+    while i < n {
+        let c = s[i]
+        if (c >= '0' && c <= '9') || c == '.' || c == '-' || c == '+' || c == 'e' || c == 'E' {
+            has_digit = true
+        } else {
+            has_digit = false; break
+        }
+        let i = i + 1
+    }
+    if !has_digit { return -1 }
+    return 0
+}
+
+fn json_to_string(data) @ pure @ cpu {
+    return _json_serialize(data, 0)
+}
+
+fn _json_serialize(val, indent) @ pure @ cpu {
+    let t = type_of(val)
+    if t == "map" { return _json_serialize_map(val) }
+    if t == "list" { return _json_serialize_list(val) }
+    if t == "string" { return "\"" + val + "\"" }
+    if val == true { return "true" }
+    if val == false { return "false" }
+    if val == null { return "null" }
+    return str(val)
+}
+
+fn _json_serialize_map(m) @ pure @ cpu {
+    let result = "{"
+    let i = 0
+    let n = len(m)
+    while i < n {
+        if i > 0 { result = result + ", " }
+        let k = m[i][0]
+        let v = m[i][1]
+        result = result + "\"" + k + "\": " + _json_serialize(v, indent + 1)
+        let i = i + 1
+    }
+    result = result + "}"
+    return result
+}
+
+fn _json_serialize_list(lst) @ pure @ cpu {
+    let result = "["
+    let i = 0
+    let n = len(lst)
+    while i < n {
+        if i > 0 { result = result + ", " }
+        result = result + _json_serialize(lst[i], indent + 1)
+        let i = i + 1
+    }
+    result = result + "]"
+    return result
+}

@@ -1,9 +1,8 @@
-// Dalin L Standard Library — config
-// 配置管理: load, get, set, save
+// Dalin L Standard Library — configuration management
 
-fn config_load(path) @ pure @ cpu { return "" }
-fn config_get(cfg, key) @ pure @ cpu { return "" }
-fn config_set(cfg, key, val) @ pure @ cpu { return cfg }
-fn config_save(cfg, path) @ pure @ cpu { return true }
-fn config_get_int(cfg, key, default) @ pure @ cpu { return default }
-fn config_get_bool(cfg, key, default) @ pure @ cpu { return default }
+fn config_load(path) @ pure @ cpu { return {} }
+fn config_get(key, default) @ pure @ cpu { return default }
+fn config_set(key, value) @ pure @ cpu { return null }
+fn config_delete(key) @ pure @ cpu { return false }
+fn config_keys() @ pure @ cpu { return [] }
+fn config_values() @ pure @ cpu { return [] }

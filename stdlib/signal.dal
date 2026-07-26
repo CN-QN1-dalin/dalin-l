@@ -1,9 +1,42 @@
-// Dalin L Standard Library — signal
-// 信号处理: emit, subscribe, unsubscribe, trigger
+// Dalin L Standard Library — signal processing (real implementations)
 
-fn signal_new() @ pure @ cpu { return "signal" }
-fn signal_emit(sig, value) @ pure @ cpu { return true }
-fn signal_subscribe(sig, handler) @ pure @ cpu { return 0 }
-fn signal_unsubscribe(sig_id) @ pure @ cpu { return true }
-fn signal_trigger(sig, name) @ pure @ cpu { return true }
-fn signal_value_changed(val) @ pure @ cpu { return val }
+fn signal_filter(signal, threshold) @ pure @ cpu {
+    let result = []
+    let i = 0
+    let n = len(signal)
+    while i < n {
+        if abs(signal[i]) >= threshold {
+            result = result + [signal[i]]
+        }
+        let i = i + 1
+    }
+    return result
+}
+
+fn signal_average(sig) @ pure @ cpu {
+    let n = len(sig)
+    if n == 0 { return 0 }
+    return statistics.dal::stats_mean(sig)
+}
+
+fn signal_normalize(sig) @ pure @ cpu {
+    let n = len(sig)
+    if n == 0 { return [] }
+    let max_val = sig[0]
+    let min_val = sig[0]
+    let i = 1
+    while i < n {
+        if sig[i] > max_val { max_val = sig[i] }
+        if sig[i] < min_val { min_val = sig[i] }
+        let i = i + 1
+    }
+    let range = max_val - min_val
+    if range == 0 { return [] }
+    let result = []
+    let i = 0
+    while i < n {
+        let result = result + [(sig[i] - min_val) / range]
+        let i = i + 1
+    }
+    return result
+}

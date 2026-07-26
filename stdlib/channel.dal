@@ -1,7 +1,32 @@
-// Dalin L Standard Library — channel
-// 通道通信工具: send, recv, try_send
+// Module: channel — 基于 list 的通道模拟 (单生产者/单消费者)
 
-fn channel_new() @ pure @ cpu { return "channel" }
-fn channel_send(ch, msg) @ pure @ cpu { return true }
-fn channel_recv(ch) @ pure @ cpu { return null }
-fn channel_try_send(ch, msg) @ pure @ cpu { return true }
+fn channel_new() @ pure @ cpu { return [ [], false ] }
+// Returns: [buffer, closed] where buffer is a list and closed is boolean
+
+fn channel_send(ch, msg) @ pure @ cpu {
+    let buffer = ch[0]
+    let closed = ch[1]
+    if closed { return false }
+    let new_buffer = buffer + [msg]
+    return [new_buffer, false]
+}
+
+fn channel_recv(ch) @ pure @ cpu {
+    let buffer = ch[0]
+    if len(buffer) == 0 { return [ch, null] }
+    let front = buffer[0]
+    let new_buffer = buffer[1:]
+    return [[new_buffer, ch[1]], front]
+}
+
+fn channel_try_send(ch, msg) @ pure @ cpu {
+    let buffer = ch[0]
+    let closed = ch[1]
+    if closed || len(buffer) >= 1024 { return [ch, false] }
+    let new_ch = channel_send(ch, msg)
+    return [new_ch[0], true]
+}
+
+fn channel_close(ch) @ pure @ cpu { return [ch[0], true] }
+
+fn channel_len(ch) @ pure @ cpu { return len(ch[0]) }

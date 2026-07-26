@@ -1,8 +1,11 @@
-// Dalin L Standard Library — debug
-// 调试工具: inspect, debug_trace, print_type
+// Dalin L Standard Library — debug utilities
 
-fn debug_inspect(val) @ pure @ cpu { return "inspect" }
+fn debug_inspect(val) @ pure @ cpu { return str(val) }
+
 fn debug_trace(msg) @ pure @ cpu { return null }
-fn debug_print_type(val) @ pure @ cpu { return "type" }
-fn debug_dump_state() @ pure @ cpu { return {} }
-fn debug_assert(cond, msg) @ pure @ cpu { return cond }
+
+fn debug_print_type(val) @ pure @ cpu { return "unknown" }
+
+fn debug_dump_state() @ pure @ cpu { return [] }
+
+fn debug_assert(cond, msg) @ pure @ cpu { if cond { return true } return false }

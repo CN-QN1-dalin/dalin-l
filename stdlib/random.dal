@@ -1,45 +1,30 @@
 // Dalin L — 随机数生成模块
 
-/// 生成 [0, 1) 范围的随机浮点数
-fn random() -> float {
-    system_random()
-}
+fn random() @ pure @ cpu { return 0.0 }
 
-/// 生成 [min, max) 范围的随机整数
-fn rand_int(min: int, max: int) -> int {
-    if min >= max { return min }
-    let r = random()
-    let range = max - min
-    min + int(r * float(range))
-}
+fn rand_int(min, max) @ pure @ cpu { if min >= max { return min } let range = max - min; return min + int(random() * float(range)) }
 
-/// 生成 [min, max] 范围的随机浮点数
-fn rand_float(min: float, max: float) -> float {
-    if min >= max { return min }
-    min + random() * (max - min)
-}
+fn rand_float(min, max) @ pure @ cpu { if min >= max { return min } return min + random() * (max - min) }
 
-/// 从数组中随机选一个元素 (字符串数组)
-fn rand_choice(items: list) -> option {
-    if len(items) == 0 { return none() }
-    let idx = rand_int(0, len(items))
-    some(items[idx])
-}
+fn rand_choice(items) @ pure @ cpu { let n = len(items); if n == 0 { return null } let idx = rand_int(0, n); return items[idx] }
 
-/// 打乱整数数组 (Fisher-Yates shuffle)
-fn shuffle(items: list) -> list {
-    let mut arr = items
-    let n = len(arr)
-    for i in range(n - 1, 0, -1) {
+fn shuffle(arr) @ pure @ cpu {
+    let result = arr
+    let n = len(result)
+    let i = n - 1
+    while i > 0 {
         let j = rand_int(0, i + 1)
-        let tmp = arr[i]
-        arr[i] = arr[j]
-        arr[j] = tmp
+        let tmp = result[j]
+        let new_result = []
+        let k = 0
+        while k < n {
+            if k == i { let new_result = push(new_result, result[j]) }
+            else if k == j { let new_result = push(new_result, result[i]) }
+            else { let new_result = push(new_result, result[k]) }
+            let k = k + 1
+        }
+        let result = new_result
+        let i = i - 1
     }
-    arr
-}
-
-// 内部：系统随机数
-fn system_random() -> float {
-    0.0
+    return result
 }

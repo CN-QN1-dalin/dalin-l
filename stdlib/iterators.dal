@@ -1,9 +1,56 @@
-// Dalin L Standard Library — iterators
-// 迭代器模式辅助: map, filter, fold, take, skip
+// Dalin L Standard Library — iterators (real implementations)
 
-fn iter_map(list, f) @ pure @ cpu { return [] }
-fn iter_filter(list, pred) @ pure @ cpu { return [] }
-fn iter_fold(list, acc, f) @ pure @ cpu { return acc }
-fn iter_take(list, n) @ pure @ cpu { return [] }
-fn iter_skip(list, n) @ pure @ cpu { return list }
-fn iter_zip(a, b) @ pure @ cpu { return [] }
+fn iter_map(list, f) @ pure @ cpu {
+    let result = []
+    let i = 0
+    let n = len(list)
+    while i < n {
+        let result = result + [f(list[i])]
+        let i = i + 1
+    }
+    return result
+}
+
+fn iter_filter(list, pred) @ pure @ cpu {
+    let result = []
+    let i = 0
+    let n = len(list)
+    while i < n {
+        if pred(list[i]) { result = result + [list[i]] }
+        let i = i + 1
+    }
+    return result
+}
+
+fn iter_fold(list, acc, f) @ pure @ cpu {
+    let i = 0
+    let n = len(list)
+    while i < n {
+        let acc = f(acc, list[i])
+        let i = i + 1
+    }
+    return acc
+}
+
+fn iter_take(list, n) @ pure @ cpu {
+    if n >= len(list) { return list }
+    return list[:n]
+}
+
+fn iter_skip(list, n) @ pure @ cpu {
+    if n >= len(list) { return [] }
+    return list[n:]
+}
+
+fn iter_zip(a, b) @ pure @ cpu {
+    let result = []
+    let i = 0
+    let max_len = if len(a) > len(b) { len(a) } else { len(b) }
+    while i < max_len {
+        let va = if i < len(a) { a[i] } else { null }
+        let vb = if i < len(b) { b[i] } else { null }
+        result = result + [[va, vb]]
+        let i = i + 1
+    }
+    return result
+}

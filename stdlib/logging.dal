@@ -1,10 +1,15 @@
-// Dalin L Standard Library — logging
-// 日志系统: log_debug, log_info, log_warn, log_error
+// Dalin L Standard Library — logging utilities
 
-fn logging_init(level) @ pure @ cpu { return true }
+fn logging_init(level) @ pure @ cpu { return level }
+
 fn log_debug(msg) @ pure @ cpu { return null }
-fn log_info(msg) @ pure @ cpu { return null }
-fn log_warn(msg) @ pure @ cpu { return null }
-fn log_error(msg) @ pure @ cpu { return null }
-fn logging_set_level(level) @ pure @ cpu { return true }
+
+fn log_info(msg) @ pure @ cpu { return msg }
+
+fn log_warn(msg) @ pure @ cpu { return msg }
+
+fn log_error(msg) @ pure @ cpu { return msg }
+
+fn logging_set_level(level) @ pure @ cpu { return level }
+
 fn logging_enabled() @ pure @ cpu { return true }

@@ -1,8 +1,4 @@
-// Module: dns_resolve
-// Purpose: DNS 域名解析工具函数。
+// Dalin L Standard Library — DNS resolve (stub)
 
-fn dns_resolve(hostname: String) -> String {
-  let result = ""
-  return result
-}
-
+fn dns_lookup(host) @ pure @ cpu { return "" }
+fn dns_reverse(ip) @ pure @ cpu { return "" }

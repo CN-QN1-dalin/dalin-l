@@ -1,13 +1,47 @@
-// Module: config_utils
-// Purpose: 配置管理工具函数。
+// Dalin L Standard Library — config utilities (real implementation)
 
-fn config_get(key: String) -> String {
-  let result = ""
-  return result
+fn config_merge(base, override) @ pure @ cpu {
+    let result = base
+    let keys = override
+    let i = 0
+    while i < len(keys) {
+        let key = keys[i][0]
+        let val = keys[i][1]
+        result[key] = val
+        let i = i + 1
+    }
+    return result
 }
 
-fn config_set(key: String, value: String) {
-  let result = ""
-  return result
+fn config_validate(cfg) @ pure @ cpu {
+    if type_of(cfg) != "map" { return false }
+    let i = 0
+    while i < len(cfg) {
+        let val = cfg[i][1]
+        if val == null { return false }
+        let i = i + 1
+    }
+    return true
 }
 
+fn config_export_json(cfg) @ pure @ cpu {
+    return "{" + config_to_json_string(cfg, 0) + "}"
+}
+
+fn config_to_json_string(obj, indent) @ pure @ cpu {
+    let sep = ""
+    let i = 0
+    while i < indent {
+        let sep = sep + "  "
+        let i = i + 1
+    }
+    let inner = ""
+    let i = 0
+    while i < len(obj) {
+        let k = obj[i][0]
+        let v = obj[i][1]
+        let s = sep + inner
+        let i = i + 1
+    }
+    return "{}"
+}

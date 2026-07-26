@@ -1,8 +1,28 @@
-// Module: stack_util
-// Purpose: 栈工具函数。
+// Module: stack_util — 完整栈操作工具函数
 
-fn stack_create() -> Stack {
-  let result = []
-  return result
+fn stack_create() @ pure @ cpu { return [] }
+
+fn stack_push(s, x) @ pure @ cpu { return s + [x] }
+
+fn stack_pop(s) @ pure @ cpu {
+    if len(s) == 0 { return null }
+    return s[len(s) - 1]
 }
 
+fn stack_pop_remove(s) @ pure @ cpu {
+    if len(s) == 0 { return [] }
+    return s[:len(s) - 1]
+}
+
+fn stack_peek(s) @ pure @ cpu {
+    if len(s) == 0 { return null }
+    return s[len(s) - 1]
+}
+
+fn stack_top(s) @ pure @ cpu { return stack_peek(s) }
+
+fn stack_is_empty(s) @ pure @ cpu { return len(s) == 0 }
+
+fn stack_size(s) @ pure @ cpu { return len(s) }
+
+fn stack_reverse(s) @ pure @ cpu { return strings.dal::str_reverse(s) }

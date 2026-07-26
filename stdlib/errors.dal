@@ -1,8 +1,28 @@
-// Dalin L Standard Library — errors
-// 错误处理工具: panic, bail, expect
+// Dalin L Standard Library — error handling (real is_error check)
 
-fn error_new(msg) @ pure @ cpu { return msg }
-fn error_get_msg(e) @ pure @ cpu { return e }
-fn error_panic(msg) @ pure @ cpu { return "PANIC: " + msg }
-fn error_bail(e) @ pure @ cpu { return e }
-fn error_expect(val, msg) @ pure @ cpu { if (val == null) { return error_panic(msg) } else { return val } }
+fn error_new(code, msg) @ pure @ cpu { return [code, msg] }
+
+fn error_code(err) @ pure @ cpu {
+    if len(err) > 0 { return err[0] }
+    return 0
+}
+
+fn error_message(err) @ pure @ cpu {
+    if len(err) > 1 { return err[1] }
+    return ""
+}
+
+fn is_error(val) @ pure @ cpu {
+    if len(val) != 2 { return false }
+    if type_of(val) != "list" { return false }
+    if type_of(val[0]) != "int" && type_of(val[0]) != "float" { return false }
+    if type_of(val[1]) != "string" { return false }
+    return true
+}
+
+fn error_raise(code, msg) @ pure @ cpu { return error_new(code, msg) }
+
+fn error_is(code, err) @ pure @ cpu {
+    if !is_error(err) { return false }
+    return error_code(err) == code
+}

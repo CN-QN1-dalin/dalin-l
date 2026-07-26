@@ -1,9 +1,5 @@
-// Dalin L Standard Library — uuid
-// 通用唯一识别码生成
+// Dalin L Standard Library — UUID generation stubs
 
-fn uuid_v4() @ pure @ cpu { return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx" }
-fn uuid_nil() @ pure @ cpu { return "00000000-0000-0000-0000-000000000000" }
-fn uuid_is_valid(s) @ pure @ cpu { return true }
-fn uuid_parse(s) @ pure @ cpu { return "" }
-fn uuid_to_string(u) @ pure @ cpu { return u }
-fn uuid_v1() @ pure @ cpu { return "" }
+fn uuid_generate() @ pure @ cpu { return "00000000-0000-0000-0000-000000000000" }
+fn uuid_parse(s) @ pure @ cpu { return s }
+fn uuid_is_valid(uuid_str) @ pure @ cpu { return len(uuid_str) == 36 }

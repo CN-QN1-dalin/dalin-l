@@ -1,10 +1,109 @@
-// Dalin L 标准库 — 堆操作
+// Dalin L Standard Library — min-heap using list array
 
 fn heap_new() @ pure @ cpu { return [] }
-fn heap_push(heap, val) @ pure @ cpu { return heap }
-fn heap_pop(heap) @ pure @ cpu { return null }
-fn heap_peek(heap) @ pure @ cpu { return null }
-fn heap_len(heap) @ pure @ cpu { return 0 }
-fn heap_is_empty(heap) @ pure @ cpu { return true }
+
+fn _heap_parent(i) @ pure @ cpu { return (i - 1) / 2 }
+
+fn _heap_left_child(i) @ pure @ cpu { return 2 * i + 1 }
+
+fn _heap_right_child(i) @ pure @ cpu { return 2 * i + 2 }
+
+fn _heap_sift_up(heap, idx) @ pure @ cpu {
+    if idx <= 0 { return heap }
+    let p = _heap_parent(idx)
+    if heap[p] > heap[idx] {
+        let tmp = heap[p]
+        let h = push([], heap[idx])
+        let h = push(h, heap[p])
+        let rest_start = 0
+        let rest_end = len(heap)
+        let i = rest_start
+        while i < rest_end {
+            if i == p {
+                let h = push(h, heap[idx])
+            } else if i == idx {
+                let h = push(h, heap[p])
+            } else {
+                let h = push(h, heap[i])
+            }
+            let i = i + 1
+        }
+        return _heap_sift_up(h, p)
+    }
+    return heap
+}
+
+fn heap_push(heap, val) @ pure @ cpu {
+    let new_heap = push(heap, val)
+    let n = len(new_heap) - 1
+    return _heap_sift_up(new_heap, n)
+}
+
+fn _heap_sift_down(heap, idx) @ pure @ cpu {
+    let smallest = idx
+    let left = _heap_left_child(idx)
+    let right = _heap_right_child(idx)
+    let n = len(heap)
+    if left < n && heap[left] < heap[smallest] {
+        let smallest = left
+    }
+    if right < n && heap[right] < heap[smallest] {
+        let smallest = right
+    }
+    if smallest != idx {
+        let tmp = heap[idx]
+        let new_heap = push([], heap[smallest])
+        let i = 0
+        while i < n {
+            if i == idx {
+                let new_heap = push(new_heap, heap[smallest])
+            } else if i == smallest {
+                let new_heap = push(new_heap, tmp)
+            } else {
+                let new_heap = push(new_heap, heap[i])
+            }
+            let i = i + 1
+        }
+        return _heap_sift_down(new_heap, smallest)
+    }
+    return heap
+}
+
+fn heap_pop(heap) @ pure @ cpu {
+    let n = len(heap)
+    if n == 0 { return null }
+    if n == 1 { return heap[0] }
+    let top = heap[0]
+    let last = heap[n - 1]
+    let new_heap = []
+    let i = 1
+    while i < n - 1 {
+        let new_heap = push(new_heap, heap[i])
+        let i = i + 1
+    }
+    let new_heap = push(new_heap, last)
+    return [top, _heap_sift_down(new_heap, 0)]
+}
+
+fn heap_peek(heap) @ pure @ cpu {
+    if len(heap) > 0 { return heap[0] }
+    return null
+}
+
+fn heap_len(heap) @ pure @ cpu { return len(heap) }
+
+fn heap_is_empty(heap) @ pure @ cpu { return len(heap) == 0 }
+
 fn heap_clear() @ pure @ cpu { return [] }
-fn heap_to_sorted_list(heap) @ pure @ cpu { return [] }
+
+fn heap_to_sorted_list(heap) @ pure @ cpu {
+    let result = []
+    let h = heap
+    while !heap_is_empty(h) {
+        let pair = heap_pop(h)
+        let val = pair[0]
+        let h = pair[1]
+        let result = push(result, val)
+    }
+    return result
+}

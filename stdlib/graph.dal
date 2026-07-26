@@ -1,12 +1,185 @@
-// Dalin L 标准库 — 图算法
+// Dalin L 标准库 — 图算法 (BFS / DFS / Dijkstra)
 
 fn graph_new() @ pure @ cpu { return {} }
-fn graph_add_edge(g, from, to, weight) @ pure @ cpu { return g }
-fn graph_has_edge(g, from, to) @ pure @ cpu { return false }
-fn graph_neighbors(g, node) @ pure @ cpu { return [] }
-fn graph_bfs(g, start, target) @ pure @ cpu { return [] }
-fn graph_dfs(g, start, target) @ pure @ cpu { return [] }
-fn graph_shortest_path(g, start, end) @ pure @ cpu { return [] }
-fn graph_nodes(g) @ pure @ cpu { return [] }
-fn graph_node_count(g) @ pure @ cpu { return 0 }
-fn graph_edge_count(g) @ pure @ cpu { return 0 }
+
+fn _graph_add_edge(g, from, to, weight) @ pure @ cpu {
+    let key = str(from) + "->" + str(to)
+    let g2 = g
+    g2[key] = [to, weight]
+    return g2
+}
+
+fn graph_add_edge(g, from, to) @ pure @ cpu {
+    return _graph_add_edge(g, from, to, 1)
+}
+
+fn graph_has_edge(g, from, to) @ pure @ cpu {
+    let key = str(from) + "->" + str(to)
+    if g[key] { return true }
+    return false
+}
+
+fn graph_neighbors(g, node) @ pure @ cpu {
+    let result = []
+    let keys = g
+    let i = 0
+    let prefix = str(node) + "->"
+    while i < len(keys) {
+        let k = keys[i][0]
+        if str_starts_with(k, prefix) {
+            let val = keys[i][1]
+            result = result + [val[0]]
+        }
+        let i = i + 1
+    }
+    return result
+}
+
+fn graph_nodes(g) @ pure @ cpu {
+    let nodes = []
+    let i = 0
+    while i < len(g) {
+        let k = g[i][0]
+        let idx = 0
+        let start = -1
+        while idx < len(k) {
+            if k[idx] == '-' && start >= 0 { break }
+            if start < 0 && k[idx] != '>' { start = idx }
+            let idx = idx + 1
+        }
+        if start >= 0 {
+            let part = ""
+            let j = 0
+            while j < start {
+                let part = part + k[j]
+                let j = j + 1
+            }
+            let found = false
+            let ni = 0
+            while ni < len(nodes) {
+                if nodes[ni] == part { found = true; break }
+                let ni = ni + 1
+            }
+            if !found { nodes = nodes + [part] }
+        }
+        let i = i + 1
+    }
+    return nodes
+}
+
+fn graph_node_count(g) @ pure @ cpu { return len(graph_nodes(g)) }
+
+fn graph_edge_count(g) @ pure @ cpu { return len(g) }
+
+fn graph_bfs(g, start, target) @ pure @ cpu {
+    let queue = [[start, [start]]]
+    let visited = []
+    while len(queue) > 0 {
+        let front = queue[0]
+        let queue = queue[1:]
+        let current = front[0]
+        let path = front[1]
+        if current == target { return path }
+        let ni = 0
+        let ne = len(g)
+        while ni < ne {
+            let edge = g[ni][1]
+            let neighbor = edge[0]
+            let nk = str(current) + "->" + str(neighbor)
+            if g[nk] && !(_list_contains(visited, neighbor)) {
+                let new_path = path + [neighbor]
+                queue = queue + [[neighbor, new_path]]
+                visited = visited + [neighbor]
+            }
+            let ni = ni + 1
+        }
+    }
+    return []
+}
+
+fn _list_contains(lst, x) @ pure @ cpu {
+    let i = 0
+    let n = len(lst)
+    while i < n {
+        if lst[i] == x { return true }
+        let i = i + 1
+    }
+    return false
+}
+
+fn graph_dfs(g, start, target) @ pure @ cpu {
+    let stack = [[start, [start]]]
+    let visited = []
+    while len(stack) > 0 {
+        let top = stack[len(stack) - 1]
+        let stack = stack[:len(stack) - 1]
+        let current = top[0]
+        let path = top[1]
+        if current == target { return path }
+        if _list_contains(visited, current) { continue }
+        visited = visited + [current]
+        let ni = len(g) - 1
+        while ni >= 0 {
+            let edge = g[ni][1]
+            let neighbor = edge[0]
+            let nk = str(current) + "->" + str(neighbor)
+            if g[nk] && !_list_contains(visited, neighbor) {
+                let new_path = path + [neighbor]
+                stack = stack + [[neighbor, new_path]]
+            }
+            let ni = ni - 1
+        }
+    }
+    return []
+}
+
+fn graph_shortest_path(g, start, end) @ pure @ cpu {
+    let dist = {}
+    let prev = {}
+    let unvisited = graph_nodes(g)
+    let ni = 0
+    while ni < len(unvisited) {
+        let n = unvisited[ni]
+        dist[n] = 999999
+        let ni = ni + 1
+    }
+    dist[str(start)] = 0
+    while len(unvisited) > 0 {
+        let u = ""
+        let min_d = 999999
+        let ui = 0
+        while ui < len(unvisited) {
+            let n = unvisited[ui]
+            if dist[n] < min_d {
+                min_d = dist[n]
+                u = n
+            }
+            let ui = ui + 1
+        }
+        if u == "" || u == str(end) { break }
+        let unvisited_idx = 0
+        while unvisited_idx < len(unvisited) {
+            if unvisited[unvisited_idx] == u {
+                let unvisited = unvisited[:unvisited_idx] + unvisited[unvisited_idx+1:]
+                break
+            }
+            let unvisited_idx = unvisited_idx + 1
+        }
+        let target_key = str(u) + "->" + str(end)
+        if g[target_key] {
+            let new_dist = dist[u] + 1
+            if new_dist < dist[str(end)] {
+                dist[str(end)] = new_dist
+                prev[str(end)] = u
+            }
+        }
+    }
+    if dist[str(end)] >= 999999 { return [] }
+    let path = [str(end)]
+    var c = end
+    while c != start {
+        c = prev[str(c)]
+        path = [c] + path
+    }
+    return path
+}

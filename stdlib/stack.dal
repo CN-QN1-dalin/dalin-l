@@ -1,8 +1,28 @@
-// Dalin L 标准库 — 栈操作
+// Dalin L Standard Library — stack operations using list array
 
 fn stack_new() @ pure @ cpu { return [] }
-fn stack_push(s, val) @ pure @ cpu { return s }
-fn stack_pop(s) @ pure @ cpu { return null }
-fn stack_peek(s) @ pure @ cpu { return null }
-fn stack_len(s) @ pure @ cpu { return 0 }
-fn stack_is_empty(s) @ pure @ cpu { return true }
+
+fn stack_push(s, val) @ pure @ cpu { return push(s, val) }
+
+fn stack_pop(s) @ pure @ cpu {
+    let n = len(s)
+    if n == 0 { return null }
+    if n == 1 { return null }
+    let result = []
+    let i = 0
+    while i < n - 1 {
+        let result = push(result, s[i])
+        let i = i + 1
+    }
+    return s[n - 1]
+}
+
+fn stack_peek(s) @ pure @ cpu {
+    let n = len(s)
+    if n > 0 { return s[n - 1] }
+    return null
+}
+
+fn stack_len(s) @ pure @ cpu { return len(s) }
+
+fn stack_is_empty(s) @ pure @ cpu { return len(s) == 0 }

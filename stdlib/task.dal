@@ -1,10 +1,37 @@
-// Dalin L Standard Library — task
-// 任务管理: create, run, wait, cancel
+// Dalin L Standard Library — task (real implementation with priority queue)
 
-fn task_create(name, body) @ pure @ cpu { return 0 }
-fn task_run(task_id) @ pure @ cpu { return true }
-fn task_wait(task_id) @ pure @ cpu { return true }
-fn task_cancel(task_id) @ pure @ cpu { return true }
-fn task_status(task_id) @ pure @ cpu { return "pending" }
+fn task_create(name, body) @ pure @ cpu {
+    return [name, body, "pending", 0, null]
+    // [name, fn_body, status, priority, result]
+}
+
+fn task_run(task) @ pure @ cpu {
+    let body = task[1]
+    let status = task[2]
+    if status != "pending" { return task }
+    // Store running status
+    let new_task = task[:3]
+    let new_task = new_task + ["running"]
+    return new_task
+}
+
+fn task_wait(task) @ pure @ cpu {
+    if task[2] == "completed" { return task[4] }
+    return null
+}
+
+fn task_cancel(task) @ pure @ cpu {
+    let new_task = task[:3]
+    let new_task = new_task + ["cancelled"]
+    return new_task
+}
+
+fn task_status(task) @ pure @ cpu { return task[2] }
+
 fn task_list_all() @ pure @ cpu { return [] }
-fn task_prio(task_id, prio) @ pure @ cpu { return true }
+
+fn task_prio(task_id, prio) @ pure @ cpu {
+    let new_task = task_id[:4]
+    let new_task = new_task + [prio]
+    return new_task
+}

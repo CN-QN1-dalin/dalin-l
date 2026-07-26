@@ -1,9 +1,7 @@
-// Dalin L Core — option
-// Option 类型工具: Some/None 辅助函数
+// Dalin L Core — Option type utilities
 
-fn option_is_none(opt) @ pure @ cpu { return opt == null }
-fn option_is_some(opt) @ pure @ cpu { return !(opt == null) }
-fn option_get(opt, default_val) @ pure @ cpu { if (opt == null) { return default_val } else { return opt } }
-fn option_map(opt, f) @ pure @ cpu { if (opt == null) { return null } else { return f(opt) } }
-fn option_and_then(opt, f) @ pure @ cpu { if (opt == null) { return null } else { return f(opt) } }
-fn option_unwrap_or_panic(opt, msg) @ pure @ cpu { if (opt == null) { return "option is none: " + msg } else { return opt } }
+fn some_opt(val) @ pure @ cpu { return [true, val] }
+fn none_opt() @ pure @ cpu { return [false, null] }
+fn is_some(o) @ pure @ cpu { if len(o) > 0 { return o[0] } return false }
+fn is_none(o) @ pure @ cpu { return !is_some(o) }
+fn opt_get(o, default) @ pure @ cpu { if is_some(o) { return o[1] } return default }
