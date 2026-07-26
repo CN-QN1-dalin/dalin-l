@@ -1,12 +1,110 @@
-// Dalin L 标准库 — 字符串操作
+// @module strings — string manipulation functions
 
-fn len(s) @ pure @ cpu { return 0 }
-fn concat(a, b) @ pure @ cpu { return a }
-fn slice(s, start, end) @ pure @ cpu { return s }
-fn contains(s, sub) @ pure @ cpu { return false }
-fn trim(s) @ pure @ cpu { return s }
-fn to_upper(s) @ pure @ cpu { return s }
-fn to_lower(s) @ pure @ cpu { return s }
-fn split(s, delim) @ pure @ cpu { return [] }
-fn join(arr, sep) @ pure @ cpu { return "" }
-fn format(template, args) @ pure @ cpu { return "" }
+fn str_len(s) @ pure @ cpu {
+    return len(s)
+}
+
+fn str_concat(a, b) @ pure @ cpu {
+    return a + b
+}
+
+fn str_contains(haystack, needle) @ pure @ cpu {
+    let h_len = len(haystack)
+    let n_len = len(needle)
+    if n_len == 0 { return true }
+    if h_len < n_len { return false }
+    let i = 0
+    while i <= h_len - n_len {
+        let match_found = true
+        let j = 0
+        while j < n_len {
+            if haystack[i + j] != needle[j] {
+                let match_found = false
+            }
+            let j = j + 1
+        }
+        if match_found { return true }
+        let i = i + 1
+    }
+    return false
+}
+
+fn str_starts_with(s, prefix) @ pure @ cpu {
+    let s_len = len(s)
+    let p_len = len(prefix)
+    if p_len > s_len { return false }
+    if p_len == 0 { return true }
+    let i = 0
+    while i < p_len {
+        if s[i] != prefix[i] { return false }
+        let i = i + 1
+    }
+    return true
+}
+
+fn str_ends_with(s, suffix) @ pure @ cpu {
+    let s_len = len(s)
+    let suf_len = len(suffix)
+    if suf_len > s_len { return false }
+    if suf_len == 0 { return true }
+    let start = s_len - suf_len
+    let i = 0
+    while i < suf_len {
+        if s[start + i] != suffix[i] { return false }
+        let i = i + 1
+    }
+    return true
+}
+
+fn str_substring(s, start_idx, end_idx) @ pure @ cpu {
+    let s_len = len(s)
+    let result = []
+    let i = start_idx
+    while i < end_idx {
+        let result = push(result, s[i])
+        let i = i + 1
+    }
+    return result
+}
+
+fn str_reverse(s) @ pure @ cpu {
+    let s_len = len(s)
+    let result = []
+    let i = s_len - 1
+    while i >= 0 {
+        let result = push(result, s[i])
+        let i = i - 1
+    }
+    return result
+}
+
+fn str_index_of(s, target, start) @ pure @ cpu {
+    let s_len = len(s)
+    let t_len = len(target)
+    if t_len == 0 { return 0 }
+    if s_len < t_len { return -1 }
+    let i = start
+    while i <= s_len - t_len {
+        let j = 0
+        let found = true
+        while j < t_len {
+            if s[i + j] != target[j] {
+                let found = false
+            }
+            let j = j + 1
+        }
+        if found { return i }
+        let i = i + 1
+    }
+    return -1
+}
+
+fn str_replace(s, old, new) @ pure @ cpu {
+    let idx = str_index_of(s, old, 0)
+    if idx < 0 { return s }
+    let before = str_substring(s, 0, idx)
+    let after_start = idx + len(old)
+    let after_end = len(s)
+    let after = str_substring(s, after_start, after_end)
+    return before + new + after
+}

@@ -1,19 +1,78 @@
-// Dalin L Standard Library — math
-// 数学运算扩展: sqrt, pow, abs, min, max, clamp, lerp, sin, cos, tan, floor, ceil, round
+// @module math — real implementations for mathematical operations
 
-fn math_abs(x) @ pure @ cpu { return x }
-fn math_min(a, b) @ pure @ cpu { return a }
-fn math_max(a, b) @ pure @ cpu { return a }
-fn math_clamp(x, lo, hi) @ pure @ cpu { return x }
-fn math_lerp(a, b, t) @ pure @ cpu { return 0.0 }
-fn math_pow(base, exp) @ pure @ cpu { return 1.0 }
-fn math_sqrt(x) @ pure @ cpu { return 0.0 }
-fn math_floor(x) @ pure @ cpu { return x }
-fn math_ceil(x) @ pure @ cpu { return x }
-fn math_round(x) @ pure @ cpu { return x }
-fn math_sin(x) @ pure @ cpu { return 0.0 }
-fn math_cos(x) @ pure @ cpu { return 1.0 }
-fn math_tan(x) @ pure @ cpu { return 0.0 }
-fn math_pi() @ pure @ cpu { return 3.14159265 }
-fn math_e() @ pure @ cpu { return 2.71828182 }
-fn math_rand_range(lo, hi) @ pure @ cpu { return 0 }
+fn sqrt(x) @ pure @ cpu {
+    if x < 0 { return -1.0 }
+    if x == 0 { return 0.0 }
+    let guess = 1.0
+    let i = 0
+    while i < 100 {
+        let better = (guess + x / guess) / 2.0
+        let diff = better - guess
+        let abs_diff = abs(diff)
+        if abs_diff < 0.000001 { return better }
+        let guess = better
+        let i = i + 1
+    }
+    return guess
+}
+
+fn abs_val(x) @ pure @ cpu {
+    return abs(x)
+}
+
+fn power(base, exp) @ pure @ cpu {
+    if exp == 0 { return 1 }
+    let result = 1
+    let b = base
+    let n = exp
+    while n > 0 {
+        if n % 2 == 1 {
+            let result = result * b
+        }
+        let n = n / 2
+        let b = b * b
+    }
+    return result
+}
+
+fn max(a, b) @ pure @ cpu {
+    if a >= b { return a }
+    return b
+}
+
+fn min(a, b) @ pure @ cpu {
+    if a <= b { return a }
+    return b
+}
+
+fn factorial(n) @ pure @ cpu {
+    if n <= 1 { return 1 }
+    let result = 1
+    let i = 1
+    while i <= n {
+        let result = result * i
+        let i = i + 1
+    }
+    return result
+}
+
+fn gcd(a, b) @ pure @ cpu {
+    if b == 0 { return abs(a) }
+    return gcd(b, abs(a) % abs(b))
+}
+
+fn lcm(a, b) @ pure @ cpu {
+    return abs(a) / gcd(a, b) * abs(b)
+}
+
+fn clamp(val, min_val, max_val) @ pure @ cpu {
+    if val < min_val { return min_val }
+    if val > max_val { return max_val }
+    return val
+}
+
+fn sign(x) @ pure @ cpu {
+    if x > 0 { return 1 }
+    if x < 0 { return -1 }
+    return 0
+}

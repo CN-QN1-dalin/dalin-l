@@ -1,12 +1,147 @@
-// Dalin L 标准库 — 集合类型
+// Dalin L Standard Library — 集合操作 (list + map)
+// Uses builtins: len, push
 
 fn list_new() @ pure @ cpu { return [] }
-fn list_len(lst) @ pure @ cpu { return 0 }
-fn list_get(lst, idx) @ pure @ cpu { return null }
-fn list_push(lst, val) @ pure @ cpu { return lst }
-fn list_pop(lst) @ pure @ cpu { return null }
-fn list_contains(lst, val) @ pure @ cpu { return false }
-fn map_new() @ pure @ cpu { return {} }
-fn map_get(m, key) @ pure @ cpu { return null }
-fn map_set(m, key, val) @ pure @ cpu { return m }
-fn map_keys(m) @ pure @ cpu { return [] }
+
+fn list_len(lst) @ pure @ cpu { return len(lst) }
+
+fn list_get(lst, idx) @ pure @ cpu {
+    if idx >= 0 && idx < len(lst) { return lst[idx] }
+    return null
+}
+
+fn list_push(lst, val) @ pure @ cpu { return push(lst, val) }
+
+fn list_pop(lst) @ pure @ cpu {
+    let l = len(lst)
+    if l > 0 { return lst[l - 1] }
+    return null
+}
+
+fn list_contains(lst, val) @ pure @ cpu {
+    let i = 0
+    let l = len(lst)
+    while i < l {
+        if lst[i] == val { return true }
+        let i = i + 1
+    }
+    return false
+}
+
+fn list_append(a, b) @ pure @ cpu {
+    let result = a
+    let i = 0
+    let n = len(b)
+    while i < n {
+        let result = push(result, b[i])
+        let i = i + 1
+    }
+    return result
+}
+
+fn list_prepend(lst, val) @ pure @ cpu {
+    let result = []
+    let r = push(result, val)
+    let i = 0
+    let n = len(lst)
+    while i < n {
+        let r = push(r, lst[i])
+        let i = i + 1
+    }
+    return r
+}
+
+fn list_reverse(lst) @ pure @ cpu {
+    let l = len(lst)
+    if l <= 1 { return lst }
+    let result = []
+    let i = l - 1
+    while i >= 0 {
+        let result = push(result, lst[i])
+        let i = i - 1
+    }
+    return result
+}
+
+fn list_sum(lst) @ pure @ cpu {
+    let s = 0
+    let i = 0
+    let n = len(lst)
+    while i < n {
+        let s = s + lst[i]
+        let i = i + 1
+    }
+    return s
+}
+
+// Map operations using [key, value] arrays
+fn map_new() @ pure @ cpu { return [] }
+
+fn map_put(m, key, val) @ pure @ cpu {
+    return push(m, [key, val])
+}
+
+fn map_get(m, key, default) @ pure @ cpu {
+    let i = 0
+    let n = len(m)
+    while i < n {
+        if len(m[i]) >= 2 {
+            if m[i][0] == key { return m[i][1] }
+        }
+        let i = i + 1
+    }
+    return default
+}
+
+fn map_has_key(m, key) @ pure @ cpu {
+    let i = 0
+    let n = len(m)
+    while i < n {
+        if len(m[i]) >= 2 {
+            if m[i][0] == key { return true }
+        }
+        let i = i + 1
+    }
+    return false
+}
+
+fn map_remove(m, key) @ pure @ cpu {
+    let result = []
+    let i = 0
+    let n = len(m)
+    while i < n {
+        if len(m[i]) >= 2 {
+            if m[i][0] != key {
+                let result = push(result, m[i])
+            }
+        }
+        let i = i + 1
+    }
+    return result
+}
+
+fn map_keys(m) @ pure @ cpu {
+    let result = []
+    let i = 0
+    let n = len(m)
+    while i < n {
+        if len(m[i]) >= 1 {
+            let result = push(result, m[i][0])
+        }
+        let i = i + 1
+    }
+    return result
+}
+
+fn map_values(m) @ pure @ cpu {
+    let result = []
+    let i = 0
+    let n = len(m)
+    while i < n {
+        if len(m[i]) >= 2 {
+            let result = push(result, m[i][1])
+        }
+        let i = i + 1
+    }
+    return result
+}

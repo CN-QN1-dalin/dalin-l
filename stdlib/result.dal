@@ -1,14 +1,46 @@
-// Dalin L Standard Library — result
-// Result<T, E> 类型安全错误处理
+// Dalin L Standard Library — Result type utilities
 
-fn result_ok(v) @ pure @ cpu { return "ok" }
-fn result_err(e) @ pure @ cpu { return "error" }
-fn result_is_ok(r) @ pure @ cpu { return true }
-fn result_is_err(r) @ pure @ cpu { return false }
-fn result_unwrap(r) @ pure @ cpu { return null }
-fn result_unwrap_or(r, def) @ pure @ cpu { return def }
-fn result_map(f, r) @ pure @ cpu { return r }
-fn result_and_then(f, r) @ pure @ cpu { return r }
-fn result_expect(r, msg) @ pure @ cpu { return null }
-fn result_ok_value(r) @ pure @ cpu { return null }
-fn result_err_value(r) @ pure @ cpu { return null }
+fn result_ok(val) @ pure @ cpu {
+    return [true, val, null]
+}
+
+fn result_err(err_val) @ pure @ cpu {
+    return [false, null, err_val]
+}
+
+fn result_is_ok(r) @ pure @ cpu {
+    if len(r) > 0 { return r[0] }
+    return false
+}
+
+fn result_is_err(r) @ pure @ cpu {
+    return !result_is_ok(r)
+}
+
+fn result_get(r, default) @ pure @ cpu {
+    if result_is_ok(r) && len(r) > 1 { return r[1] }
+    return default
+}
+
+fn result_get_error(r) @ pure @ cpu {
+    if !result_is_ok(r) && len(r) > 2 { return r[2] }
+    return null
+}
+
+fn result_map(r, transform) @ pure @ cpu {
+    if result_is_ok(r) && len(r) > 1 {
+        let val = r[1]
+        return result_ok(val)
+    }
+    return r
+}
+
+fn result_and_then(r, other) @ pure @ cpu {
+    if result_is_ok(r) { return other }
+    return r
+}
+
+fn result_or_else(r, fallback) @ pure @ cpu {
+    if result_is_ok(r) { return r }
+    return fallback
+}

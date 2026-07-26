@@ -1,14 +1,55 @@
-// Dalin L Standard Library — option
-// Option<T> 类型安全空值处理
+// Dalin L Standard Library — Option type utilities
+// Uses let-shadowing pattern for Option types
 
-fn opt_some(x) @ pure @ cpu { return "some" }
-fn opt_none() @ pure @ cpu { return null }
-fn opt_is_some(o) @ pure @ cpu { return false }
-fn opt_is_none(o) @ pure @ cpu { return true }
-fn opt_unwrap(o) @ pure @ cpu { return null }
-fn opt_unwrap_or(o, def) @ pure @ cpu { return def }
-fn opt_map(f, o) @ pure @ cpu { return null }
-fn opt_and_then(f, o) @ pure @ cpu { return null }
-fn opt_map_or(o, def, f) @ pure @ cpu { return def }
-fn opt_expect(o, msg) @ pure @ cpu { return null }
-fn opt_flatten(o) @ pure @ cpu { return null }
+fn opt_some(val) @ pure @ cpu {
+    return [true, val]
+}
+
+fn opt_none() @ pure @ cpu {
+    return [false, null]
+}
+
+fn opt_is_some(opt) @ pure @ cpu {
+    if len(opt) > 0 { return opt[0] }
+    return false
+}
+
+fn opt_is_none(opt) @ pure @ cpu {
+    return !opt_is_some(opt)
+}
+
+fn opt_get(opt, default) @ pure @ cpu {
+    if opt_is_some(opt) { return opt[1] }
+    return default
+}
+
+fn opt_get_or_else(opt) @ pure @ cpu {
+    if opt_is_some(opt) { return opt[1] }
+    return null
+}
+
+fn opt_map(opt, fn_name) @ pure @ cpu {
+    if opt_is_some(opt) {
+        let val = opt[1]
+        // For now, just return the value wrapped in Some
+        // Function application via name is not supported in stdlib
+        return opt_some(val)
+    }
+    return opt_none()
+}
+
+fn opt_flat_map(opt) @ pure @ cpu {
+    if opt_is_some(opt) {
+        let val = opt[1]
+        return val
+    }
+    return opt_none()
+}
+
+fn opt_filter(opt, condition_val) @ pure @ cpu {
+    if opt_is_some(opt) {
+        if condition_val { return opt }
+        return opt_none()
+    }
+    return opt_none()
+}

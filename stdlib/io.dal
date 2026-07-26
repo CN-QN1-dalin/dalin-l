@@ -1,15 +1,26 @@
-// Dalin L Standard Library — io
-// I/O 操作: read_file, write_file, print, println, read_line
+// @module io — I/O stubs (no system access in Dalin L runtime)
+// These are proper stubs that return safe defaults
 
-fn io_read_file(path) @ io { return "" }
-fn io_write_file(path, data) @ io { return true }
-fn io_append_file(path, data) @ io { return true }
-fn io_print(msg) @ io { return msg }
-fn io_println(msg) @ io { return msg }
-fn io_read_line() @ io { return "" }
-fn io_stderr(msg) @ io { return msg }
-fn io_flush() @ io { return 0 }
-fn io_eof(stream) @ io { return false }
-fn io_lines(path) @ io { return [] }
-fn io_exists(path) @ io { return false }
-fn io_delete(path) @ io { return true }
+fn read_file(path) @ io {
+    return ""
+}
+
+fn write_file(path, content) @ io {
+    return null
+}
+
+fn print_stdout(msg) @ io {
+    return null
+}
+
+fn println_stdout(msg) @ io {
+    return null
+}
+
+fn stdin_read_line() @ io {
+    return ""
+}
+
+fn stdout_write(data) @ io {
+    return null
+}
