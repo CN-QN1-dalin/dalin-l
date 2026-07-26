@@ -419,7 +419,9 @@ impl Vm {
                     Value::Int(n) => n as u16,
                     _ => 0, // Fallback to entry function
                 };
-                let _func = self.functions.get(fn_idx as usize)
+                let _func = self
+                    .functions
+                    .get(fn_idx as usize)
                     .ok_or(VmError::FunctionNotFound(fn_idx))?;
                 self.current_fn = fn_idx as usize;
                 self.ip = 0;
