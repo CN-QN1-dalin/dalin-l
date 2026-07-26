@@ -145,3 +145,7 @@ fn map_values(m) @ pure @ cpu {
     }
     return result
 }
+
+fn map_clear(m) @ pure @ cpu {
+    return []
+}

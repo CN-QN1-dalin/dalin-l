@@ -301,10 +301,8 @@ impl Interpreter {
             if !self.truthy(&cond_val) {
                 break;
             }
-            let result = self.eval_block(body, &mut env.child());
-            match result {
-                Err(RuntimeError(ref msg)) if msg == "__return__" => return result,
-                Err(_) | Ok(_) => {}
+            for s in body {
+                self.eval_stmt(s, env)?;
             }
         }
         Ok(Value::None)
