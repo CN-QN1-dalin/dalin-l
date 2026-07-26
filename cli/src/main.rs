@@ -53,6 +53,9 @@ enum Commands {
         /// Source file path
         #[arg(short, long, default_value = "src/main.dal")]
         input: String,
+        /// Run quality analysis (Dalil L 3.0 code quality rules)
+        #[arg(short, long, default_value_t = false)]
+        quality: bool,
     },
 
     /// Start interactive REPL
@@ -199,7 +202,9 @@ fn main() {
         Commands::Demo {} => cmd::demo::run(),
         Commands::Build { input, output } => cmd::build::run(&input, &output, cli.verbose),
         Commands::Run { input, watch } => cmd::run::run(&input, watch, cli.verbose),
-        Commands::Check { input } => cmd::check::run(&input, cli.verbose, cli.json),
+        Commands::Check { input, quality } => {
+            cmd::check::run(&input, cli.verbose, cli.json, quality)
+        }
         Commands::Repl {} => cmd::repl::run(),
         Commands::Init { name, lib, git } => cmd::init::run(&name, lib, git),
         Commands::Tree { package } => cmd::tree::run(&package),

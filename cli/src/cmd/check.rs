@@ -1,6 +1,6 @@
 use crate::util;
 
-pub fn run(input: &str, verbose: bool, json: bool) -> Result<(), String> {
+pub fn run(input: &str, verbose: bool, json: bool, quality: bool) -> Result<(), String> {
     let banner = util::banner("CHECK");
     println!("{banner}");
 
@@ -29,6 +29,18 @@ pub fn run(input: &str, verbose: bool, json: bool) -> Result<(), String> {
                     } else {
                         println!("  ✅ Type inference passed (--verbose for details)");
                     }
+
+                    // Run quality engine after check passes
+                    if quality {
+                        let analyzer = dalin_compiler::quality::QualityAnalyzer::new(None);
+                        let report = analyzer.analyze(&prog, Some(input));
+
+                        if json {
+                            println!("\n{}\n", report.format_json());
+                        } else {
+                            println!("\n{}", report.format_text("warn"));
+                        }
+                    }
                 }
                 Err(e) => {
                     return util::err("parser", &format!("{e}")).map_err(|_| String::new());
@@ -40,13 +52,15 @@ pub fn run(input: &str, verbose: bool, json: bool) -> Result<(), String> {
         }
     }
 
-    if json {
+    if json && !quality {
         println!("\n{{ \"status\": \"ok\", \"file\": \"{input}\" }}");
     }
 
-    println!("\n  ╔═══════════════════════════════════╗");
-    println!("  ║   CHECK COMPLETE ✓                ║");
-    println!("  ╚═══════════════════════════════════╝");
+    if !quality {
+        println!("\n  ╔═══════════════════════════════════╗");
+        println!("  ║   CHECK COMPLETE ✓                ║");
+        println!("  ╚═══════════════════════════════════╝");
+    }
     Ok(())
 }
 
@@ -75,7 +89,7 @@ mod tests {
 
     #[test]
     fn test_check_nonexistent_file() {
-        let result = run("/nonexistent/file.dal", false, false);
+        let result = run("/nonexistent/file.dal", false, false, false);
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("does not exist"));
     }
@@ -84,7 +98,7 @@ mod tests {
     fn test_check_empty_source() {
         let dir = test_dir();
         let src_path = create_temp_source("", &dir);
-        let result = run(src_path.to_str().unwrap(), false, false);
+        let result = run(src_path.to_str().unwrap(), false, false, false);
         assert!(result.is_ok(), "Check empty source: {:?}", result.err());
     }
 
@@ -93,7 +107,7 @@ mod tests {
         let dir = test_dir();
         let src = "let x = 42";
         let src_path = create_temp_source(src, &dir);
-        let result = run(src_path.to_str().unwrap(), false, false);
+        let result = run(src_path.to_str().unwrap(), false, false, false);
         assert!(result.is_ok(), "Check simple expr: {:?}", result.err());
     }
 
@@ -102,7 +116,7 @@ mod tests {
         let dir = test_dir();
         let src = "let x = 42";
         let src_path = create_temp_source(src, &dir);
-        let result = run(src_path.to_str().unwrap(), true, false);
+        let result = run(src_path.to_str().unwrap(), true, false, false);
         assert!(result.is_ok(), "Check with verbose: {:?}", result.err());
     }
 
@@ -111,7 +125,7 @@ mod tests {
         let dir = test_dir();
         let src = "let x = 42";
         let src_path = create_temp_source(src, &dir);
-        let result = run(src_path.to_str().unwrap(), false, true);
+        let result = run(src_path.to_str().unwrap(), false, true, false);
         assert!(result.is_ok(), "Check with JSON: {:?}", result.err());
     }
 }
