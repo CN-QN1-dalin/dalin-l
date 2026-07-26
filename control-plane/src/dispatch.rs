@@ -1,7 +1,7 @@
 //! Dispatch Broker — 按 capability 分 topic 派发任务
 //!
 //! 每个能力（cpu/gpu/sfa/net）对应一个 NATS subject：
-//!   `dalin.task.<capability>`
+//!   dalin.task.cpu, dalin.task.gpu, dalin.task.sfa, dalin.task.net
 //!
 //! 调度器完成 capability placement 后，DispatchBroker 将 `TaskSpec`
 //! 以 JSON 形式发布到对应 subject。Worker 节点订阅其能力对应的 subject，
@@ -98,7 +98,7 @@ impl DispatchBroker for NatsDispatchBroker {
 
 /// 内存派发总线（测试 / 单机模式）
 pub struct InMemoryDispatchBroker {
-    /// dispatch → Vec<DispatchTask>
+    /// dispatch log: Vec of DispatchTask records dispatched
     pub history: std::sync::Mutex<Vec<DispatchTask>>,
 }
 
