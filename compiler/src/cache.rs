@@ -104,8 +104,8 @@ where
 
     // 尝试从缓存加载
     if let Some(_cached_data) = load_cache(project_root, &cache_key) {
-        // TODO: 反序列化 cached_data 并返回
-        // 现在简单地跳过缓存（无正确序列化结构可用）
+        // TODO: 实现二进制序列化/反序列化（如 MsgPack）以支持缓存命中时返回编译结果
+        // 当前策略：跳过缓存，始终重新编译以确保正确性
         println!("  ℹ Cache miss (format not yet supported), recompiling {cache_key} ...");
     }
 

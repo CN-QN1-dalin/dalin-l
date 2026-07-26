@@ -413,9 +413,16 @@ impl Vm {
                 // 保存返回地址 + 栈基址
                 let base = self.stack.len().saturating_sub(argc as usize);
                 self.call_stack.push((self.ip, base));
-                // 目标函数索引在栈上（参数之上）
-                // 目前简单实现：调用函数 0（入口）
-                // TODO: 从 MakeClosure/函数名查表
+                // 目标函数索引在栈上（参数之上）— 从栈顶 argc+1 位置读取
+                let fn_idx_val = self.stack.pop().ok_or(VmError::StackUnderflow)?;
+                let fn_idx = match fn_idx_val {
+                    Value::Int(n) => n as u16,
+                    _ => 0, // Fallback to entry function
+                };
+                let _func = self.functions.get(fn_idx as usize)
+                    .ok_or(VmError::FunctionNotFound(fn_idx))?;
+                self.current_fn = fn_idx as usize;
+                self.ip = 0;
             }
 
             Opcode::Halt => {

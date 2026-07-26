@@ -265,11 +265,12 @@ impl JitCompiler {
     /// 通过外部 `lli` 执行 IR (需要系统 LLVM 22+)
     ///
     /// 使用 inkwell 或外部 `lli` 将生成的 IR 编译为机器码并执行。
+    /// 当前为 stub，等待 inkwell 更新支持 LLVM 22 后替换为真实实现。
     #[cfg(feature = "inkwell")]
-    pub fn execute_jit(&self, ir: &str) -> Result<i64, CompileError> {
-        // inkwell 路径：真实 JIT 编译 + 执行
-        // TODO: inkwell 集成后替换此处 stub
-        Err(CompileError::TypeResolutionFailed)
+    pub fn execute_jit(&self, _ir: &str) -> Result<i64, CompileError> {
+        // stub: inkwell 集成 — 当前返回类型解析错误（这是可接受的，
+        // 因为 inkwell 0.9 尚不兼容 LLVM 22）
+        return Err(CompileError::TypeResolutionFailed);
     }
 
     /// 获取缓存中某函数的编译条目
@@ -362,8 +363,7 @@ fn validate_params(params: &[FnParam]) -> Result<(), CompileError> {
 
 /// 常量折叠分析: 找出函数体内所有可静态求值的表达式
 fn analyze_constants(_stmt: &Stmt) {
-    // TODO: 在 AST 上递归遍历, 收集所有 IntLiteral/FloatLiteral 二元运算
-    // 当前标记此路径为"已分析"
+    // TODO: 在 AST 上递归遍历, 收集所有 IntLiteral/FloatLiteral 二元运算以支持常量折叠优化
     let _ = _stmt;
 }
 
