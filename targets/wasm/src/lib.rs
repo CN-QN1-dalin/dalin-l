@@ -107,19 +107,19 @@ impl WasmBackend {
             } = stmt
             {
                 if *pub_ {
-                    write!(wat, "  ;; EXPORTED: {name}\n").unwrap();
+                    writeln!(wat, "  ;; EXPORTED: {name}").unwrap();
                 }
 
                 // 参数声明
                 for (i, p) in params.iter().enumerate() {
                     let wasm_ty = param_type_to_wasm(p);
-                    write!(wat, "  (param ${i} {wasm_ty})\n").unwrap();
+                    writeln!(wat, "  (param ${i} {wasm_ty})").unwrap();
                 }
 
                 // 返回值
                 if let Some(ret) = return_type {
                     let wasm_ty = type_to_wasm(ret.base.clone());
-                    write!(wat, "  (result {wasm_ty})\n").unwrap();
+                    writeln!(wat, "  (result {wasm_ty})").unwrap();
                 } else {
                     wat.push_str("  (result i32)\n");
                 }
@@ -137,7 +137,7 @@ impl WasmBackend {
                 let should_export = *pub_ || self.exports.is_empty();
                 if should_export {
                     let func_name = format!("dalin_{name}");
-                    write!(wat, "  (export \"{name}\" (func ${func_name}))\n").unwrap();
+                    writeln!(wat, "  (export \"{name}\" (func ${func_name}))").unwrap();
                 }
             }
         }
@@ -397,7 +397,7 @@ fn expr_to_wat(expr: &Expr) -> String {
         Expr::MatchExpr(target, arms) => {
             let mut out = expr_to_wat(target) + "\n";
             for arm in arms {
-                write!(out, ";; arm {:?}\n", arm.pattern.kind).unwrap();
+                writeln!(out, ";; arm {:?}", arm.pattern.kind).unwrap();
                 out.push_str(&generate_body_wat(&arm.body));
             }
             out

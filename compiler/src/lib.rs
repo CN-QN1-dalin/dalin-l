@@ -90,7 +90,7 @@ pub fn compile_with_llm(src: &str) -> CompileResult {
     if !latency_result.errors.is_empty() {
         report.push_str("\n=== Latency Violations ===\n");
         for err in &latency_result.errors {
-            write!(report, "  ❌ {err}\n").unwrap();
+            writeln!(report, "  ❌ {err}").unwrap();
         }
     }
 

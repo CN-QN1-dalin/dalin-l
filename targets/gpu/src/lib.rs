@@ -263,7 +263,7 @@ pub fn compile_to_msl(source: &str) -> Result<String, String> {
             ));
         }
         for sp in analysis.params.iter().filter(|p| !p.is_array) {
-            write!(out, "        // scalar: {}\n", sp.name).unwrap();
+            writeln!(out, "        // scalar: {}", sp.name).unwrap();
         }
         out.push_str("    }\n");
     } else {
@@ -342,7 +342,7 @@ pub fn compile_to_cuda(source: &str) -> Result<String, String> {
     out.push_str("}\n\n");
 
     // Launch helper
-    write!(out, "// Launch helper for {}\n", analysis.fn_name).unwrap();
+    writeln!(out, "// Launch helper for {}", analysis.fn_name).unwrap();
     out.push_str(&format!(
         "static inline __host__ void launch_{}\n",
         analysis.fn_name
@@ -357,7 +357,7 @@ pub fn compile_to_cuda(source: &str) -> Result<String, String> {
             ));
         } else {
             let gt = dal_type_to_gpu(&p.base_type, "cuda");
-            write!(out, "    {} {},\n", gt, p.name).unwrap();
+            writeln!(out, "    {} {},", gt, p.name).unwrap();
         }
     }
     out.push_str("    int blocks = (n + 255) / 256;\n");

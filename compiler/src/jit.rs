@@ -238,9 +238,9 @@ impl JitCompiler {
         } = fn_stmt
         {
             let mut ir = String::new();
-            write!(
+            writeln!(
                 ir,
-                "; Function: {}({} params, {} stmts)\n",
+                "; Function: {}({} params, {} stmts)",
                 name,
                 params.len(),
                 body.len()
@@ -249,7 +249,7 @@ impl JitCompiler {
             ir.push_str("; Generated Dalin L → LLVM IR (string-based stub)\n\n");
 
             // 生成一个简单的 IR stub，标记这是 Dalan L 3.0 编译产物
-            write!(ir, "; stub: fn {} {{ len={} }}\n", name, body.len()).unwrap();
+            writeln!(ir, "; stub: fn {} {{ len={} }}", name, body.len()).unwrap();
 
             return Ok(ir);
         }

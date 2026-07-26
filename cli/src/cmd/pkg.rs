@@ -41,19 +41,19 @@ fn write_manifest(path: &PathBuf, manifest: &PackageManifest) -> Result<(), Stri
     let mut content = String::new();
 
     content.push_str("[package]\n");
-    write!(content, "name = \"{}\"\n", manifest.name).unwrap();
-    write!(content, "version = \"{}\"\n", manifest.version).unwrap();
+    writeln!(content, "name = \"{}\"", manifest.name).unwrap();
+    writeln!(content, "version = \"{}\"", manifest.version).unwrap();
     if !manifest.edition.is_empty() {
-        write!(content, "edition = \"{}\"\n", manifest.edition).unwrap();
+        writeln!(content, "edition = \"{}\"", manifest.edition).unwrap();
     }
     if let Some(ref desc) = manifest.description {
-        write!(content, "description = \"{desc}\"\n").unwrap();
+        writeln!(content, "description = \"{desc}\"").unwrap();
     }
     if !manifest.authors.is_empty() {
-        write!(content, "authors = {:?}\n", manifest.authors).unwrap();
+        writeln!(content, "authors = {:?}", manifest.authors).unwrap();
     }
     if let Some(ref license) = manifest.license {
-        write!(content, "license = \"{license}\"\n").unwrap();
+        writeln!(content, "license = \"{license}\"").unwrap();
     }
 
     if !manifest.deps.is_empty() {
@@ -61,31 +61,31 @@ fn write_manifest(path: &PathBuf, manifest: &PackageManifest) -> Result<(), Stri
         for (name, dep) in &manifest.deps {
             match &dep.source {
                 DependencySource::Git(url) => {
-                    write!(
+                    writeln!(
                         content,
-                        "{} = {{ version = \"{}\", git = \"{}\" }}\n",
+                        "{} = {{ version = \"{}\", git = \"{}\" }}",
                         name, dep.version, url
                     )
                     .unwrap();
                 }
                 DependencySource::Path(p) => {
-                    write!(
+                    writeln!(
                         content,
-                        "{} = {{ version = \"{}\", path = \"{}\" }}\n",
+                        "{} = {{ version = \"{}\", path = \"{}\" }}",
                         name, dep.version, p
                     )
                     .unwrap();
                 }
                 _ => {
                     if dep.optional {
-                        write!(
+                        writeln!(
                             content,
-                            "{} = {{ version = \"{}\", optional = true }}\n",
+                            "{} = {{ version = \"{}\", optional = true }}",
                             name, dep.version
                         )
                         .unwrap();
                     } else {
-                        write!(content, "{} = \"{}\"\n", name, dep.version).unwrap();
+                        writeln!(content, "{} = \"{}\"", name, dep.version).unwrap();
                     }
                 }
             }
@@ -95,7 +95,7 @@ fn write_manifest(path: &PathBuf, manifest: &PackageManifest) -> Result<(), Stri
     if !manifest.dev_deps.is_empty() {
         content.push_str("\n[dev-dependencies]\n");
         for (name, dep) in &manifest.dev_deps {
-            write!(content, "{} = \"{}\"\n", name, dep.version).unwrap();
+            writeln!(content, "{} = \"{}\"", name, dep.version).unwrap();
         }
     }
 
