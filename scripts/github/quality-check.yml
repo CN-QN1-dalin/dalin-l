@@ -1,0 +1,22 @@
+name: Dalin L Quality Check
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Build quality engine
+        run: cargo build --release -p dalin-compiler -p dalin_l
+      - name: Run quality check on stdlib
+        run: ./scripts/quality-check.sh --stdlib-only --strict
+      - name: Report results
+        if: always()
+        run: echo "Quality check complete"
