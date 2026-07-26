@@ -1,13 +1,79 @@
-// Module: csv
-// Purpose: CSV 读写工具函数。
+// Module: csv — CSV 读写工具函数（纯算法实现）
 
-fn csv_read(path: String) -> List {
-  let result = list()
-  return result
+fn csv_read(path) @ io { return [] }
+
+fn csv_write(path, data) @ io { return "" }
+
+// 将 CSV 字符串解析为二维列表
+fn csv_parse(csv_str) @ pure @ cpu {
+    let rows = _csv_split_lines(csv_str)
+    let result = []
+    let i = 0
+    let n = len(rows)
+    while i < n {
+        let row = _csv_split_row(rows[i])
+        result = result + [row]
+        let i = i + 1
+    }
+    return result
 }
 
-fn csv_write(path: String, data: List) {
-  let result = ""
-  return result
+// 将二维列表序列化为 CSV 字符串
+fn csv_format(data) @ pure @ cpu {
+    let result = ""
+    let i = 0
+    let n = len(data)
+    while i < n {
+        if i > 0 { result = result + "\n" }
+        let row = data[i]
+        let ri = 0
+        let rn = len(row)
+        while ri < rn {
+            if ri > 0 { result = result + "," }
+            result = result + row[ri]
+            let ri = ri + 1
+        }
+        let i = i + 1
+    }
+    return result
 }
 
+fn _csv_split_lines(s) @ pure @ cpu {
+    let lines = []
+    let current = ""
+    let i = 0
+    let n = len(s)
+    while i < n {
+        let c = s[i]
+        if c == '\n' || c == '\r' {
+            lines = lines + [current]
+            current = ""
+        } else {
+            let current = current + c
+        }
+        let i = i + 1
+    }
+    if current != "" { lines = lines + [current] }
+    return lines
+}
+
+fn _csv_split_row(line) @ pure @ cpu {
+    let fields = []
+    let current = ""
+    let in_quotes = false
+    let i = 0
+    let n = len(line)
+    while i < n {
+        let c = line[i]
+        if c == '"' { in_quotes = !in_quotes }
+        else if c == ',' && !in_quotes {
+            fields = fields + [current]
+            current = ""
+        } else {
+            let current = current + c
+        }
+        let i = i + 1
+    }
+    fields = fields + [current]
+    return fields
+}

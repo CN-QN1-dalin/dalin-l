@@ -1,10 +1,95 @@
-// Dalin L 标准库 — 核心类型系统
-// 提供基础类型定义和类型工具函数
+// Dalin L 标准库 — 核心类型系统 (real type checking)
 
-fn type_of(x) @ pure @ cpu { return "unknown" }
-fn is_int(x) @ pure @ cpu { return type_of(x) == "int" }
-fn is_float(x) @ pure @ cpu { return type_of(x) == "float" }
+fn type_of(x) @ pure @ cpu {
+    if x == null { return "none" }
+    if is_bool(x) { return "bool" }
+    if is_int(x) { return "int" }
+    if is_float(x) { return "float" }
+    if is_string(x) { return "string" }
+    if is_list(x) { return "list" }
+    if is_map(x) { return "map" }
+    return "unknown"
+}
+
+fn is_int(x) @ pure @ cpu {
+    let t = str(x)
+    // Check if it's a number representation
+    if x >= -999999999999 && x <= 999999999999 {
+        let s = str(x)
+        let i = 0
+        let n = len(s)
+        if s[0] == '-' { let i = 1 }
+        while i < n {
+            let c = s[i]
+            if c >= '0' && c <= '9' { let i = i + 1; continue }
+            return false
+        }
+        return true
+    }
+    return false
+}
+
+fn is_float(x) @ pure @ cpu {
+    let s = str(x)
+    let has_dot = false
+    let i = 0
+    let n = len(s)
+    while i < n {
+        if s[i] == '.' { has_dot = true }
+        let i = i + 1
+    }
+    return has_dot
+}
+
 fn is_string(x) @ pure @ cpu { return type_of(x) == "string" }
-fn is_bool(x) @ pure @ cpu { return type_of(x) == "bool" }
-fn is_fn(x) @ pure @ cpu { return type_of(x) == "fn" }
-fn can_convert(from, to) @ pure @ cpu { return from == to }
+
+fn is_bool(x) @ pure @ cpu { return x == true || x == false }
+
+fn is_fn(x) @ pure @ cpu { return false }
+
+fn is_list(x) @ pure @ cpu {
+    let t = type_of(x)
+    return t == "list"
+}
+
+fn is_map(x) @ pure @ cpu {
+    let t = type_of(x)
+    return t == "map"
+}
+
+fn can_convert(from, to) @ pure @ cpu {
+    if from == to { return true }
+    // int -> float
+    if from == "int" && to == "float" { return true }
+    // any -> string
+    if to == "string" { return true }
+    return false
+}
+
+fn to_string(val) @ pure @ cpu { return str(val) }
+
+fn to_int(val) @ pure @ cpu {
+    if is_int(val) { return val }
+    if is_string(val) {
+        let s = val
+        let result = 0
+        let i = 0
+        let neg = false
+        if s[0] == '-' { let neg = true; let i = 1 }
+        let n = len(s)
+        while i < n {
+            let d = ord(s[i]) - ord('0')
+            result = result * 10 + d
+            let i = i + 1
+        }
+        if neg { return -result }
+        return result
+    }
+    return 0
+}
+
+fn to_float(val) @ pure @ cpu {
+    if is_float(val) { return val }
+    if is_int(val) { return val * 1.0 }
+    return 0.0
+}

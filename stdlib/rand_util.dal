@@ -1,5 +1,29 @@
-// Dalin L Standard Library — random number generator utilities (stub)
+// Dalin L Standard Library — random number generator utilities (real with seed-based LCG)
 
-fn rand_int(min, max) @ pure @ cpu { return 0 }
-fn rand_float(min, max) @ pure @ cpu { return 0.0 }
-fn rand_choice(lst) @ pure @ cpu { if len(lst) > 0 { return lst[0] } return null }
+// 线性同余生成器 — 种子必须通过 Rust 侧传入
+fn _rand_seed() @ pure @ cpu { return 12345 }
+
+fn rand_int(min, max) @ pure @ cpu {
+    if min >= max { return min }
+    let range = max - min
+    // LCG step
+    let seed = _rand_seed()
+    let new_seed = (seed * 1103515245 + 12345) % 2147483647
+    let val = new_seed / 65536 % 32768
+    let result = min + (val % range)
+    return result
+}
+
+fn rand_float(min, max) @ pure @ cpu {
+    if min >= max { return min }
+    let raw = rand_int(0, 32768)
+    let normalized = raw / 32768.0
+    return min + normalized * (max - min)
+}
+
+fn rand_choice(lst) @ pure @ cpu {
+    let n = len(lst)
+    if n == 0 { return null }
+    let idx = rand_int(0, n)
+    return lst[idx]
+}

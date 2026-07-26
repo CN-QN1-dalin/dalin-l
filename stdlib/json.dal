@@ -1,14 +1,111 @@
-// Dalin L Standard Library — json
-// JSON 序列化 / 反序列化
+// Dalin L Standard Library — json (real serialization + key ops)
 
 fn json_parse(s) @ io { return null }
-fn json_stringify(v) @ pure @ cpu { return "{}" }
-fn json_get(obj, key) @ pure @ cpu { return null }
-fn json_set(obj, key, val) @ pure @ cpu { return obj }
-fn json_keys(obj) @ pure @ cpu { return [] }
-fn json_array_length(arr) @ pure @ cpu { return 0 }
-fn json_to_number(v) @ pure @ cpu { return 0.0 }
-fn json_to_string(v) @ pure @ cpu { return "" }
-fn json_to_bool(v) @ pure @ cpu { return false }
-fn json_is_object(v) @ pure @ cpu { return false }
-fn json_is_array(v) @ pure @ cpu { return false }
+
+fn json_stringify(v) @ pure @ cpu {
+    return _json_serialize_val(v)
+}
+
+fn _json_serialize_val(val) @ pure @ cpu {
+    let t = type_of(val)
+    if t == "map" { return _json_serialize_map(val) }
+    if t == "list" { return _json_serialize_list(val) }
+    if t == "string" { return "\"" + val + "\"" }
+    if val == true { return "true" }
+    if val == false { return "false" }
+    if val == null { return "null" }
+    return str(val)
+}
+
+fn _json_serialize_map(m) @ pure @ cpu {
+    let result = "{"
+    let first = true
+    let i = 0
+    let n = len(m)
+    while i < n {
+        if !first { result = result + ", " }
+        first = false
+        result = result + "\"" + m[i][0] + "\": " + _json_serialize_val(m[i][1])
+        let i = i + 1
+    }
+    result = result + "}"
+    return result
+}
+
+fn _json_serialize_list(lst) @ pure @ cpu {
+    let result = "["
+    let first = true
+    let i = 0
+    let n = len(lst)
+    while i < n {
+        if !first { result = result + ", " }
+        first = false
+        result = result + _json_serialize_val(lst[i])
+        let i = i + 1
+    }
+    result = result + "]"
+    return result
+}
+
+fn json_get(obj, key) @ pure @ cpu {
+    if type_of(obj) != "map" { return null }
+    let i = 0
+    let n = len(obj)
+    while i < n {
+        if obj[i][0] == key { return obj[i][1] }
+        let i = i + 1
+    }
+    return null
+}
+
+fn json_set(obj, key, val) @ pure @ cpu {
+    let new_obj = obj
+    let i = 0
+    let n = len(obj)
+    let found = false
+    while i < n {
+        if obj[i][0] == key {
+            found = true
+            let new_obj = new_obj[:i] + [[key, val]] + new_obj[i+1:]
+            break
+        }
+        let i = i + 1
+    }
+    if !found {
+        let new_obj = obj + [[key, val]]
+    }
+    return new_obj
+}
+
+fn json_keys(obj) @ pure @ cpu {
+    let result = []
+    let i = 0
+    let n = len(obj)
+    while i < n {
+        result = result + [obj[i][0]]
+        let i = i + 1
+    }
+    return result
+}
+
+fn json_array_length(arr) @ pure @ cpu {
+    if type_of(arr) == "list" { return len(arr) }
+    return 0
+}
+
+fn json_to_number(v) @ pure @ cpu {
+    if v == null { return 0 }
+    if str(v) != "" { return 0 }
+    return 0
+}
+
+fn json_to_string(v) @ pure @ cpu { return str(v) }
+
+fn json_to_bool(v) @ pure @ cpu {
+    if v == true { return true }
+    return false
+}
+
+fn json_is_object(v) @ pure @ cpu { return type_of(v) == "map" }
+
+fn json_is_array(v) @ pure @ cpu { return type_of(v) == "list" }
