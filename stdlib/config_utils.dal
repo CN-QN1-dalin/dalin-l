@@ -1,4 +1,4 @@
-// Dalin L Standard Library — config utilities (real implementation)
+// Dalin L Standard Library — config utilities (fixed export_json)
 
 fn config_merge(base, override) @ pure @ cpu {
     let result = base
@@ -25,23 +25,37 @@ fn config_validate(cfg) @ pure @ cpu {
 }
 
 fn config_export_json(cfg) @ pure @ cpu {
-    return "{" + config_to_json_string(cfg, 0) + "}"
+    return "{" + _config_to_json(cfg, 1) + "}"
 }
 
-fn config_to_json_string(obj, indent) @ pure @ cpu {
-    let sep = ""
+fn _config_to_json(obj, depth) @ pure @ cpu {
+    let indent = ""
+    let d = 0
+    while d < depth {
+        let indent = indent + "  "
+        let d = d + 1
+    }
+    let inner_indent = ""
+    let d = 0
+    while d < depth + 1 {
+        let inner_indent = inner_indent + "  "
+        let d = d + 1
+    }
+    let body = ""
     let i = 0
-    while i < indent {
-        let sep = sep + "  "
+    let n = len(obj)
+    while i < n {
+        if i > 0 { body = body + ",\n" }
+        body = body + "\n" + inner_indent + "\"" + obj[i][0] + "\": " + _json_val(obj[i][1])
         let i = i + 1
     }
-    let inner = ""
-    let i = 0
-    while i < len(obj) {
-        let k = obj[i][0]
-        let v = obj[i][1]
-        let s = sep + inner
-        let i = i + 1
-    }
-    return "{}"
+    return body + "\n" + indent
+}
+
+fn _json_val(v) @ pure @ cpu {
+    let t = type_of(v)
+    if t == "string" { return "\"" + v + "\"" }
+    if t == "bool" { if v { return "true" } else { return "false" } }
+    if t == "none" { return "null" }
+    return str(v)
 }

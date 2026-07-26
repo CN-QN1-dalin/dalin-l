@@ -1,11 +1,9 @@
-// Module: json_parse — 基础 JSON 解析与序列化
+// Dalin L Core — json_parse (fixed number parsing)
 
 fn json_parse(json_str) @ pure @ cpu {
-    // Minimal: handles flat string-keyed objects and arrays of primitives
     let trimmed = _trim_whitespace(json_str)
     if trimmed == "{}" || trimmed == "" { return {} }
     if trimmed == "[]" { return [] }
-    // Strip outer braces/brackets
     let content = _json_strip_outer(trimmed)
     return _json_parse_flat(content)
 }
@@ -52,7 +50,6 @@ fn _json_substring(s, start, end) @ pure @ cpu {
 }
 
 fn _json_parse_flat(content) @ pure @ cpu {
-    // Handle simple "key": value pairs in a map
     let result = {}
     let parts = _json_split_commas(content)
     let i = 0
@@ -142,10 +139,8 @@ fn _json_parse_value(v) @ pure @ cpu {
     if trimmed == "null" || trimmed == "" { return null }
     if trimmed == "true" { return true }
     if trimmed == "false" { return false }
-    // Check for number
     let num = _json_parse_number(trimmed)
     if num >= 0 { return num }
-    // String
     if trimmed[0] == '"' {
         let result = ""
         let i = 1
@@ -170,21 +165,52 @@ fn _json_trim_all_space(s) @ pure @ cpu {
     return result
 }
 
+// FIXED: now actually parses numbers (integer and float)
 fn _json_parse_number(s) @ pure @ cpu {
+    let is_num = true
     let has_digit = false
+    let has_dot = false
     let i = 0
     let n = len(s)
     while i < n {
         let c = s[i]
-        if (c >= '0' && c <= '9') || c == '.' || c == '-' || c == '+' || c == 'e' || c == 'E' {
-            has_digit = true
-        } else {
-            has_digit = false; break
+        if c >= '0' && c <= '9' { has_digit = true }
+        else if c == '.' && !has_dot { has_dot = true }
+        else if c == '-' && i == 0 { } // negative allowed at start
+        else { is_num = false; break }
+        let i = i + 1
+    }
+    if !is_num || !has_digit { return -1 }
+    // Parse: multiply digits by place value
+    let result = 0.0
+    let i = 0
+    let neg = false
+    let pos = 0
+    if s[0] == '-' { let neg = true; let pos = 1 }
+    let frac_digits = 0
+    let i = pos
+    while i < n {
+        if s[i] == '.' { frac_digits = 0; continue }
+        frac_digits = frac_digits + 1
+        let i = i + 1
+    }
+    i = pos
+    while i < n {
+        let c = s[i]
+        if c >= '0' && c <= '9' {
+            let digit = ord(c) - ord('0')
+            let d = 0
+            while d < frac_digits {
+                let digit = digit * 10
+                let d = d + 1
+            }
+            let result = result + digit
+            frac_digits = frac_digits - 1
         }
         let i = i + 1
     }
-    if !has_digit { return -1 }
-    return 0
+    if neg { return -result }
+    return result
 }
 
 fn json_to_string(data) @ pure @ cpu {

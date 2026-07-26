@@ -85,18 +85,19 @@ fn encode_hex(data) @ pure @ cpu {
 }
 
 fn decode_hex(s) @ pure @ cpu {
-    let hex_map = {}
-    let hi = 0
-    let lo = 1
     let result = []
     let i = 0
     let n = len(s)
-    while i < n {
-        let c = s[i]
-        let digit = hex_char_to_int(c)
-        if digit >= 0 { result = result + [digit] }
-        let i = i + 1
+    while i + 1 < n {
+        let hi = hex_char_to_int(s[i])
+        let lo = hex_char_to_int(s[i + 1])
+        if hi >= 0 && lo >= 0 {
+            result = result + [hi * 16 + lo]
+        }
+        let i = i + 2
     }
+    return result
+}
     return result
 }
 

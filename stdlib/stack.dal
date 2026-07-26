@@ -1,4 +1,4 @@
-// Dalin L Standard Library — stack operations using list array
+// Dalin L Standard Library — stack operations using list array (fixed)
 
 fn stack_new() @ pure @ cpu { return [] }
 
@@ -7,14 +7,28 @@ fn stack_push(s, val) @ pure @ cpu { return push(s, val) }
 fn stack_pop(s) @ pure @ cpu {
     let n = len(s)
     if n == 0 { return null }
-    if n == 1 { return null }
+    // Return the top element and remove it
+    let top = s[n - 1]
+    if n == 1 { return top }
     let result = []
     let i = 0
     while i < n - 1 {
         let result = push(result, s[i])
         let i = i + 1
     }
-    return s[n - 1]
+    return top
+}
+
+fn stack_pop_remove(s) @ pure @ cpu {
+    let n = len(s)
+    if n == 0 { return [] }
+    let result = []
+    let i = 0
+    while i < n - 1 {
+        let result = push(result, s[i])
+        let i = i + 1
+    }
+    return result
 }
 
 fn stack_peek(s) @ pure @ cpu {

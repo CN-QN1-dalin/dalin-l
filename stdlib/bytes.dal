@@ -33,6 +33,12 @@ fn bytes_append(b, x) @ pure @ cpu { return push(b, x) }
 
 fn bytes_to_string(b) @ pure @ cpu {
     let result = ""
+    let i = 0
+    let n = len(b)
+    while i < n {
+        let result = result + chr(b[i])
+        let i = i + 1
+    }
     return result
 }
 

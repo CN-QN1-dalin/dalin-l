@@ -1,5 +1,4 @@
-// Dalin L Core — iter
-// 迭代器基础工具: iterator_new, next, map
+// Dalin L Core — iter (fixed: iter_map now calls f)
 
 fn iter_new(list) @ pure @ cpu { return list }
 
@@ -23,8 +22,8 @@ fn iter_map(it, f) @ pure @ cpu {
     let n = len(it)
     while i < n {
         let item = it[i]
-        let mapped = null
-        let result = push(result, item)
+        let mapped = f(item)
+        let result = push(result, mapped)
         let i = i + 1
     }
     return result
