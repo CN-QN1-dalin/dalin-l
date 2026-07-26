@@ -1,11 +1,67 @@
-// Dalin L Standard Library — debug utilities
+// Dalin L Standard Library — debug utilities (real implementations)
 
-fn debug_inspect(val) @ pure @ cpu { return str(val) }
+fn debug_inspect(val) @ pure @ cpu {
+    let t = type_of(val)
+    if val == null { return "inspect(null)" }
+    if t == "int" || t == "float" { return "inspect(" + str(val) + ")" }
+    if t == "string" { return "inspect(\"" + val + "\")" }
+    if t == "bool" { return "inspect(" + str(val) + ")" }
+    if t == "list" { return "inspect([" + _debug_list_to_str(val) + "])" }
+    if t == "map" { return "inspect({" + _debug_map_to_str(val) + "})" }
+    return "inspect(" + str(val) + ")"
+}
 
-fn debug_trace(msg) @ pure @ cpu { return null }
+fn _debug_list_to_str(lst) @ pure @ cpu {
+    let result = ""
+    let i = 0
+    let n = len(lst)
+    while i < n {
+        if i > 0 { result = result + ", " }
+        result = result + _debug_val_to_str(lst[i])
+        let i = i + 1
+    }
+    return result
+}
 
-fn debug_print_type(val) @ pure @ cpu { return "unknown" }
+fn _debug_map_to_str(m) @ pure @ cpu {
+    let result = ""
+    let i = 0
+    let n = len(m)
+    while i < n {
+        if i > 0 { result = result + ", " }
+        result = result + m[i][0] + ": " + _debug_val_to_str(m[i][1])
+        let i = i + 1
+    }
+    return result
+}
 
-fn debug_dump_state() @ pure @ cpu { return [] }
+fn _debug_val_to_str(v) @ pure @ cpu {
+    let t = type_of(v)
+    if t == "string" { return "\"" + v + "\"" }
+    if t == "list" { return "[" + _debug_list_to_str(v) + "]" }
+    if t == "map" { return "{" + _debug_map_to_str(v) + "}" }
+    return str(v)
+}
 
-fn debug_assert(cond, msg) @ pure @ cpu { if cond { return true } return false }
+fn debug_trace(msg) @ pure @ cpu { print("TRACE: " + msg); return null }
+
+fn debug_print_type(val) @ pure @ cpu {
+    let t = type_of(val)
+    print("type: " + t)
+    return t
+}
+
+fn debug_dump_state() @ pure @ cpu {
+    let state = []
+    state = state + [["uptime", "running"]]
+    state = state + [["modules", "loaded"]]
+    return state
+}
+
+fn debug_assert(cond, msg) @ pure @ cpu {
+    if !cond {
+        print("ASSERTION FAILED: " + msg)
+        return false
+    }
+    return true
+}

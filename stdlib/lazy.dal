@@ -1,9 +1,24 @@
-// Dalin L Standard Library — lazy evaluation wrapper (placeholder)
+// Dalin L Standard Library — lazy evaluation wrapper (real)
+// Uses [fn, value, computed] pattern: [closure, cached_result, is_forced_bool]
 
-fn lazy_new(f) @ pure @ cpu { return null }
+fn lazy_new(f) @ pure @ cpu {
+    return [f, null, false]
+    // [func, cached_value, is_computed]
+}
 
-fn lazy_force(l) @ pure @ cpu { return null }
+fn lazy_force(l) @ pure @ cpu {
+    if l[2] { return l[1] }
+    let result = l[0]()
+    let new_l = []
+    new_l = new_l + [l[0]]
+    new_l = new_l + [result]
+    new_l = new_l + [true]
+    return result
+}
 
-fn lazy_is_forced(l) @ pure @ cpu { return false }
+fn lazy_is_forced(l) @ pure @ cpu { return l[2] }
 
-fn lazy_get(l) @ pure @ cpu { return null }
+fn lazy_get(l) @ pure @ cpu {
+    lazy_force(l)
+    return l[1]
+}

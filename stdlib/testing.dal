@@ -1,20 +1,54 @@
-// Dalin L Standard Library — testing utilities
+// Dalin L Standard Library — testing utilities (enhanced)
 
-fn test_assert(cond) @ pure @ cpu {
-    if cond { return true }
-    return false
-}
+fn test_assert(cond) @ pure @ cpu { return cond }
 
 fn test_eq(a, b) @ pure @ cpu { return a == b }
 
 fn test_ne(a, b) @ pure @ cpu { return a != b }
 
-fn test_ok() @ pure @ cpu { return true }
+fn test_lt(a, b) @ pure @ cpu { return a < b }
+
+fn test_gt(a, b) @ pure @ cpu { return a > b }
+
+fn test_nil(v) @ pure @ cpu { return v == null }
+
+fn test_truthy(v) @ pure @ cpu { return v != false && v != null && v != 0 && v != "" }
+
+fn test_falsy(v) @ pure @ cpu { return v == false || v == null || v == 0 || v == "" }
+
+fn test_ok() @ pure @ cpu { return "ok" }
 
 fn test_fail(msg) @ pure @ cpu { return msg }
 
-fn test_count_pass() @ pure @ cpu { return 0 }
+fn test_panic(msg) @ pure @ cpu {
+    print("PANIC: " + msg)
+    return msg
+}
 
-fn test_count_fail() @ pure @ cpu { return 0 }
+fn test_group(name, tests) @ pure @ cpu {
+    let passed = 0
+    let failed = 0
+    let i = 0
+    let n = len(tests)
+    while i < n {
+        let result = tests[i]()
+        if result { passed = passed + 1 } else { failed = failed + 1 }
+        let i = i + 1
+    }
+    return [name, passed, failed]
+}
 
-fn test_summary() @ pure @ cpu { return "test passed" }
+fn test_report(results) @ pure @ cpu {
+    let total = 0
+    let pass = 0
+    let fail = 0
+    let i = 0
+    let n = len(results)
+    while i < n {
+        total = total + results[i][1] + results[i][2]
+        pass = pass + results[i][1]
+        fail = fail + results[i][2]
+        let i = i + 1
+    }
+    return "Test Report: " + str(total) + " tests, " + str(pass) + " passed, " + str(fail) + " failed"
+}
