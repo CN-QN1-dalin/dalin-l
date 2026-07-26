@@ -49,14 +49,13 @@ impl EtcdTaskStore {
 
     fn spawn_watcher(&self, mut client: Client, tx: broadcast::Sender<TaskEvent>, node_id: String) {
         tokio::spawn(async move {
-            let watch = match client
+            let mut stream = match client
                 .watch(EVENTS_PREFIX, Some(WatchOptions::new().with_prefix()))
                 .await
             {
                 Ok(w) => w,
                 Err(_) => return,
             };
-            let (_watcher, mut stream) = watch; // watcher 持活至任务结束
             while let Some(resp) = stream.next().await {
                 let resp = match resp {
                     Ok(r) => r,

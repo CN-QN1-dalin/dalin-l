@@ -13,21 +13,23 @@ path = "bin/cpd.rs"
 
 [dependencies]
 dalin-compiler = { path = "../compiler" }
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }
-tonic = "0.12"
-prost = "0.13"
-async-nats = "0.40"
+tokio = { version = "1.0", features = ["rt-multi-thread", "macros", "time"] }
+tonic = "0.14"
+prost = "0.14"
+tonic-prost = "0.14"
+async-nats = "0.50"
 async-trait = "0.1"
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-thiserror = "1"
-uuid = { version = "1", features = ["v4"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "2.0"
+uuid = { version = "1.0", features = ["v4"] }
 futures-core = "0.3"
 futures-util = "0.3"
 tokio-stream = { version = "0.1", features = ["net", "sync"] }
-redis = { version = "0.27", features = ["tokio-comp", "connection-manager", "futures-util"] }
-etcd-client = "0.14"
+redis = { version = "0.27", features = ["tokio-comp", "connection-manager"] }
+etcd-client = "0.19"
 tokio-postgres = "0.7"
 
 [build-dependencies]
-tonic-build = "0.12"
+tonic-build = "0.14"
+tonic-prost-build = "0.14"
