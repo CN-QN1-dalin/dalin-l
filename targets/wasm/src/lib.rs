@@ -1,7 +1,8 @@
+use dalin_compiler::ast::{BaseType, Expr, FnParam, Program, Stmt};
 /// Dalin L 3.0 — WASM 编译后端 (真实实现)
 ///
 /// 将 Dalan L AST 编译为 WebAssembly Text Format (.wat)
-use dalin_compiler::ast::{BaseType, Expr, FnParam, Program, Stmt};
+use std::fmt::Write;
 
 /// 优化级别
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
@@ -106,27 +107,27 @@ impl WasmBackend {
             } = stmt
             {
                 if *pub_ {
-                    wat.push_str(&format!("  ;; EXPORTED: {}\n", name));
+                    write!(wat, "  ;; EXPORTED: {name}\n").unwrap();
                 }
 
                 // 参数声明
                 for (i, p) in params.iter().enumerate() {
                     let wasm_ty = param_type_to_wasm(p);
-                    wat.push_str(&format!("  (param ${} {})\n", i, wasm_ty));
+                    write!(wat, "  (param ${i} {wasm_ty})\n").unwrap();
                 }
 
                 // 返回值
                 if let Some(ret) = return_type {
                     let wasm_ty = type_to_wasm(ret.base.clone());
-                    wat.push_str(&format!("  (result {})\n", wasm_ty));
+                    write!(wat, "  (result {wasm_ty})\n").unwrap();
                 } else {
                     wat.push_str("  (result i32)\n");
                 }
 
                 // 函数体
-                let func_name = format!("dalin_{}", name);
+                let func_name = format!("dalin_{name}");
                 let body_wat = generate_body_wat(body);
-                wat.push_str(&format!("  (func ${}\n    {}\n  )\n", func_name, body_wat));
+                write!(wat, "  (func ${func_name}\n    {body_wat}\n  )\n").unwrap();
             }
         }
 
@@ -135,8 +136,8 @@ impl WasmBackend {
             if let Stmt::Fn { name, pub_, .. } = stmt {
                 let should_export = *pub_ || self.exports.is_empty();
                 if should_export {
-                    let func_name = format!("dalin_{}", name);
-                    wat.push_str(&format!("  (export \"{}\" (func ${}))\n", name, func_name));
+                    let func_name = format!("dalin_{name}");
+                    write!(wat, "  (export \"{name}\" (func ${func_name}))\n").unwrap();
                 }
             }
         }
@@ -179,8 +180,7 @@ fn type_to_wasm(base: BaseType) -> &'static str {
 fn param_type_to_wasm(p: &FnParam) -> &'static str {
     p.type_annotation
         .as_ref()
-        .map(|ty| type_to_wasm(ty.base.clone()))
-        .unwrap_or("i64")
+        .map_or("i64", |ty| type_to_wasm(ty.base.clone()))
 }
 
 // ═══════════════════════════════
@@ -234,12 +234,12 @@ fn stmt_to_wat(stmt: &Stmt) -> String {
         } => {
             let cond_wat = expr_to_wat(condition);
             let then_wat = generate_body_wat(then_body);
-            let else_wat = if !else_body.is_empty() {
-                format!("\n  else\n{}", generate_body_wat(else_body))
-            } else {
+            let else_wat = if else_body.is_empty() {
                 String::new()
+            } else {
+                format!("\n  else\n{}", generate_body_wat(else_body))
             };
-            format!("{}\n  if\n    {}\n  {}end\n", cond_wat, then_wat, else_wat)
+            format!("{cond_wat}\n  if\n    {then_wat}\n  {else_wat}end\n")
         }
         Stmt::While {
             condition,
@@ -248,7 +248,7 @@ fn stmt_to_wat(stmt: &Stmt) -> String {
         } => {
             let cond_wat = expr_to_wat(condition);
             let body_wat = generate_body_wat(wb);
-            format!("{}\n{}\n", cond_wat, body_wat)
+            format!("{cond_wat}\n{body_wat}\n")
         }
         Stmt::For {
             iterable, body: fb, ..
@@ -270,15 +270,15 @@ fn stmt_to_wat(stmt: &Stmt) -> String {
 /// 递归地将表达式编译为 WAT 指令序列
 fn expr_to_wat(expr: &Expr) -> String {
     match expr {
-        Expr::IntLiteral(n) => format!("  i64.const {}", n),
-        Expr::FloatLiteral(f) => format!("  f64.const {}", f),
+        Expr::IntLiteral(n) => format!("  i64.const {n}"),
+        Expr::FloatLiteral(f) => format!("  f64.const {f}"),
         Expr::StringLiteral(s) => {
             let esc = s.replace('\\', "\\\\").replace('"', "\\\"");
-            format!("  ;; string: {}", esc)
+            format!("  ;; string: {esc}")
         }
         Expr::BoolLiteral(b) => format!("  i32.const {}", if *b { "1" } else { "0" }),
         Expr::CharLiteral(c) => format!("  i32.const {}", *c as i32),
-        Expr::Ident(name) => format!("  local.get ${}", name),
+        Expr::Ident(name) => format!("  local.get ${name}"),
         Expr::BinaryOp { left, op, right } => {
             let l = expr_to_wat(left);
             let r = expr_to_wat(right);
@@ -298,19 +298,19 @@ fn expr_to_wat(expr: &Expr) -> String {
                 "||" => "  i32.or",
                 _ => "  i64.add",
             };
-            format!("{}\n{}\n{}", l, r, o)
+            format!("{l}\n{r}\n{o}")
         }
         Expr::UnaryOp { op, operand } => {
             let inner = expr_to_wat(operand);
             match op.as_str() {
-                "-" => format!("{}\n  i64.const 0\n  i64.sub", inner),
-                "!" => format!("{}\n  i32.eqz", inner),
+                "-" => format!("{inner}\n  i64.const 0\n  i64.sub"),
+                "!" => format!("{inner}\n  i32.eqz"),
                 _ => inner,
             }
         }
         Expr::Call { func, args } => {
             let fn_name = match func.as_ref() {
-                Expr::Ident(n) => format!("dalin_{}", n),
+                Expr::Ident(n) => format!("dalin_{n}"),
                 _ => "unknown".to_string(),
             };
             let mut out = String::new();
@@ -318,7 +318,7 @@ fn expr_to_wat(expr: &Expr) -> String {
                 out.push_str(&expr_to_wat(arg));
                 out.push('\n');
             }
-            out.push_str(&format!("  call ${}", fn_name));
+            write!(out, "  call ${fn_name}").unwrap();
             out
         }
         Expr::MemberAccess { .. } => String::from("  ;; member access stub"),
@@ -334,7 +334,7 @@ fn expr_to_wat(expr: &Expr) -> String {
             for (op, arg) in ops {
                 result.push('\n');
                 result.push_str(&expr_to_wat(arg));
-                result.push_str(&format!("\n  call $dalin_{}", op));
+                write!(result, "\n  call $dalin_{op}").unwrap();
             }
             result
         }
@@ -363,9 +363,8 @@ fn expr_to_wat(expr: &Expr) -> String {
             if *is_some {
                 let inner = value
                     .as_ref()
-                    .map(|v| expr_to_wat(v))
-                    .unwrap_or(String::from("  i32.const 0"));
-                format!("{}\n  ;; option.some", inner)
+                    .map_or(String::from("  i32.const 0"), |v| expr_to_wat(v));
+                format!("{inner}\n  ;; option.some")
             } else {
                 String::from("  i32.const 0")
             }
@@ -378,15 +377,13 @@ fn expr_to_wat(expr: &Expr) -> String {
             if *is_ok {
                 let inner = value
                     .as_ref()
-                    .map(|v| expr_to_wat(v))
-                    .unwrap_or(String::from("  i32.const 0"));
-                format!("{}\n  ;; result.ok", inner)
+                    .map_or(String::from("  i32.const 0"), |v| expr_to_wat(v));
+                format!("{inner}\n  ;; result.ok")
             } else {
                 let inner = error
                     .as_ref()
-                    .map(|e| expr_to_wat(e))
-                    .unwrap_or(String::from("  i32.const 0"));
-                format!("{}\n  ;; result.error", inner)
+                    .map_or(String::from("  i32.const 0"), |e| expr_to_wat(e));
+                format!("{inner}\n  ;; result.error")
             }
         }
         Expr::IfExpr(cond, then, els) => {
@@ -400,7 +397,7 @@ fn expr_to_wat(expr: &Expr) -> String {
         Expr::MatchExpr(target, arms) => {
             let mut out = expr_to_wat(target) + "\n";
             for arm in arms {
-                out.push_str(&format!(";; arm {:?}\n", arm.pattern.kind));
+                write!(out, ";; arm {:?}\n", arm.pattern.kind).unwrap();
                 out.push_str(&generate_body_wat(&arm.body));
             }
             out

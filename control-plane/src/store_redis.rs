@@ -1,11 +1,11 @@
 //! `RedisTaskStore` — `TaskStore` 的 Redis 后端（生产级分布式持久化）
 //!
 //! 数据布局（均存 JSON 字符串，简单且对 schema 演进友好）：
-//!   - `dalin:task:{id}`                 → TaskRecord JSON
+//!   - `dalin:task:{id}`                 → `TaskRecord` JSON
 //!   - `dalin:idem:{parent}/{key}`       → task id（幂等索引）
 //!   - `dalin:children:{parent}`         → SET of task IDs (direct children)
 //!   - `dalin:tasks`                     → SET of task IDs (all tasks)
-//!   - 事件：PUBLISH dalin:tasks:events, WireEvent JSON（跨节点传播）
+//!   - 事件：PUBLISH dalin:tasks:events, `WireEvent` JSON（跨节点传播）
 //!
 //! 跨节点事件：本地写入同时 (a) 发到本地 broadcast（本节点订阅者立即可见）
 //! 与 (b) PUBLISH 到 Redis 频道；后台订阅任务收到外部事件后，origin != self 才转发本地

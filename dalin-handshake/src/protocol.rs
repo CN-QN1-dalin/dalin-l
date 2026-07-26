@@ -52,12 +52,14 @@ impl HandshakeProtocol {
     }
 
     /// 设置认证 token
+    #[must_use]
     pub fn with_auth(mut self, token: impl Into<String>) -> Self {
         self.auth_token = Some(token.into());
         self
     }
 
     /// 设置语言
+    #[must_use]
     pub fn with_language(mut self, lang: impl Into<String>) -> Self {
         self.language = lang.into();
         self

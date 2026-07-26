@@ -13,6 +13,8 @@
 //! - **Package Manager** — dalin.toml 解析 + 依赖解析
 //!
 
+use std::fmt::Write;
+
 pub mod ast;
 pub mod error;
 pub mod latency;
@@ -88,7 +90,7 @@ pub fn compile_with_llm(src: &str) -> CompileResult {
     if !latency_result.errors.is_empty() {
         report.push_str("\n=== Latency Violations ===\n");
         for err in &latency_result.errors {
-            report.push_str(&format!("  ❌ {err}\n"));
+            write!(report, "  ❌ {err}\n").unwrap();
         }
     }
 

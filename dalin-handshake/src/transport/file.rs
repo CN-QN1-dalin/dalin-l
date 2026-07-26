@@ -54,6 +54,7 @@ impl FileTransport {
     }
 
     /// 设置发现信息
+    #[must_use]
     pub fn with_discovery(mut self, discovery: Discovery) -> Self {
         self.discovery = Some(discovery);
         self

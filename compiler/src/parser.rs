@@ -1,4 +1,3 @@
-/// Dalin L — 递归下降语法分析器
 use crate::ast::{
     BaseType, EnumVariant, Expr, FieldDef, FnParam, MatchArm, Pattern, Program, Stmt, TraitMethod,
     TypeRef,
@@ -16,6 +15,8 @@ use crate::token::{
         RightBracket, RightParen, Semicolon, Slash, Star, StringLiteral,
     },
 };
+/// Dalin L — 递归下降语法分析器
+use std::fmt::Write;
 /// Nine annotation fields returned by `parse_channel_annotations`.
 pub type AnnotationResult = Result<
     (
@@ -1366,10 +1367,10 @@ fn stmt_to_string(stmt: &Stmt, indent: usize) -> String {
         } => {
             let mut s = format!("{}{}Let({}", p, if *mutable { "mut " } else { "" }, name);
             if let Some(t) = type_annotation {
-                s.push_str(&format!(": {t}"));
+                write!(s, ": {t}").unwrap();
             }
             if let Some(v) = value {
-                s.push_str(&format!(" = {}", expr_to_string(v, 0)));
+                write!(s, " = {}", expr_to_string(v, 0)).unwrap();
             }
             s.push(')');
             s

@@ -16,6 +16,7 @@
 //! 4. 后续由 xcode/metallib 或 nvcc 进行实际编译
 
 use std::fmt;
+use std::fmt::Write;
 
 // ═══════════════════════════════
 //  GPU Backend Enum
@@ -61,8 +62,8 @@ fn dal_type_to_gpu(base: &str, _gpu_backend: &str) -> String {
 fn dal_array_type_to_gpu(base: &str, gpu_backend: &str) -> String {
     let elem = dal_type_to_gpu(base, "");
     match gpu_backend {
-        "cuda" => format!("const {}*", elem),
-        _ => format!("const device {}*", elem), // Metal
+        "cuda" => format!("const {elem}*"),
+        _ => format!("const device {elem}*"), // Metal
     }
 }
 
@@ -94,6 +95,7 @@ pub struct GpuParam {
 /// 2. 提取参数列表，识别类型和数组标注 `[[Type]]`
 /// 3. 提取返回类型 `-> RetType`
 /// 4. 统计 for 循环数量（嵌套深度 > 1 时为嵌套循环）
+#[must_use]
 pub fn analyze_for_gpu(source: &str) -> GpuAnalysis {
     let mut params = Vec::new();
     let mut fn_name = "unknown".to_string();
@@ -229,7 +231,7 @@ pub fn compile_to_msl(source: &str) -> Result<String, String> {
     let mut out = String::from("#include <metal_stdlib>\nusing namespace metal;\n\n");
 
     // Function signature
-    out.push_str(&format!("kernel void {}(", analysis.fn_name));
+    write!(out, "kernel void {}(", analysis.fn_name).unwrap();
     for (i, p) in analysis.params.iter().enumerate() {
         if i > 0 {
             out.push_str(",\n");
@@ -242,7 +244,7 @@ pub fn compile_to_msl(source: &str) -> Result<String, String> {
             ));
         } else {
             let gt = dal_type_to_gpu(&p.base_type, "metal");
-            out.push_str(&format!("    {} {}", gt, p.name));
+            write!(out, "    {} {}", gt, p.name).unwrap();
         }
     }
     out.push_str(",\n    uint tid [[thread_position_in_threadgroup]])\n{\n");
@@ -261,7 +263,7 @@ pub fn compile_to_msl(source: &str) -> Result<String, String> {
             ));
         }
         for sp in analysis.params.iter().filter(|p| !p.is_array) {
-            out.push_str(&format!("        // scalar: {}\n", sp.name));
+            write!(out, "        // scalar: {}\n", sp.name).unwrap();
         }
         out.push_str("    }\n");
     } else {
@@ -288,9 +290,9 @@ pub fn compile_to_cuda(source: &str) -> Result<String, String> {
     let mut out = String::from("#include <cuda_runtime.h>\n\n");
 
     // __global__ function
-    out.push_str(&format!("__global__ void {}(", analysis.fn_name));
+    write!(out, "__global__ void {}(", analysis.fn_name).unwrap();
     let mut first = true;
-    for p in analysis.params.iter() {
+    for p in &analysis.params {
         if !first {
             out.push_str(", ");
         }
@@ -300,20 +302,20 @@ pub fn compile_to_cuda(source: &str) -> Result<String, String> {
             out.push_str(&format!("{} {}_data, int {}_len", gt, p.name, p.name));
         } else {
             let gt = dal_type_to_gpu(&p.base_type, "cuda");
-            out.push_str(&format!("{} {}", gt, p.name));
+            write!(out, "{} {}", gt, p.name).unwrap();
         }
     }
     if let Some(ref ret) = analysis.return_type {
         let base = ret.replace("[[", "").replace("]]", "");
-        let ret_t = if !base.is_empty() {
-            dal_type_to_gpu(&base, "cuda")
-        } else {
+        let ret_t = if base.is_empty() {
             "int".to_string()
+        } else {
+            dal_type_to_gpu(&base, "cuda")
         };
         if !first {
             out.push_str(", ");
         }
-        out.push_str(&format!("{}* result_data", ret_t));
+        write!(out, "{ret_t}* result_data").unwrap();
     }
     out.push_str(")\n{\n");
 
@@ -340,13 +342,13 @@ pub fn compile_to_cuda(source: &str) -> Result<String, String> {
     out.push_str("}\n\n");
 
     // Launch helper
-    out.push_str(&format!("// Launch helper for {}\n", analysis.fn_name));
+    write!(out, "// Launch helper for {}\n", analysis.fn_name).unwrap();
     out.push_str(&format!(
         "static inline __host__ void launch_{}\n",
         analysis.fn_name
     ));
     out.push_str("{\n");
-    for p in analysis.params.iter() {
+    for p in &analysis.params {
         if p.is_array {
             let gt = dal_array_type_to_gpu(&p.base_type, "cuda");
             out.push_str(&format!(
@@ -355,7 +357,7 @@ pub fn compile_to_cuda(source: &str) -> Result<String, String> {
             ));
         } else {
             let gt = dal_type_to_gpu(&p.base_type, "cuda");
-            out.push_str(&format!("    {} {},\n", gt, p.name));
+            write!(out, "    {} {},\n", gt, p.name).unwrap();
         }
     }
     out.push_str("    int blocks = (n + 255) / 256;\n");

@@ -98,7 +98,7 @@ impl DispatchBroker for NatsDispatchBroker {
 
 /// 内存派发总线（测试 / 单机模式）
 pub struct InMemoryDispatchBroker {
-    /// dispatch log: Vec of DispatchTask records dispatched
+    /// dispatch log: Vec of `DispatchTask` records dispatched
     pub history: std::sync::Mutex<Vec<DispatchTask>>,
 }
 

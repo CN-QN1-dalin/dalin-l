@@ -7,6 +7,7 @@
 //! - dalib pkg build — 解析 dalan.toml，下载/解析依赖，生成 dalan.lock
 //! - dalib pkg remove dep — 移除依赖
 use std::collections::HashMap;
+use std::fmt::Write;
 use std::fs;
 use std::path::PathBuf;
 
@@ -40,19 +41,19 @@ fn write_manifest(path: &PathBuf, manifest: &PackageManifest) -> Result<(), Stri
     let mut content = String::new();
 
     content.push_str("[package]\n");
-    content.push_str(&format!("name = \"{}\"\n", manifest.name));
-    content.push_str(&format!("version = \"{}\"\n", manifest.version));
+    write!(content, "name = \"{}\"\n", manifest.name).unwrap();
+    write!(content, "version = \"{}\"\n", manifest.version).unwrap();
     if !manifest.edition.is_empty() {
-        content.push_str(&format!("edition = \"{}\"\n", manifest.edition));
+        write!(content, "edition = \"{}\"\n", manifest.edition).unwrap();
     }
     if let Some(ref desc) = manifest.description {
-        content.push_str(&format!("description = \"{desc}\"\n"));
+        write!(content, "description = \"{desc}\"\n").unwrap();
     }
     if !manifest.authors.is_empty() {
-        content.push_str(&format!("authors = {:?}\n", manifest.authors));
+        write!(content, "authors = {:?}\n", manifest.authors).unwrap();
     }
     if let Some(ref license) = manifest.license {
-        content.push_str(&format!("license = \"{license}\"\n"));
+        write!(content, "license = \"{license}\"\n").unwrap();
     }
 
     if !manifest.deps.is_empty() {
@@ -60,25 +61,31 @@ fn write_manifest(path: &PathBuf, manifest: &PackageManifest) -> Result<(), Stri
         for (name, dep) in &manifest.deps {
             match &dep.source {
                 DependencySource::Git(url) => {
-                    content.push_str(&format!(
+                    write!(
+                        content,
                         "{} = {{ version = \"{}\", git = \"{}\" }}\n",
                         name, dep.version, url
-                    ));
+                    )
+                    .unwrap();
                 }
                 DependencySource::Path(p) => {
-                    content.push_str(&format!(
+                    write!(
+                        content,
                         "{} = {{ version = \"{}\", path = \"{}\" }}\n",
                         name, dep.version, p
-                    ));
+                    )
+                    .unwrap();
                 }
                 _ => {
                     if dep.optional {
-                        content.push_str(&format!(
+                        write!(
+                            content,
                             "{} = {{ version = \"{}\", optional = true }}\n",
                             name, dep.version
-                        ));
+                        )
+                        .unwrap();
                     } else {
-                        content.push_str(&format!("{} = \"{}\"\n", name, dep.version));
+                        write!(content, "{} = \"{}\"\n", name, dep.version).unwrap();
                     }
                 }
             }
@@ -88,7 +95,7 @@ fn write_manifest(path: &PathBuf, manifest: &PackageManifest) -> Result<(), Stri
     if !manifest.dev_deps.is_empty() {
         content.push_str("\n[dev-dependencies]\n");
         for (name, dep) in &manifest.dev_deps {
-            content.push_str(&format!("{} = \"{}\"\n", name, dep.version));
+            write!(content, "{} = \"{}\"\n", name, dep.version).unwrap();
         }
     }
 

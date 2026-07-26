@@ -137,24 +137,28 @@ impl AgentBuilder {
     }
 
     /// 设置 Agent ID（默认自动生成 UUID）
+    #[must_use]
     pub fn id(mut self, id: impl Into<String>) -> Self {
         self.agent_id = Some(AgentId::new(id));
         self
     }
 
     /// 设置 Agent 名称
+    #[must_use]
     pub fn name(mut self, name: impl Into<String>) -> Self {
         self.agent_name = Some(name.into());
         self
     }
 
     /// 设置 Agent 版本
+    #[must_use]
     pub fn version(mut self, version: impl Into<String>) -> Self {
         self.agent_version = version.into();
         self
     }
 
     /// 设置语言
+    #[must_use]
     pub fn language(mut self, lang: impl Into<String>) -> Self {
         self.language = lang.into();
         self
@@ -168,12 +172,14 @@ impl AgentBuilder {
     }
 
     /// 添加能力声明
+    #[must_use]
     pub fn capability(mut self, name: impl Into<String>, version: impl Into<String>) -> Self {
         self.capabilities.push(Capability::new(name, version));
         self
     }
 
     /// 设置认证 token
+    #[must_use]
     pub fn auth(mut self, token: impl Into<String>) -> Self {
         self.auth_token = Some(token.into());
         self

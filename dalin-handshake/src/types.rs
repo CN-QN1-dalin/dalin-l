@@ -96,6 +96,7 @@ impl Capability {
         }
     }
 
+    #[must_use]
     pub fn with_description(mut self, desc: impl Into<String>) -> Self {
         self.description = Some(desc.into());
         self

@@ -20,6 +20,7 @@
 ///       └─ cache_write  → 写入增量编译缓存
 /// ```
 use std::collections::{HashMap, HashSet};
+use std::fmt::Write;
 
 use crate::ast::{FnParam, Program, Stmt};
 
@@ -237,16 +238,18 @@ impl JitCompiler {
         } = fn_stmt
         {
             let mut ir = String::new();
-            ir.push_str(&format!(
+            write!(
+                ir,
                 "; Function: {}({} params, {} stmts)\n",
                 name,
                 params.len(),
                 body.len()
-            ));
+            )
+            .unwrap();
             ir.push_str("; Generated Dalin L → LLVM IR (string-based stub)\n\n");
 
             // 生成一个简单的 IR stub，标记这是 Dalan L 3.0 编译产物
-            ir.push_str(&format!("; stub: fn {} {{ len={} }}\n", name, body.len()));
+            write!(ir, "; stub: fn {} {{ len={} }}\n", name, body.len()).unwrap();
 
             return Ok(ir);
         }
@@ -258,7 +261,7 @@ impl JitCompiler {
     /// 如果启用 inkwell feature，调用 LLVM pass manager；否则返回原样。
     pub fn optimize_ir(&self, ir: &str, _opt_level: OptLevel) -> Result<String, CompileError> {
         // 简单标注优化级别
-        let annotated = format!("; OptLevel: {:?}\n{}", _opt_level, ir);
+        let annotated = format!("; OptLevel: {_opt_level:?}\n{ir}");
         Ok(annotated)
     }
 
