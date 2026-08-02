@@ -5,14 +5,15 @@ use crate::ast::{
 use crate::token::{
     Token, TokenType,
     TokenType::{
-        And, Arrow, At, BoolLiteral, CharLiteral, Colon, Comma, Dot, DoubleArrow, DoubleDot,
-        DoubleEqual, Eof, Equal, FloatLiteral, Greater, GreaterEqual, Ident, IntLiteral,
-        KeywordAssert, KeywordAsync, KeywordCatch, KeywordChannel, KeywordConst, KeywordElse,
-        KeywordEnum, KeywordExport, KeywordFn, KeywordFor, KeywordIf, KeywordImpl, KeywordIn,
-        KeywordLet, KeywordMatch, KeywordMut, KeywordReturn, KeywordSpawn, KeywordStruct,
-        KeywordTrait, KeywordTry, KeywordType, KeywordUse, KeywordWhile, LeftBrace, LeftBracket,
-        LeftParen, Less, LessEqual, Minus, Modulo, Not, NotEqual, Or, Pipe, Plus, RightBrace,
-        RightBracket, RightParen, Semicolon, Slash, Star, StringLiteral,
+        And, Arrow, At, BitAnd, BitOr, BitXor, BoolLiteral, CharLiteral, Colon, Comma, Dot,
+        DoubleArrow, DoubleColon, DoubleDot, DoubleEqual, Eof, Equal, FloatLiteral, Greater,
+        GreaterEqual, Ident, IntLiteral, KeywordAssert, KeywordAsync, KeywordCatch,
+        KeywordChannel, KeywordConst, KeywordElse, KeywordEnum, KeywordExport, KeywordFn,
+        KeywordFor, KeywordIf, KeywordImpl, KeywordIn, KeywordLet, KeywordMatch, KeywordMut,
+        KeywordReturn, KeywordSpawn, KeywordStruct, KeywordTrait, KeywordTry, KeywordType,
+        KeywordUse, KeywordWhile, LeftBrace, LeftBracket, LeftParen, Less, LessEqual, Minus,
+        Modulo, Not, NotEqual, Or, Pipe, Plus, RightBrace, RightBracket, RightParen, Semicolon,
+        Shl, Shr, Slash, Star, StringLiteral,
     },
 };
 /// Dalin L — 递归下降语法分析器
@@ -224,16 +225,20 @@ impl Parser {
         if self.check(tt) {
             Ok(self.advance())
         } else {
-            Err(ParseError {
+            let (line, column) = (self.current().line, self.current().column);
+            let err = ParseError {
                 message: format!(
                     "Expected {} but got {} ({:?})",
                     name,
                     self.current().token_type.name(),
                     self.current().value
                 ),
-                line: self.current().line,
-                column: self.current().column,
-            })
+                line,
+                column,
+            };
+            // 记录错误（错误恢复依赖 errors 列表上报，仅返回 Err 会被主循环吞掉）
+            self.record_error(err.message.clone(), line, column);
+            Err(err)
         }
     }
 
@@ -249,11 +254,17 @@ impl Parser {
     pub fn parse(&mut self) -> Result<(Program, Vec<ParseError>), ParseError> {
         let mut prog = Program::new();
         while !self.check(Eof) {
+            let before = self.pos;
             match self.parse_statement() {
                 Ok(Some(s)) => prog.add(s),
                 Err(_) => {
                     // Error already recorded; skip to sync point
                     self.skip_to_sync(false);
+                    // 防死循环护栏：错误恢复必须推进 token 游标。
+                    // 若 sync 点位于当前 token（如 '}'），主循环会在同一位置无限重试。
+                    if self.pos == before {
+                        self.advance();
+                    }
                 }
                 Ok(None) => {
                     self.advance();
@@ -1233,10 +1244,14 @@ impl Parser {
         match tt {
             Or => 1,
             And => 2,
-            Equal | DoubleEqual | NotEqual => 3,
-            Less | Greater | LessEqual | GreaterEqual => 4,
-            Plus | Minus => 5,
-            Star | Slash | Modulo => 6,
+            BitOr => 3,
+            BitXor => 4,
+            BitAnd => 5,
+            Equal | DoubleEqual | NotEqual => 6,
+            Less | Greater | LessEqual | GreaterEqual => 7,
+            Shl | Shr => 8,
+            Plus | Minus => 9,
+            Star | Slash | Modulo => 10,
             _ => 0,
         }
     }
@@ -1270,6 +1285,11 @@ impl Parser {
                 GreaterEqual => ">=",
                 And => "&&",
                 Or => "||",
+                BitAnd => "&",
+                BitOr => "|",
+                BitXor => "^",
+                Shl => "<<",
+                Shr => ">>",
                 _ => {
                     return Err(ParseError {
                         message: format!("Unknown binary operator: {:?}", self.current().value),
@@ -1450,6 +1470,16 @@ impl Parser {
         if tok.token_type == Ident {
             self.advance();
             let mut obj = Expr::Ident(tok.value.clone());
+
+            // 模块路径：mod::func / mod::sub::func
+            // 解析为嵌套 MemberAccess（mod 的 func 成员），随后可继续 call/index 链
+            while self.match_token(DoubleColon) {
+                let member_tok = self.expect(Ident, "path segment")?;
+                obj = Expr::MemberAccess {
+                    object: Box::new(obj),
+                    member: member_tok.value,
+                };
+            }
 
             loop {
                 // Member access: obj.field

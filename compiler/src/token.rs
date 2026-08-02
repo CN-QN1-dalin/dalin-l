@@ -59,6 +59,11 @@ pub enum TokenType {
     And,
     Or,
     Not,
+    BitAnd,      // &
+    BitOr,       // |
+    BitXor,      // ^
+    Shl,         // <<
+    Shr,         // >>
     PlusEqual,
     MinusEqual,
     StarEqual,
@@ -146,6 +151,11 @@ impl TokenType {
             Self::And => "AND",
             Self::Or => "OR",
             Self::Not => "NOT",
+            Self::BitAnd => "BIT_AND",
+            Self::BitOr => "BIT_OR",
+            Self::BitXor => "BIT_XOR",
+            Self::Shl => "SHL",
+            Self::Shr => "SHR",
             Self::PlusEqual => "PLUS_EQUAL",
             Self::MinusEqual => "MINUS_EQUAL",
             Self::StarEqual => "STAR_EQUAL",

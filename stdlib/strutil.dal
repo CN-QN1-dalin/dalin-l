@@ -1,10 +1,10 @@
 // Dalin L 标准库 — 字符串工具 (real implementations)
 
-fn str_reverse(s) @ pure @ cpu { return strings.dal::str_reverse(s) }
+fn str_reverse(s) @ pure @ cpu { return strings::str_reverse(s) }
 
-fn str_starts_with(s, prefix) @ pure @ cpu { return strings.dal::str_starts_with(s, prefix) }
+fn str_starts_with(s, prefix) @ pure @ cpu { return strings::str_starts_with(s, prefix) }
 
-fn str_ends_with(s, suffix) @ pure @ cpu { return strings.dal::str_ends_with(s, suffix) }
+fn str_ends_with(s, suffix) @ pure @ cpu { return strings::str_ends_with(s, suffix) }
 
 fn str_repeat(s, n) @ pure @ cpu {
     let result = ""
@@ -17,8 +17,8 @@ fn str_repeat(s, n) @ pure @ cpu {
 }
 
 fn str_replace(s, from, to) @ pure @ cpu {
-    if from == "" || !strings.dal::str_contains(s, from) { return s }
-    let idx = strings.dal::str_index_of(s, from)
+    if from == "" || !strings::str_contains(s, from) { return s }
+    let idx = strings::str_index_of(s, from)
     if idx < 0 { return s }
     let before = ""
     let bi = 0
@@ -80,7 +80,7 @@ fn str_count(s, sub) @ pure @ cpu {
 
 fn str_capitalize(s) @ pure @ cpu {
     if len(s) == 0 { return s }
-    let first = strings.dal::str_substring(s, 0, 1)
+    let first = strings::str_substring(s, 0, 1)
     let rest = ""
     if len(s) > 1 {
         let ri = 1

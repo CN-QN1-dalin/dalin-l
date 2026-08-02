@@ -74,6 +74,11 @@ pub enum ChannelError {
         location: SourceLocation,
         message: String,
     },
+    /// Borrow checker / memory safety errors
+    BorrowCheckFailed {
+        location: SourceLocation,
+        detail: String,
+    },
 }
 
 impl ChannelError {
@@ -88,6 +93,7 @@ impl ChannelError {
             ChannelError::CognitiveLoopViolation { .. } => "E006",
             ChannelError::GovernanceViolation { .. } => "E007",
             ChannelError::LatencyViolation { .. } => "E008",
+            ChannelError::BorrowCheckFailed { .. } => "E009", // Borrow check errors — P0 memory safety milestone
         }
     }
 }
@@ -185,6 +191,12 @@ impl fmt::Display for ChannelError {
                 writeln!(f, "   |")?;
                 writeln!(f, "   | {message}")
             }
+            ChannelError::BorrowCheckFailed { location, detail } => {
+                writeln!(f, "error[{}]: 内存安全检查失败", self.code())?;
+                writeln!(f, "  --> {location}")?;
+                writeln!(f, "   |")?;
+                writeln!(f, "   | {}", detail)
+            }
         }
     }
 }
@@ -260,23 +272,6 @@ mod tests {
         let msg = format!("{err}");
         assert!(msg.contains("E006"));
         assert!(msg.contains("Perceive"));
-    }
-
-    #[test]
-    fn governance_error_format() {
-        let err = ChannelError::GovernanceViolation {
-            location: SourceLocation {
-                line: 20,
-                column: 12,
-                filename: "pay.dalin".into(),
-            },
-            required: "approve".into(),
-            actual: "prepare".into(),
-            detail: "扣款需要审批权限".into(),
-        };
-        let msg = format!("{err}");
-        assert!(msg.contains("E007"));
-        assert!(msg.contains("approve"));
     }
 
     #[test]

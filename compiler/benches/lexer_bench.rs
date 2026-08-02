@@ -21,14 +21,18 @@ fn load_stdlib_sources() -> Vec<String> {
     sources
 }
 
+fn tokenize(combined: &str) -> Vec<dalin_compiler::token::Token> {
+    let mut lexer = Lexer::new(combined);
+    lexer.tokenize().expect("tokenize stdlib should succeed")
+}
+
 fn bench_lexer(c: &mut Criterion) {
     let sources = load_stdlib_sources();
     let combined: String = sources.join("\n");
 
     c.bench_function("lexer_standard_library", |b| {
         b.iter(|| {
-            let mut lexer = Lexer::new(&combined);
-            let tokens: Vec<_> = lexer.collect();
+            let tokens = tokenize(&combined);
             assert!(!tokens.is_empty());
         });
     });
@@ -40,18 +44,15 @@ fn bench_parse(c: &mut Criterion) {
 
     c.bench_function("parse_standard_library", |b| {
         b.iter_with_setup(
-            || {
-                let mut lexer = Lexer::new(&combined);
-                let tokens: Vec<_> = lexer.collect();
-                (tokens, combined.len())
-            },
+            || (tokenize(&combined), combined.len()),
             |(tokens, len)| {
                 let mut parser = Parser::new(tokens);
-                let prog = parser.parse().expect("parse stdlib sources should succeed");
+                let (prog, errors) = parser.parse().expect("parse stdlib sources should succeed");
                 assert!(
                     !prog.statements.is_empty(),
                     "stdlib should contain statements"
                 );
+                assert!(errors.is_empty(), "stdlib should parse without errors");
                 // Prevent bench from being optimized away
                 assert!(len > 0, "source should not be empty");
             },
@@ -66,10 +67,9 @@ fn bench_type_check(c: &mut Criterion) {
     c.bench_function("type_check_standard_library", |b| {
         b.iter_with_setup(
             || {
-                let mut lexer = Lexer::new(&combined);
-                let tokens: Vec<_> = lexer.collect();
+                let tokens = tokenize(&combined);
                 let mut parser = Parser::new(tokens);
-                parser.parse().expect("parse stdlib sources should succeed")
+                parser.parse().expect("parse stdlib sources should succeed").0
             },
             |prog| {
                 let mut inf = SevenChannelInferencer::new();

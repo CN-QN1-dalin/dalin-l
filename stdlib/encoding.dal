@@ -184,4 +184,4 @@ fn encode_json(data) @ pure @ cpu {
     return json_to_string_impl(data)
 }
 
-fn json_to_string_impl(data) @ pure @ cpu { return json_parse.dal::json_to_string(data) }
+fn json_to_string_impl(data) @ pure @ cpu { return json_parse::json_to_string(data) }

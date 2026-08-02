@@ -2,16 +2,16 @@
 use crate::token::{
     Token, TokenType,
     TokenType::{
-        And, Arrow, At, Attribute, BoolLiteral, CharLiteral, Colon, Comma, Dollar, Dot,
-        DoubleArrow, DoubleColon, DoubleDot, DoubleEqual, Eof, Equal, FloatLiteral, Greater,
-        GreaterEqual, Ident, IntLiteral, KeywordAssert, KeywordAsync, KeywordCatch, KeywordChannel,
-        KeywordConst, KeywordElse, KeywordEnum, KeywordError, KeywordExport, KeywordFn, KeywordFor,
-        KeywordIf, KeywordImpl, KeywordIn, KeywordLet, KeywordMatch, KeywordMod, KeywordMut,
-        KeywordOk, KeywordPub, KeywordReturn, KeywordSpawn, KeywordStruct, KeywordTrait,
-        KeywordTry, KeywordType, KeywordUse, KeywordWhile, LeftBrace, LeftBracket, LeftParen, Less,
-        LessEqual, Minus, MinusEqual, Modulo, Not, NotEqual, Or, Pipe, Plus, PlusEqual,
-        QuestionMark, RightBrace, RightBracket, RightParen, Semicolon, Slash, SlashEqual, Star,
-        StarEqual, StringLiteral,
+        And, Arrow, At, Attribute, BoolLiteral, BitAnd, BitOr, BitXor, CharLiteral, Colon, Comma,
+        Dollar, Dot, DoubleArrow, DoubleColon, DoubleDot, DoubleEqual, Eof, Equal, FloatLiteral,
+        Greater, GreaterEqual, Ident, IntLiteral, KeywordAssert, KeywordAsync, KeywordCatch,
+        KeywordChannel, KeywordConst, KeywordElse, KeywordEnum, KeywordError, KeywordExport,
+        KeywordFn, KeywordFor, KeywordIf, KeywordImpl, KeywordIn, KeywordLet, KeywordMatch,
+        KeywordMod, KeywordMut, KeywordOk, KeywordPub, KeywordReturn, KeywordSpawn, KeywordStruct,
+        KeywordTrait, KeywordTry, KeywordType, KeywordUse, KeywordWhile, LeftBrace, LeftBracket,
+        LeftParen, Less, LessEqual, Minus, MinusEqual, Modulo, Not, NotEqual, Or, Pipe, Plus,
+        PlusEqual, QuestionMark, RightBrace, RightBracket, RightParen, Semicolon, Shl, Shr, Slash,
+        SlashEqual, Star, StarEqual, StringLiteral,
     },
 };
 use std::collections::HashMap;
@@ -178,6 +178,32 @@ impl Lexer {
 
     fn read_number(&mut self) -> (TokenType, String) {
         let start = self.pos;
+
+        // 十六进制字面量: 0x1F / 0xFF / 0x10
+        if self.current() == Some('0')
+            && (self.peek(1) == Some('x') || self.peek(1) == Some('X'))
+        {
+            self.advance(); // 0
+            self.advance(); // x
+            let hex_start = self.pos;
+            while let Some(ch) = self.current() {
+                if ch.is_ascii_hexdigit() {
+                    self.advance();
+                } else {
+                    break;
+                }
+            }
+            let hex_text: String = self.chars[hex_start..self.pos].iter().collect();
+            if !hex_text.is_empty() {
+                // 归一化为十进制表示，供下游 parse::<i64>() 直接使用
+                if let Ok(v) = i64::from_str_radix(&hex_text, 16) {
+                    return (IntLiteral, v.to_string());
+                }
+            }
+            // 非法 hex（如 0x 后无数字）：回退为标识符
+            return (Ident, self.chars[start..self.pos].iter().collect());
+        }
+
         let mut has_dot = false;
 
         while let Some(ch) = self.current() {
@@ -311,6 +337,8 @@ impl Lexer {
             (">=", GreaterEqual),
             ("&&", And),
             ("||", Or),
+            ("<<", Shl),
+            (">>", Shr),
             ("..", DoubleDot),
             ("::", DoubleColon),
             ("+=", PlusEqual),
@@ -339,6 +367,9 @@ impl Lexer {
             ('<', Less),
             ('>', Greater),
             ('!', Not),
+            ('&', BitAnd),
+            ('|', BitOr),
+            ('^', BitXor),
             ('?', QuestionMark),
             ('@', At),
             ('$', Dollar),

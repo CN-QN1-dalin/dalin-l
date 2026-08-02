@@ -66,7 +66,7 @@ fn json_set(obj, key, val) @ pure @ cpu {
     while i < n {
         if obj[i][0] == key {
             found = true
-            let new_obj = new_obj[:i] + [[key, val]] + new_obj[i+1:]
+            let new_obj = vec_slice(new_obj, 0, i) + [[key, val]] + vec_slice(new_obj, i+1, len(new_obj))
             break
         }
         let i = i + 1

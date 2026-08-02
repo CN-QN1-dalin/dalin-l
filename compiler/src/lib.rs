@@ -48,9 +48,14 @@ pub mod cache;
 pub mod jit;
 /// Static code quality analyzer — industry benchmarked lint rules
 pub mod quality;
+// Borrow Checker (Memory Safety) - P0 milestone
+pub mod borrow_checker;
+pub mod self_evolution;
 
 use crate::ast::{Program, Stmt};
+use crate::borrow_checker::BorrowChecker;
 use crate::error::ChannelError;
+use crate::self_evolution::SelfEvolutionEngine;
 use crate::task_spec::TaskSpec;
 use crate::ty2::SevenChannelInferencer;
 
@@ -71,7 +76,19 @@ pub fn compile_with_llm(src: &str) -> CompileResult {
     // Step 2: Parser
     let mut parser = parser::Parser::new(tokens);
     let prog = match parser.parse() {
-        Ok((p, _)) => p,
+        Ok((p, errors)) => {
+            // 错误恢复模式下收集到的语法错误必须上报，不能静默吞掉。
+            // 恢复的目的是继续发现更多错误，而不是假装程序有效。
+            if !errors.is_empty() {
+                let detail = errors
+                    .iter()
+                    .map(|e| e.to_string())
+                    .collect::<Vec<_>>()
+                    .join("; ");
+                return CompileResult::Err(format!("parse errors: {detail}"));
+            }
+            p
+        }
         Err(e) => return CompileResult::Err(format!("{e}")),
     };
 
@@ -82,37 +99,67 @@ pub fn compile_with_llm(src: &str) -> CompileResult {
     let mut infer = SevenChannelInferencer::new();
     infer.infer_program(&expanded);
 
-    // Step 5: 延迟验证（Phase D — 时序契约）
+    // Step 5: Borrow checker — memory safety (P0 milestone)
+    let mut borrows = BorrowChecker::new();
+    borrows.check_program(&expanded);
+
+    // Step 6: 自进化错误收集 — 所有 borrow checker 错误进入 J1 流水线
+    let mut evolution_engine = SelfEvolutionEngine::new("/tmp/dalin_kb.jsonl");
+    for err in borrows.errors() {
+        // 将每条 borrow 错误转化为 J1 事件记录（行号暂用 0 占位，后续从 AST 位置提取）
+        evolution_engine.record_borrow_error(err, 0);
+    }
+
+    // Step 7: 延迟验证（Phase D — 时序契约）
     let latency_result = latency::LatencyVerifier::verify(&expanded);
 
-    // Step 6: 生成 TaskSpec
+    // Step 8: 生成 TaskSpec
     let specs = task_spec::from_program(&expanded);
 
     let mut report = infer.print_report();
+    if !borrows.errors().is_empty() {
+        report.push_str("\n=== Borrow Checker Errors ===\n");
+        for err in borrows.errors() {
+            writeln!(report, "  ❌ Borrow check error: {}", err).unwrap();
+        }
+    }
     if !latency_result.errors.is_empty() {
         report.push_str("\n=== Latency Violations ===\n");
         for err in &latency_result.errors {
             writeln!(report, "  ❌ {err}").unwrap();
         }
     }
+    // 打印自进化状态（开发/调试用）
+    if !borrows.errors().is_empty() {
+        report.push_str(&format!("\n=== Self-Evolution Status: {} ===\n", evolution_engine.current_status()));
+    }
 
     CompileResult::Ok {
         program: expanded,
         report,
         specs,
-        errors: latency_result
-            .errors
+        errors: borrows.errors()
             .iter()
-            .map(|e| ChannelError::LatencyViolation {
+            .map(|e| ChannelError::BorrowCheckFailed {
                 location: crate::error::SourceLocation {
                     line: 0,
                     column: 0,
-                    filename: "compile".into(),
+                    filename: "borrow".into(),
                 },
-                declared_ms: 0,
-                actual_ms: 0,
-                detail: e.clone(),
+                detail: e.to_string(),
             })
+            .chain(latency_result.errors.iter().map(|e| {
+                ChannelError::LatencyViolation {
+                    location: crate::error::SourceLocation {
+                        line: 0,
+                        column: 0,
+                        filename: "compile".into(),
+                    },
+                    declared_ms: 0,
+                    actual_ms: 0,
+                    detail: e.clone(),
+                }
+            }))
             .collect::<Vec<_>>(),
     }
 }

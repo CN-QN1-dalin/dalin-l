@@ -34,12 +34,12 @@ fn iter_fold(list, acc, f) @ pure @ cpu {
 
 fn iter_take(list, n) @ pure @ cpu {
     if n >= len(list) { return list }
-    return list[:n]
+    return vec_slice(list, 0, n)
 }
 
 fn iter_skip(list, n) @ pure @ cpu {
     if n >= len(list) { return [] }
-    return list[n:]
+    return vec_slice(list, n, len(list))
 }
 
 fn iter_zip(a, b) @ pure @ cpu {

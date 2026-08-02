@@ -11,7 +11,21 @@ fn vec_pop(v) @ pure @ cpu {
 
 fn vec_pop_back(v) @ pure @ cpu {
     if len(v) == 0 { return [] }
-    return v[:len(v) - 1]
+    return vec_slice(v, 0, len(v) - 1)
+}
+
+// 切片：返回 v[start..end) 的副本（end 超出范围时截断）
+fn vec_slice(v, start, end) @ pure @ cpu {
+    let out = []
+    let i = start
+    let limit = end
+    if limit > len(v) { limit = len(v) }
+    if start < 0 { i = 0 }
+    while i < limit {
+        out = vec_push(out, v[i])
+        i = i + 1
+    }
+    return out
 }
 
 fn vec_len(v) @ pure @ cpu { return len(v) }

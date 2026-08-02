@@ -11,7 +11,7 @@ fn stack_pop(s) @ pure @ cpu {
 
 fn stack_pop_remove(s) @ pure @ cpu {
     if len(s) == 0 { return [] }
-    return s[:len(s) - 1]
+    return vec_slice(s, 0, len(s) - 1)
 }
 
 fn stack_peek(s) @ pure @ cpu {
@@ -25,4 +25,4 @@ fn stack_is_empty(s) @ pure @ cpu { return len(s) == 0 }
 
 fn stack_size(s) @ pure @ cpu { return len(s) }
 
-fn stack_reverse(s) @ pure @ cpu { return strings.dal::str_reverse(s) }
+fn stack_reverse(s) @ pure @ cpu { return strings::str_reverse(s) }

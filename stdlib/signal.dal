@@ -16,7 +16,7 @@ fn signal_filter(signal, threshold) @ pure @ cpu {
 fn signal_average(sig) @ pure @ cpu {
     let n = len(sig)
     if n == 0 { return 0 }
-    return statistics.dal::stats_mean(sig)
+    return statistics::stats_mean(sig)
 }
 
 fn signal_normalize(sig) @ pure @ cpu {

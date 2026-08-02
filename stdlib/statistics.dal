@@ -55,7 +55,13 @@ fn stats_variance(data) @ pure @ cpu {
     let n = len(data)
     if n <= 1 { return 0 }
     let m = stats_mean(data)
-    let sum_sq = stats_sum(stats_map(data, x -> (x - m) * (x - m)))
+    let sum_sq = 0
+    let i = 0
+    while i < n {
+        let diff = data[i] - m
+        let sum_sq = sum_sq + diff * diff
+        let i = i + 1
+    }
     return sum_sq / n
 }
 
@@ -112,5 +118,5 @@ fn stats_map(data, f) @ pure @ cpu {
     return result
 }
 
-fn sort_bubble(data) @ pure @ cpu { return sort.dal::sort_bubble(data) }
-fn sort_selection(data) @ pure @ cpu { return sort.dal::selection_sort(data) }
+fn sort_bubble(data) @ pure @ cpu { return sort::sort_bubble(data) }
+fn sort_selection(data) @ pure @ cpu { return sort::selection_sort(data) }

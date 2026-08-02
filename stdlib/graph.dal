@@ -76,7 +76,7 @@ fn graph_bfs(g, start, target) @ pure @ cpu {
     let visited = []
     while len(queue) > 0 {
         let front = queue[0]
-        let queue = queue[1:]
+        let queue = vec_slice(queue, 1, len(queue))
         let current = front[0]
         let path = front[1]
         if current == target { return path }
@@ -112,7 +112,7 @@ fn graph_dfs(g, start, target) @ pure @ cpu {
     let visited = []
     while len(stack) > 0 {
         let top = stack[len(stack) - 1]
-        let stack = stack[:len(stack) - 1]
+        let stack = vec_slice(stack, 0, len(stack) - 1)
         let current = top[0]
         let path = top[1]
         if current == target { return path }
@@ -160,7 +160,7 @@ fn graph_shortest_path(g, start, end) @ pure @ cpu {
         let unvisited_idx = 0
         while unvisited_idx < len(unvisited) {
             if unvisited[unvisited_idx] == u {
-                let unvisited = unvisited[:unvisited_idx] + unvisited[unvisited_idx+1:]
+                let unvisited = vec_slice(unvisited, 0, unvisited_idx) + vec_slice(unvisited, unvisited_idx+1, len(unvisited))
                 break
             }
             let unvisited_idx = unvisited_idx + 1
