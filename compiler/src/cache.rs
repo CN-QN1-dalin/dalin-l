@@ -103,7 +103,7 @@ pub trait Cacheable {
         Self: Sized;
 }
 
-/// Vec<u8> 的 Cacheable 实现 — identity (无额外编码)
+/// `Vec<u8>` 的 Cacheable 实现 — identity (无额外编码)
 impl Cacheable for Vec<u8> {
     fn serialize(&self) -> Vec<u8> {
         self.clone()
@@ -126,7 +126,7 @@ impl Cacheable for String {
 /// 获取或编译：先检查缓存，命中则反序列化返回，否则执行编译函数并写入缓存。
 ///
 /// 泛型约束 `T: Cacheable` 确保只有可序列化的类型才能参与缓存。
-/// 缓存格式由 `Cacheable` trait 实现决定 (当前: Vec<u8>=identity, String=UTF-8)。
+/// 缓存格式由 `Cacheable` trait 实现决定 (当前: `Vec<u8>`=identity, String=UTF-8)。
 pub fn get_or_compile<F, T>(
     file_path: &Path,
     content: &str,

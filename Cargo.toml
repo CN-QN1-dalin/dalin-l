@@ -1,6 +1,9 @@
 [workspace]
 resolver = "2"
-members = ["compiler", "runtime", "cli", "control-plane", "dlvm", "pyo3-bindings", "registry", "stdlib", "lsp", "fmt", "codegen", "dalin-handshake", "dap", "targets/wasm", "targets/gpu"]
+members = ["compiler", "runtime", "cli", "control-plane", "dlvm", "registry", "stdlib", "lsp", "fmt", "codegen", "dalin-handshake", "dap", "targets/wasm", "targets/gpu"]
+# pyo3-bindings 需要本机 Python dev 库才能链接（`cargo test --workspace` 会失败），
+# 作为可选成员：开发 Python 绑定时用 `cargo test -p dalin-pyo3` 单独构建。
+exclude = ["pyo3-bindings"]
 
 [workspace.package]
 edition = "2024"
