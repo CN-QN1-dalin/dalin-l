@@ -12,3 +12,6 @@
 # pyo3-bindings 是独立包（workspace exclude），需单独忽略构建产物
 pyo3-bindings/target/
 pyo3-bindings/Cargo.lock
+
+# 增量编译缓存（运行/测试时生成，可复现）
+.dalin_cache/

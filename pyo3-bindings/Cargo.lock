@@ -76,7 +76,7 @@ dependencies = [
 
 [[package]]
 name = "dalin-compiler"
-version = "3.0.0-rc.1"
+version = "3.0.0"
 dependencies = [
  "serde_json",
  "ureq",
@@ -84,7 +84,7 @@ dependencies = [
 
 [[package]]
 name = "dalin-pyo3"
-version = "3.0.0-rc.1"
+version = "3.0.0"
 dependencies = [
  "dalin-compiler",
  "dalin-runtime",
@@ -95,7 +95,7 @@ dependencies = [
 
 [[package]]
 name = "dalin-runtime"
-version = "3.0.0-rc.1"
+version = "3.0.0"
 dependencies = [
  "dalin-compiler",
 ]
