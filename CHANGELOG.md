@@ -3,12 +3,15 @@
 ## v3.0.0-rc.1 (2026-08-02) — 商业化就绪候选版
 
 ### 🏗️ 工程化治理（商业化就绪）
-- **全量质量基线**: `cargo test --workspace` 690 tests 全绿（+288 vs dev 版），clippy 0 warnings，fmt clean
+- **全量质量基线**: `cargo test --workspace` 694 tests 全绿（+292 vs dev 版），clippy 0 warnings，fmt clean
 - **可复现构建**: Cargo.lock 纳入版本控制（5 个 bin crate）
 - **冒烟测试套件**: 30 个带值断言的端到端测试（runtime/tests/smoke_test.rs）
 - **stdlib 运行时可用**: 新增 `Interpreter::load_stdlib()` — stdlib 68 模块从"仅可解析"到"真正可执行"
+- **版本治理**: 单一版本真相源（workspace.package）+ 发布流程文档 + 版本号 3.0.0-rc.1
 
 ### 🐛 关键修复
+- **字符串索引**: `s[i]` 未实现（eval_index 仅支持 Array）→ 补 String 索引，stdlib 字符串函数运行时可用
+- **跨模块调用**: `strings::func` 端到端验证（strutil→strings 转发）+ 新增 4 测试守护
 - **Parser 死循环**: 错误恢复不推进 token → 主循环无限重试（畸形输入 CPU 100%）
 - **Parser 分号 bug**: `fn main() { let x = 42; }` 整个 fn 被静默丢弃
 - **错误恢复吞错**: compiler lib.rs + runtime run_source 均丢弃 parse errors，非法输入静默放行

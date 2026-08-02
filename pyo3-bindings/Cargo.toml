@@ -1,8 +1,8 @@
 [package]
 name="dalin-pyo3"
 # 从 workspace exclude（需本机 Python dev 库才能链接），故不能继承 workspace 属性。
-# 版本号与 workspace 保持一致（3.0.0-dev），发版时同步更新。
-version="3.0.0-dev"
+# 版本号与 workspace 保持一致（3.0.0-rc.1），发版时同步更新。
+version="3.0.0-rc.1"
 edition="2024"
 
 [lib]
@@ -13,6 +13,9 @@ crate-type=["cdylib","lib"]
 [dependencies]
 dalin-compiler = { path = "../compiler" }
 dalin-runtime = { path = "../runtime" }
+# Python 扩展模块（.dylib/wheel），符号由宿主 Python 提供。
+# 注意：macOS 上纯 `cargo build` 无法链接 libpython（extension-module 设计行为），
+# 必须用 maturin 构建（pyo3 官方工具）：`python -m maturin build --release`
 pyo3 = { version = "0.29", features = ["extension-module", "abi3-py312"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"

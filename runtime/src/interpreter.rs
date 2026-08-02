@@ -1131,7 +1131,7 @@ impl Interpreter {
 
         for entry in dir.filter_map(|e| e.ok()) {
             let path = entry.path();
-            if path.extension().map_or(false, |ext| ext == "dal") {
+            if path.extension().is_some_and(|ext| ext == "dal") {
                 let src = match fs::read_to_string(&path) {
                     Ok(s) => s,
                     Err(e) => {
