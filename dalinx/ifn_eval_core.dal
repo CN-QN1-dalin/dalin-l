@@ -1,0 +1,172 @@
+// ════════════════════════════════════════════════════════════════════
+//  DalinX V8 — IFN-Eval 核心计算模块 (P8e)
+//  场基准稳定性 + 自我边界区分度
+//  编译: dalib build --input dalinx/ifn_eval_core.dal
+//  检查: dalib check --input dalinx/ifn_eval_core.dal
+// ════════════════════════════════════════════════════════════════════
+
+// ─── 数据结构 ───
+
+struct StabilityResult {
+    mean: float,
+    std: float,
+    label: string
+}
+
+struct BoundaryResult {
+    c6: float,
+    ratio: float,
+    label: string
+}
+
+// ─── 核心计算 ───
+
+// 浮点数列表求和
+fn dalinx_sum(data) @ pure @ cpu {
+    let n = len(data)
+    let total = 0.0
+    let i = 0
+    while i < n {
+        let total = total + data[i]
+        let i = i + 1
+    }
+    return total
+}
+
+// 浮点数列表均值
+fn dalinx_mean(data) @ pure @ cpu {
+    let n = len(data)
+    if n == 0 { return 0.0 }
+    return dalinx_sum(data) / float(n)
+}
+
+// 浮点数列表方差 (样本方差, n-1)
+fn dalinx_variance(data) @ pure @ cpu {
+    let n = len(data)
+    if n <= 1 { return 0.0 }
+    let m = dalinx_mean(data)
+    let sum_sq = 0.0
+    let i = 0
+    while i < n {
+        let diff = data[i] - m
+        let sum_sq = sum_sq + diff * diff
+        let i = i + 1
+    }
+    return sum_sq / float(n - 1)
+}
+
+// 浮点数列表标准差 (样本标准差)
+fn dalinx_std(data) @ pure @ cpu {
+    let variance = dalinx_variance(data)
+    if variance <= 0.0 { return 0.0 }
+    // 牛顿法平方根
+    let guess = 1.0
+    let i = 0
+    while i < 50 {
+        let better = (guess + variance / guess) / 2.0
+        let diff = better - guess
+        let abs_diff = abs(diff)
+        if abs_diff < 0.0000001 { return better }
+        let guess = better
+        let i = i + 1
+    }
+    return guess
+}
+
+// 自我边界区分度: ratio = (1 + C6) / (1 - C6)
+// C6 范围 [0, 1), ratio 范围 [1, +inf)
+fn dalinx_boundary_ratio(c6_val) @ pure @ cpu {
+    if c6_val >= 1.0 { return 999999.0 }
+    let numerator = 1.0 + c6_val
+    let denominator = 1.0 - c6_val
+    if denominator <= 0.0 { return 999999.0 }
+    return numerator / denominator
+}
+
+// 稳定性分类标签
+// zero_variance: std < 1e-10
+// stable:        std < 1e-6
+// drifting:     std < 1e-3
+// unstable:     其他
+fn dalinx_stability_label(std_val) @ pure @ cpu {
+    let thresh_zero = 0.0000000001
+    let thresh_stable = 0.000001
+    let thresh_drift = 0.001
+    if std_val < thresh_zero { return "zero_variance" }
+    if std_val < thresh_stable { return "stable" }
+    if std_val < thresh_drift { return "drifting" }
+    return "unstable"
+}
+
+// 边界区分度标签
+// clear:    ratio >= 2.0
+// moderate: ratio >= 1.2
+// weak:     其他
+fn dalinx_boundary_label(ratio_val) @ pure @ cpu {
+    if ratio_val >= 2.0 { return "clear" }
+    if ratio_val >= 1.2 { return "moderate" }
+    return "weak"
+}
+
+// ─── 聚合计算 ───
+
+// 计算场稳定性 (跨种子)
+fn compute_stability(values) @ pure @ cpu {
+    let n = len(values)
+    if n == 0 { return StabilityResult(0.0, 0.0, "no_data") }
+    let m = dalinx_mean(values)
+    let s = dalinx_std(values)
+    let lbl = dalinx_stability_label(s)
+    return StabilityResult(m, s, lbl)
+}
+
+// 计算自我边界区分度
+fn compute_boundary(c6_val) @ pure @ cpu {
+    let r = dalinx_boundary_ratio(c6_val)
+    let lbl = dalinx_boundary_label(r)
+    return BoundaryResult(c6_val, r, lbl)
+}
+
+// ─── 测试 (顶层语句, 运行时自动执行) ───
+
+// 测试用例: 模拟 P8e 20 种子 C6 数据
+// 预期: mean≈0.942961, std≈0 (zero_variance), ratio≈34.06 (clear)
+let test_c6_values = [0.942961, 0.942961, 0.942961, 0.942961, 0.942961]
+
+println("")
+println("=== DalinX IFN-Eval Core Module Test ===")
+println("")
+
+// 测试稳定性
+let st = compute_stability(test_c6_values)
+println("[P0] 场稳定性")
+println("  mean = " + str(st.mean))
+println("  std  = " + str(st.std))
+println("  label = " + st.label)
+println("")
+
+// 测试边界区分度
+let bd = compute_boundary(0.942961)
+println("[P1] 边界区分度")
+println("  C6   = " + str(bd.c6))
+println("  ratio = " + str(bd.ratio))
+println("  label = " + bd.label)
+println("")
+
+// 验证: ratio ≈ (1+0.942961)/(1-0.942961) = 1.942961/0.057039 ≈ 34.06
+let expected_ratio = dalinx_boundary_ratio(0.942961)
+println("  预期 ratio = (1+0.942961)/(1-0.942961) = " + str(expected_ratio))
+println("")
+
+// 额外测试: 不同阈值
+let bd2 = compute_boundary(0.5)
+println("  C6=0.5  ratio=" + str(bd2.ratio) + " label=" + bd2.label)
+
+let bd3 = compute_boundary(0.9)
+println("  C6=0.9  ratio=" + str(bd3.ratio) + " label=" + bd3.label)
+
+let bd4 = compute_boundary(0.99)
+println("  C6=0.99 ratio=" + str(bd4.ratio) + " label=" + bd4.label)
+println("")
+
+println("=== 测试完成 ===")
