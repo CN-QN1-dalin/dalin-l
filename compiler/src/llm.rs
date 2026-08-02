@@ -15,7 +15,7 @@
 use crate::ast::{Expr, Stmt};
 use crate::qn1::{GenerationContext, Qn1CodeGenerator};
 
-/// LLM 生成结果
+/// LLM generation result
 #[derive(Debug)]
 pub struct LlmGeneratedCode {
     /// 生成的 AST 片段
@@ -26,7 +26,7 @@ pub struct LlmGeneratedCode {
     pub prompt: String,
 }
 
-/// LLM 生成的代码置信度评估
+/// Confidence evaluation of LLM-generated code
 #[derive(Debug, Clone, PartialEq)]
 pub enum LlmConfidence {
     /// 完全匹配已知模式（模板填充）
@@ -39,14 +39,14 @@ pub enum LlmConfidence {
     Rejected,
 }
 
-/// @llm 编译引擎
+/// @llm compilation engine
 pub struct LlmEngine;
 
 impl LlmEngine {
-    /// 处理 @llm 编译指令，生成代码。
+    /// Process @llm compilation directives and generate code.
     ///
-    /// Phase B: 模板匹配和骨架生成（无 QN1 后端时的默认路径）
-    /// Phase D: 通过 QN1/SFA 调用 LLM 实时生成
+    /// Phase B: template matching and skeleton generation (default path when no QN1 backend)
+    /// Phase D: real-time generation by invoking LLM through QN1/SFA
     #[must_use]
     pub fn process_directive(prompt: &str, target: Option<&str>) -> LlmGeneratedCode {
         let statements = Self::prompt_to_ast(prompt, target);
@@ -63,11 +63,11 @@ impl LlmEngine {
         }
     }
 
-    /// 通过 QN1 认知架构处理 @llm 编译指令。
+    /// Process @llm compilation directives through the QN1 cognitive architecture.
     ///
-    /// Phase D 核心入口：
-    /// 1. 如果有 QN1 后端 → 调用 QN1 生成代码（置信度 + 延迟跟踪）
-    /// 2. 无 QN1 后端 → 回落至 `process_directive()` 模板匹配
+    /// Phase D core entry:
+    /// 1. If a QN1 backend exists → invoke QN1 to generate code (confidence + latency tracking)
+    /// 2. Without a QN1 backend → fall back to `process_directive()` template matching
     #[must_use]
     pub fn process_with_qn1(
         prompt: &str,

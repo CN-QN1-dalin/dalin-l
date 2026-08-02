@@ -6,9 +6,9 @@ use crate::types::{AgentId, HandshakeState, Message, MessageType, PeerInfo, Sess
 use std::collections::HashMap;
 use std::time::Duration;
 
-/// 握手协议引擎
+/// Handshake protocol engine
 ///
-/// 管理 Agent 的发现、握手、会话和心跳生命周期。
+/// Manages Agent discovery, handshake, session, and heartbeat lifecycles.
 pub struct HandshakeProtocol {
     /// 本 Agent 的 ID
     agent_id: AgentId,
@@ -31,7 +31,7 @@ pub struct HandshakeProtocol {
 }
 
 impl HandshakeProtocol {
-    /// 创建握手协议引擎
+    /// Create a handshake protocol engine
     pub fn new(
         agent_id: AgentId,
         agent_name: impl Into<String>,
@@ -51,59 +51,59 @@ impl HandshakeProtocol {
         }
     }
 
-    /// 设置认证 token
+    /// Set the authentication token
     #[must_use]
     pub fn with_auth(mut self, token: impl Into<String>) -> Self {
         self.auth_token = Some(token.into());
         self
     }
 
-    /// 设置语言
+    /// Set the language
     #[must_use]
     pub fn with_language(mut self, lang: impl Into<String>) -> Self {
         self.language = lang.into();
         self
     }
 
-    /// 获取当前状态
+    /// Get the current state
     #[must_use]
     pub fn state(&self) -> &HandshakeState {
         &self.state
     }
 
-    /// 获取活跃会话列表
+    /// Get the list of active sessions
     #[must_use]
     pub fn sessions(&self) -> &HashMap<SessionId, Session> {
         &self.sessions
     }
 
-    /// 获取传输层引用
+    /// Get a reference to the transport layer
     #[must_use]
     pub fn transport(&self) -> &dyn Transport {
         &*self.transport
     }
 
-    /// 获取传输层可变引用
+    /// Get a mutable reference to the transport layer
     pub fn transport_mut(&mut self) -> &mut dyn Transport {
         &mut *self.transport
     }
 
-    /// 启动协议引擎
+    /// Start the protocol engine
     ///
-    /// 1. 启动传输层
-    /// 2. 广播发现消息
-    /// 3. 进入 Discovered 状态
+    /// 1. Start the transport layer
+    /// 2. Broadcast a discovery message
+    /// 3. Enter the Discovered state
     pub fn start(&mut self) -> Result<()> {
         self.transport.start()?;
         self.state = HandshakeState::Discovered;
         Ok(())
     }
 
-    /// 停止协议引擎
+    /// Stop the protocol engine
     ///
-    /// 1. 关闭所有会话
-    /// 2. 广播下线消息
-    /// 3. 停止传输层
+    /// 1. Close all sessions
+    /// 2. Broadcast an offline message
+    /// 3. Stop the transport layer
     pub fn stop(&mut self) -> Result<()> {
         // 广播下线
         for session in self.sessions.values() {
@@ -121,19 +121,19 @@ impl HandshakeProtocol {
         Ok(())
     }
 
-    /// 发现其他 Agent
+    /// Discover other Agents
     ///
-    /// 返回当前所有可见的 peer
+    /// Return all currently visible peers
     pub fn discover(&self) -> Result<Vec<PeerInfo>> {
         let peers = self.transport.discover()?;
         Ok(peers)
     }
 
-    /// 向指定 peer 发起握手
+    /// Initiate a handshake with the given peer
     ///
-    /// 1. 发送 `HANDSHAKE_REQ`
-    /// 2. 等待 `HANDSHAKE_RESP`
-    /// 3. 建立 Session
+    /// 1. Send `HANDSHAKE_REQ`
+    /// 2. Wait for `HANDSHAKE_RESP`
+    /// 3. Establish a Session
     pub fn handshake(&mut self, peer: &PeerInfo) -> Result<Session> {
         if self.state == HandshakeState::Closed {
             return Err(HandshakeError::Protocol("Protocol is closed".to_string()));
@@ -181,13 +181,13 @@ impl HandshakeProtocol {
         Ok(session)
     }
 
-    /// 处理接收到的消息
+    /// Handle a received message
     ///
-    /// 自动路由到对应 handler：
+    /// Auto-routes to the corresponding handler:
     /// - `HandshakeReq` → `HandshakeResp`
     /// - Ping → Pong
-    /// - Data → 返回消息
-    /// - Disconnect → 清理会话
+    /// - Data → return the message
+    /// - Disconnect → clean up the session
     pub fn handle_message(&mut self, msg: Message) -> Result<Option<Message>> {
         match msg.msg_type {
             MessageType::HandshakeReq => self.handle_handshake_req(msg),
@@ -341,7 +341,7 @@ impl HandshakeProtocol {
         Ok(None)
     }
 
-    /// 发送心跳（Ping）
+    /// Send a heartbeat (Ping)
     pub fn send_heartbeat(&self, session_id: &SessionId) -> Result<()> {
         if let Some(session) = self.sessions.get(session_id) {
             let ping = Message::ping(
@@ -354,7 +354,7 @@ impl HandshakeProtocol {
         Ok(())
     }
 
-    /// 发送业务数据消息
+    /// Send a business data message
     pub fn send_data(
         &self,
         session_id: &SessionId,
@@ -378,12 +378,12 @@ impl HandshakeProtocol {
         }
     }
 
-    /// 接收消息（非阻塞）
+    /// Receive a message (non-blocking)
     pub fn recv(&self) -> Result<Option<Message>> {
         self.transport.recv()
     }
 
-    /// 检查并清理过期会话
+    /// Check and clean up expired sessions
     pub fn clean_expired_sessions(&mut self, max_missed: u32) -> Vec<SessionId> {
         let mut expired = Vec::new();
         self.sessions.retain(|id, session| {
@@ -397,7 +397,7 @@ impl HandshakeProtocol {
         expired
     }
 
-    /// 获取 `agent_id`
+    /// Get the `agent_id`
     #[must_use]
     pub fn agent_id(&self) -> &AgentId {
         &self.agent_id

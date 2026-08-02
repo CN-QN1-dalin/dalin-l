@@ -19,7 +19,7 @@
 use crate::ast::{Expr, Stmt};
 use std::collections::HashMap;
 
-/// QN1 代码生成结果
+/// QN1 code generation result
 #[derive(Debug, Clone)]
 pub struct Qn1GeneratedCode {
     /// 生成的函数体（AST 语句列表）
@@ -34,10 +34,10 @@ pub struct Qn1GeneratedCode {
     pub prompt: String,
 }
 
-/// QN1 后端 trait — 可插拔接口
+/// QN1 backend trait — pluggable interface
 ///
-/// 实现此 trait 即可让 @llm 通过真实 QN1 认知架构进行代码生成。
-/// 目前提供 Mock 实现；真实 QN1 后端需要实现 `generate()` 方法。
+/// Implementing this trait lets @llm generate code through a real QN1 cognitive architecture.
+/// A Mock implementation is provided; real QN1 backends must implement the `generate()` method.
 pub trait Qn1Backend: std::fmt::Debug {
     /// 根据自然语言描述生成代码
     /// - prompt: @llm("...") 中的自然语言指令
@@ -48,7 +48,7 @@ pub trait Qn1Backend: std::fmt::Debug {
     fn name(&self) -> &str;
 }
 
-/// 代码生成上下文
+/// Code generation context
 #[derive(Debug, Clone)]
 pub struct GenerationContext {
     /// 目标函数名
@@ -76,7 +76,7 @@ impl GenerationContext {
     }
 }
 
-/// QN1 后端配置 — 控制真实后端的连接参数
+/// QN1 backend configuration — controls connection parameters for a real backend
 #[derive(Debug, Clone)]
 pub struct Qn1BackendConfig {
     pub endpoint: String,
@@ -94,7 +94,7 @@ impl Default for Qn1BackendConfig {
     }
 }
 
-/// 真实 QN1 后端 — 通过 `OpenAI` 兼容 API 调用 LLM 生成代码
+/// Real QN1 backend — generates code by calling an LLM through an `OpenAI`-compatible API
 #[derive(Debug)]
 pub struct RealQn1Backend {
     api_key: String,
@@ -207,12 +207,12 @@ impl Qn1Backend for RealQn1Backend {
     }
 }
 
-/// Mock QN1 后端 — 用于开发测试
+/// Mock QN1 backend — for development and testing
 ///
-/// 模拟 QN1 认知架构的行为：
-/// - 对已知模式做"认知匹配"（对应 SFA 的 `PatternMatch` 阶段）
-/// - 对未知模式做"推理生成"（对应 Act 阶段）
-/// - 返回合理的置信度和延迟估值
+/// Simulates the behavior of a QN1 cognitive architecture:
+/// - Performs "cognitive matching" for known patterns (corresponding to SFA's `PatternMatch` phase)
+/// - Performs "reasoned generation" for unknown patterns (corresponding to the Act phase)
+/// - Returns reasonable confidence and latency estimates
 #[derive(Debug)]
 pub struct MockQn1Backend;
 
@@ -306,21 +306,21 @@ impl Qn1Backend for MockQn1Backend {
     }
 }
 
-/// QN1 代码生成器 — 高级封装
+/// QN1 code generator — high-level wrapper
 ///
-/// 将 QN1 后端的生成结果映射到编译器消费的格式。
+/// Maps the QN1 backend's generation result to the format consumed by the compiler.
 pub struct Qn1CodeGenerator {
     backend: Box<dyn Qn1Backend>,
 }
 
 impl Qn1CodeGenerator {
-    /// 创建 QN1 代码生成器，指定后端实现
+    /// Create a QN1 code generator with the specified backend implementation
     #[must_use]
     pub fn new(backend: Box<dyn Qn1Backend>) -> Self {
         Self { backend }
     }
 
-    /// 创建使用 Mock 后端的 QN1 代码生成器
+    /// Create a QN1 code generator backed by the Mock backend
     #[must_use]
     pub fn new_mock() -> Self {
         Self {
@@ -328,7 +328,7 @@ impl Qn1CodeGenerator {
         }
     }
 
-    /// 创建使用真实 LLM 后端的 QN1 代码生成器
+    /// Create a QN1 code generator backed by a real LLM backend
     #[must_use]
     pub fn new_real(config: Qn1BackendConfig) -> Self {
         Self {
@@ -336,13 +336,13 @@ impl Qn1CodeGenerator {
         }
     }
 
-    /// 生成代码 + 返回置信度和延迟
+    /// Generate code and return confidence and latency
     #[must_use]
     pub fn generate(&self, prompt: &str, context: &GenerationContext) -> Qn1GeneratedCode {
         self.backend.generate(prompt, context)
     }
 
-    /// 后端名称
+    /// Backend name
     #[must_use]
     pub fn backend_name(&self) -> &str {
         self.backend.name()

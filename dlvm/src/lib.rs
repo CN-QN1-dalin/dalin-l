@@ -10,10 +10,10 @@
 mod compiler;
 pub use compiler::BytecodeCompiler;
 
-/// 寄存器索引（虚拟寄存器，编译时分配）
+/// Register index (virtual register, assigned at compile time)
 pub type Reg = u8;
 
-/// 字节码指令
+/// Bytecode instruction
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Opcode {
     // ── 常量加载 ──
@@ -63,7 +63,7 @@ pub enum Opcode {
     Recv,       // 从通道接收
 }
 
-/// 编译后的函数
+/// Compiled function
 #[derive(Debug, Clone)]
 pub struct BytecodeFunction {
     /// 函数名
@@ -81,7 +81,7 @@ pub struct BytecodeFunction {
     pub capability: Option<String>,
 }
 
-/// DLVM 运行时值
+/// DLVM runtime value
 #[derive(Debug, Clone)]
 pub enum Value {
     Int(i64),
@@ -162,7 +162,7 @@ impl Value {
     }
 }
 
-/// DLVM 执行引擎
+/// DLVM execution engine
 pub struct Vm {
     /// 值栈
     stack: Vec<Value>,
@@ -178,7 +178,7 @@ pub struct Vm {
     running: bool,
 }
 
-/// DLVM 错误
+/// DLVM error
 #[derive(Debug)]
 pub enum VmError {
     StackUnderflow,
@@ -203,7 +203,7 @@ impl std::fmt::Display for VmError {
 }
 
 impl Vm {
-    /// 创建新的 VM 实例，加载函数表。
+    /// Create a new VM instance and load the function table.
     #[must_use]
     pub fn new(functions: Vec<BytecodeFunction>) -> Self {
         let entry = functions.first().map_or(0, |_| 0);
@@ -217,7 +217,7 @@ impl Vm {
         }
     }
 
-    /// 运行虚拟机，从第一个函数开始执行。
+    /// Run the VM, starting execution from the first function.
     pub fn run(&mut self) -> Result<Value, VmError> {
         self.running = true;
         self.ip = 0;

@@ -18,7 +18,7 @@ use crate::ty2::{
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 
-/// 可执行单元：携带七通道契约 + 幂等键
+/// Executable unit: carries the seven-channel contract + idempotency key
 #[derive(Debug, Clone, PartialEq)]
 pub struct TaskSpec {
     pub fn_id: String,
@@ -70,7 +70,7 @@ impl TaskSpec {
         }
     }
 
-    /// 由父任务派生一个 spawn 子任务规格（parent `指向父，is_spawn=true，继承父治理级别`）
+    /// Derive a spawn subtask spec from a parent task (parent `points to the parent, is_spawn=true, inherits the parent's governance level`)
     #[must_use]
     pub fn spawn_child(&self, child_name: &str, effect: Effect, capability: Capability) -> Self {
         let mut child = TaskSpec::for_fn(
@@ -86,9 +86,9 @@ impl TaskSpec {
     }
 }
 
-/// 从整份 Program 生成顶层 `TaskSpec` 列表（控制面消费的编译期契约）。
+/// Generate a top-level `TaskSpec` list from the whole Program (compile-time contract consumed by the control plane).
 ///
-/// 这是"编译器 → 控制面"的边界：只暴露七通道标注，不暴露 AST 细节。
+/// This is the "compiler → control plane" boundary: it exposes only seven-channel annotations, not AST details.
 pub fn from_program(prog: &Program) -> Vec<TaskSpec> {
     let mut specs = Vec::new();
     for stmt in &prog.statements {

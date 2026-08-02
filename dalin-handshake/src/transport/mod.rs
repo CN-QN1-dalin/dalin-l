@@ -7,12 +7,12 @@ pub mod file;
 pub mod tcp;
 pub mod unix;
 
-/// 传输层接口
+/// Transport layer interface
 ///
-/// 所有传输实现必须实现此 trait：
-/// - `FileTransport`: 基于共享目录的文件轮询
-/// - `UnixTransport`: 基于 Unix Domain Socket（需 tokio）
-/// - `TcpTransport`: 基于 TCP 网络（需 tokio）
+/// All transport implementations must implement this trait:
+/// - `FileTransport`: file polling over a shared directory
+/// - `UnixTransport`: based on Unix Domain Socket (requires tokio)
+/// - `TcpTransport`: based on TCP networking (requires tokio)
 pub trait Transport: Send + Sync {
     /// 传输方式名称
     fn kind(&self) -> &'static str;
@@ -39,7 +39,7 @@ pub trait Transport: Send + Sync {
     fn discover(&self) -> Result<Vec<PeerInfo>>;
 }
 
-/// 内存传输 — 用于同一进程内多 Agent 通信
+/// In-memory transport — for multi-Agent communication within the same process
 #[derive(Debug, Clone)]
 pub struct MemoryTransport {
     name: String,
@@ -56,7 +56,7 @@ impl MemoryTransport {
         }
     }
 
-    /// 将另一个 `MemoryTransport` 连接为 peer
+    /// Connect another `MemoryTransport` as a peer
     pub fn link(&self, other: &MemoryTransport) {
         let peer_info = PeerInfo {
             agent_id: crate::types::AgentId::new(&self.name),
@@ -86,7 +86,7 @@ impl MemoryTransport {
         }
     }
 
-    /// 将消息推入通道（供其他 Agent 调用）
+    /// Push a message into the channel (for other Agents to call)
     pub fn push(&self, msg: Message) {
         let mut channel = self.channel.lock().unwrap();
         channel.push(msg);

@@ -12,7 +12,7 @@
 use crate::ast::{Expr, Program, Stmt};
 use std::collections::HashMap;
 
-/// 延迟验证结果
+/// Latency validation result
 #[derive(Debug, Clone)]
 pub struct LatencyVerificationResult {
     /// 所有延迟违规错误
@@ -37,14 +37,14 @@ impl LatencyVerificationResult {
     }
 }
 
-/// 延迟验证器：校验函数调用链延迟是否满足 @latency 声明
+/// Latency validator: verifies whether function call-chain latency meets the @latency declaration
 pub struct LatencyVerifier;
 
 impl LatencyVerifier {
-    /// 验证整个 Program 的延迟约束
-    /// 1) 收集所有函数的 @latency 声明
-    /// 2) 对每个函数，分析其 body 中的调用链
-    /// 3) 校验调用链总延迟 ≤ 声明延迟
+    /// Validate latency constraints for the entire Program
+    /// 1) Collect @latency declarations from all functions
+    /// 2) For each function, analyze the call chains in its body
+    /// 3) Verify that the total call-chain latency ≤ the declared latency
     #[must_use]
     pub fn verify(prog: &Program) -> LatencyVerificationResult {
         let mut result = LatencyVerificationResult::new();

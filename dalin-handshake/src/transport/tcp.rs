@@ -4,11 +4,11 @@ use crate::error::{HandshakeError, Result};
 use crate::transport::Transport;
 use crate::types::{Message, PeerInfo};
 
-/// TCP 传输
+/// TCP transport
 ///
-/// 提供跨机器的 Agent 通信。需要 tokio 运行时。
+/// Provides cross-machine Agent communication. Requires a tokio runtime.
 ///
-/// 默认实现为 stub，完整实现在 `tcp` feature 下启用。
+/// The default implementation is a stub; the full implementation is enabled under the `tcp` feature.
 pub struct TcpTransport {
     bind_addr: String,
     #[allow(dead_code)]
@@ -17,10 +17,10 @@ pub struct TcpTransport {
 }
 
 impl TcpTransport {
-    /// 创建 TCP 传输
+    /// Create a TCP transport
     ///
-    /// `bind_addr`: 监听地址，如 `0.0.0.0:9876`
-    /// `agent_id`: 本 Agent 标识
+    /// `bind_addr`: bind address, e.g. `0.0.0.0:9876`
+    /// `agent_id`: this Agent's identifier
     pub fn new(bind_addr: impl Into<String>, agent_id: impl Into<String>) -> Self {
         Self {
             bind_addr: bind_addr.into(),

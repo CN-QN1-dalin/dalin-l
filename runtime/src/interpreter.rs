@@ -1077,7 +1077,7 @@ impl Interpreter {
         }
     }
 
-    /// 返回任务树的文本视图（控制面注册表的本地缩影）。
+    /// Return a text view of the task tree (a local miniature of the control-plane registry).
     #[must_use]
     pub fn describe_task_tree(&self) -> String {
         let tree = self.task_tree.lock().unwrap();
@@ -1096,14 +1096,14 @@ impl Interpreter {
         // Builtins are handled in eval_call
     }
 
-    /// 加载标准库：编译 stdlib/*.dal 并将所有函数声明注册到运行时函数表。
+    /// Load the standard library: compile stdlib/*.dal and register all function declarations into the runtime function table.
     ///
-    /// 这是 stdlib 从"可解析"到"可执行"的关键桥梁：
-    /// stdlib 的 .dal 文件是 Dalin 源码，必须经 parser 编译后，
-    /// 把其中的 Fn 声明转换为 FnValue 注入 functions 表，用户程序才能调用。
+    /// This is the key bridge for stdlib from "parseable" to "executable":
+    /// The stdlib's .dal files are Dalin source and must be compiled by the parser;
+    /// their Fn declarations are converted into FnValues and injected into the functions table so user programs can call them.
     ///
-    /// 失败策略：单个文件解析失败不影响其他文件（记录并跳过），
-    /// 但所有可解析文件的函数都会被注册。
+    /// Failure policy: a parse failure in one file does not affect others (recorded and skipped),
+    /// but functions from all parseable files are registered.
     pub fn load_stdlib(&mut self) -> Result<usize, String> {
         use dalin_compiler::ast::Stmt;
         use dalin_compiler::lexer::Lexer;
@@ -1190,7 +1190,7 @@ impl Interpreter {
     }
 }
 
-/// 便捷入口：返回所有顶层值
+/// Convenience entry: return all top-level values
 pub fn run_source(source: &str) -> Result<Vec<Value>, RuntimeError> {
     let mut lex = dalin_compiler::lexer::Lexer::new(source);
     let tokens = lex.tokenize().map_err(|e| RuntimeError(e.to_string()))?;
@@ -1209,8 +1209,8 @@ pub fn run_source(source: &str) -> Result<Vec<Value>, RuntimeError> {
     interp.interpret(&prog)
 }
 
-/// 便捷入口：执行后返回任务树视图（嵌套 spawn 的注册表缩影）。
-/// 用于 `--tree` demo，展示 `spawn_task` 如何派生出带 parent 指针的子任务。
+/// Convenience entry: after execution, return the task tree view (a registry miniature of nested spawns).
+/// Used by the `--tree` demo to show how `spawn_task` derives subtasks with parent pointers.
 pub fn run_source_with_tree(source: &str) -> Result<String, RuntimeError> {
     let mut lex = dalin_compiler::lexer::Lexer::new(source);
     let tokens = lex.tokenize().map_err(|e| RuntimeError(e.to_string()))?;
@@ -1229,7 +1229,7 @@ pub fn run_source_with_tree(source: &str) -> Result<String, RuntimeError> {
     Ok(interp.describe_task_tree())
 }
 
-/// C FFI 外部函数调用入口
+/// C FFI external function call entry
 pub fn call_ffi(func_name: &str, _args: &[Value]) -> Result<Value, RuntimeError> {
     // Stub: 在当前阶段不支持真实 C 调用
     // Phase 2: 使用 libloading 或 cbindgen 对接

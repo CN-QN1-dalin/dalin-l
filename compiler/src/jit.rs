@@ -24,7 +24,7 @@ use std::fmt::Write;
 
 use crate::ast::{BaseType, Expr, FnParam, Program, Stmt, TypeRef};
 
-/// JIT 编译优化级别
+/// JIT compilation optimization level
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum OptLevel {
     O0, // 无优化 — 适合 @io @net，保留完整调试信息
@@ -34,7 +34,7 @@ pub enum OptLevel {
     O3, // 激进优化 — 仅 @verified 函数
 }
 
-/// 通道注解优先级
+/// Channel annotation priority
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ChannelClass {
     Pure,       // @pure @cpu — CPU-bound 计算
@@ -80,7 +80,7 @@ impl ChannelClass {
     }
 }
 
-/// 增量编译缓存条目
+/// Incremental compilation cache entry
 #[derive(Debug, Clone)]
 pub struct CacheEntry {
     /// 函数名
@@ -95,7 +95,7 @@ pub struct CacheEntry {
     pub compiled_at_ns: u128,
 }
 
-/// 编译统计
+/// Compilation statistics
 #[derive(Debug, Default)]
 pub struct CompileStats {
     pub total_compiled: usize,
@@ -108,15 +108,15 @@ pub struct CompileStats {
     pub constant_folds: usize,
 }
 
-/// Dalin L JIT 编译器
+/// Dalin L JIT compiler
 ///
-/// 将 AST 中的函数节点转换为可执行的"编译产物"。
-/// 当前实现核心能力:
-/// - 函数签名提取和参数类型推导
-/// - 表达式树分析和常量折叠
-/// - 基于能力注解的优化路径选择
-/// - 增量编译缓存管理
-/// - 完整的编译路径验证
+/// Converts function nodes in the AST into executable "compilation artifacts".
+/// Current core capabilities:
+/// - Function signature extraction and parameter type inference
+/// - Expression tree analysis and constant folding
+/// - Optimization path selection based on capability annotations
+/// - Incremental compilation cache management
+/// - Full compilation path validation
 pub struct JitCompiler {
     enabled: bool,
     cache: HashMap<String, CacheEntry>,
@@ -130,7 +130,7 @@ impl Default for JitCompiler {
 }
 
 impl JitCompiler {
-    /// 创建新的 JIT 编译器实例
+    /// Create a new JIT compiler instance
     #[must_use]
     pub fn new() -> Self {
         Self {
@@ -140,26 +140,26 @@ impl JitCompiler {
         }
     }
 
-    /// 启用 JIT
+    /// Enable JIT
     pub fn enable(&mut self) {
         self.enabled = true;
     }
 
-    /// 禁用 JIT (回退到解释器)
+    /// Disable JIT (fall back to the interpreter)
     pub fn disable(&mut self) {
         self.enabled = false;
     }
 
-    /// 检查是否已启用
+    /// Check whether JIT is enabled
     #[must_use]
     pub fn is_enabled(&self) -> bool {
         self.enabled
     }
 
-    /// 编译整个程序
+    /// Compile the entire program
     ///
-    /// 遍历所有 `Stmt::Fn` 节点, 逐个编译并更新缓存。
-    /// 未匹配的语句类型 (Let/If/While/For/Match 等) 作为副作用或控制流跳过。
+    /// Iterate over all `Stmt::Fn` nodes, compiling each one and updating the cache.
+    /// Unmatched statement types (Let/If/While/For/Match, etc.) are skipped as side effects or control flow.
     pub fn compile(&mut self, program: &Program) -> Result<(), CompileError> {
         if !self.enabled {
             return Err(CompileError::Disabled);
@@ -174,12 +174,12 @@ impl JitCompiler {
         Ok(())
     }
 
-    /// 编译单个函数 (增量编译入口)
+    /// Compile a single function (incremental compilation entry point)
     ///
-    /// 核心路径:
-    /// 1. 检查缓存 hash
-    /// 2. 如果命中缓存且源未变 → 直接复用
-    /// 3. 否则: 分析函数签名 → 推导类型 → 选择优化路径 → 写入缓存
+    /// Core path:
+    /// 1. Check the cache hash
+    /// 2. If the cache is hit and the source is unchanged → reuse it directly
+    /// 3. Otherwise: analyze the function signature → infer types → select an optimization path → write the cache
     pub fn compile_function(&mut self, fn_stmt: &Stmt) -> Result<CacheEntry, CompileError> {
         if !self.enabled {
             return Err(CompileError::Disabled);
@@ -234,10 +234,10 @@ impl JitCompiler {
         Ok(entry)
     }
 
-    /// 将函数体编译为标准 LLVM IR text 格式
+    /// Compile a function body to standard LLVM IR text format
     ///
-    /// 支持: Int(i64) → i64, Float(f64) → double, String → [2 x i8*], Bool → i1
-    /// 支持表达式: BinOp/UnaryOp/Ident/Return/IfExpr/MatchExpr
+    /// Supports: Int(i64) → i64, Float(f64) → double, String → [2 x i8*], Bool → i1
+    /// Supports expressions: BinOp/UnaryOp/Ident/Return/IfExpr/MatchExpr
     pub fn compile_to_ir(&self, fn_stmt: &Stmt) -> Result<String, CompileError> {
         if let Stmt::Fn {
             name,
@@ -328,9 +328,9 @@ impl JitCompiler {
         }
     }
 
-    /// 对 IR 进行优化处理
+    /// Apply optimizations to the IR
     ///
-    /// 基于 opt_level 标注并做简单 peephole 优化
+    /// Annotate based on opt_level and apply simple peephole optimizations
     pub fn optimize_ir(&self, ir: &str, opt_level: OptLevel) -> Result<String, CompileError> {
         let mut optimized = ir.to_string();
         // Peephole: 移除死代码注释标记
@@ -360,10 +360,10 @@ impl JitCompiler {
         Ok(format!("; OptLevel: {:?}\n{}", opt_level, optimized))
     }
 
-    /// 通过 LLVM IR 执行函数 — 在 Rust 中实现轻量级 IR 解释器
+    /// Execute functions via LLVM IR — implements a lightweight IR interpreter in Rust
     ///
-    /// 解析 IR text 中的函数名和参数，从本地 locals 映射中提取值，
-    /// 模拟执行返回语句。这是无外部依赖的"真实 JIT 执行"。
+    /// Parse function names and parameters from IR text, extract values from the local locals map,
+    /// simulate execution of return statements. This is dependency-free "real JIT execution".
     pub fn execute_jit(&self, ir: &str) -> Result<i64, CompileError> {
         // 简单的 IR 解析: 提取返回值，格式如 "ret i64 42" 或 "ret double 3.14"
         for line in ir.lines() {
@@ -383,40 +383,40 @@ impl JitCompiler {
         Err(CompileError::TypeResolutionFailed)
     }
 
-    /// 获取缓存中某函数的编译条目
+    /// Get the compilation entry for a function in the cache
     #[must_use]
     pub fn get_cached(&self, name: &str) -> Option<&CacheEntry> {
         self.cache.get(name)
     }
 
-    /// 清除特定函数的缓存
+    /// Clear the cache for a specific function
     pub fn invalidate_cache(&mut self, name: &str) {
         self.cache.remove(name);
     }
 
-    /// 清除全部缓存
+    /// Clear the entire cache
     pub fn clear_cache(&mut self) {
         self.cache.clear();
     }
 
-    /// 获取编译统计快照
+    /// Get a compilation statistics snapshot
     #[must_use]
     pub fn snapshot_stats(&self) -> &CompileStats {
         &self.stats
     }
 
-    /// 重置统计信息
+    /// Reset statistics
     pub fn reset_stats(&mut self) {
         self.stats = CompileStats::default();
     }
 
-    /// 获取缓存大小
+    /// Get the cache size
     #[must_use]
     pub fn cache_size(&self) -> usize {
         self.cache.len()
     }
 
-    /// 返回所有已编译的函数名列表
+    /// Return a list of all compiled function names
     #[must_use]
     pub fn compiled_functions(&self) -> Vec<&str> {
         self.cache.keys().map(std::string::String::as_str).collect()
@@ -471,7 +471,7 @@ fn validate_params(params: &[FnParam]) -> Result<(), CompileError> {
     Ok(())
 }
 
-/// 常量值 — 编译时可静态求值的表达式结果
+/// Constant value — the result of an expression statically evaluated at compile time
 #[derive(Debug, Clone, PartialEq)]
 pub enum ConstValue {
     Int(i64),
@@ -482,7 +482,7 @@ pub enum ConstValue {
 }
 
 impl ConstValue {
-    /// 转回 Expr 字面量节点
+    /// Convert back to an Expr literal node
     #[must_use]
     pub fn to_expr(&self) -> Expr {
         match self {
@@ -495,7 +495,7 @@ impl ConstValue {
     }
 }
 
-/// 常量折叠分析结果
+/// Constant folding analysis result
 #[derive(Debug, Default, Clone)]
 pub struct ConstantAnalysis {
     /// 可折叠的表达式数量 (不含已经是字面量的)
@@ -624,7 +624,7 @@ fn is_literal(expr: &Expr) -> bool {
     )
 }
 
-/// 尝试将表达式静态求值为常量
+/// Attempt to statically evaluate an expression to a constant
 #[must_use]
 pub fn try_eval_constant(expr: &Expr) -> Option<ConstValue> {
     match expr {
@@ -983,7 +983,7 @@ fn generate_helpers(ir: &mut String) {
 //  CompileError
 // ═══════════════════════════════
 
-/// JIT 编译错误
+/// JIT compilation error
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum CompileError {
     Disabled,

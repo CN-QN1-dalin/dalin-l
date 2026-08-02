@@ -316,14 +316,14 @@ pub struct EnumVariant {
 //  模块/包系统节点 (Phase H)
 // ═══════════════════════════════
 
-/// 属性宏: #[derive(Debug, Clone)]
+/// Attribute macro: #[derive(Debug, Clone)]
 #[derive(Debug, Clone)]
 pub struct AttrDerive {
     pub name: String,        // "derive"
     pub traits: Vec<String>, // ["Debug", "Clone", ...]
 }
 
-/// 模块声明: mod foo; 或 mod foo { ... }
+/// Module declaration: mod foo; or mod foo { ... }
 #[derive(Debug, Clone)]
 pub enum ModuleDecl {
     /// mod foo; — 从同目录下的 foo.dalin 加载
@@ -332,7 +332,7 @@ pub enum ModuleDecl {
     Inline(String, Vec<Stmt>),
 }
 
-/// use 路径中的通配符 / 重命名
+/// Wildcard / renaming in a use path
 #[derive(Debug, Clone)]
 pub enum UseTree {
     /// use `foo::bar`;
@@ -343,7 +343,7 @@ pub enum UseTree {
     Group(Vec<(String, Option<String>)>),
 }
 
-/// 包版本字符串 (`SemVer`)
+/// Package version string (`SemVer`)
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SemVer {
     pub major: u64,
@@ -351,7 +351,7 @@ pub struct SemVer {
     pub patch: u64,
 }
 
-/// dalin.toml 包描述
+/// dalin.toml package description
 #[derive(Debug, Clone)]
 pub struct PackageManifest {
     pub name: String,
@@ -361,7 +361,7 @@ pub struct PackageManifest {
     pub stdlib_modules: Vec<String>, // 标准库模块列表
 }
 
-/// 编译时宏声明: `macro_rules`! foo { ... }
+/// Compile-time macro declaration: `macro_rules`! foo { ... }
 #[derive(Debug, Clone)]
 pub enum MacroDecl {
     Declarative {
@@ -375,7 +375,7 @@ pub enum MacroDecl {
     },
 }
 
-/// `macro_rules`! 单条规则
+/// A single `macro_rules`! rule
 #[derive(Debug, Clone)]
 pub struct MacroRule {
     pub pattern: Vec<String>,   // token 模式

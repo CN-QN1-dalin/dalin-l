@@ -9,9 +9,9 @@ use crate::types::{Discovery, Message, PeerInfo};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
-/// 文件传输
+/// File transport
 ///
-/// 目录结构：
+/// Directory structure:
 /// ```text
 /// /var/run/dalin/agents/
 /// ├── agent-a/
@@ -36,10 +36,10 @@ pub struct FileTransport {
 }
 
 impl FileTransport {
-    /// 创建文件传输
+    /// Create a file transport
     ///
-    /// `base_dir`: 共享目录路径，如 `/var/run/dalin/agents/` 或 `./tmp/dalin-agents/`
-    /// `agent_id`: 本 Agent 的唯一标识
+    /// `base_dir`: shared directory path, e.g. `/var/run/dalin/agents/` or `./tmp/dalin-agents/`
+    /// `agent_id`: this Agent's unique identifier
     pub fn new(base_dir: impl Into<PathBuf>, agent_id: impl Into<String>) -> Self {
         let base = base_dir.into();
         let aid: String = agent_id.into();
@@ -53,14 +53,14 @@ impl FileTransport {
         }
     }
 
-    /// 设置发现信息
+    /// Set discovery info
     #[must_use]
     pub fn with_discovery(mut self, discovery: Discovery) -> Self {
         self.discovery = Some(discovery);
         self
     }
 
-    /// 获取本 Agent 目录路径
+    /// Get this Agent's directory path
     pub fn agent_dir(&self) -> &Path {
         &self.agent_dir
     }

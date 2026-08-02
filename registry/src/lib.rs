@@ -5,7 +5,7 @@
 
 use std::collections::HashMap;
 
-/// 包的元数据
+/// Package metadata
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Package {
     pub name: String,
@@ -17,7 +17,7 @@ pub struct Package {
     pub author: String,
 }
 
-/// 内存包注册表
+/// In-memory package registry
 #[derive(Default)]
 pub struct PackageRegistry {
     packages: HashMap<String, Vec<Package>>,

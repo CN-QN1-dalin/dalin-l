@@ -23,7 +23,7 @@ use std::collections::{HashMap, HashSet};
 
 use crate::runtime::RecoveryMode;
 
-/// 修复记录：每次恢复操作的追踪数据
+/// Fix record: trace data for each recovery operation
 #[derive(Debug, Clone)]
 pub struct FixRecord {
     /// 关联的错误 ID
@@ -38,7 +38,7 @@ pub struct FixRecord {
     pub confidence_after: f64,
 }
 
-/// 归纳出的恢复规则
+/// Induced recovery rule
 #[derive(Debug, Clone)]
 pub struct RecoveryRule {
     /// 规则 ID（基于错误模式和恢复模式组合生成）
@@ -55,7 +55,7 @@ pub struct RecoveryRule {
     pub usage_count: u64,
 }
 
-/// 热重编译建议计划
+/// Hot recompilation suggestion plan
 #[derive(Debug, Clone)]
 pub struct HotRecompilePlan {
     /// 新规则总数
@@ -66,7 +66,7 @@ pub struct HotRecompilePlan {
     pub expected_benefit: String,
 }
 
-/// 编译优先级
+/// Compilation priority
 #[derive(Debug, Clone, PartialEq)]
 pub enum RecompilePriority {
     Low,    // < 3 条新规则
@@ -151,7 +151,7 @@ impl ChannelWeights {
 
 // ═══════════════ StrategyGenerator ═══════════════
 
-/// 策略生成器 — 从修复历史中归纳规则、更新权重、触发热编译
+/// Strategy generator — induces rules from fix history, updates weights, triggers hot recompilation
 pub struct StrategyGenerator {
     fix_history: Vec<FixRecord>,
     known_rules: Vec<RecoveryRule>,
@@ -176,16 +176,16 @@ impl StrategyGenerator {
         }
     }
 
-    /// 记录一次修复操作
+    /// Record a fix operation
     pub fn record_fix(&mut self, record: FixRecord) {
         self.fix_history.push(record.clone());
         self.weights.record_outcome(record.success);
     }
 
-    /// 从成功修复案例中归纳新规则
+    /// Induce new rules from successful fix cases
     ///
-    /// 对最近的成功修复按 `RecoveryMode` 分组，统计出现频率最高的模式作为新规则。
-    /// 只有出现 >= 2 次的模式才会被生成为规则。
+    /// Group recent successful fixes by `RecoveryMode` and adopt the most frequent patterns as new rules.
+    /// Only patterns appearing >= 2 times are turned into rules.
     pub fn infer_new_rules(&mut self) -> Vec<RecoveryRule> {
         let successful: Vec<&FixRecord> = self.fix_history.iter().filter(|r| r.success).collect();
 
@@ -257,15 +257,15 @@ impl StrategyGenerator {
         new_rules
     }
 
-    /// 根据历史准确率做梯度下降更新 `ConfidenceCalibrator` 权重
+    /// Gradient-descent update of `ConfidenceCalibrator` weights based on historical accuracy
     ///
-    /// 每通道权重 ∈ [`WEIGHT_MIN`, `WEIGHT_MAX`]
+    /// Each channel weight ∈ [`WEIGHT_MIN`, `WEIGHT_MAX`]
     pub fn update_calibrator_weights(&mut self) -> HashMap<String, f64> {
         self.weights.update_from_fixes(&self.fix_history);
         self.weights.get_weights()
     }
 
-    /// 当知识库中有 N+ 条未测试的新规则时触发热编译建议
+    /// Trigger a hot recompilation suggestion when the knowledge base holds N+ untested new rules
     #[must_use]
     pub fn suggest_hot_recompile(&self, threshold: u64) -> Option<HotRecompilePlan> {
         let new_rules = self.known_rules.iter().filter(|r| !r.tested).count() as u64;
@@ -293,19 +293,19 @@ impl StrategyGenerator {
         }
     }
 
-    /// 返回当前已知规则列表
+    /// Return the list of currently known rules
     #[must_use]
     pub fn known_rules(&self) -> &[RecoveryRule] {
         &self.known_rules
     }
 
-    /// 返回修复历史长度
+    /// Return the fix history length
     #[must_use]
     pub fn history_len(&self) -> usize {
         self.fix_history.len()
     }
 
-    /// 返回所有修复记录
+    /// Return all fix records
     #[must_use]
     pub fn fix_history(&self) -> &[FixRecord] {
         &self.fix_history

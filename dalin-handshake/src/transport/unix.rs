@@ -4,11 +4,11 @@ use crate::error::{HandshakeError, Result};
 use crate::transport::Transport;
 use crate::types::{Message, PeerInfo};
 
-/// Unix Domain Socket 传输
+/// Unix Domain Socket transport
 ///
-/// 提供低延迟、双向实时通信。需要 tokio 运行时和 unix 平台。
+/// Provides low-latency, bidirectional, real-time communication. Requires a tokio runtime and the unix platform.
 ///
-/// 默认实现为 stub，完整实现在 `unix` feature 下启用。
+/// The default implementation is a stub; the full implementation is enabled under the `unix` feature.
 pub struct UnixTransport {
     socket_path: String,
     #[allow(dead_code)]
@@ -18,10 +18,10 @@ pub struct UnixTransport {
 }
 
 impl UnixTransport {
-    /// 创建 Unix Socket 传输
+    /// Create a Unix Socket transport
     ///
-    /// `socket_path`: Unix socket 文件路径，如 `/tmp/dalin/agent-a.sock`
-    /// `agent_id`: 本 Agent 标识
+    /// `socket_path`: Unix socket file path, e.g. `/tmp/dalin/agent-a.sock`
+    /// `agent_id`: this Agent's identifier
     pub fn new(socket_path: impl Into<String>, agent_id: impl Into<String>) -> Self {
         Self {
             socket_path: socket_path.into(),

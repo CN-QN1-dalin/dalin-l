@@ -18,7 +18,7 @@ fn hash_str(s: &str) -> u64 {
     h.finish()
 }
 
-/// 计算"类 SHA-256"哈希值并返回 hex 编码。
+/// Compute a "SHA-256-like" hash and return its hex encoding.
 #[must_use]
 pub fn sha256(data: &[u8]) -> String {
     let h = hash_bytes(data);
@@ -33,20 +33,20 @@ fn hash_bytes(data: &[u8]) -> u64 {
     h.finish()
 }
 
-/// 获取缓存目录路径。
+/// Get the cache directory path.
 #[must_use]
 pub fn cache_dir(project_root: &Path) -> PathBuf {
     project_root.join(".dalin_cache")
 }
 
-/// 确保缓存目录存在。
+/// Ensure the cache directory exists.
 pub fn ensure_cache_dir(project_root: &Path) -> std::io::Result<PathBuf> {
     let dir = cache_dir(project_root);
     fs::create_dir_all(&dir)?;
     Ok(dir)
 }
 
-/// 计算文件的缓存 key。
+/// Compute a file's cache key.
 #[must_use]
 pub fn compute_cache_key(file_path: &Path, content: &str) -> String {
     let file_hash = sha256(content.as_bytes());
@@ -57,7 +57,7 @@ pub fn compute_cache_key(file_path: &Path, content: &str) -> String {
     format!("{file_name}_{file_hash}")
 }
 
-/// 从缓存目录加载缓存文件的内容。
+/// Load the content of a cached file from the cache directory.
 #[must_use]
 pub fn load_cache(project_root: &Path, cache_key: &str) -> Option<Vec<u8>> {
     let dir = cache_dir(project_root);
@@ -75,25 +75,25 @@ pub fn load_cache(project_root: &Path, cache_key: &str) -> Option<Vec<u8>> {
     }
 }
 
-/// 将编译结果写入缓存。
+/// Write compilation results to the cache.
 pub fn write_cache(project_root: &Path, cache_key: &str, data: &[u8]) -> std::io::Result<()> {
     let dir = cache_dir(project_root);
     let cache_file = dir.join(format!("{cache_key}.cache"));
     fs::write(cache_file, data)
 }
 
-/// 检查源文件是否需要重新编译。
-/// 如果缓存存在且源文件未变更（hash 相同），返回 true。
+/// Check whether the source file needs recompilation.
+/// Returns true if a cache entry exists and the source is unchanged (same hash).
 #[must_use]
 pub fn is_cached(file_path: &Path, content: &str, project_root: &Path) -> bool {
     let cache_key = compute_cache_key(file_path, content);
     load_cache(project_root, &cache_key).is_some()
 }
 
-/// 可缓存 trait — 支持二进制序列化/反序列化的类型可实现此 trait
+/// Cacheable trait — implemented by types that support binary serialization/deserialization
 ///
-/// 实现了此 trait 的类型可通过 `get_or_compile` 自动参与缓存命中/写入。
-/// 内置实现: `Vec<u8>` (identity), `String` (UTF-8)。
+/// Types implementing this trait can automatically participate in cache hits/writes via `get_or_compile`.
+/// Built-in implementations: `Vec<u8>` (identity), `String` (UTF-8).
 pub trait Cacheable {
     /// 将自身序列化为二进制
     fn serialize(&self) -> Vec<u8>;
@@ -123,10 +123,10 @@ impl Cacheable for String {
     }
 }
 
-/// 获取或编译：先检查缓存，命中则反序列化返回，否则执行编译函数并写入缓存。
+/// Get or compile: check the cache first; on a hit, deserialize and return; otherwise run the compile function and write to the cache.
 ///
-/// 泛型约束 `T: Cacheable` 确保只有可序列化的类型才能参与缓存。
-/// 缓存格式由 `Cacheable` trait 实现决定 (当前: `Vec<u8>`=identity, String=UTF-8)。
+/// The generic bound `T: Cacheable` ensures only serializable types can participate in caching.
+/// The cache format is determined by the `Cacheable` implementation (currently: Vec<u8>=identity, String=UTF-8).
 pub fn get_or_compile<F, T>(
     file_path: &Path,
     content: &str,

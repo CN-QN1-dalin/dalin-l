@@ -7,7 +7,7 @@ use std::sync::mpsc::Sender;
 // 运行时复用编译器的 AST 类型（FnParam / Stmt / TypeRef）
 use dalin_compiler::ast;
 
-/// 运行时值标记常量
+/// Runtime value tag constants
 pub const SOME_TAG: &str = "__some__";
 pub const NONE_TAG: &str = "__none__";
 pub const OK_TAG: &str = "__ok__";
@@ -15,7 +15,7 @@ pub const ERR_TAG: &str = "__err__";
 pub const ENUM_TAG: &str = "__enum__";
 pub const DALIN_TYPE_KEY: &str = "__dalin_type__";
 
-/// 运行时值
+/// Runtime value
 #[derive(Debug, Clone)]
 pub enum Value {
     Int(i64),
@@ -123,7 +123,7 @@ impl PartialEq for Value {
     }
 }
 
-/// 作用域环境（带父链）
+/// Scope environment (with parent chain)
 #[derive(Debug, Clone)]
 pub struct Environment {
     pub vars: HashMap<String, Value>,

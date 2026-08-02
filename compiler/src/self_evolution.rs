@@ -8,7 +8,7 @@ use crate::j2_strategy_gen::{FixRecord, RecoveryRule, StrategyGenerator};
 use crate::j3_evolution_verify::{ABExperimentResult, EvolutionVerificationEngine};
 use crate::runtime::RecoveryMode;
 
-/// 自进化引擎主状态机 — 统一管理 J1/J2/J3 的生命周期与数据流
+/// Self-evolution engine main state machine — unified management of J1/J2/J3 lifecycles and data flow
 pub struct SelfEvolutionEngine {
     j1: ErrorClusteringEngine,       // J1: 模式学习 — 错误聚类 + 模板提取
     j2: StrategyGenerator,           // J2: 策略生成 — 从修复历史归纳新规则
@@ -18,7 +18,7 @@ pub struct SelfEvolutionEngine {
 }
 
 impl SelfEvolutionEngine {
-    /// 初始化引擎 — 默认路径 ~/.dal_kb.jsonl
+    /// Initialize the engine — default path ~/.dal_kb.jsonl
     #[must_use]
     pub fn new(kb_path: &str) -> Self {
         Self {
@@ -30,7 +30,7 @@ impl SelfEvolutionEngine {
         }
     }
 
-    /// 记录一条 borrow checker 错误 — 进入 J1 流水线
+    /// Record a borrow checker error — enters the J1 pipeline
     pub fn record_borrow_error(&mut self, err: &BorrowError, line: usize) {
         let record = ErrorRecord {
             id: self.next_error_id,
@@ -46,28 +46,28 @@ impl SelfEvolutionEngine {
         self.j1.add_error(record);
     }
 
-    /// 运行一次 J1 聚类并输出模板 — eps = 邻域半径，min_points = 最少样本数
+    /// Run one J1 clustering pass and output templates — eps = neighborhood radius, min_points = minimum sample count
     pub fn run_j1_cluster(&mut self, eps: f32, min_points: usize) -> Vec<Template> {
         let clusters = self.j1.cluster(eps, min_points);
         self.j1.extract_templates(&clusters)
     }
 
-    /// 记录一次修复操作（由人工或自动应用）— 进入 J2 流水线
+    /// Record a fix operation (applied manually or automatically) — enters the J2 pipeline
     pub fn record_fix(&mut self, fix: FixRecord) {
         self.j2.record_fix(fix);
     }
 
-    /// 从修复历史中归纳新规则 — 返回待启发式评估的规则列表
+    /// Induce new rules from fix history — returns the rule list pending heuristic evaluation
     pub fn infer_new_rules(&mut self) -> Vec<RecoveryRule> {
         self.j2.infer_new_rules()
     }
 
-    /// 获取所有已知规则（带置信度评分）
+    /// Get all known rules (with confidence scores)
     pub fn known_rules(&self) -> Vec<RecoveryRule> {
         self.j2.known_rules().to_vec()
     }
 
-    /// 运行 AB 实验评估新策略效果
+    /// Run an A/B experiment to evaluate a new strategy
     pub fn run_ab_experiment(
         &mut self,
         exp_id: &str,
@@ -80,7 +80,7 @@ impl SelfEvolutionEngine {
             .run_experiment(exp_id, control_name, treatment_name, a_score, b_score)
     }
 
-    /// 获取未测试的新规则触发热编译建议（若数量超过阈值）
+    /// Get hot recompilation suggestions triggered by untested new rules (if the count exceeds the threshold)
     pub fn suggest_hot_recompile(&self, threshold: u64) -> Option<Vec<RecoveryRule>> {
         let untested: Vec<RecoveryRule> = self
             .j2
@@ -96,17 +96,17 @@ impl SelfEvolutionEngine {
         }
     }
 
-    /// 检查是否已有足够错误需要触发聚类
+    /// Check whether enough errors have been collected to trigger clustering
     pub fn needs_clustering(&self, min_errors: usize) -> bool {
         self.j1.error_count() >= min_errors
     }
 
-    /// 当前已收集的错误数（用于测试与状态上报）
+    /// Number of errors collected so far (for testing and status reporting)
     pub fn error_count(&self) -> usize {
         self.j1.error_count()
     }
 
-    /// 综合评分评估当前进化状态
+    /// Evaluate the current evolution state with a composite score
     pub fn current_status(&self) -> String {
         format!(
             "J1: {} errors tracked; J2: {} rules ({} tested); J3: {} experiments",
@@ -117,14 +117,14 @@ impl SelfEvolutionEngine {
         )
     }
 
-    /// 保存知识库到磁盘（JSONL 格式：每行一个记录）
+    /// Save the knowledge base to disk (JSONL format: one record per line)
     pub fn save_knowledge_base(&self) -> Result<(), String> {
         // TODO: 实现序列化写入
         let _ = &self.kb_path;
         Ok(())
     }
 
-    /// 加载已有知识库
+    /// Load an existing knowledge base
     pub fn load_knowledge_base(&mut self) -> Result<(), String> {
         // TODO: 实现反序列化读取
         Ok(())
@@ -144,7 +144,7 @@ impl SelfEvolutionEngine {
 // 编译器集成扩展：在 compile_with_llm 中调用此引擎
 // ═══════════════════════════════════════════════════════
 
-/// 将 borrow checker 的每个错误转化为自进化事件记录
+/// Convert each borrow checker error into a self-evolution event record
 pub fn process_borrow_errors(
     checker: &crate::borrow_checker::BorrowChecker,
     engine: &mut SelfEvolutionEngine,
@@ -154,7 +154,7 @@ pub fn process_borrow_errors(
     }
 }
 
-/// 自进化闭环入口函数 — 在编译完成后被可选调用
+/// Self-evolution closed-loop entry — optionally called after compilation completes
 pub fn try_self_evolve(engine: &mut SelfEvolutionEngine) -> Option<String> {
     // 只有当积累了足够错误才触发聚类（防抖）
     if !engine.needs_clustering(3) {

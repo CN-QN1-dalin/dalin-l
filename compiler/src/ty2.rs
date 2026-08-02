@@ -6,8 +6,8 @@ use crate::ast::{BaseType, Stmt, TypeRef};
 use std::collections::HashMap;
 use std::fmt;
 
-/// 把 AST 上的效应注解字符串解析为 `Effect` 枚举。
-/// 未知/缺失注解安全回落到最严格的 `Pure`（最小权限默认）。
+/// Parse the effect annotation string on the AST into the `Effect` enum.
+/// Unknown/missing annotations safely fall back to the most restrictive `Pure` (least-privilege default).
 #[must_use]
 pub fn parse_effect(s: &str) -> Effect {
     match s {
@@ -19,8 +19,8 @@ pub fn parse_effect(s: &str) -> Effect {
     }
 }
 
-/// 把 AST 上的能力注解字符串解析为 `Capability` 枚举。
-/// 未知/缺失注解安全回落到最通用的 `Cpu`（默认本地执行）。
+/// Parse the capability annotation string on the AST into the `Capability` enum.
+/// Unknown/missing annotations safely fall back to the most generic `Cpu` (default local execution).
 #[must_use]
 pub fn parse_confidence(s: &str) -> Confidence {
     match s {
@@ -37,8 +37,8 @@ pub fn parse_confidence(s: &str) -> Confidence {
     }
 }
 
-/// 把 AST 上的能力注解字符串解析为 `Capability` 枚举。
-/// 未知/缺失注解安全回落到最通用的 `Cpu`（默认本地执行）。
+/// Parse the capability annotation string on the AST into the `Capability` enum.
+/// Unknown/missing annotations safely fall back to the most generic `Cpu` (default local execution).
 #[must_use]
 pub fn parse_capability(s: &str) -> Capability {
     match s {
@@ -54,8 +54,8 @@ pub fn parse_capability(s: &str) -> Capability {
 //  效应类型 (Effect Channel)
 // ═══════════════════════════════
 
-/// 效应类型：描述计算产生的副作用
-/// 偏序关系：pure < io < async, pure < spawn
+/// Effect type: describes the side effects produced by a computation
+/// Partial order: pure < io < async, pure < spawn
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Effect {
     Pure,  // 纯计算，无副作用
@@ -65,7 +65,7 @@ pub enum Effect {
 }
 
 impl Effect {
-    /// 效应偏序：a ≤ b 当且仅当 a 比 b "更纯"
+    /// Effect partial order: a ≤ b iff a is "purer" than b
     #[must_use]
     pub fn leq(&self, other: &Effect) -> bool {
         use Effect::{Async, Io, Pure, Spawn};
@@ -79,8 +79,8 @@ impl Effect {
         }
     }
 
-    /// 最小上界（join）：两个效应都满足的最小效应
-    /// 如果不可比则返回 None（效应违规）
+    /// Least upper bound (join): the smallest effect satisfying both effects
+    /// Returns None if they are incomparable (effect violation)
     #[must_use]
     pub fn join(a: &Effect, b: &Effect) -> Option<Effect> {
         use Effect::{Async, Io, Pure, Spawn};
@@ -111,8 +111,8 @@ impl fmt::Display for Effect {
 //  能力类型 (Capability Channel)
 // ═══════════════════════════════
 
-/// 能力类型：描述计算在什么硬件上执行
-/// 偏序关系：cpu < gpu, cpu < sfa, cpu < net
+/// Capability type: describes the hardware on which a computation executes
+/// Partial order: cpu < gpu, cpu < sfa, cpu < net
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Capability {
     Cpu, // 本地 CPU 执行
@@ -135,7 +135,7 @@ impl Capability {
         }
     }
 
-    /// 能力 join：取同时满足两个能力的最小上界
+    /// Capability join: the least upper bound that satisfies both capabilities
     #[must_use]
     pub fn join(a: &Capability, b: &Capability) -> Option<Capability> {
         use Capability::{Cpu, Gpu, Net, Sfa};
@@ -164,9 +164,9 @@ impl fmt::Display for Capability {
 //  置信度通道 (Confidence Channel)
 // ═══════════════════════════════
 
-/// 置信度类型：描述一个值的可信程度和来源。
-/// 偏序关系：Uncertain < Generated < Inferred < Verified < Proven
-/// 格最小上界 (join)：取置信度更低的（最保守的估计）。
+/// Confidence type: describes the trustworthiness and origin of a value.
+/// Partial order: Uncertain < Generated < Inferred < Verified < Proven
+/// Lattice join: take the less confident one (most conservative estimate).
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Confidence {
     /// 经过形式化证明或数学验证 (P = 1.0)
@@ -182,7 +182,7 @@ pub enum Confidence {
 }
 
 impl Confidence {
-    /// 置信度偏序：a <= b 表示 a 比 b "更不确定"
+    /// Confidence partial order: a <= b means a is "more uncertain" than b
     /// Proven > Verified > Inferred > Generated > Uncertain
     #[must_use]
     pub fn leq(&self, other: &Confidence) -> bool {
@@ -205,7 +205,7 @@ impl Confidence {
         }
     }
 
-    /// 置信度 join：取两个中最不确定的（最保守估计）
+    /// Confidence join: take the more uncertain of the two (most conservative estimate)
     #[must_use]
     pub fn join(a: &Confidence, b: &Confidence) -> Confidence {
         use Confidence::{Generated, Inferred, Proven, Uncertain, Verified};
@@ -225,7 +225,7 @@ impl Confidence {
         }
     }
 
-    /// 置信度的数值表达（用于报告和接口消费）
+    /// Numeric representation of confidence (for reports and API consumption)
     #[must_use]
     pub fn score(&self) -> f64 {
         match self {
@@ -254,8 +254,8 @@ impl fmt::Display for Confidence {
 //  认知循环类型 (Cognitive Loop Channel)
 // ═══════════════════════════════
 
-/// 认知循环五阶：描述一个函数在认知架构中的阶段
-/// 偏序关系：Perceive < Reason < Decide < Act < Loop
+/// Five cognitive cycle phases: describe a function's phase in the cognitive architecture
+/// Partial order: Perceive < Reason < Decide < Act < Loop
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum CognitiveLoop {
     Perceive, // 感知：接收外部输入（传感器/用户/事件）
@@ -266,7 +266,7 @@ pub enum CognitiveLoop {
 }
 
 impl CognitiveLoop {
-    /// 认知循环偏序
+    /// Cognitive cycle partial order
     #[must_use]
     pub fn leq(&self, other: &CognitiveLoop) -> bool {
         use CognitiveLoop::{Act, Decide, Loop, Perceive, Reason};
@@ -283,7 +283,7 @@ impl CognitiveLoop {
         }
     }
 
-    /// 认知循环 join：取最高阶的
+    /// Cognitive cycle join: take the highest phase
     #[must_use]
     pub fn join(a: &CognitiveLoop, b: &CognitiveLoop) -> CognitiveLoop {
         use CognitiveLoop::{Act, Decide, Loop, Perceive, Reason};
@@ -320,8 +320,8 @@ impl fmt::Display for CognitiveLoop {
 //  治理通道 (Governance Channel)
 // ═══════════════════════════════
 
-/// 治理级别：描述一个函数的操作权限和审批要求
-/// 偏序关系：prepare < suggest < approve < execute
+/// Governance level: describes a function's operation permissions and approval requirements
+/// Partial order: prepare < suggest < approve < execute
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum GovernanceLevel {
     Prepare, // 准备：可以查询、验证、准备数据，但不执行实际操作
@@ -346,7 +346,7 @@ impl GovernanceLevel {
         }
     }
 
-    /// 治理级别 join：取更高权限（更严格）
+    /// Governance level join: take the higher privilege (more restrictive)
     #[must_use]
     pub fn join(a: &GovernanceLevel, b: &GovernanceLevel) -> GovernanceLevel {
         use GovernanceLevel::{Approve, Execute, Prepare, Suggest};
@@ -381,7 +381,7 @@ impl fmt::Display for GovernanceLevel {
 //  时间通道 (Time Channel)
 // ═══════════════════════════════
 
-/// 时间约束：描述函数的延迟/超时/吞吐量保证
+/// Time constraint: describes a function's latency/timeout/throughput guarantees
 #[derive(Debug, Clone, PartialEq)]
 pub struct TimeConstraint {
     /// 最大延迟（毫秒）
@@ -408,7 +408,7 @@ impl TimeConstraint {
         }
     }
 
-    /// 合并两个约束：取最严格的值（最小值）
+    /// Merge two constraints: take the strictest value (minimum)
     #[must_use]
     pub fn meet(a: &TimeConstraint, b: &TimeConstraint) -> TimeConstraint {
         TimeConstraint {
@@ -433,8 +433,8 @@ impl TimeConstraint {
         }
     }
 
-    /// 检查时间约束是否满足要求
-    /// actual 实际约束必须 ≥ required 要求（latency 更小=更好, throughput 更大=更好）
+    /// Check whether time constraints meet the requirement
+    /// The actual constraint must be ≥ the required one (smaller latency = better, larger throughput = better)
     #[must_use]
     pub fn satisfies(&self, required: &TimeConstraint) -> bool {
         if let Some(req_lat) = required.latency_ms
@@ -479,7 +479,7 @@ impl fmt::Display for TimeConstraint {
     }
 }
 
-/// 从字符串解析时间约束：@latency(50ms) → `TimeConstraint` { `latency_ms`: Some(50), ... }
+/// Parse a time constraint from a string: @latency(50ms) → `TimeConstraint` { `latency_ms`: Some(50), ... }
 #[must_use]
 pub fn parse_time_constraint(key: &str, value: &str) -> TimeConstraint {
     let mut tc = TimeConstraint::new();
@@ -510,7 +510,7 @@ pub fn parse_time_constraint(key: &str, value: &str) -> TimeConstraint {
     tc
 }
 
-/// 时间约束推断器
+/// Time constraint inferrer
 #[derive(Debug)]
 pub struct TimeConstraintInferencer {
     pub errors: Vec<String>,
@@ -528,7 +528,7 @@ impl TimeConstraintInferencer {
         Self { errors: Vec::new() }
     }
 
-    /// 推断表达式的延迟约束（仅为示例，真实延迟需要 QN1 profiling）
+    /// Infer an expression's latency constraint (illustrative only; real latency requires QN1 profiling)
     pub fn infer_expr(&mut self, expr: &crate::ast::Expr) -> TimeConstraint {
         match expr {
             // 字面量/运算 → 几微秒
@@ -594,7 +594,7 @@ pub fn parse_governance(s: &str) -> GovernanceLevel {
     }
 }
 
-/// 置信度推断器
+/// Confidence inferrer
 #[derive(Debug)]
 pub struct ConfidenceInferencer {
     pub errors: Vec<String>,
@@ -612,11 +612,11 @@ impl ConfidenceInferencer {
         Self { errors: Vec::new() }
     }
 
-    /// 推断表达式的置信度
-    /// 字面量 → Proven（1+1=2 是确定的）
-    /// 标识符 → 继承自上下文的置信度
-    /// 函数调用 → 被调用函数的置信度与参数置信度的最不确定值的 join
-    /// LLM 相关函数 → Generated
+    /// Infer an expression's confidence
+    /// Literal → Proven (1+1=2 is certain)
+    /// Identifier → confidence inherited from context
+    /// Function call → join of the callee's confidence and the arguments' confidences, taking the most uncertain
+    /// LLM-related functions → Generated
     pub fn infer_expr(&mut self, expr: &crate::ast::Expr) -> Confidence {
         match expr {
             // 字面量是确定的
@@ -697,7 +697,7 @@ impl ConfidenceInferencer {
         }
     }
 
-    /// 检查置信度断言：实际置信度必须 >= 期望置信度
+    /// Check confidence assertions: actual confidence must be >= expected confidence
     pub fn check(&mut self, actual: &Confidence, required: &Confidence, location: &str) {
         if !required.leq(actual) {
             self.errors.push(format!(
@@ -712,7 +712,7 @@ impl ConfidenceInferencer {
     }
 }
 
-/// 七通道类型（值 × 效应 × 能力 × 置信度）
+/// Seven-channel type (value × effect × capability × confidence)
 #[derive(Debug, Clone)]
 pub struct SevenChannelType {
     pub value: Option<TypeRef>, // None = 尚未推断
@@ -811,9 +811,9 @@ impl EffectInferencer {
         Self { errors: Vec::new() }
     }
 
-    /// 推断表达式的效应
-    /// 字面量、标识符 → pure
-    /// 函数调用 → 被调用函数的效应
+    /// Infer the effect of an expression
+    /// Literal, identifier → pure
+    /// Function call → the callee's effect
     /// + - * / → pure
     /// - `spawn → spawn`
     /// - `async fn → async`
@@ -870,8 +870,8 @@ impl EffectInferencer {
         }
     }
 
-    /// 检查效应兼容性
-    /// 上下文效应 必须 ≥ 表达式效应
+    /// Check effect compatibility
+    /// The context effect must be ≥ the expression's effect
     pub fn check(&mut self, context: &Effect, expr_eff: &Effect, location: &str) {
         if !expr_eff.leq(context) {
             self.errors.push(format!(
@@ -907,10 +907,10 @@ impl CapabilityInferencer {
         }
     }
 
-    /// 推断表达式的执行能力。
-    /// - 字面量 / 标识符 / 基本运算 → Cpu
-    /// - 函数调用 → 查标注表或内置映射
-    /// - spawn / async 上下文 → 默认 Cpu（效应不决定能力）
+    /// Infer the execution capability of an expression.
+    /// - Literal / identifier / basic operations → Cpu
+    /// - Function call → consult the annotation table or built-in mapping
+    /// - spawn / async contexts → default Cpu (effect does not determine capability)
     pub fn infer_expr(&mut self, expr: &crate::ast::Expr) -> Capability {
         match expr {
             crate::ast::Expr::IntLiteral(_)
@@ -1001,8 +1001,8 @@ impl CognitiveLoopInferencer {
         Self { errors: Vec::new() }
     }
 
-    /// 推断表达式的认知循环阶段
-    /// 感知 → 推理 → 决策 → 行动 → 闭环
+    /// Infer the cognitive cycle phase of an expression
+    /// Perceive → Reason → Decide → Act → Loop
     pub fn infer_expr(&mut self, expr: &crate::ast::Expr) -> CognitiveLoop {
         match expr {
             // 感知：字面量/标识符/基本运算 — 接收外部输入
@@ -1052,7 +1052,7 @@ impl CognitiveLoopInferencer {
         }
     }
 
-    /// 检查认知循环阶段兼容性
+    /// Check cognitive cycle phase compatibility
     pub fn check(&mut self, context: &CognitiveLoop, expr_loop: &CognitiveLoop, location: &str) {
         if !expr_loop.leq(context) {
             self.errors.push(format!(
@@ -1083,8 +1083,8 @@ impl GovernanceInferencer {
         Self { errors: Vec::new() }
     }
 
-    /// 推断表达式的治理级别
-    /// 默认返回 Prepare（最小权限原则）
+    /// Infer the governance level of an expression
+    /// Defaults to Prepare (least-privilege principle)
     pub fn infer_expr(&mut self, expr: &crate::ast::Expr) -> GovernanceLevel {
         match expr {
             // 简单操作 → Prepare（仅查询/准备）
@@ -1132,7 +1132,7 @@ impl GovernanceInferencer {
         }
     }
 
-    /// 检查治理级别兼容性
+    /// Check governance level compatibility
     pub fn check(&mut self, required: &GovernanceLevel, actual: &GovernanceLevel, location: &str) {
         if !actual.leq(required) {
             self.errors.push(format!(

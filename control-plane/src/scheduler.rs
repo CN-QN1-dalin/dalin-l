@@ -15,7 +15,7 @@ use std::sync::Mutex as StdMutex;
 use std::sync::atomic::{AtomicU8, AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
 
-/// 能力通道（与三通道类型系统的 capability 对齐）
+/// Capability channel (aligned with the three-channel type system's capability)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Capability {
     Cpu = 0,
@@ -25,7 +25,7 @@ pub enum Capability {
 }
 
 impl Capability {
-    /// 能力格偏序：a ≤ b 表示 a 的能力是 b 的子集（b 覆盖 a）。
+    /// Capability lattice partial order: a ≤ b means a's capability is a subset of b's (b covers a).
     #[must_use]
     pub fn leq(&self, other: &Capability) -> bool {
         (*self as u8) <= (*other as u8)
@@ -45,7 +45,7 @@ impl std::str::FromStr for Capability {
     }
 }
 
-/// 一个可调度的计算节点（配置面；运行时状态由调度器内部维护）。
+/// A schedulable compute node (config surface; runtime state is maintained internally by the scheduler).
 #[derive(Debug, Clone)]
 pub struct Node {
     pub id: String,
@@ -67,7 +67,7 @@ impl Node {
         }
     }
 
-    /// 链式设置配额（背压阈值）。
+    /// Builder-style setter for the quota (backpressure threshold).
     #[must_use]
     pub fn with_quota(mut self, quota: usize) -> Self {
         self.quota = Some(quota);
@@ -75,14 +75,14 @@ impl Node {
     }
 }
 
-/// 放置结果
+/// Placement result
 #[derive(Debug, Clone)]
 pub struct Placement {
     pub node_id: String,
     pub capability: Capability,
 }
 
-/// 调度拒绝原因（可观测性 / 未来映射到 gRPC 状态）。
+/// Scheduling rejection reason (observability / future mapping to gRPC status).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ScheduleError {
     /// 没有能力覆盖该任务的节点。
@@ -178,8 +178,8 @@ impl CapabilityScheduler {
         Self { nodes: runtimes }
     }
 
-    /// 为任务选一个节点：能力覆盖（节点 ⊇ 任务能力）且熔断器允许 且 未到配额 的节点里选负载最低者。
-    /// 找不到 → None（拒绝调度：背压 / 无节点 / 熔断）。
+    /// Pick a node for a task: among nodes whose capability covers the task's (node ⊇ task capability), whose breaker is open, and that have not reached quota, choose the one with the lowest load.
+    /// Not found → None (scheduling rejected: backpressure / no node / breaker).
     #[must_use]
     pub fn place(&self, required: &Capability) -> Option<Placement> {
         let mut best: Option<&NodeRuntime> = None;
@@ -214,28 +214,28 @@ impl CapabilityScheduler {
         })
     }
 
-    /// 释放一个节点的一个并发槽（任务完成 / 取消 / 失败时调用）。
+    /// Release one concurrency slot on a node (called on task completion / cancellation / failure).
     pub fn release(&self, node_id: &str) {
         if let Some(n) = self.nodes.iter().find(|n| n.id == node_id) {
             n.load.fetch_sub(1, Ordering::SeqCst);
         }
     }
 
-    /// 上报节点执行失败（驱动熔断）。
+    /// Report a node execution failure (drives the circuit breaker).
     pub fn mark_failure(&self, node_id: &str) {
         if let Some(n) = self.nodes.iter().find(|n| n.id == node_id) {
             n.breaker.record_failure();
         }
     }
 
-    /// 上报节点执行成功（复位熔断）。
+    /// Report a node execution success (resets the circuit breaker).
     pub fn mark_success(&self, node_id: &str) {
         if let Some(n) = self.nodes.iter().find(|n| n.id == node_id) {
             n.breaker.record_success();
         }
     }
 
-    /// 当前各节点负载快照（可观测 / 调试）。
+    /// Snapshot of current per-node load (observability / debugging).
     #[must_use]
     pub fn load_snapshot(&self) -> Vec<(String, usize)> {
         self.nodes
@@ -244,14 +244,14 @@ impl CapabilityScheduler {
             .collect()
     }
 
-    /// 从注解字符串直接放置（未知能力回落 Cpu）。
+    /// Place directly from an annotation string (unknown capabilities fall back to Cpu).
     #[must_use]
     pub fn place_by_spec(&self, capability: &str) -> Option<Placement> {
         let cap: Capability = capability.parse().unwrap_or(Capability::Cpu);
         self.place(&cap)
     }
 
-    /// 动态添加一个节点（from Agent Registry）。
+    /// Dynamically add a node (from the Agent Registry).
     pub fn add_node(&mut self, node: Node) {
         let rt = NodeRuntime {
             id: node.id,
@@ -264,8 +264,8 @@ impl CapabilityScheduler {
         self.nodes.push(rt);
     }
 
-    /// 全量替换节点列表（from `NodeRegistry.fresh_nodes()`）。
-    /// 保留已有节点的运行时状态（load / breaker）。
+    /// Replace the node list entirely (from `NodeRegistry.fresh_nodes()`).
+    /// Preserves existing nodes' runtime state (load / breaker).
     pub fn sync_nodes(&mut self, nodes: Vec<Node>) {
         self.nodes = nodes
             .into_iter()
@@ -279,7 +279,7 @@ impl CapabilityScheduler {
             .collect();
     }
 
-    /// 获取节点数量。
+    /// Get the number of nodes.
     #[must_use]
     pub fn node_count(&self) -> usize {
         self.nodes.len()

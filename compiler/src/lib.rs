@@ -59,11 +59,11 @@ use crate::self_evolution::SelfEvolutionEngine;
 use crate::task_spec::TaskSpec;
 use crate::ty2::SevenChannelInferencer;
 
-/// 完整的编译管线（含 @llm 扩展）：
-///   token → lexer → parser → 宏展开/LLM扩展 → ty2 inference → `task_spec`
+/// Full compilation pipeline (including @llm expansion):
+///   token → lexer → parser → macro expansion/LLM expansion → ty2 inference → `task_spec`
 ///
-/// @llm 扩展阶段：扫描 AST 中所有 `Stmt::Fn` { `llm_prompt`: Some(prompt), .. }，
-/// 调用 `LlmEngine.process_directive()` 生成函数体骨架，替换原 body。
+/// @llm expansion stage: scan the AST for all `Stmt::Fn` { `llm_prompt`: Some(prompt), .. },
+/// call `LlmEngine.process_directive()` to generate a function body skeleton and replace the original body.
 #[must_use]
 pub fn compile_with_llm(src: &str) -> CompileResult {
     // Step 1: Lexer
@@ -171,7 +171,7 @@ pub fn compile_with_llm(src: &str) -> CompileResult {
     }
 }
 
-/// 编译结果：AST + 报告 + `TaskSpec` + 结构化错误
+/// Compilation result: AST + report + `TaskSpec` + structured errors
 pub enum CompileResult {
     Err(String),
     Ok {

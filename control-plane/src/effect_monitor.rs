@@ -16,7 +16,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 /// Spawn 配额：每个 session 的最大子任务数。
 const DEFAULT_MAX_CHILDREN: usize = 64;
 
-/// 效应违规错误
+/// Effect violation error
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EffectViolation {
     /// Pure 上下文中尝试 IO 操作
@@ -43,7 +43,7 @@ impl std::fmt::Display for EffectViolation {
     }
 }
 
-/// 效应监视器（每个 Agent Session 一个实例）。
+/// Effect monitor (one instance per Agent Session).
 pub struct EffectMonitor {
     /// 当前上下文的效应（pure / io / async / spawn）。
     context_effect: String,
@@ -60,7 +60,7 @@ impl Default for EffectMonitor {
 }
 
 impl EffectMonitor {
-    /// 新建效应监视器，默认 Pure 上下文、64 子任务配额。
+    /// Create an effect monitor with a default Pure context and a quota of 64 subtasks.
     #[must_use]
     pub fn new() -> Self {
         Self {
@@ -70,23 +70,23 @@ impl EffectMonitor {
         }
     }
 
-    /// 设置上下文效应。
+    /// Set the context effect.
     pub fn set_context(&mut self, effect: &str) {
         self.context_effect = effect.to_string();
     }
 
-    /// 获取当前上下文效应。
+    /// Get the current context effect.
     pub fn context_effect(&self) -> &str {
         &self.context_effect
     }
 
-    /// 设置 spawn 配额。
+    /// Set the spawn quota.
     pub fn set_max_children(&mut self, max: usize) {
         self.max_children = max;
     }
 
-    /// 检查并注册一次 spawn 操作。
-    /// 上下文必须是 `spawn`，且未超配额。
+    /// Check and register one spawn operation.
+    /// The context must be `spawn`, and the quota must not be exceeded.
     pub fn check_spawn(&self) -> Result<(), EffectViolation> {
         // Pure 上下文中禁止 spawn
         if self.context_effect == "pure" {
@@ -104,7 +104,7 @@ impl EffectMonitor {
         Ok(())
     }
 
-    /// 检查 IO 操作是否被允许（纯计算上下文禁止 IO）。
+    /// Check whether an IO operation is allowed (pure-computation contexts forbid IO).
     pub fn check_io(&self, operation: &str) -> Result<(), EffectViolation> {
         if self.context_effect == "pure" {
             return Err(EffectViolation::IoInPureContext {
@@ -114,7 +114,7 @@ impl EffectMonitor {
         Ok(())
     }
 
-    /// 检查效应兼容性：`required` 是否 ≤ `context`。
+    /// Check effect compatibility: whether `required` is ≤ `context`.
     pub fn check_effect(&self, required: &str) -> Result<(), EffectViolation> {
         match required {
             "pure" => Ok(()),
@@ -136,12 +136,12 @@ impl EffectMonitor {
         }
     }
 
-    /// 获取当前子任务计数。
+    /// Get the current subtask count.
     pub fn child_count(&self) -> usize {
         self.child_count.load(Ordering::SeqCst)
     }
 
-    /// 释放一个子任务槽位（任务完成或失败时调用）。
+    /// Release one subtask slot (called on task completion or failure).
     pub fn release_child(&self) {
         self.child_count.fetch_sub(1, Ordering::SeqCst);
     }
@@ -151,7 +151,7 @@ impl EffectMonitor {
 //  Session 级别的配额跟踪
 // ═══════════════════════════════
 
-/// 管理所有活跃 Agent Session 的效应边界
+/// Manages effect boundaries for all active Agent Sessions
 pub struct SessionManager {
     monitors: std::sync::Mutex<std::collections::HashMap<String, Arc<EffectMonitor>>>,
 }
@@ -170,7 +170,7 @@ impl SessionManager {
         }
     }
 
-    /// 获取或创建 Session 的效应监视器。
+    /// Get or create the effect monitor for a Session.
     pub fn get_or_create(&self, session_id: &str, effect: &str) -> Arc<EffectMonitor> {
         let mut monitors = self.monitors.lock().unwrap();
         monitors
@@ -183,7 +183,7 @@ impl SessionManager {
             .clone()
     }
 
-    /// 释放 Session 资源。
+    /// Release Session resources.
     pub fn remove(&self, session_id: &str) {
         self.monitors.lock().unwrap().remove(session_id);
     }

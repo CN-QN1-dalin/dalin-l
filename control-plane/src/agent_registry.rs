@@ -31,7 +31,7 @@ struct NodeEntry {
     last_heartbeat: Instant,
 }
 
-/// 节点注册表（线程安全，内存实现）
+/// Node registry (thread-safe, in-memory implementation)
 pub struct NodeRegistry {
     nodes: Mutex<HashMap<String, NodeEntry>>,
 }
@@ -50,8 +50,8 @@ impl NodeRegistry {
         }
     }
 
-    /// 注册或更新节点。
-    /// 返回 (是否新注册, 消息)。
+    /// Register or update a node.
+    /// Returns (whether newly registered, message).
     pub fn register(&self, spec: NodeSpec) -> (bool, String) {
         let mut nodes = self.nodes.lock().unwrap();
         let is_new = !nodes.contains_key(&spec.id);
@@ -70,8 +70,8 @@ impl NodeRegistry {
         (is_new, msg)
     }
 
-    /// 接收心跳，刷新节点的 `last_heartbeat`。
-    /// 返回是否成功（false = 节点未注册）。
+    /// Receive a heartbeat and refresh the node's `last_heartbeat`.
+    /// Returns success (false = node not registered).
     pub fn heartbeat(&self, beat: &NodeBeat) -> bool {
         let mut nodes = self.nodes.lock().unwrap();
         if let Some(entry) = nodes.get_mut(&beat.id) {
@@ -89,7 +89,7 @@ impl NodeRegistry {
         }
     }
 
-    /// 获取所有心跳新鲜的节点。
+    /// Get all nodes with fresh heartbeats.
     pub fn fresh_nodes(&self) -> Vec<Node> {
         let now = Instant::now();
         let nodes = self.nodes.lock().unwrap();
@@ -100,13 +100,13 @@ impl NodeRegistry {
             .collect()
     }
 
-    /// 获取所有注册的节点（含过期）。
+    /// Get all registered nodes (including expired ones).
     pub fn all_nodes(&self) -> Vec<NodeSpec> {
         let nodes = self.nodes.lock().unwrap();
         nodes.values().map(|e| e.spec.clone()).collect()
     }
 
-    /// 清理过期节点。
+    /// Clean up expired nodes.
     pub fn cleanup(&self) -> usize {
         let now = Instant::now();
         let mut nodes = self.nodes.lock().unwrap();
@@ -135,7 +135,7 @@ fn node_spec_to_scheduler_node(spec: &NodeSpec) -> Node {
     Node::new(&spec.id, caps)
 }
 
-/// 后台清理任务：定期清理过期节点
+/// Background cleanup task: periodically removes expired nodes
 pub fn spawn_cleanup_task(registry: Arc<NodeRegistry>) {
     tokio::spawn(async move {
         loop {

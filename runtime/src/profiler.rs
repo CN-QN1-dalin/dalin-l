@@ -37,8 +37,8 @@ struct Frame {
     started: Instant,
 }
 
-/// 全局 Profiler 实例（用于 CLI 级别的全局 profiling）。
-/// 支持嵌套调用（同一函数的多个活跃调用栈帧）。
+/// Global Profiler instance (for CLI-level global profiling).
+/// Supports nested calls (multiple active call stack frames for the same function).
 pub struct Profiler {
     calls: HashMap<String, CallStats>,
     stack: Vec<Frame>,
@@ -59,8 +59,8 @@ impl Profiler {
         }
     }
 
-    /// 开始追踪一个名为 `name` 的函数/调用。
-    /// 支持任意深度的嵌套调用。
+    /// Start tracing a function/call named `name`.
+    /// Supports nested calls of arbitrary depth.
     #[allow(dead_code)] // Public API for future interpreter integration
     pub fn start_call(&mut self, name: &str) {
         self.stack.push(Frame {
@@ -69,7 +69,7 @@ impl Profiler {
         });
     }
 
-    /// 结束最近一个名为 `name` 的活跃调用。
+    /// End the most recent active call named `name`.
     #[allow(dead_code)] // Public API for future interpreter integration
     pub fn end_call(&mut self, name: &str) {
         // 从栈顶往下找第一个匹配的 name
@@ -88,7 +88,7 @@ impl Profiler {
         // 未找到匹配的——忽略（不匹配的 end_call）
     }
 
-    /// 返回按总时间排序的报告表格。
+    /// Return a report table sorted by total time.
     #[must_use]
     pub fn report(&self) -> String {
         let mut items: Vec<_> = self.calls.iter().collect();

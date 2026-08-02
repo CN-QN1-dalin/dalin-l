@@ -65,7 +65,7 @@ pub async fn build_task_store(
     Err(StoreFactoryError::UnknownScheme(url.to_string()))
 }
 
-/// 简短可读的后端名（用于启动日志）。
+/// Short, human-readable backend name (for startup logs).
 #[must_use]
 pub fn backend_name(url: &str) -> &'static str {
     let url = url.trim();

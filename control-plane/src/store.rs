@@ -41,10 +41,10 @@ pub trait TaskStore: Send + Sync {
     async fn subscribe(&self) -> broadcast::Receiver<TaskEvent>;
 }
 
-/// 跨节点事件线格式：携带 origin（发布者节点 id）用于去重。
+/// Cross-node wire event format: carries origin (publisher node id) for deduplication.
 ///
-/// 分布式 store（Redis / etcd）把本地产生的 `TaskEvent` 包成 `WireEvent` 发到外部通道，
-/// 其它节点收到后若 `origin != self` 才转发到本地 `broadcast`，避免回声回路。
+/// The distributed store (Redis / etcd) wraps locally produced `TaskEvent`s into `WireEvent`s sent to an external channel;
+/// other nodes forward them to the local `broadcast` only when `origin != self`, avoiding echo loops.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct WireEvent {
     pub origin: String,

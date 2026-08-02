@@ -23,7 +23,7 @@ use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 use tonic::async_trait;
 
-/// 派发到 Worker 的任务消息
+/// Task message dispatched to a Worker
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DispatchTask {
     pub task_id: String,
@@ -34,7 +34,7 @@ pub struct DispatchTask {
     pub args_json: Option<String>,
 }
 
-/// 任务结果（Worker → 控制面回传）
+/// Task result (returned from Worker → control plane)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DispatchResult {
     pub task_id: String,
@@ -43,19 +43,19 @@ pub struct DispatchResult {
     pub error: Option<String>,
 }
 
-/// 能力 → NATS subject 映射
+/// Capability → NATS subject mapping
 #[must_use]
 pub fn capability_subject(cap: &str) -> String {
     format!("dalin.task.{cap}")
 }
 
-/// 结果回传 subject
+/// Result return subject
 #[must_use]
 pub fn result_subject() -> &'static str {
     "dalin.task.result"
 }
 
-/// 派发总线 trait（可 NATS / 内存实现）
+/// Dispatch bus trait (NATS / in-memory implementations)
 #[async_trait]
 pub trait DispatchBroker: Send + Sync {
     /// 将任务派发到对应能力的 topic。
@@ -64,7 +64,7 @@ pub trait DispatchBroker: Send + Sync {
     async fn report_result(&self, result: &DispatchResult) -> Result<(), String>;
 }
 
-/// NATS 派发总线实现
+/// NATS dispatch bus implementation
 pub struct NatsDispatchBroker {
     nc: Arc<async_nats::Client>,
 }
@@ -96,7 +96,7 @@ impl DispatchBroker for NatsDispatchBroker {
     }
 }
 
-/// 内存派发总线（测试 / 单机模式）
+/// In-memory dispatch bus (testing / single-machine mode)
 pub struct InMemoryDispatchBroker {
     /// dispatch log: Vec of `DispatchTask` records dispatched
     pub history: std::sync::Mutex<Vec<DispatchTask>>,
@@ -133,7 +133,7 @@ impl DispatchBroker for InMemoryDispatchBroker {
 //  将 DispatchBroker 接入 submit_task 流程
 // ═══════════════════════════════
 
-/// 在 `submit_task` 流程中，完成 placement 后调用此函数。
+/// In the `submit_task` flow, call this function after placement is done.
 #[must_use]
 pub fn build_dispatch_task(
     task_id: &str,

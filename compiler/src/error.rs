@@ -13,7 +13,7 @@
 
 use std::fmt;
 
-/// 源码位置
+/// Source location
 #[derive(Debug, Clone)]
 pub struct SourceLocation {
     pub line: usize,
@@ -27,7 +27,7 @@ impl fmt::Display for SourceLocation {
     }
 }
 
-/// 七通道编译错误
+/// Seven-channel compilation error
 #[derive(Debug, Clone)]
 pub enum ChannelError {
     EffectViolation {

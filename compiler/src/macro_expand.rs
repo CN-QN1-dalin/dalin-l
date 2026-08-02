@@ -399,7 +399,7 @@ impl MacroExpander {
         }
     }
 
-    /// 执行完整的宏展开管线
+    /// Run the full macro expansion pipeline
     #[must_use]
     pub fn expand(&self, program: &Program) -> MacroExpansion {
         let mut expanded = program.clone();

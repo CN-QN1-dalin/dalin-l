@@ -26,7 +26,7 @@ impl SemVer {
         }
     }
 
-    /// 从字符串解析 "1.2.3"
+    /// Parse a version from a string like "1.2.3"
     pub fn parse(version_str: &str) -> Result<Self, String> {
         let parts: Vec<&str> = version_str.trim().split('.').collect();
         if parts.len() < 2 || parts.len() > 3 {
@@ -59,7 +59,7 @@ impl SemVer {
         })
     }
 
-    /// 比较两个版本: -1 (小于), 0 (等于), 1 (大于)
+    /// Compare two versions: -1 (less than), 0 (equal), 1 (greater than)
     #[allow(clippy::should_implement_trait)]
     #[must_use]
     pub fn cmp(&self, other: &SemVer) -> i32 {
@@ -72,7 +72,7 @@ impl SemVer {
         (self.patch as i32) - (other.patch as i32)
     }
 
-    /// 检查是否满足版本要求
+    /// Check whether the version requirement is satisfied
     #[must_use]
     pub fn satisfies(&self, requirement: &VersionRequirement) -> bool {
         match requirement {
@@ -108,7 +108,7 @@ impl std::fmt::Display for SemVer {
     }
 }
 
-/// 版本要求匹配模式
+/// Version requirement matching mode
 #[derive(Debug, Clone)]
 pub enum VersionRequirement {
     /// ==1.2.3
@@ -127,7 +127,7 @@ pub enum VersionRequirement {
 //  dalin.toml 解析
 // ═══════════════════════════════
 
-/// dalin.toml 包配置文件结构
+/// Structure of the dalin.toml package configuration file
 #[derive(Debug, Clone)]
 pub struct PackageManifest {
     pub name: String,
@@ -146,7 +146,7 @@ pub struct PackageManifest {
     pub macros: Vec<String>,
 }
 
-/// 单个依赖条目
+/// A single dependency entry
 #[derive(Debug, Clone)]
 pub struct DependencyEntry {
     pub version: String,
@@ -156,7 +156,7 @@ pub struct DependencyEntry {
     pub source: DependencySource,
 }
 
-/// 依赖来源
+/// Dependency source
 #[derive(Debug, Clone)]
 pub enum DependencySource {
     /// 本地路径依赖
@@ -185,7 +185,7 @@ impl Default for DependencyEntry {
     }
 }
 
-/// 简单 TOML 解析器 (仅支持 dalin.toml 的子集)
+/// Simple TOML parser (supports only a subset of dalin.toml)
 pub fn parse_package_manifest(content: &str) -> Result<PackageManifest, String> {
     let mut manifest = PackageManifest {
         name: String::new(),
@@ -319,7 +319,7 @@ fn parse_dep_entry(_key: &str, value: &str, _subsection: &Option<String>) -> Dep
 //  依赖解析器
 // ═══════════════════════════════
 
-/// 依赖图: 包名 → 包信息
+/// Dependency graph: package name → package info
 #[derive(Debug, Clone)]
 pub struct DependencyGraph {
     pub packages: HashMap<String, PackageInfo>,
@@ -341,12 +341,12 @@ impl DependencyGraph {
         }
     }
 
-    /// 添加一个已知包
+    /// Add a known package
     pub fn add_package(&mut self, name: String, info: PackageInfo) {
         self.packages.insert(name, info);
     }
 
-    /// 解析所有依赖 (简单的冲突解决)
+    /// Resolve all dependencies (simple conflict resolution)
     pub fn resolve_all(&mut self) -> Result<HashMap<String, SemVer>, String> {
         self.resolved.clear();
 
@@ -380,7 +380,7 @@ impl DependencyGraph {
     }
 }
 
-/// 包的元数据和可用版本
+/// Package metadata and available versions
 #[derive(Debug, Clone)]
 pub struct PackageInfo {
     pub name: String,
@@ -393,7 +393,7 @@ pub struct PackageInfo {
 //  包缓存
 // ═══════════════════════════════
 
-/// 包缓存项
+/// Package cache entry
 #[derive(Debug, Clone)]
 pub struct CachedPackage {
     pub name: String,
@@ -403,7 +403,7 @@ pub struct CachedPackage {
     pub content_hash: String,
 }
 
-/// 包管理器: 管理缓存和下载
+/// Package manager: manages caching and downloads
 #[derive(Debug, Clone)]
 pub struct PackageManager {
     pub cache_dir: String,
@@ -423,17 +423,17 @@ impl PackageManager {
         }
     }
 
-    /// 切换到本地开发模式
+    /// Switch to local development mode
     pub fn enable_dev_mode(&mut self) {
         self.dev_mode = true;
     }
 
-    /// 切换到远程仓库模式
+    /// Switch to remote registry mode
     pub fn disable_dev_mode(&mut self) {
         self.dev_mode = false;
     }
 
-    /// 获取包: 从缓存或远程下载
+    /// Fetch a package: from cache or remote download
     pub fn get_package(&mut self, name: &str, version: &SemVer) -> Result<CachedPackage, String> {
         // 检查缓存
         let cache_key = format!("{name}@{version}");
@@ -474,7 +474,7 @@ impl PackageManager {
         Ok(pkg)
     }
 
-    /// 获取缓存中的包列表
+    /// Get the list of packages in the cache
     #[must_use]
     pub fn list_cached(&self) -> Vec<String> {
         let mut pkgs: Vec<String> = self
@@ -486,7 +486,7 @@ impl PackageManager {
         pkgs
     }
 
-    /// 清除过期缓存 (> 1 hour old, simulated with threshold)
+    /// Clear stale cache entries (> 1 hour old, simulated with a threshold)
     pub fn clean_cache(&mut self, max_age_seconds: u64) -> usize {
         let now: u64 = 0; // In production, use std::time::SystemTime
         let original_len = self.cached_packages.len();

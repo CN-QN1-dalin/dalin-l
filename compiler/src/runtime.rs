@@ -254,24 +254,24 @@ impl Environment {
         }
     }
 
-    /// 进入新作用域
+    /// Enter a new scope
     pub fn push_scope(&mut self) {
         self.frames.push(HashMap::new());
     }
 
-    /// 退出作用域
+    /// Exit the current scope
     pub fn pop_scope(&mut self) {
         self.frames.pop();
     }
 
-    /// 在当前作用域定义变量
+    /// Define a variable in the current scope
     pub fn define(&mut self, name: &str, value: RuntimeValue) {
         if let Some(frame) = self.frames.last_mut() {
             frame.insert(name.to_string(), value);
         }
     }
 
-    /// 查找变量（从内向外）
+    /// Look up a variable (from innermost outward)
     pub fn lookup(&self, name: &str) -> RuntimeResult<RuntimeValue> {
         for frame in self.frames.iter().rev() {
             if let Some(val) = frame.get(name) {
@@ -281,12 +281,12 @@ impl Environment {
         Err(RuntimeError::UndefinedVariable(name.to_string()))
     }
 
-    /// 注册函数
+    /// Register a function
     pub fn register_fn(&mut self, def: FnDef) {
         self.functions.insert(def.name.clone(), def);
     }
 
-    /// 查找函数
+    /// Look up a function
     pub fn lookup_fn(&self, name: &str) -> RuntimeResult<&FnDef> {
         self.functions
             .get(name)
@@ -336,7 +336,7 @@ fn cognitive_loop_to_phase(cl: &CognitiveLoop) -> CognitiveLoopPhase {
 //  CognitiveLoopMachine — 认知循环执行器
 // ═══════════════════════════════════════════
 
-/// 认知循环机：管理 Perceive→Reason→Decide→Act→Loop 的相位切换
+/// Cognitive cycle machine: manages phase transitions of Perceive→Reason→Decide→Act→Loop
 #[derive(Debug, Clone)]
 pub struct CognitiveLoopMachine {
     pub current_phase: CognitiveLoopPhase,
@@ -358,14 +358,14 @@ impl CognitiveLoopMachine {
         }
     }
 
-    /// 进入下一认知相位
+    /// Advance to the next cognitive phase
     pub fn advance(&mut self, phase: CognitiveLoopPhase, fn_name: &str, elapsed_us: u64) {
         self.current_phase = phase.clone();
         self.phase_history
             .push((phase, fn_name.to_string(), elapsed_us));
     }
 
-    /// 检查调用方的认知阶段是否满足声明的阶段要求
+    /// Check whether the caller's cognitive phase satisfies the declared phase requirement
     pub fn check_phase(&self, declared: &CognitiveLoop, fn_name: &str) -> RuntimeResult<()> {
         let required_phase = cognitive_loop_to_phase(declared);
         // 如果当前为 Idle，任何认知循环都是合法的
@@ -417,8 +417,8 @@ impl GovernanceChecker {
         }
     }
 
-    /// 检查调用者是否有权执行目标治理级别的操作
-    /// 调用者级别必须 >= 目标级别
+    /// Check whether the caller is authorized to perform operations at the target governance level
+    /// The caller's level must be >= the target level
     pub fn check(&mut self, target: &GovernanceLevel, fn_name: &str) -> RuntimeResult<()> {
         let permitted = match (&self.session_level, target) {
             // Execute 可以执行任何级别
@@ -473,12 +473,12 @@ impl TimeMonitor {
         }
     }
 
-    /// 记录函数执行耗时
+    /// Record a function's execution time
     pub fn record(&mut self, fn_name: &str, elapsed_ms: u64) {
         self.fn_timings.push((fn_name.to_string(), elapsed_ms));
     }
 
-    /// 检查时间约束
+    /// Check time constraints
     pub fn check_constraint(
         &mut self,
         constraint: &TimeConstraint,
@@ -544,12 +544,12 @@ pub enum RuntimeEvent {
 //  Runtime — 主执行引擎
 // ═══════════════════════════════════════════
 
-/// Dalin L Runtime 执行引擎
+/// Dalin L Runtime execution engine
 ///
-/// 用法：
+/// Usage:
 /// ```ignore
 /// let mut rt = Runtime::new(GovernanceLevel::Execute);
-/// rt.load_program(&program);  // 注册所有函数
+/// rt.load_program(&program);  // register all functions
 /// let result = rt.call("main", &[])?;
 /// ```
 pub struct Runtime {
@@ -583,7 +583,7 @@ impl Runtime {
         }
     }
 
-    /// 将编译后的 Program 加载到运行时（注册所有函数）
+    /// Load a compiled Program into the runtime (registering all functions)
     pub fn load_program(&mut self, prog: &Program) {
         for stmt in &prog.statements {
             self.load_stmt(stmt);
@@ -651,7 +651,7 @@ impl Runtime {
         }
     }
 
-    /// 主入口：调用指定函数
+    /// Main entry point: invoke the specified function
     pub fn call(&mut self, fn_name: &str, args: &[RuntimeValue]) -> RuntimeResult<RuntimeValue> {
         let fn_def = self.env.lookup_fn(fn_name)?.clone();
         self.call_fn(&fn_def, args)
@@ -1356,7 +1356,7 @@ impl Runtime {
 //  RuntimeBuilder — 便利构造器
 // ═══════════════════════════════════════════
 
-/// 从编译结果构建运行时并执行主函数
+/// Build a runtime from compilation results and execute the main function
 pub fn run_compiled(prog: &Program, entry: &str) -> RuntimeResult<Vec<RuntimeEvent>> {
     let mut rt = Runtime::new(GovernanceLevel::Execute);
     rt.load_program(prog);
@@ -1368,7 +1368,7 @@ pub fn run_compiled(prog: &Program, entry: &str) -> RuntimeResult<Vec<RuntimeEve
 //  Phase G: Self-Healing & Self-Evolving Runtime
 // ═══════════════════════════════════════════
 
-/// 错误恢复模式
+/// Error recovery mode
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum RecoveryMode {
     /// 回退到上一认知相位重试（Act→Reason）
@@ -1389,7 +1389,7 @@ impl fmt::Display for RecoveryMode {
     }
 }
 
-/// 恢复事件日志
+/// Recovery event log
 #[derive(Debug, Clone)]
 pub struct RecoveryEvent {
     pub fn_name: String,
@@ -1399,7 +1399,7 @@ pub struct RecoveryEvent {
     pub timestamp_us: u64,
 }
 
-/// 进化事件日志
+/// Evolution event log
 #[derive(Debug, Clone)]
 pub struct EvolutionEvent {
     pub fn_name: String,
@@ -1409,7 +1409,7 @@ pub struct EvolutionEvent {
     pub new_code: String,
 }
 
-/// 自修复运行时 — 包装 Runtime 添加错误恢复能力
+/// Self-healing runtime — wraps Runtime and adds error recovery capability
 pub struct SelfHealingRuntime {
     pub inner: Runtime,
     pub recovery_mode: RecoveryMode,
@@ -1428,7 +1428,7 @@ impl SelfHealingRuntime {
         }
     }
 
-    /// 调用函数，含自修复逻辑
+    /// Invoke a function, with self-healing logic
     pub fn call_with_healing(
         &mut self,
         fn_name: &str,
@@ -1529,14 +1529,14 @@ impl SelfHealingRuntime {
         }
     }
 
-    /// 返回恢复事件总数
+    /// Return the total number of recovery events
     #[must_use]
     pub fn recovery_count(&self) -> usize {
         self.recovery_log.len()
     }
 }
 
-/// 置信度校准器 — 根据历史执行准确率动态调整 confidence
+/// Confidence calibrator — dynamically adjusts confidence based on historical execution accuracy
 pub struct ConfidenceCalibrator {
     calibration_table: HashMap<String, Vec<(f64, bool)>>, // (expected_confidence, success)
     #[allow(dead_code)]
@@ -1552,7 +1552,7 @@ impl ConfidenceCalibrator {
         }
     }
 
-    /// 记录执行结果
+    /// Record an execution result
     pub fn record_outcome(
         &mut self,
         fn_name: &str,
@@ -1566,7 +1566,7 @@ impl ConfidenceCalibrator {
         entry.push((expected_confidence, actual_success));
     }
 
-    /// 计算校准后的置信度
+    /// Compute calibrated confidence
     #[must_use]
     pub fn calibrated_confidence(&self, fn_name: &str) -> f64 {
         if let Some(entries) = self.calibration_table.get(fn_name) {
@@ -1582,7 +1582,7 @@ impl ConfidenceCalibrator {
         }
     }
 
-    /// 获取某个函数的历史统计
+    /// Get historical statistics for a function
     #[must_use]
     pub fn stats(&self, fn_name: &str) -> Option<(usize, f64)> {
         self.calibration_table.get(fn_name).map(|entries| {
@@ -1593,7 +1593,7 @@ impl ConfidenceCalibrator {
     }
 }
 
-/// 运行时代码进化器 — 允许 @llm 在运行时生成新代码
+/// Runtime code evolver — allows @llm to generate new code at runtime
 pub struct RuntimeSelfEvolution {
     qn1_generator: Qn1CodeGenerator,
     pub evolution_log: Vec<EvolutionEvent>,
@@ -1616,7 +1616,7 @@ impl RuntimeSelfEvolution {
         }
     }
 
-    /// 进化指定函数：调用 QN1 生成新代码并热替换
+    /// Evolve the specified function: call QN1 to generate new code and hot-swap it
     pub fn evolve(&mut self, fn_name: &str, prompt: &str) -> crate::qn1::Qn1GeneratedCode {
         use std::collections::HashMap;
         let ctx = crate::qn1::GenerationContext {
@@ -1640,7 +1640,7 @@ impl RuntimeSelfEvolution {
     }
 }
 
-/// 便利函数：创建自修复运行时并执行程序
+/// Convenience function: create a self-healing runtime and execute a program
 pub fn run_with_healing(
     prog: &Program,
     entry: &str,

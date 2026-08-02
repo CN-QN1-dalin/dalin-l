@@ -26,7 +26,7 @@
 /// ```
 use std::fmt;
 
-/// AB 实验中的组别标识
+/// Group identifier in an A/B experiment
 #[derive(Debug, Clone, PartialEq)]
 pub enum Group {
     Control,   // A 组（旧策略）
@@ -50,9 +50,9 @@ const W_MEMORY: f64 = 0.1;
 const W_COVERAGE: f64 = 0.1;
 const W_GOVERNANCE: f64 = 0.1;
 
-/// 进化评分
+/// Evolution score
 ///
-/// 每个字段对应一个评估维度，综合评分通过 `composite()` 计算。
+/// Each field corresponds to one evaluation dimension; the composite score is computed via `composite()`.
 #[derive(Debug, Clone)]
 pub struct EvolutionScore {
     /// 回归测试通过率 [0.0, 1.0]
@@ -68,9 +68,9 @@ pub struct EvolutionScore {
 }
 
 impl EvolutionScore {
-    /// 按设计文档的加权公式计算综合评分
+    /// Compute the composite score using the weighted formula from the design doc
     ///
-    /// 权重: [regression: 0.4, performance: 0.3, memory: 0.1, coverage: 0.1, governance: 0.1]
+    /// Weights: [regression: 0.4, performance: 0.3, memory: 0.1, coverage: 0.1, governance: 0.1]
     #[must_use]
     pub fn composite(&self) -> f64 {
         let regression_part = self.regression_pass_rate * W_REGRESSION;
@@ -93,15 +93,15 @@ impl EvolutionScore {
         (total * 10000.0).round() / 10000.0
     }
 
-    /// 检查综合评分是否通过阈值
+    /// Check whether the composite score passes the threshold
     ///
-    /// 默认阈值为 0.8
+    /// The default threshold is 0.8
     #[must_use]
     pub fn passes_threshold(&self, threshold: f64) -> bool {
         self.composite() >= threshold
     }
 
-    /// 检查是否通过默认阈值 0.8
+    /// Check whether the score passes the default threshold 0.8
     #[must_use]
     pub fn passes_default(&self) -> bool {
         self.passes_threshold(0.8)
@@ -123,7 +123,7 @@ impl Default for EvolutionScore {
 
 // ── AB Experiment ────────────────────────────────────────────────
 
-/// AB 实验配置
+/// A/B experiment configuration
 #[derive(Debug, Clone)]
 pub struct ABExperimentConfig {
     /// 实验唯一标识
@@ -140,7 +140,7 @@ pub struct ABExperimentConfig {
     pub samples: u64,
 }
 
-/// 实验结果
+/// Experiment result
 #[derive(Debug, Clone)]
 pub struct ABExperimentResult {
     /// 实验配置
@@ -175,7 +175,7 @@ impl fmt::Display for ABExperimentResult {
 
 // ═══════════════ EvolutionVerificationEngine ═══════════════
 
-/// 验证引擎 — 运行 AB 实验并生成总结报告
+/// Verification engine — runs A/B experiments and generates summary reports
 pub struct EvolutionVerificationEngine {
     experiments: Vec<ABExperimentResult>,
 }
@@ -194,18 +194,18 @@ impl EvolutionVerificationEngine {
         }
     }
 
-    /// 运行一次 AB 实验
+    /// Run one A/B experiment
     ///
-    /// 注意：实际的策略切换和测试执行由上层控制面调度。
-    /// 此方法模拟实验结果，用于验证评分和比较逻辑。
+    /// Note: actual strategy switching and test execution are scheduled by the upper control plane.
+    /// This method simulates experiment results to validate scoring and comparison logic.
     ///
     /// # Arguments
-    /// * `config` — 实验配置
-    /// * `group_a_avg` — A 组（旧策略）的平均综合得分（由上层提供）
-    /// * `group_b_avg` — B 组（新策略）的平均综合得分（由上层提供）
+    /// * `config` — experiment configuration
+    /// * `group_a_avg` — mean composite score of group A (old strategy; provided by the caller)
+    /// * `group_b_avg` — mean composite score of group B (new strategy; provided by the caller)
     ///
     /// # Returns
-    /// 实验结果或错误信息
+    /// Experiment result or error message
     pub fn run_experiment_with_scores(
         &mut self,
         config: ABExperimentConfig,
@@ -238,7 +238,7 @@ impl EvolutionVerificationEngine {
         Ok(result)
     }
 
-    /// 简化版：仅传入实验 ID 和两组得分
+    /// Simplified version: takes only an experiment ID and both group scores
     pub fn run_experiment(
         &mut self,
         experiment_id: &str,
@@ -258,7 +258,7 @@ impl EvolutionVerificationEngine {
         self.run_experiment_with_scores(config, group_a_score, group_b_score)
     }
 
-    /// 综合评估所有已运行实验
+    /// Comprehensively evaluate all completed experiments
     #[must_use]
     pub fn summary_report(&self) -> String {
         if self.experiments.is_empty() {
@@ -293,13 +293,13 @@ impl EvolutionVerificationEngine {
         report
     }
 
-    /// 返回已运行的实验数量
+    /// Return the number of completed experiments
     #[must_use]
     pub fn experiment_count(&self) -> usize {
         self.experiments.len()
     }
 
-    /// 获取最后一次实验结果
+    /// Get the last experiment result
     #[must_use]
     pub fn last_result(&self) -> Option<&ABExperimentResult> {
         self.experiments.last()

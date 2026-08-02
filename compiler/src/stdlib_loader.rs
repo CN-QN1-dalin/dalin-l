@@ -20,7 +20,7 @@ use std::path::{Path, PathBuf};
 //  配置解析
 // ═══════════════════════════════
 
-/// dalin.toml 中与标准库相关的配置
+/// Standard-library-related configuration in dalin.toml
 #[derive(Debug, Clone)]
 pub struct StdLibConfig {
     /// 标准库根目录路径（绝对路径或相对于项目根目录）
@@ -30,7 +30,7 @@ pub struct StdLibConfig {
 }
 
 impl StdLibConfig {
-    /// 从 `PackageManifest` 构建配置
+    /// Build the configuration from `PackageManifest`
     #[must_use]
     pub fn from_manifest(manifest: &PackageManifest) -> Self {
         let stdlib_path = PathBuf::from(
@@ -46,7 +46,7 @@ impl StdLibConfig {
         }
     }
 
-    /// 从 dalin.toml 文件内容解析（如果包含 stdlib 段落）
+    /// Parse from dalin.toml file content (if it contains a stdlib section)
     pub fn from_toml(content: &str, project_root: &Path) -> Result<Self, String> {
         let mut stdlib_path = PathBuf::from("stdlib");
         let mut prelude = vec!["prelude".to_string(), "core_types".to_string()];
@@ -112,7 +112,7 @@ pub struct StdLibLoader {
 }
 
 impl StdLibLoader {
-    /// 从项目根目录初始化加载器
+    /// Initialize the loader from the project root directory
     pub fn new(project_root: PathBuf) -> Result<Self, String> {
         let manifest_file = project_root.join("dalin.toml");
 
@@ -145,20 +145,20 @@ impl StdLibLoader {
         })
     }
 
-    /// 显式设置配置
+    /// Explicitly set the configuration
     #[must_use]
     pub fn with_config(mut self, config: StdLibConfig) -> Self {
         self.config = config;
         self
     }
 
-    /// 加载指定模块的 AST
+    /// Load the AST of the specified module
     ///
-    /// 查找逻辑：
-    ///   1. 检查缓存命中
-    ///   2. 在 `stdlib_path`/<`module_name>.dal` 查找
-    ///   3. 在 `stdlib_path/core`/<`module_name>.dal` 查找（子模块）
-    ///   4. 如果文件不存在，创建一个空的 Program 占位符
+    /// Lookup logic:
+    ///   1. Check the cache for a hit
+    ///   2. Look in `stdlib_path`/<`module_name>.dal`
+    ///   3. Look in `stdlib_path/core`/<`module_name>.dal` (submodule)
+    ///   4. If the file does not exist, create an empty Program placeholder
     pub fn load_module(&mut self, module_name: &str) -> Result<(), String> {
         // 缓存命中
         if self.cache.contains_key(module_name) {
@@ -240,7 +240,7 @@ impl StdLibLoader {
         Ok(())
     }
 
-    /// 一次性加载所有预置模块（prelude + `core_types` + 其他标记为 auto 的）
+    /// Load all preset modules at once (prelude + `core_types` + others marked auto)
     pub fn load_prelude(&mut self) -> Result<Vec<String>, String> {
         let mut loaded = Vec::new();
         // Clone to avoid borrow conflict with mutable self.load_module()
@@ -252,7 +252,7 @@ impl StdLibLoader {
         Ok(loaded)
     }
 
-    /// 加载全部标准库模块（扫描 `stdlib_path` 下的所有 .dal 文件）
+    /// Load all standard library modules (scan all .dal files under `stdlib_path`)
     pub fn load_all(&mut self) -> Result<Vec<String>, String> {
         if !self.config.stdlib_path.exists() {
             return Err(format!(
@@ -280,7 +280,7 @@ impl StdLibLoader {
         Ok(loaded)
     }
 
-    /// 将加载的所有标准库模块合并到当前程序中
+    /// Merge all loaded standard library modules into the current program
     pub fn merge_into_program(&mut self, target: &mut Program) -> Result<usize, String> {
         // 确保预置模块已加载
         self.load_prelude()?;
@@ -347,14 +347,14 @@ impl StdLibLoader {
         Ok(())
     }
 
-    /// 获取某个模块的 `TaskSpec` 列表（用于控制面调度）
+    /// Get the `TaskSpec` list of a module (used for control-plane scheduling)
     #[must_use]
     pub fn get_task_specs(&self, module_name: &str) -> Option<Vec<TaskSpec>> {
         let prog = self.cache.get(module_name)?;
         Some(crate::task_spec::from_program(prog))
     }
 
-    /// 获取所有已加载模块的统计信息
+    /// Get statistics for all loaded modules
     #[must_use]
     pub fn stats(&self) -> StdLibStats {
         StdLibStats {
@@ -370,7 +370,7 @@ impl StdLibLoader {
 //  工具函数：从 dalin.toml 读取 stdlib_path
 // ═══════════════════════════════
 
-/// 从 dalin.toml 中提取 `stdlib_path` 配置项
+/// Extract the `stdlib_path` config key from dalin.toml
 #[must_use]
 pub fn read_stdlib_path(project_root: &Path) -> Option<PathBuf> {
     let manifest = project_root.join("dalin.toml");

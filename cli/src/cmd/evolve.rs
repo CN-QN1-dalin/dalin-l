@@ -268,7 +268,7 @@ struct ABRanking {
     pub winner: String,
 }
 
-/// 输出完整的 Phase J 状态报告
+/// Print the full Phase J status report
 pub fn j_status_report() -> Result<String, String> {
     let mut engine = ErrorClusteringEngine::new();
     let test_errors = [

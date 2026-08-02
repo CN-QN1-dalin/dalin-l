@@ -8,7 +8,7 @@ use dalin_compiler::ast::{Expr, Program, Stmt};
 
 use crate::{BytecodeFunction, Opcode};
 
-/// AST → 字节码编译器
+/// AST → bytecode compiler
 pub struct BytecodeCompiler {
     /// 已编译的函数
     pub functions: Vec<BytecodeFunction>,
@@ -37,7 +37,7 @@ impl BytecodeCompiler {
         }
     }
 
-    /// 编译整个程序
+    /// Compile the entire program
     pub fn compile(&mut self, prog: &Program) -> Vec<BytecodeFunction> {
         self.functions.clear();
         self.start_function("__entry__");

@@ -37,7 +37,7 @@ impl BridgeMessage {
     }
 }
 
-/// 处理单条消息的业务逻辑（可扩展为调用 `DalinL` 解释器）
+/// Business logic for handling a single message (extensible to invoke the `DalinL` interpreter)
 pub fn handle_message(msg: &BridgeMessage) -> BridgeMessage {
     let payload = match msg.r#type.as_str() {
         "run" => {
@@ -144,7 +144,7 @@ pub fn handle_message(msg: &BridgeMessage) -> BridgeMessage {
     BridgeMessage::new(msg.id, "response", serde_json::json!({ "data": payload }))
 }
 
-/// 启动 Unix socket 服务器并监听连接
+/// Start a Unix socket server and listen for connections
 pub fn serve(socket_path: &str) -> Result<(), String> {
     // 清理旧 socket
     if std::path::Path::new(socket_path).exists() {

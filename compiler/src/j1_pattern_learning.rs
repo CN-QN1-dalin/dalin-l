@@ -26,7 +26,7 @@ use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::Path;
 
-/// 单条错误记录
+/// A single error record
 #[derive(Debug, Clone)]
 pub struct ErrorRecord {
     /// 唯一标识符
@@ -47,7 +47,7 @@ pub struct ErrorRecord {
     pub recovery_success: bool,
 }
 
-/// 从 DBSCAN 聚类中提取的修复模板
+/// Fix template extracted from DBSCAN clusters
 #[derive(Debug, Clone)]
 pub struct Template {
     /// 模板 ID
@@ -208,7 +208,7 @@ fn dbscan(embeddings: &[Vec<f32>], eps: f32, min_points: usize) -> Vec<Vec<usize
 
 // ── ErrorClusteringEngine ─────────────────────────────────────────
 
-/// 基于语义哈希的错误聚类引擎
+/// Semantic-hash-based error clustering engine
 pub struct ErrorClusteringEngine {
     /// 错误日志（追加不可变）
     errors: Vec<ErrorRecord>,
@@ -231,7 +231,7 @@ impl ErrorClusteringEngine {
         }
     }
 
-    /// 添加一条错误记录，同步更新倒排索引
+    /// Add an error record and update the inverted index
     pub fn add_error(&mut self, error: ErrorRecord) {
         let idx = self.errors.len();
         // 构建索引
@@ -246,26 +246,26 @@ impl ErrorClusteringEngine {
         self.errors.push(error);
     }
 
-    /// 返回当前错误总数
+    /// Return the current total number of errors
     #[must_use]
     pub fn error_count(&self) -> usize {
         self.errors.len()
     }
 
-    /// 计算错误的语义向量（hash-based embedding）
+    /// Compute an error's semantic vector (hash-based embedding)
     #[must_use]
     pub fn embed(&self, error: &ErrorRecord) -> Vec<f32> {
         embed_error(error, EMBED_DIM)
     }
 
-    /// 对当前所有错误进行嵌入并执行 DBSCAN 聚类
+    /// Embed all current errors and run DBSCAN clustering
     ///
     /// # Arguments
-    /// * `eps` — 邻域半径（余弦距离），越小簇越细
-    /// * `min_points` — 最小簇点数
+    /// * `eps` — neighborhood radius (cosine distance); smaller values yield finer clusters
+    /// * `min_points` — minimum points per cluster
     ///
     /// # Returns
-    /// 每个簇包含的错误索引列表
+    /// List of error indices contained in each cluster
     #[must_use]
     pub fn cluster(&self, eps: f32, min_points: usize) -> Vec<Vec<usize>> {
         if self.errors.len() < 2 {
@@ -276,9 +276,9 @@ impl ErrorClusteringEngine {
         dbscan(&embeddings, eps, min_points)
     }
 
-    /// 提取通用修复模板
+    /// Extract generic fix templates
     ///
-    /// 对每个 cluster 取关键词交集，归纳共性修复策略
+    /// For each cluster, intersect keywords to induce common fix strategies
     #[must_use]
     pub fn extract_templates(&self, clusters: &[Vec<usize>]) -> Vec<Template> {
         clusters
@@ -346,7 +346,7 @@ impl ErrorClusteringEngine {
             .collect()
     }
 
-    /// 将集群导出为 JSON Lines 修复模板，写入指定路径
+    /// Export clusters as JSON Lines fix templates, written to the given path
     pub fn export_templates_json(&self, output_path: &str) -> Result<(), String> {
         let clusters = if self.errors.len() >= 2 {
             let embeddings: Vec<Vec<f32>> = self.errors.iter().map(|e| self.embed(e)).collect();

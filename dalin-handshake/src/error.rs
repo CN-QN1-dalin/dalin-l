@@ -2,7 +2,7 @@
 
 use thiserror::Error;
 
-/// AHP 协议错误
+/// AHP protocol error
 #[derive(Error, Debug, Clone)]
 pub enum HandshakeError {
     #[error("Transport error: {0}")]
@@ -48,5 +48,5 @@ impl From<serde_json::Error> for HandshakeError {
     }
 }
 
-/// AHP 结果类型
+/// AHP result type
 pub type Result<T> = std::result::Result<T, HandshakeError>;

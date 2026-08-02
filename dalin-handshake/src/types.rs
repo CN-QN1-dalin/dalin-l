@@ -7,7 +7,7 @@ use std::time::Duration;
 //  标识符
 // ═════════════════════════════════════════════════════════════════
 
-/// Agent 唯一标识符
+/// Unique Agent identifier
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct AgentId(pub String);
 
@@ -16,7 +16,7 @@ impl AgentId {
         Self(id.into())
     }
 
-    /// 生成随机 Agent ID
+    /// Generate a random Agent ID
     #[must_use]
     pub fn generate() -> Self {
         Self(uuid::Uuid::new_v4().to_string())
@@ -29,7 +29,7 @@ impl std::fmt::Display for AgentId {
     }
 }
 
-/// 会话 ID
+/// Session ID
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct SessionId(pub String);
 
@@ -50,7 +50,7 @@ impl std::fmt::Display for SessionId {
     }
 }
 
-/// 消息 ID
+/// Message ID
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct MessageId(pub String);
 
@@ -75,7 +75,7 @@ impl MessageId {
 //  能力声明
 // ═════════════════════════════════════════════════════════════════
 
-/// Agent 能力声明
+/// Agent capability declaration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Capability {
     pub name: String,
@@ -107,7 +107,7 @@ impl Capability {
 //  传输层
 // ═════════════════════════════════════════════════════════════════
 
-/// 传输方式
+/// Transport mode
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum TransportKind {
     #[serde(rename = "file")]
@@ -138,7 +138,7 @@ impl std::fmt::Display for TransportKind {
 //  发现消息
 // ═════════════════════════════════════════════════════════════════
 
-/// Agent 广播的发现消息
+/// Discovery message broadcast by an Agent
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Discovery {
     pub protocol: String,
@@ -180,7 +180,7 @@ impl Discovery {
 //  消息
 // ═════════════════════════════════════════════════════════════════
 
-/// 消息类型
+/// Message type
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum MessageType {
     #[serde(rename = "discovery")]
@@ -203,7 +203,7 @@ pub enum MessageType {
     Disconnect,
 }
 
-/// 通用消息
+/// Generic message
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Message {
     pub id: MessageId,
@@ -241,7 +241,7 @@ impl Message {
         }
     }
 
-    /// 创建 ping 消息
+    /// Create a ping message
     #[must_use]
     pub fn ping(from: AgentId, to: AgentId, session: SessionId) -> Self {
         let mut msg = Self::new(MessageType::Ping, from, to, serde_json::json!({}));
@@ -249,7 +249,7 @@ impl Message {
         msg
     }
 
-    /// 创建 pong 消息（响应 ping）
+    /// Create a pong message (reply to a ping)
     #[must_use]
     pub fn pong(ping: &Message) -> Self {
         let mut msg = Self::new(
@@ -263,7 +263,7 @@ impl Message {
         msg
     }
 
-    /// 创建 data 消息
+    /// Create a data message
     #[must_use]
     pub fn data(
         from: AgentId,
@@ -283,7 +283,7 @@ impl Message {
 //  握手状态
 // ═════════════════════════════════════════════════════════════════
 
-/// 握手状态
+/// Handshake state
 #[derive(Debug, Clone, PartialEq)]
 pub enum HandshakeState {
     Init,
@@ -311,7 +311,7 @@ impl std::fmt::Display for HandshakeState {
 //  会话
 // ═════════════════════════════════════════════════════════════════
 
-/// 握手会话
+/// Handshake session
 #[derive(Debug, Clone)]
 pub struct Session {
     pub id: SessionId,
@@ -338,12 +338,12 @@ impl Session {
         }
     }
 
-    /// 更新心跳时间
+    /// Update the heartbeat time
     pub fn heartbeat(&mut self) {
         self.last_heartbeat = chrono::Utc::now();
     }
 
-    /// 检查心跳是否超时
+    /// Check whether the heartbeat has timed out
     #[must_use]
     pub fn is_heartbeat_expired(&self, max_missed: u32) -> bool {
         let elapsed = chrono::Utc::now() - self.last_heartbeat;
@@ -353,7 +353,7 @@ impl Session {
     }
 }
 
-/// Agent 发现信息
+/// Agent discovery info
 #[derive(Debug, Clone)]
 pub struct PeerInfo {
     pub agent_id: AgentId,
