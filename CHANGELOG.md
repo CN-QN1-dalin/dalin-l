@@ -1,5 +1,37 @@
 # Changelog
 
+## v3.0.0-rc.1 (2026-08-02) — 商业化就绪候选版
+
+### 🏗️ 工程化治理（商业化就绪）
+- **全量质量基线**: `cargo test --workspace` 690 tests 全绿（+288 vs dev 版），clippy 0 warnings，fmt clean
+- **可复现构建**: Cargo.lock 纳入版本控制（5 个 bin crate）
+- **冒烟测试套件**: 30 个带值断言的端到端测试（runtime/tests/smoke_test.rs）
+- **stdlib 运行时可用**: 新增 `Interpreter::load_stdlib()` — stdlib 68 模块从"仅可解析"到"真正可执行"
+
+### 🐛 关键修复
+- **Parser 死循环**: 错误恢复不推进 token → 主循环无限重试（畸形输入 CPU 100%）
+- **Parser 分号 bug**: `fn main() { let x = 42; }` 整个 fn 被静默丢弃
+- **错误恢复吞错**: compiler lib.rs + runtime run_source 均丢弃 parse errors，非法输入静默放行
+- **Borrow Checker 误报**: check_use 错误检查 immutable borrows → 普通读取误报冲突
+- **stdlib 解析**: 位运算/十六进制/模块路径语法补齐 + 13 处切片语法改写，68/68 文件零错误解析
+- **数组拼接/const 绑定**: 运行时补齐 `Array + Array` 与 `const` 环境注册
+
+### 🔬 语言能力补齐
+- 位运算运算符 (`& | ^ << >>`) token/lexer/parser 三层实现
+- 十六进制字面量 (`0xFF`) 支持
+- 模块路径调用 (`strings::func`) 解析支持
+- Borrow Checker 借用子系统（可变/不可变借用冲突检测）接入主路径
+
+### 📈 测试覆盖
+- 690 tests（was 402）: compiler 390 + runtime 92 + integration 等
+- 新增: borrow 子系统 6 tests、冒烟 30 tests、stdlib 解析守护、错误路径 7 tests
+
+### 📌 版本治理
+- 统一版本真相源: 所有 crate 版本归一到 workspace `3.0.0-dev`（dalin-handshake 已对齐）
+- 发布流程: 见 `docs/release-process.md`
+
+---
+
 ## v3.0.0-dev (2026-07-25)
 
 ### 🚀 新特性

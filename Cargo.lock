@@ -693,7 +693,7 @@ dependencies = [
 
 [[package]]
 name = "dalin-handshake"
-version = "1.0.0-dev"
+version = "3.0.0-dev"
 dependencies = [
  "chrono",
  "log",
