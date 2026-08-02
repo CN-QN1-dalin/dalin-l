@@ -1,5 +1,92 @@
-// Dalin L Standard Library — UUID generation stubs
+// Dalin L Standard Library — UUID v4 生成（真实实现，依赖 rand_int 运行时内建）
+//
+// 生成 RFC 4122 版本 4（随机）UUID：
+//   xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx
+// 其中 4 表示版本号，y ∈ {8,9,a,b} 表示 RFC 4122 变体。
 
-fn uuid_generate() @ pure @ cpu { return "00000000-0000-0000-0000-000000000000" }
-fn uuid_parse(s) @ pure @ cpu { return s }
-fn uuid_is_valid(uuid_str) @ pure @ cpu { return len(uuid_str) == 36 }
+// 单字节转两位十六进制
+fn hex2(n: int) -> string {
+    let table = "0123456789abcdef"
+    let hi = n / 16
+    let lo = n % 16
+    return str(table[hi]) + str(table[lo])
+}
+
+// 取一个 0..256 的随机字节
+fn rand_byte() -> int {
+    return rand_int(256)
+}
+
+fn uuid_generate() -> string {
+    let b0 = rand_byte()
+    let b1 = rand_byte()
+    let b2 = rand_byte()
+    let b3 = rand_byte()
+    let b4 = rand_byte()
+    let b5 = rand_byte()
+    let b6 = rand_byte()
+    let b7 = rand_byte()
+    let b8 = rand_byte()
+    let b9 = rand_byte()
+    let b10 = rand_byte()
+    let b11 = rand_byte()
+    let b12 = rand_byte()
+    let b13 = rand_byte()
+    let b14 = rand_byte()
+    let b15 = rand_byte()
+
+    // 版本位：字节 6 的高 4 位 = 0100（v4）；变体位：字节 8 高 2 位 = 10（RFC4122）
+    // 语言不支持位运算 &/|，用取模+加法等价实现：(b & 0x0F)|0x40 == (b%16)+64
+    let b6v = (b6 % 16) + 64
+    let b8v = (b8 % 64) + 128
+
+    return hex2(b0) + hex2(b1) + hex2(b2) + hex2(b3)
+         + "-"
+         + hex2(b4) + hex2(b5)
+         + "-"
+         + hex2(b6v) + hex2(b7)
+         + "-"
+         + hex2(b8v) + hex2(b9)
+         + "-"
+         + hex2(b10) + hex2(b11) + hex2(b12) + hex2(b13) + hex2(b14) + hex2(b15)
+}
+
+fn is_hex_char(c) -> bool {
+    let hexchars = "0123456789abcdefABCDEF"
+    let i = 0
+    let n = len(hexchars)
+    while i < n {
+        if c == hexchars[i] { return true }
+        let i = i + 1
+    }
+    return false
+}
+
+fn uuid_is_valid(uuid_str: string) -> bool {
+    if len(uuid_str) != 36 { return false }
+    let groups = [8, 4, 4, 4, 12]
+    let gi = 0
+    let pos = 0
+    while gi < 5 {
+        let g = groups[gi]
+        let j = 0
+        while j < g {
+            let c = uuid_str[pos]
+            if !is_hex_char(c) { return false }
+            let j = j + 1
+            let pos = pos + 1
+        }
+        // 组间分隔符（-），最后一组后无
+        if gi < 4 {
+            if uuid_str[pos] != '-' { return false }
+            let pos = pos + 1
+        }
+        let gi = gi + 1
+    }
+    return true
+}
+
+fn uuid_parse(s: string) -> result {
+    if !uuid_is_valid(s) { return [false, None, "invalid uuid"] }
+    return [true, s, None]
+}

@@ -729,6 +729,8 @@ version = "3.0.0"
 dependencies = [
  "criterion",
  "dalin-compiler",
+ "rand 0.8.7",
+ "sha2 0.10.9",
 ]
 
 [[package]]

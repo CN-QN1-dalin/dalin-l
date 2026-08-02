@@ -1,4 +1,8 @@
-// Dalin L — 日期时间模块
+// Dalin L — 日期时间模块（真实实现，依赖 sys_now 运行时内建）
+//
+// sys_now() 返回 Unix epoch 毫秒时间戳（UTC）。
+// 本模块在纯 Dalin 层面把毫秒时间戳推算为年/月/日/时/分/秒（UTC 历法），
+// 提供 now / from_timestamp / format / parse / diff_ms 等常用 API。
 
 struct DateTime {
     year: int,
@@ -10,36 +14,191 @@ struct DateTime {
     timestamp_ms: int
 }
 
-fn now() -> DateTime {
-    sys_now()
+// ── 历法基础 ──
+
+fn is_leap(y: int) -> bool {
+    if y % 400 == 0 { return true }
+    if y % 100 == 0 { return false }
+    return y % 4 == 0
 }
 
+fn days_in_month(year: int, month: int) -> int {
+    if month == 2 {
+        if is_leap(year) { return 29 }
+        return 28
+    }
+    if month == 4 || month == 6 || month == 9 || month == 11 { return 30 }
+    return 31
+}
+
+// 把毫秒时间戳转为 DateTime（UTC）
 fn from_timestamp(ms: int) -> DateTime {
-    sys_now()
+    let total_sec = ms / 1000
+    let sec_of_day = total_sec % 86400
+    let second = sec_of_day % 60
+    let minute = (sec_of_day / 60) % 60
+    let hour = (sec_of_day / 3600) % 24
+    let days = total_sec / 86400
+
+    // 从 1970 年起逐年扣除（有界 while：rem 严格递减保证终止）
+    let year = 1970
+    let rem = days
+    while rem >= 366 || (rem >= 365 && !is_leap(year)) {
+        let dim_year = if is_leap(year) { 366 } else { 365 }
+        let rem = rem - dim_year
+        let year = year + 1
+    }
+
+    // 年内剩余天数 → 月/日（advance 为表达式级 rebind，必落在循环体顶层以保证跨迭代可见）
+    let month = 1
+    let result_month = 1
+    while month <= 12 {
+        let dim = days_in_month(year, month)
+        let advance = rem >= dim
+        let rem = if advance { rem - dim } else { rem }
+        // advance 时进位月份；否则停在当前月（loop 计数 month 置 13 退出，真实月份记在 result_month）
+        let result_month = if advance { month + 1 } else { month }
+        let month = if advance { month + 1 } else { 13 }
+    }
+    let day = rem + 1
+
+    return DateTime {
+        year: year,
+        month: result_month,
+        day: day,
+        hour: hour,
+        minute: minute,
+        second: second,
+        timestamp_ms: ms
+    }
 }
 
-fn format(dt: DateTime, fmt: string) -> string {
-    ""
+fn now() -> DateTime {
+    let ms = sys_now()
+    return from_timestamp(ms)
 }
 
-fn parse(s: string, fmt: string) -> result {
-    err("stub")
+fn from_unix_sec(sec: int) -> DateTime {
+    return from_timestamp(sec * 1000)
+}
+
+// 当前时间戳（毫秒）
+fn timestamp_ms() -> int {
+    return sys_now()
+}
+
+// 当前时间戳（秒）
+fn timestamp() -> int {
+    return sys_now() / 1000
 }
 
 fn diff_ms(a: DateTime, b: DateTime) -> int {
-    a.timestamp_ms - b.timestamp_ms
+    return a.timestamp_ms - b.timestamp_ms
 }
 
-fn year() -> int { now().year }
-fn month() -> int { now().month }
-fn day() -> int { now().day }
-fn hour() -> int { now().hour }
-fn minute() -> int { now().minute }
-fn second() -> int { now().second }
-
-fn sys_now() -> DateTime {
-    sys_now_stub()
+fn diff_sec(a: DateTime, b: DateTime) -> int {
+    return (a.timestamp_ms - b.timestamp_ms) / 1000
 }
-fn sys_now_stub() -> DateTime {
-    DateTime(2026, 7, 25, 12, 0, 0, 0)
+
+// 便捷取当前分量
+fn year() -> int { return now().year }
+fn month() -> int { return now().month }
+fn day() -> int { return now().day }
+fn hour() -> int { return now().hour }
+fn minute() -> int { return now().minute }
+fn second() -> int { return now().second }
+
+// ── 格式化 ──
+
+fn pad2(n: int) -> string {
+    if n < 10 { return "0" + str(n) }
+    return str(n)
+}
+
+// 支持 %Y %m %d %H %M %S 占位符，其余字符原样输出
+fn format(dt: DateTime, fmt: string) -> string {
+    let result = ""
+    let i = 0
+    let n = len(fmt)
+    while i < n {
+        let c = fmt[i]
+        if c == '%' {
+            if i + 1 < n {
+                let next = fmt[i + 1]
+                if next == 'Y' { let result = result + str(dt.year) }
+                else if next == 'm' { let result = result + pad2(dt.month) }
+                else if next == 'd' { let result = result + pad2(dt.day) }
+                else if next == 'H' { let result = result + pad2(dt.hour) }
+                else if next == 'M' { let result = result + pad2(dt.minute) }
+                else if next == 'S' { let result = result + pad2(dt.second) }
+                else { let result = result + "%" + str(next) }
+                let i = i + 2
+            } else {
+                let result = result + str(c)
+                let i = i + 1
+            }
+        } else {
+            let result = result + str(c)
+            let i = i + 1
+        }
+    }
+    return result
+}
+
+fn format_iso(dt: DateTime) -> string {
+    return format(dt, "%Y-%m-%dT%H:%M:%SZ")
+}
+
+// ── 解析 ──
+
+// 子串（UTF-8 字符边界），用于解析定长 ISO 串
+fn substr(s: string, start: int, end: int) -> string {
+    let chars = []
+    let i = start
+    while i < end {
+        let chars = push(chars, s[i])
+        let i = i + 1
+    }
+    // 用 join 风格拼接
+    let result = ""
+    let j = 0
+    let n = len(chars)
+    while j < n {
+        let result = result + str(chars[j])
+        let j = j + 1
+    }
+    return result
+}
+
+// 解析 "YYYY-MM-DDTHH:MM:SSZ" 形式的 ISO 字符串，失败返回 err
+fn parse(s: string) -> result {
+    // 期望长度 20：YYYY-MM-DDTHH:MM:SSZ
+    if len(s) != 20 { return [false, None, "invalid datetime format"] }
+    let year = int(substr(s, 0, 4))
+    let month = int(substr(s, 5, 7))
+    let day = int(substr(s, 8, 10))
+    let hour = int(substr(s, 11, 13))
+    let minute = int(substr(s, 14, 16))
+    let second = int(substr(s, 17, 19))
+    if year <= 0 || month < 1 || month > 12 || day < 1 || day > 31 {
+        return [false, None, "invalid date component"]
+    }
+    // 精确回推时间戳：从 1970 起逐年累加（含闰年），再累加当年已过月天数
+    let days = 0
+    let y = 1970
+    while y < year {
+        let days = days + (if is_leap(y) { 366 } else { 365 })
+        let y = y + 1
+    }
+    let feb = if is_leap(year) { 29 } else { 28 }
+    let month_days = [0, 31, feb, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+    let acc = 0
+    let mi = 1
+    while mi < month {
+        let acc = acc + month_days[mi]
+        let mi = mi + 1
+    }
+    let total_days = days + acc + (day - 1)
+    let total_sec = total_days * 86400 + hour * 3600 + minute * 60 + second
+    return [true, from_unix_sec(total_sec), None]
 }

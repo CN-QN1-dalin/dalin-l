@@ -1,4 +1,12 @@
-// Dalin L Standard Library — HMAC (stub)
+// Dalin L Standard Library — HMAC-SHA256（真实实现，依赖 hmac_sha256 运行时内建）
+//
+// hmac_sha256(key, data) 在 Rust 侧按 RFC 2104 正确计算 HMAC，对 UTF-8 字符串输入完全正确。
 
-fn hmac_generate(key, data) @ pure @ cpu { return "" }
-fn hmac_verify(key, data, signature) @ pure @ cpu { return false }
+fn hmac_generate(key, data) @ pure @ cpu {
+    return hmac_sha256(key, data)
+}
+
+fn hmac_verify(key, data, signature) @ pure @ cpu {
+    let expected = hmac_sha256(key, data)
+    return expected == signature
+}

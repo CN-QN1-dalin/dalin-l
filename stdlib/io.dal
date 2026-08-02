@@ -1,26 +1,30 @@
-// @module io — I/O stubs (no system access in Dalin L runtime)
-// These are proper stubs that return safe defaults
+// @module io — 文件 I/O（真实实现，依赖 read_file / write_file 运行时内建）
 
 fn read_file(path) @ io {
-    return ""
+    return read_file(path)
 }
 
 fn write_file(path, content) @ io {
-    return null
+    return write_file(path, content)
 }
 
 fn print_stdout(msg) @ io {
-    return null
+    println(msg)
+    return None
 }
 
 fn println_stdout(msg) @ io {
-    return null
-}
-
-fn stdin_read_line() @ io {
-    return ""
+    println(msg)
+    return None
 }
 
 fn stdout_write(data) @ io {
-    return null
+    print(data)
+    return None
+}
+
+fn stdin_read_line() @ io {
+    // 运行时未接入 TTY；返回空串作为安全默认。
+    // 需要交互式 stdin 时由宿主（CLI/REPL）注入。
+    return ""
 }

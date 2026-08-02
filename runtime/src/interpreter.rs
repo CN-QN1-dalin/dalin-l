@@ -654,7 +654,7 @@ impl Interpreter {
         }
 
         // Builtins
-        let builtins: [&str; 16] = [
+        let builtins: [&str; 22] = [
             "println",
             "println!",
             "print",
@@ -671,6 +671,13 @@ impl Interpreter {
             "send",
             "recv",
             "spawn_task",
+            // 系统 / 密码学 / 文件系统 内建（stdlib 桩模块实质化依赖）
+            "sys_now",
+            "rand_int",
+            "sha256",
+            "hmac_sha256",
+            "read_file",
+            "write_file",
         ];
 
         // 1) 命名空间精确解析（module::func 优先，实现真正的命名空间隔离）
@@ -913,6 +920,119 @@ impl Interpreter {
                     let _ = tx.send(res.unwrap_or(Value::None));
                 });
                 Ok(Value::Task(child_id))
+            }
+            "sys_now" => {
+                use std::time::{SystemTime, UNIX_EPOCH};
+                let dur = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap_or_default();
+                Ok(Value::Int(dur.as_millis() as i64))
+            }
+            "rand_int" => {
+                use rand::Rng;
+                let mut rng = rand::thread_rng();
+                if args.is_empty() {
+                    return Err(RuntimeError("rand_int 需要 max 或 min,max".into()));
+                }
+                if args.len() == 1 {
+                    let max = match &args[0] {
+                        Value::Int(i) => *i,
+                        _ => return Err(RuntimeError("rand_int 的参数必须是整数".into())),
+                    };
+                    if max <= 0 {
+                        return Ok(Value::Int(0));
+                    }
+                    Ok(Value::Int(rng.gen_range(0..max)))
+                } else {
+                    let min = match &args[0] {
+                        Value::Int(i) => *i,
+                        _ => return Err(RuntimeError("rand_int 的参数必须是整数".into())),
+                    };
+                    let max = match &args[1] {
+                        Value::Int(i) => *i,
+                        _ => return Err(RuntimeError("rand_int 的参数必须是整数".into())),
+                    };
+                    if max <= min {
+                        return Ok(Value::Int(min));
+                    }
+                    Ok(Value::Int(rng.gen_range(min..max)))
+                }
+            }
+            "sha256" => {
+                use sha2::{Digest, Sha256};
+                let s = match &args[0] {
+                    Value::String(s) => s.clone(),
+                    other => format!("{other}"),
+                };
+                let mut hasher = Sha256::new();
+                hasher.update(s.as_bytes());
+                let out = hasher.finalize();
+                let hex: String = out.iter().map(|b| format!("{b:02x}")).collect();
+                Ok(Value::String(hex))
+            }
+            "hmac_sha256" => {
+                use sha2::{Digest, Sha256};
+                let key = match &args[0] {
+                    Value::String(s) => s.clone(),
+                    other => format!("{other}"),
+                };
+                let data = match &args[1] {
+                    Value::String(s) => s.clone(),
+                    other => format!("{other}"),
+                };
+                let block = 64usize;
+                let key_bytes = key.as_bytes();
+                // 1) 规范 key 到 64 字节：超长先哈希，不足右侧补 0
+                let mut k = vec![0u8; block];
+                if key_bytes.len() > block {
+                    let mut h = Sha256::new();
+                    h.update(key_bytes);
+                    let d = h.finalize();
+                    k[..32].copy_from_slice(&d);
+                } else {
+                    k[..key_bytes.len()].copy_from_slice(key_bytes);
+                }
+                // 2) ipad / opad
+                let mut inner = Vec::with_capacity(block + data.len());
+                let mut outer = Vec::with_capacity(block + 32);
+                for &kb in &k {
+                    inner.push(kb ^ 0x36);
+                    outer.push(kb ^ 0x5c);
+                }
+                inner.extend_from_slice(data.as_bytes());
+                let mut h1 = Sha256::new();
+                h1.update(&inner);
+                let inner_hash = h1.finalize();
+                outer.extend_from_slice(&inner_hash);
+                let mut h2 = Sha256::new();
+                h2.update(&outer);
+                let out = h2.finalize();
+                let hex: String = out.iter().map(|b| format!("{b:02x}")).collect();
+                Ok(Value::String(hex))
+            }
+            "read_file" => {
+                let path = match &args[0] {
+                    Value::String(s) => s.clone(),
+                    other => format!("{other}"),
+                };
+                match std::fs::read_to_string(&path) {
+                    Ok(content) => Ok(Value::String(content)),
+                    Err(e) => Err(RuntimeError(format!("read_file 失败: {e}"))),
+                }
+            }
+            "write_file" => {
+                let path = match &args[0] {
+                    Value::String(s) => s.clone(),
+                    other => format!("{other}"),
+                };
+                let content = match &args[1] {
+                    Value::String(s) => s.clone(),
+                    other => format!("{other}"),
+                };
+                match std::fs::write(&path, content) {
+                    Ok(()) => Ok(Value::Bool(true)),
+                    Err(_) => Ok(Value::Bool(false)),
+                }
             }
             _ => Err(RuntimeError(format!("Unknown builtin: {name}"))),
         }
@@ -1330,6 +1450,15 @@ impl Interpreter {
                     }
                 }
                 loaded += file_loaded;
+
+                // 注册 stdlib 内 struct 定义，使 `module::fn` 返回的 struct 字面量可构造
+                // （主程序通过 eval_stmt(Stmt::StructDef) 注册，stdlib 加载路径此前遗漏此分支）
+                for stmt in &prog.statements {
+                    if let Stmt::StructDef { name, fields, .. } = stmt {
+                        self.structs
+                            .insert(name.clone(), fields.iter().map(|f| f.name.clone()).collect());
+                    }
+                }
             }
         }
         // 仅保留唯一归属的裸名别名（冲突名必须显式 module::func）

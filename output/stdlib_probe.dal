@@ -1,0 +1,35 @@
+// 运行时探针：验证 datetime / uuid / hmac / io 实质化 + 新内建
+
+fn main() {
+    // ── datetime ──
+    let dt = now()
+    println("now        =", format_iso(dt))
+    println("year/month =", str(dt.year), "-", str(dt.month))
+    let parsed = parse("2026-08-02T12:00:00Z")
+    if len(parsed) > 0 && parsed[0] {
+        let pdt = parsed[1]
+        println("parse OK   =", format_iso(pdt))
+    } else {
+        println("parse FAIL =", str(parsed[2]))
+    }
+    let ft = from_timestamp(0)
+    println("epoch      =", format_iso(ft))
+
+    // ── uuid v4 ──
+    let u = uuid_generate()
+    println("uuid       =", u)
+    println("uuid valid =", str(uuid_is_valid(u)))
+    println("uuid bad   =", str(uuid_is_valid("not-a-uuid")))
+
+    // ── hmac-sha256 (RFC 4231 测试向量: key="key", msg="The quick brown fox jumps over the lazy dog") ──
+    let mac = hmac_generate("key", "The quick brown fox jumps over the lazy dog")
+    println("hmac       =", mac)
+    println("hmac match =", str(mac == "f7bc83f430538424b13298e6aa6fb143ef4d59a14946175997479dbc2d1a3cd8"))
+
+    // ── io ──
+    let path = "/tmp/dalin_stdlib_probe.txt"
+    let okw = write_file(path, "hello from dalin L 3.0\nline2")
+    println("write ok   =", str(okw))
+    let content = read_file(path)
+    println("read back  =", content)
+}
