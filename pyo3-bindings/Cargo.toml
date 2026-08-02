@@ -1,7 +1,9 @@
 [package]
 name="dalin-pyo3"
-version.workspace=true
-edition.workspace=true
+# 从 workspace exclude（需本机 Python dev 库才能链接），故不能继承 workspace 属性。
+# 版本号与 workspace 保持一致（3.0.0-dev），发版时同步更新。
+version="3.0.0-dev"
+edition="2024"
 
 [lib]
 name="dalin_pyo3"
