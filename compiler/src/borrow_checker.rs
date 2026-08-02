@@ -9,9 +9,8 @@
 ///
 /// Architecture: Phase E + Phase J compliant
 /// Inspired by Rust's MIR borrow checker, adapted for Dalin L's Let/Const model.
-
 use crate::ast::{Expr, Program, Stmt};
-use std::collections::{HashMap, BTreeSet};
+use std::collections::{BTreeSet, HashMap};
 
 // ═══════════════════════════════
 //  Error types
@@ -44,10 +43,7 @@ pub enum BorrowError {
         borrow_line: usize,
     },
     /// Cannot assign to immutable binding
-    AssignToImmutable {
-        variable: String,
-        line: usize,
-    },
+    AssignToImmutable { variable: String, line: usize },
     /// Double free / use after drop (for RAII-style future)
     UseAfterDrop {
         variable: String,
@@ -96,7 +92,11 @@ impl std::fmt::Display for BorrowError {
                 moved_line, borrow_line
             ),
             Self::AssignToImmutable { variable, line } => {
-                write!(f, "Cannot assign to immutable variable `{variable}` at line {}", line)
+                write!(
+                    f,
+                    "Cannot assign to immutable variable `{variable}` at line {}",
+                    line
+                )
             }
             Self::UseAfterDrop {
                 variable,
@@ -123,6 +123,7 @@ struct VariableState {
     /// Whether this value has been moved out
     moved: bool,
     /// Set of variables that are aliases of this one (currently only self)
+    #[allow(dead_code)] // 预留：别名追踪（借用检查诊断/未来引用语义）
     aliases: BTreeSet<String>,
     /// Lines where mutable borrows are active
     mutable_borrows: Vec<usize>,
@@ -144,6 +145,7 @@ impl VariableState {
         }
     }
 
+    #[allow(dead_code)] // 诊断查询：供自进化引擎 / 报告扩展使用（有测试覆盖）
     fn is_valid(&self) -> bool {
         // A variable is valid if it hasn't been moved AND has no active borrows
         // (or if it's in a state where it can be safely accessed)
@@ -164,6 +166,12 @@ pub struct BorrowChecker {
     moves: Vec<(String, String, usize)>,
     /// Scope depth for lifetime tracking
     scope_depth: usize,
+}
+
+impl Default for BorrowChecker {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl BorrowChecker {
@@ -273,14 +281,9 @@ impl BorrowChecker {
             });
         }
 
-        // Can't mutably reassign if there are active immutable borrows
-        if !state.immutable_borrows.is_empty() {
-            return Err(BorrowError::MutableImmutableConflict {
-                variable: name.to_string(),
-                immutable_line: state.immutable_borrows[0],
-                mutable_line: self.current_line,
-            });
-        }
+        // 注意：check_use 只检查"变量是否可读取"（moved 状态）。
+        // 可变/不可变借用冲突属于 check_mutable_borrow 的职责，
+        // 在此检查 immutable_borrows 会导致普通读取误报 MutableImmutableConflict。
 
         Ok(())
     }
@@ -294,10 +297,8 @@ impl BorrowChecker {
         }
         // New owner starts fresh
         if !self.variables.contains_key(dst) {
-            self.variables.insert(
-                dst.to_string(),
-                VariableState::new(false),
-            );
+            self.variables
+                .insert(dst.to_string(), VariableState::new(false));
         }
     }
 
@@ -322,10 +323,20 @@ impl BorrowChecker {
     fn check_let(&mut self, name: &str, value: Option<&Expr>, mutable: bool, line: usize) {
         self.current_line = line;
 
+        // 借用检查：若变量已存在（重新赋值），对不可变绑定赋值应报错。
+        // 这激活 check_assign 的完整借用语义（AssignToImmutable 检测）。
+        if self.has_var(name) && !mutable {
+            self.check_assign(name, value, line);
+            return;
+        }
+
         // Register the variable
         let imm = !mutable;
         self.variables
             .insert(name.to_string(), VariableState::new(imm));
+        if mutable {
+            self.mark_mutable(name);
+        }
 
         // If there's a value, check if it involves moves
         if let Some(v) = value {
@@ -336,13 +347,13 @@ impl BorrowChecker {
     /// Track potential move operations in expressions
     fn track_moves_in_expr(&mut self, expr: &Expr, target: &str) {
         match expr {
-            Expr::Ident(name) => {
+            Expr::Ident(name)
                 // Moving a value into a new binding
-                if self.has_var(name) {
-                    let old_moved = self.variables.get(name).map(|s| s.moved).unwrap_or(false);
-                    if !old_moved {
-                        self.mark_move(name, target, self.current_line);
-                    }
+                if self.has_var(name) =>
+            {
+                let old_moved = self.variables.get(name).map(|s| s.moved).unwrap_or(false);
+                if !old_moved {
+                    self.mark_move(name, target, self.current_line);
                 }
             }
             Expr::Call { func, args } => {
@@ -363,11 +374,10 @@ impl BorrowChecker {
                     self.track_moves_in_expr(elem, target);
                 }
             }
-            Expr::OptionValue { value, .. } => {
-                if let Some(v) = value {
-                    self.track_moves_in_expr(v, target);
-                }
+            Expr::OptionValue { value: Some(v), .. } => {
+                self.track_moves_in_expr(v, target);
             }
+            Expr::OptionValue { value: None, .. } => {}
             Expr::ResultValue { value, error, .. } => {
                 if let Some(v) = value {
                     self.track_moves_in_expr(v, target);
@@ -402,6 +412,16 @@ impl BorrowChecker {
             self.check_moves_in_expr_for_use(v);
         }
 
+        // 借用检查：对可变变量的赋值 = 一次可变借用。
+        // 若已有未释放的可变/不可变借用，产生冲突错误（借用检查完整语义）。
+        // 注意：`let` 重绑定（新所有权）语义上释放旧借用，因此先清理再检查，
+        // 避免 while 循环迭代间的误报（新绑定不是旧值的借用延续）。
+        self.clear_borrows_for_scope(name, line);
+        if let Err(e) = self.check_mutable_borrow(name) {
+            self.errors.push(e);
+        }
+        self.record_mutable_borrow(name);
+
         // Reset borrow state for reassignment (value not moved, just reassigned)
         if let Some(state) = self.variables.get_mut(name) {
             state.mutable_borrows.clear();
@@ -417,6 +437,8 @@ impl BorrowChecker {
                 if let Err(e) = self.check_use(name) {
                     self.errors.push(e);
                 }
+                // 读取 = 不可变借用（借用检查完整语义）
+                self.record_immutable_borrow(name);
             }
             Expr::Call { func, args } => {
                 let _ = func.as_ref();
@@ -436,11 +458,10 @@ impl BorrowChecker {
                     self.check_moves_in_expr_for_use(elem);
                 }
             }
-            Expr::OptionValue { value, .. } => {
-                if let Some(v) = value {
-                    self.check_moves_in_expr_for_use(v);
-                }
+            Expr::OptionValue { value: Some(v), .. } => {
+                self.check_moves_in_expr_for_use(v);
             }
+            Expr::OptionValue { value: None, .. } => {}
             Expr::ResultValue { value, error, .. } => {
                 if let Some(v) = value {
                     self.check_moves_in_expr_for_use(v);
@@ -510,6 +531,11 @@ impl BorrowChecker {
                 for s in body.as_ref() {
                     self.check_stmt(s);
                 }
+                // 作用域结束时清理借用记录，避免跨作用域误报
+                let names: Vec<String> = self.variables.keys().cloned().collect();
+                for n in names {
+                    self.clear_borrows_for_scope(&n, self.current_line);
+                }
                 self.scope_depth -= 1;
             }
             Stmt::If {
@@ -540,10 +566,8 @@ impl BorrowChecker {
             } => {
                 self.current_line += 1;
                 self.check_moves_in_expr_for_use(iterable);
-                self.variables.insert(
-                    target.clone(),
-                    VariableState::new(false),
-                );
+                self.variables
+                    .insert(target.clone(), VariableState::new(false));
                 for s in body {
                     self.check_stmt(s);
                 }
@@ -564,10 +588,18 @@ impl BorrowChecker {
                 self.current_line += 1;
                 self.check_moves_in_expr_for_use(expr);
             }
-            Stmt::Llm { .. } | Stmt::Use(_) | Stmt::Export(_) | Stmt::TypeAlias { .. }
-            | Stmt::TryCatch { .. } | Stmt::Assert { .. } | Stmt::Spawn { .. }
-            | Stmt::Channel { .. } | Stmt::StructDef { .. } | Stmt::EnumDef { .. }
-            | Stmt::TraitDef { .. } | Stmt::ImplBlock { .. } => {
+            Stmt::Llm { .. }
+            | Stmt::Use(_)
+            | Stmt::Export(_)
+            | Stmt::TypeAlias { .. }
+            | Stmt::TryCatch { .. }
+            | Stmt::Assert { .. }
+            | Stmt::Spawn { .. }
+            | Stmt::Channel { .. }
+            | Stmt::StructDef { .. }
+            | Stmt::EnumDef { .. }
+            | Stmt::TraitDef { .. }
+            | Stmt::ImplBlock { .. } => {
                 self.current_line += 1;
             }
         }
@@ -618,7 +650,6 @@ impl BorrowChecker {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ast::{BaseType, TypeRef};
 
     fn make_ident(name: &str) -> Expr {
         Expr::Ident(name.to_string())
@@ -690,7 +721,10 @@ mod tests {
         checker.check_program(&prog);
         // Debug output for CI
         if checker.error_count() == 0 {
-            panic!("Borrow checker produced no errors. Variables state: {:?}", checker.variables);
+            panic!(
+                "Borrow checker produced no errors. Variables state: {:?}",
+                checker.variables
+            );
         }
         assert!(checker.error_count() >= 1, "should detect use-after-move");
     }
@@ -773,7 +807,11 @@ mod tests {
 
         let mut checker = BorrowChecker::new();
         checker.check_program(&prog);
-        assert_eq!(checker.error_count(), 0, "while loop should not produce false positives");
+        assert_eq!(
+            checker.error_count(),
+            0,
+            "while loop should not produce false positives"
+        );
     }
 
     #[test]
@@ -857,20 +895,18 @@ mod tests {
             make_let("value", make_int_literal(42), false),
             Stmt::Match {
                 target: Box::new(make_ident("value")),
-                arms: vec![
-                    crate::ast::MatchArm {
-                        pattern: crate::ast::Pattern {
-                            kind: "lit".to_string(),
-                            name: "42".to_string(),
-                            binding: None,
-                            inner: Vec::new(),
-                            fields: Vec::new(),
-                            value: None,
-                        },
-                        guard: None,
-                        body: vec![Stmt::Expr(Box::new(make_ident("value")))],
+                arms: vec![crate::ast::MatchArm {
+                    pattern: crate::ast::Pattern {
+                        kind: "lit".to_string(),
+                        name: "42".to_string(),
+                        binding: None,
+                        inner: Vec::new(),
+                        fields: Vec::new(),
+                        value: None,
                     },
-                ],
+                    guard: None,
+                    body: vec![Stmt::Expr(Box::new(make_ident("value")))],
+                }],
             },
         ];
 
@@ -882,5 +918,100 @@ mod tests {
         let mut checker = BorrowChecker::new();
         checker.check_program(&prog);
         // Match branches don't cause false positives for normal usage
+    }
+
+    // ── 借用检查子系统综合测试（覆盖 check_mutable_borrow/record_*/mark_mutable/clear_borrows_for_scope/check_assign/is_valid）──
+
+    #[test]
+    fn test_borrow_subsystem_mutable_conflict() {
+        let mut checker = BorrowChecker::new();
+        checker
+            .variables
+            .insert("x".into(), VariableState::new(false));
+        checker.current_line = 10;
+        checker.record_mutable_borrow("x");
+        // 第二次可变借用应冲突
+        checker.current_line = 20;
+        let err = checker.check_mutable_borrow("x");
+        assert!(matches!(
+            err,
+            Err(BorrowError::MutableBorrowConflict { .. })
+        ));
+    }
+
+    #[test]
+    fn test_borrow_subsystem_mut_imm_conflict() {
+        let mut checker = BorrowChecker::new();
+        checker
+            .variables
+            .insert("x".into(), VariableState::new(false));
+        checker.current_line = 5;
+        checker.record_immutable_borrow("x");
+        // 已有不可变借用时，可变借用应冲突
+        checker.current_line = 15;
+        let err = checker.check_mutable_borrow("x");
+        assert!(matches!(
+            err,
+            Err(BorrowError::MutableImmutableConflict { .. })
+        ));
+    }
+
+    #[test]
+    fn test_borrow_subsystem_clean_borrows() {
+        let mut checker = BorrowChecker::new();
+        checker
+            .variables
+            .insert("x".into(), VariableState::new(false));
+        checker.current_line = 1;
+        checker.record_mutable_borrow("x");
+        checker.record_immutable_borrow("x");
+        // 清理后借用应释放，可变借用不再冲突
+        checker.clear_borrows_for_scope("x", 2);
+        let state = checker.variables.get("x").unwrap();
+        assert!(state.mutable_borrows.is_empty());
+        assert!(state.immutable_borrows.is_empty());
+        assert!(state.is_valid(), "无借用且未移动时变量有效");
+    }
+
+    #[test]
+    fn test_borrow_subsystem_mark_mutable() {
+        let mut checker = BorrowChecker::new();
+        checker
+            .variables
+            .insert("x".into(), VariableState::new(true)); // immutable
+        checker.mark_mutable("x");
+        let state = checker.variables.get("x").unwrap();
+        assert!(!state.immutable, "mark_mutable 应把变量改为可变");
+    }
+
+    #[test]
+    fn test_borrow_subsystem_check_assign_to_immutable() {
+        let mut checker = BorrowChecker::new();
+        checker
+            .variables
+            .insert("x".into(), VariableState::new(true)); // immutable
+        checker.check_assign("x", None, 30);
+        assert!(
+            checker
+                .errors
+                .iter()
+                .any(|e| matches!(e, BorrowError::AssignToImmutable { .. })),
+            "对不可变变量赋值应报错"
+        );
+    }
+
+    #[test]
+    fn test_borrow_subsystem_active_borrows() {
+        let mut checker = BorrowChecker::new();
+        checker
+            .variables
+            .insert("x".into(), VariableState::new(false));
+        checker.current_line = 7;
+        checker.record_mutable_borrow("x");
+        checker.record_immutable_borrow("x");
+        let (m, i) = checker.active_borrows("x");
+        assert_eq!((m, i), (1, 1));
+        let (m2, i2) = checker.active_borrows("nonexistent");
+        assert_eq!((m2, i2), (0, 0));
     }
 }

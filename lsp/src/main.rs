@@ -196,13 +196,19 @@ fn json_diagnostic(
     })
 }
 
+#[allow(dead_code)] // 预留 API：供 completion/semantic analysis 使用，当前主流程尚未接入
 fn extract_statements(content: &str) -> Vec<Stmt> {
-    // For simple positioning we just count lines; detailed extraction isn't needed yet
-    content
-        .lines()
-        .filter(|l| l.contains("fn ") || l.contains("let "))
-        .count();
-    Vec::new()
+    // 用真实解析器提取语句；解析失败时回退为空列表
+    let mut lex = lexer::Lexer::new(content);
+    let tokens = match lex.tokenize() {
+        Ok(t) => t,
+        Err(_) => return Vec::new(),
+    };
+    let mut parser = parser::Parser::new(tokens);
+    match parser.parse() {
+        Ok((prog, _)) => prog.statements,
+        Err(_) => Vec::new(),
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -998,6 +1004,7 @@ mod tests {
     #[test]
     fn test_extract_statements_with_fn_and_let() {
         let stmts = extract_statements("fn main() { let x = 42; }");
-        assert!(stmts.is_empty(), "Should return empty Vec (known behavior)");
+        assert!(!stmts.is_empty(), "Should extract the fn statement");
+        assert!(matches!(stmts[0], Stmt::Fn { .. }), "first stmt is a fn");
     }
 }

@@ -367,7 +367,7 @@ mod tests {
             .filter(|r| matches!(r.applies_mode, RecoveryMode::Fallback))
             .collect();
         assert!(
-            fallback_rules.len() >= 1,
+            !fallback_rules.is_empty(),
             "Fallback mode should be in the rules"
         );
     }

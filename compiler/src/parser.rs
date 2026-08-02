@@ -7,13 +7,12 @@ use crate::token::{
     TokenType::{
         And, Arrow, At, BitAnd, BitOr, BitXor, BoolLiteral, CharLiteral, Colon, Comma, Dot,
         DoubleArrow, DoubleColon, DoubleDot, DoubleEqual, Eof, Equal, FloatLiteral, Greater,
-        GreaterEqual, Ident, IntLiteral, KeywordAssert, KeywordAsync, KeywordCatch,
-        KeywordChannel, KeywordConst, KeywordElse, KeywordEnum, KeywordExport, KeywordFn,
-        KeywordFor, KeywordIf, KeywordImpl, KeywordIn, KeywordLet, KeywordMatch, KeywordMut,
-        KeywordReturn, KeywordSpawn, KeywordStruct, KeywordTrait, KeywordTry, KeywordType,
-        KeywordUse, KeywordWhile, LeftBrace, LeftBracket, LeftParen, Less, LessEqual, Minus,
-        Modulo, Not, NotEqual, Or, Pipe, Plus, RightBrace, RightBracket, RightParen, Semicolon,
-        Shl, Shr, Slash, Star, StringLiteral,
+        GreaterEqual, Ident, IntLiteral, KeywordAssert, KeywordAsync, KeywordCatch, KeywordChannel,
+        KeywordConst, KeywordElse, KeywordEnum, KeywordExport, KeywordFn, KeywordFor, KeywordIf,
+        KeywordImpl, KeywordIn, KeywordLet, KeywordMatch, KeywordMut, KeywordReturn, KeywordSpawn,
+        KeywordStruct, KeywordTrait, KeywordTry, KeywordType, KeywordUse, KeywordWhile, LeftBrace,
+        LeftBracket, LeftParen, Less, LessEqual, Minus, Modulo, Not, NotEqual, Or, Pipe, Plus,
+        RightBrace, RightBracket, RightParen, Semicolon, Shl, Shr, Slash, Star, StringLiteral,
     },
 };
 /// Dalin L — 递归下降语法分析器
@@ -1042,6 +1041,10 @@ impl Parser {
             if let Some(s) = self.parse_statement()? {
                 stmts.push(s);
             }
+            // 统一消费语句末尾的可选分号。
+            // 各关键字分支（let/return/if 等）本身不消费 ';'，
+            // 若不在此处理，分号会被后续 parse_statement 误判为表达式错误。
+            self.match_token(Semicolon);
         }
         if self.check(RightBrace) {
             self.advance();

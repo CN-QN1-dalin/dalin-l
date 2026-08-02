@@ -1691,6 +1691,17 @@ impl SevenChannelInferencer {
 mod tests {
     use super::*;
 
+    /// 七通道注解测试的返回元组别名（避免 clippy type_complexity）
+    type AnnotationTuple = (
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+    );
+
     #[test]
     fn test_effect_lattice() {
         assert!(Effect::Pure.leq(&Effect::Async));
@@ -2118,17 +2129,7 @@ mod tests {
     //  Phase C — Parser 注解解析测试
     // ═══════════════════════════════
 
-    fn parse_fn_all_annotations(
-        src: &str,
-    ) -> (
-        Option<String>,
-        Option<String>,
-        Option<String>,
-        Option<String>,
-        Option<String>,
-        Option<String>,
-        Option<String>,
-    ) {
+    fn parse_fn_all_annotations(src: &str) -> AnnotationTuple {
         use crate::ast::Stmt;
         use crate::lexer::Lexer;
         use crate::parser::Parser;

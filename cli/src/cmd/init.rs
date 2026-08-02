@@ -152,7 +152,7 @@ mod tests {
         let project_name = dir.join("git-project");
         let name = project_name.to_str().unwrap().to_string();
 
-        let result = run(&name, false, true);
+        let _result = run(&name, false, true);
         // Git init may fail in CI, that's acceptable
         // The function should still create files
         assert!(

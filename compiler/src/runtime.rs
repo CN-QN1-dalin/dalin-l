@@ -2351,22 +2351,6 @@ fn main() @ pure @ cpu {
         }
     }
 
-    /// Build a match arm with ident/binding pattern
-    fn match_arm_binding(name: &str, body: Vec<Stmt>) -> crate::ast::MatchArm {
-        crate::ast::MatchArm {
-            pattern: crate::ast::Pattern {
-                kind: "ident".to_string(),
-                name: name.to_string(),
-                binding: Some(name.to_string()),
-                inner: Vec::new(),
-                fields: Vec::new(),
-                value: None,
-            },
-            guard: None,
-            body,
-        }
-    }
-
     /// Build a match arm with constructor pattern (e.g., Some(v))
     fn match_arm_ctor(
         name: &str,

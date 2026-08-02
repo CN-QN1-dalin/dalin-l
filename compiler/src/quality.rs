@@ -930,7 +930,7 @@ mod tests {
         let score = analyzer.calc_score(&state, &stats);
 
         assert!(
-            score >= 0.0 && score <= 100.0,
+            (0.0..=100.0).contains(&score),
             "Score must be clamped to [0, 100]"
         );
     }

@@ -1073,7 +1073,16 @@ pub fn run_source(source: &str) -> Result<Vec<Value>, RuntimeError> {
     let mut lex = dalin_compiler::lexer::Lexer::new(source);
     let tokens = lex.tokenize().map_err(|e| RuntimeError(e.to_string()))?;
     let mut parser = dalin_compiler::parser::Parser::new(tokens);
-    let (prog, _errs) = parser.parse().map_err(|e| RuntimeError(e.to_string()))?;
+    let (prog, errs) = parser.parse().map_err(|e| RuntimeError(e.to_string()))?;
+    // 错误恢复模式下收集的语法错误必须上报，不能静默放行
+    if !errs.is_empty() {
+        let detail = errs
+            .iter()
+            .map(|e| e.to_string())
+            .collect::<Vec<_>>()
+            .join("; ");
+        return Err(RuntimeError(format!("parse errors: {detail}")));
+    }
     let mut interp = Interpreter::new();
     interp.interpret(&prog)
 }
@@ -1084,7 +1093,15 @@ pub fn run_source_with_tree(source: &str) -> Result<String, RuntimeError> {
     let mut lex = dalin_compiler::lexer::Lexer::new(source);
     let tokens = lex.tokenize().map_err(|e| RuntimeError(e.to_string()))?;
     let mut parser = dalin_compiler::parser::Parser::new(tokens);
-    let (prog, _errs) = parser.parse().map_err(|e| RuntimeError(e.to_string()))?;
+    let (prog, errs) = parser.parse().map_err(|e| RuntimeError(e.to_string()))?;
+    if !errs.is_empty() {
+        let detail = errs
+            .iter()
+            .map(|e| e.to_string())
+            .collect::<Vec<_>>()
+            .join("; ");
+        return Err(RuntimeError(format!("parse errors: {detail}")));
+    }
     let mut interp = Interpreter::new();
     interp.interpret(&prog)?;
     Ok(interp.describe_task_tree())

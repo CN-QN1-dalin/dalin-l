@@ -11,10 +11,10 @@ fn load_stdlib_sources() -> Vec<String> {
     if let Ok(dir) = base.read_dir() {
         for entry in dir.filter_map(|e| e.ok()) {
             let path = entry.path();
-            if path.extension().map_or(false, |ext| ext == "dal") {
-                if let Ok(src) = fs::read_to_string(&path) {
-                    sources.push(src);
-                }
+            if path.extension().is_some_and(|ext| ext == "dal")
+                && let Ok(src) = fs::read_to_string(&path)
+            {
+                sources.push(src);
             }
         }
     }
@@ -69,7 +69,10 @@ fn bench_type_check(c: &mut Criterion) {
             || {
                 let tokens = tokenize(&combined);
                 let mut parser = Parser::new(tokens);
-                parser.parse().expect("parse stdlib sources should succeed").0
+                parser
+                    .parse()
+                    .expect("parse stdlib sources should succeed")
+                    .0
             },
             |prog| {
                 let mut inf = SevenChannelInferencer::new();

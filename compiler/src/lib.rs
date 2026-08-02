@@ -131,14 +131,18 @@ pub fn compile_with_llm(src: &str) -> CompileResult {
     }
     // 打印自进化状态（开发/调试用）
     if !borrows.errors().is_empty() {
-        report.push_str(&format!("\n=== Self-Evolution Status: {} ===\n", evolution_engine.current_status()));
+        report.push_str(&format!(
+            "\n=== Self-Evolution Status: {} ===\n",
+            evolution_engine.current_status()
+        ));
     }
 
     CompileResult::Ok {
         program: expanded,
         report,
         specs,
-        errors: borrows.errors()
+        errors: borrows
+            .errors()
             .iter()
             .map(|e| ChannelError::BorrowCheckFailed {
                 location: crate::error::SourceLocation {
@@ -148,18 +152,21 @@ pub fn compile_with_llm(src: &str) -> CompileResult {
                 },
                 detail: e.to_string(),
             })
-            .chain(latency_result.errors.iter().map(|e| {
-                ChannelError::LatencyViolation {
-                    location: crate::error::SourceLocation {
-                        line: 0,
-                        column: 0,
-                        filename: "compile".into(),
-                    },
-                    declared_ms: 0,
-                    actual_ms: 0,
-                    detail: e.clone(),
-                }
-            }))
+            .chain(
+                latency_result
+                    .errors
+                    .iter()
+                    .map(|e| ChannelError::LatencyViolation {
+                        location: crate::error::SourceLocation {
+                            line: 0,
+                            column: 0,
+                            filename: "compile".into(),
+                        },
+                        declared_ms: 0,
+                        actual_ms: 0,
+                        detail: e.clone(),
+                    }),
+            )
             .collect::<Vec<_>>(),
     }
 }

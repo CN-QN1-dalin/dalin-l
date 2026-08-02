@@ -2,7 +2,7 @@
 use crate::token::{
     Token, TokenType,
     TokenType::{
-        And, Arrow, At, Attribute, BoolLiteral, BitAnd, BitOr, BitXor, CharLiteral, Colon, Comma,
+        And, Arrow, At, Attribute, BitAnd, BitOr, BitXor, BoolLiteral, CharLiteral, Colon, Comma,
         Dollar, Dot, DoubleArrow, DoubleColon, DoubleDot, DoubleEqual, Eof, Equal, FloatLiteral,
         Greater, GreaterEqual, Ident, IntLiteral, KeywordAssert, KeywordAsync, KeywordCatch,
         KeywordChannel, KeywordConst, KeywordElse, KeywordEnum, KeywordError, KeywordExport,
@@ -180,9 +180,7 @@ impl Lexer {
         let start = self.pos;
 
         // 十六进制字面量: 0x1F / 0xFF / 0x10
-        if self.current() == Some('0')
-            && (self.peek(1) == Some('x') || self.peek(1) == Some('X'))
-        {
+        if self.current() == Some('0') && (self.peek(1) == Some('x') || self.peek(1) == Some('X')) {
             self.advance(); // 0
             self.advance(); // x
             let hex_start = self.pos;

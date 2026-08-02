@@ -1048,7 +1048,7 @@ mod tests {
             "J1 should produce clusters from similar errors"
         );
         assert!(
-            templates.len() >= 1,
+            !templates.is_empty(),
             "J1 should extract at least 1 template from clusters"
         );
 
@@ -1063,7 +1063,7 @@ mod tests {
                 confidence_after: 0.9,
             });
         }
-        let j2_rules = j2_gen.infer_new_rules();
+        let _j2_rules = j2_gen.infer_new_rules();
         let j2_weights = j2_gen.update_calibrator_weights();
 
         assert!(
@@ -1171,7 +1171,7 @@ mod tests {
             .filter(|r| matches!(r.applies_mode, RecoveryMode::Fallback))
             .collect();
         assert!(
-            fallback_rules.len() >= 1,
+            !fallback_rules.is_empty(),
             "Fallback mode should be recognized as a rule"
         );
 
@@ -1180,7 +1180,7 @@ mod tests {
         assert_eq!(weights.len(), 7, "All 7 channels should be updated");
 
         // 所有权重在合法范围内
-        for (_, w) in &weights {
+        for w in weights.values() {
             assert!(*w >= 0.05 && *w <= 0.5, "weight {} out of bounds", w);
         }
     }
@@ -1391,8 +1391,8 @@ mod tests {
         // Either suggests recompilation or has rules worth tracking
         // The key assertion: strategy generation produced rules
         assert!(
-            strategy.known_rules().len() >= 0,
-            "Should track known rules"
+            !strategy.known_rules().is_empty(),
+            "Should track at least one known rule"
         );
         assert!(strategy.history_len() >= 15, "Should record all fixes");
     }
@@ -1446,7 +1446,7 @@ mod tests {
 
         let score = EvolutionScore {
             regression_pass_rate: if total_j1_clusters >= 2 { 1.0 } else { 0.7 },
-            performance_delta: avg_weight.min(0.5).max(-0.2),
+            performance_delta: avg_weight.clamp(-0.2, 0.5),
             memory_delta: 0.0,
             coverage_impact: (total_j2_rules as f64 / 10.0).min(1.0) * 2.0 - 1.0,
             governance_compliance: total_j2_rules > 0,

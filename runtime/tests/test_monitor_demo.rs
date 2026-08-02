@@ -53,5 +53,5 @@ fn main() @ pure @ cpu {
 }
 "#;
     let results = run_source(src).expect("Monitor demo should run without error");
-    assert!(results.len() > 0);
+    assert!(!results.is_empty());
 }

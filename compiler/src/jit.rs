@@ -1702,8 +1702,11 @@ mod tests {
 
     #[test]
     fn test_const_fold_unary_neg_float() {
-        let expr = unary_expr("-", float_lit(3.14));
-        assert_eq!(try_eval_constant(&expr), Some(ConstValue::Float(-3.14)));
+        let expr = unary_expr("-", float_lit(std::f64::consts::PI));
+        assert_eq!(
+            try_eval_constant(&expr),
+            Some(ConstValue::Float(-std::f64::consts::PI))
+        );
     }
 
     #[test]

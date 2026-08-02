@@ -140,12 +140,15 @@ impl SelfEvolutionEngine {
     }
 }
 
-/// ═══════════════════════════════════════════════════════
-/// 编译器集成扩展：在 compile_with_llm 中调用此引擎
-/// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
+// 编译器集成扩展：在 compile_with_llm 中调用此引擎
+// ═══════════════════════════════════════════════════════
 
 /// 将 borrow checker 的每个错误转化为自进化事件记录
-pub fn process_borrow_errors(checker: &crate::borrow_checker::BorrowChecker, engine: &mut SelfEvolutionEngine) {
+pub fn process_borrow_errors(
+    checker: &crate::borrow_checker::BorrowChecker,
+    engine: &mut SelfEvolutionEngine,
+) {
     for err in checker.errors() {
         engine.record_borrow_error(err, 0);
     }
@@ -178,7 +181,12 @@ pub fn try_self_evolve(engine: &mut SelfEvolutionEngine) -> Option<String> {
 
     // Step 3: 若有新规则且需要人工审批，返回提示
     let maybe_hot = engine.suggest_hot_recompile(3);
-    maybe_hot.map(|rules| format!("Self-evolution found {} potential rules to review", rules.len()))
+    maybe_hot.map(|rules| {
+        format!(
+            "Self-evolution found {} potential rules to review",
+            rules.len()
+        )
+    })
 }
 
 // ───────────────────────────────────────────────────────

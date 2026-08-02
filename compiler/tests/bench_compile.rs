@@ -203,7 +203,7 @@ fn bench_ty2_full_inference_fast() {
     // Type inference on a small program should complete quickly
     let start = Instant::now();
     let mut inferencer = TypeInferencer::new();
-    let types = inferencer.infer_program(&prog);
+    let _types = inferencer.infer_program(&prog);
     let elapsed = start.elapsed().as_micros();
 
     assert!(

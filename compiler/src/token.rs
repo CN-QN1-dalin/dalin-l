@@ -59,11 +59,11 @@ pub enum TokenType {
     And,
     Or,
     Not,
-    BitAnd,      // &
-    BitOr,       // |
-    BitXor,      // ^
-    Shl,         // <<
-    Shr,         // >>
+    BitAnd, // &
+    BitOr,  // |
+    BitXor, // ^
+    Shl,    // <<
+    Shr,    // >>
     PlusEqual,
     MinusEqual,
     StarEqual,

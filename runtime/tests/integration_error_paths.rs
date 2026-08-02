@@ -73,17 +73,15 @@ fn test_division_by_zero() {
 fn main() @ pure @ cpu { return div(10, 0) }";
     let result = run_source(src);
     // 除零应返回错误（不应 panic）
-    match &result {
-        Err(e) => {
-            let msg = e.0.to_lowercase();
-            assert!(
-                msg.contains("error") || msg.contains("division") || msg.contains("zero"),
-                "Division by zero error: {}",
-                msg
-            );
-        }
-        Ok(_) => {} // 如果运行时容忍除零，也可以
+    if let Err(e) = &result {
+        let msg = e.0.to_lowercase();
+        assert!(
+            msg.contains("error") || msg.contains("division") || msg.contains("zero"),
+            "Division by zero error: {}",
+            msg
+        );
     }
+    // 如果运行时容忍除零（Ok），也接受
 }
 
 #[test]

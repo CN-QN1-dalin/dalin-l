@@ -17,7 +17,7 @@ fn bench_run_source_multiple_calls() {
     use dalin_runtime::interpreter::run_source;
     for _ in 0..100 {
         let result = run_source(r#"let x: Int = 1; return x + 1"#);
-        assert!(result.is_ok() || matches!(result, Err(_)));
+        assert!(result.is_ok() || result.is_err());
     }
 }
 
@@ -83,5 +83,5 @@ fn run_task() @ pure @ cpu {
 "#;
 
     let result = run_source(source);
-    assert!(result.is_ok() || matches!(result, Err(_)));
+    assert!(result.is_ok() || result.is_err());
 }
