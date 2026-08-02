@@ -883,6 +883,16 @@ impl Interpreter {
                     Err(RuntimeError(format!("Index out of range: {i}")))
                 }
             }
+            // 字符串索引: s[i] → Char（UTF-8 边界内）
+            (Value::String(s), Value::Int(i)) => {
+                let chars: Vec<char> = s.chars().collect();
+                let i = *i as usize;
+                if i < chars.len() {
+                    Ok(Value::Char(chars[i]))
+                } else {
+                    Err(RuntimeError(format!("String index out of range: {i}")))
+                }
+            }
             _ => Err(RuntimeError("Invalid index operation".into())),
         }
     }
