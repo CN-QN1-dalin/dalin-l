@@ -126,7 +126,7 @@ impl Cacheable for String {
 /// Get or compile: check the cache first; on a hit, deserialize and return; otherwise run the compile function and write to the cache.
 ///
 /// The generic bound `T: Cacheable` ensures only serializable types can participate in caching.
-/// The cache format is determined by the `Cacheable` implementation (currently: Vec<u8>=identity, String=UTF-8).
+/// The cache format is determined by the `Cacheable` implementation (currently: `Vec<u8>`=identity, `String`=UTF-8).
 pub fn get_or_compile<F, T>(
     file_path: &Path,
     content: &str,

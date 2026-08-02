@@ -224,7 +224,9 @@ impl Vm {
         self.current_fn = 0;
 
         while self.running {
-            let func = &self.functions[self.current_fn].clone();
+            // 借用而非克隆：避免每条指令都深拷贝整个 BytecodeFunction（code+constants Vec）
+            // 这是执行热路径上最关键的开销修复（原为 O(n^2) 的隐式分配）。
+            let func = &self.functions[self.current_fn];
             if self.ip >= func.code.len() {
                 break;
             }
@@ -364,33 +366,18 @@ impl Vm {
 
             // 控制流
             Opcode::Jmp(offset) => {
-                let new_ip = if offset >= 0 {
-                    self.ip + offset as usize
-                } else {
-                    self.ip.saturating_sub((-offset) as usize)
-                };
-                self.ip = new_ip;
+                self.apply_jump(offset);
             }
             Opcode::JmpIf(offset) => {
                 let cond = self.pop_bool()?;
                 if cond {
-                    let new_ip = if offset >= 0 {
-                        self.ip + offset as usize
-                    } else {
-                        self.ip.saturating_sub((-offset) as usize)
-                    };
-                    self.ip = new_ip;
+                    self.apply_jump(offset);
                 }
             }
             Opcode::JmpIfNot(offset) => {
                 let cond = self.pop_bool()?;
                 if !cond {
-                    let new_ip = if offset >= 0 {
-                        self.ip + offset as usize
-                    } else {
-                        self.ip.saturating_sub((-offset) as usize)
-                    };
-                    self.ip = new_ip;
+                    self.apply_jump(offset);
                 }
             }
 
@@ -533,6 +520,16 @@ impl Vm {
         let a = self.stack.pop().ok_or(VmError::StackUnderflow)?;
         self.stack.push(Value::Bool(f(&a, &b)));
         Ok(())
+    }
+
+    /// 按偏移量跳转（正偏移向前，负偏移向后，saturating 防止下溢）
+    #[inline]
+    fn apply_jump(&mut self, offset: i16) {
+        if offset >= 0 {
+            self.ip += offset as usize;
+        } else {
+            self.ip = self.ip.saturating_sub((-offset) as usize);
+        }
     }
 
     fn pop_bool(&mut self) -> Result<bool, VmError> {
@@ -690,5 +687,48 @@ mod tests {
         );
         let mut vm = Vm::new(vec![f]);
         assert_eq!(vm.run().unwrap(), Value::Int(10));
+    }
+
+    /// 性能基准：长线性序列（1000 次加法）连续运行。
+    /// 同时守护正确性（Σ1..1000 = 500500）并报告吞吐，防止执行热路径回归
+    /// （原实现每条指令都克隆整个 BytecodeFunction，此测试使其暴露为显著开销）。
+    #[test]
+    fn perf_tight_arithmetic_loop() {
+        let n: i64 = 1000;
+        let mut code = vec![Opcode::LoadInt(0)];
+        for i in 1..=n {
+            code.push(Opcode::LoadInt(i));
+            code.push(Opcode::Add);
+        }
+        code.push(Opcode::Return);
+        let f = make_fn(code, vec![]);
+        let mut vm = Vm::new(vec![f]);
+        assert_eq!(vm.run().unwrap(), Value::Int(n * (n + 1) / 2));
+
+        // 吞吐基准（不设定硬时间预算，避免 CI 抖动；仅打印供人工观察）
+        const ROUNDS: u32 = 1000;
+        let start = std::time::Instant::now();
+        for _ in 0..ROUNDS {
+            let mut vm = Vm::new(vec![make_fn(
+                {
+                    let mut c = vec![Opcode::LoadInt(0)];
+                    for i in 1..=n {
+                        c.push(Opcode::LoadInt(i));
+                        c.push(Opcode::Add);
+                    }
+                    c.push(Opcode::Return);
+                    c
+                },
+                vec![],
+            )]);
+            assert_eq!(vm.run().unwrap(), Value::Int(n * (n + 1) / 2));
+        }
+        let elapsed = start.elapsed();
+        let ops = ROUNDS as u64 * (n as u64 * 2 + 1);
+        let mips = ops as f64 / elapsed.as_secs_f64() / 1e6;
+        eprintln!(
+            "[dlvm-perf] {ROUNDS} runs × {n} adds in {:.2?} → {:.1} M-op/s",
+            elapsed, mips
+        );
     }
 }

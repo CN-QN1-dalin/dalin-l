@@ -634,6 +634,23 @@ pub fn try_eval_constant(expr: &Expr) -> Option<ConstValue> {
         Expr::BoolLiteral(b) => Some(ConstValue::Bool(*b)),
         Expr::CharLiteral(c) => Some(ConstValue::Char(*c)),
         Expr::BinaryOp { left, op, right } => {
+            // 布尔短路：左操作数已能决定结果时，无需求值右操作数（即使右操作数不可常量折叠）
+            if op == "&&" {
+                let l = try_eval_constant(left)?;
+                if let ConstValue::Bool(false) = l {
+                    return Some(ConstValue::Bool(false));
+                }
+                let r = try_eval_constant(right)?;
+                return eval_binary(&l, op, &r);
+            }
+            if op == "||" {
+                let l = try_eval_constant(left)?;
+                if let ConstValue::Bool(true) = l {
+                    return Some(ConstValue::Bool(true));
+                }
+                let r = try_eval_constant(right)?;
+                return eval_binary(&l, op, &r);
+            }
             let l = try_eval_constant(left)?;
             let r = try_eval_constant(right)?;
             eval_binary(&l, op, &r)
@@ -643,6 +660,17 @@ pub fn try_eval_constant(expr: &Expr) -> Option<ConstValue> {
             eval_unary(op, &v)
         }
         _ => None,
+    }
+}
+
+/// 将常量值格式化为可拼接的显示字符串（用于混合类型字符串拼接）
+fn const_display(v: &ConstValue) -> String {
+    match v {
+        ConstValue::Int(n) => n.to_string(),
+        ConstValue::Float(f) => f.to_string(),
+        ConstValue::String(s) => s.clone(),
+        ConstValue::Bool(b) => b.to_string(),
+        ConstValue::Char(c) => c.to_string(),
     }
 }
 
@@ -657,6 +685,14 @@ fn eval_binary(l: &ConstValue, op: &str, r: &ConstValue) -> Option<ConstValue> {
             "!=" => Some(ConstValue::Bool(a != b)),
             _ => None,
         },
+        // 混合类型字符串拼接：String + X 或 X + String 经 display 格式化后拼接
+        // （保持操作数顺序：字符串在左则在前，在右则在后）
+        (ConstValue::String(a), other) if op == "+" => {
+            Some(ConstValue::String(format!("{a}{}", const_display(other))))
+        }
+        (other, ConstValue::String(a)) if op == "+" => {
+            Some(ConstValue::String(format!("{}{a}", const_display(other))))
+        }
         (ConstValue::Bool(a), ConstValue::Bool(b)) => match op {
             "&&" => Some(ConstValue::Bool(*a && *b)),
             "||" => Some(ConstValue::Bool(*a || *b)),
@@ -1732,6 +1768,57 @@ mod tests {
         );
         let expr = binary_expr(left, "-", int_lit(5));
         assert_eq!(try_eval_constant(&expr), Some(ConstValue::Int(16)));
+    }
+
+    #[test]
+    fn test_const_fold_short_circuit_and_false() {
+        // false && X（X 不可折叠）仍折叠为 false（左值短路）
+        let expr = binary_expr(bool_lit(false), "&&", Expr::Ident("x".to_string()));
+        assert_eq!(try_eval_constant(&expr), Some(ConstValue::Bool(false)));
+    }
+
+    #[test]
+    fn test_const_fold_short_circuit_or_true() {
+        // true || X（X 不可折叠）仍折叠为 true（左值短路）
+        let expr = binary_expr(bool_lit(true), "||", Expr::Ident("y".to_string()));
+        assert_eq!(try_eval_constant(&expr), Some(ConstValue::Bool(true)));
+    }
+
+    #[test]
+    fn test_const_fold_short_circuit_both_const() {
+        assert_eq!(
+            try_eval_constant(&binary_expr(bool_lit(true), "&&", bool_lit(false))),
+            Some(ConstValue::Bool(false))
+        );
+        assert_eq!(
+            try_eval_constant(&binary_expr(bool_lit(false), "||", bool_lit(true))),
+            Some(ConstValue::Bool(true))
+        );
+    }
+
+    #[test]
+    fn test_const_fold_mixed_string_concat() {
+        // String + X 与 X + String 经 display 格式化拼接后折叠
+        assert_eq!(
+            try_eval_constant(&binary_expr(str_lit("x"), "+", int_lit(1))),
+            Some(ConstValue::String("x1".into()))
+        );
+        assert_eq!(
+            try_eval_constant(&binary_expr(int_lit(1), "+", str_lit("y"))),
+            Some(ConstValue::String("1y".into()))
+        );
+        assert_eq!(
+            try_eval_constant(&binary_expr(str_lit("a"), "+", bool_lit(true))),
+            Some(ConstValue::String("atrue".into()))
+        );
+        assert_eq!(
+            try_eval_constant(&binary_expr(str_lit("v"), "+", Expr::CharLiteral('z'))),
+            Some(ConstValue::String("vz".into()))
+        );
+        assert_eq!(
+            try_eval_constant(&binary_expr(float_lit(1.5), "+", str_lit("f"))),
+            Some(ConstValue::String("1.5f".into()))
+        );
     }
 
     #[test]

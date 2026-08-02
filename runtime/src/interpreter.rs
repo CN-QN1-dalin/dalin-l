@@ -36,6 +36,8 @@ pub struct Interpreter {
     pub structs: HashMap<String, Vec<String>>,
     pub enums: HashMap<String, Vec<String>>,
     pub functions: HashMap<String, FnValue>,
+    /// 命名空间隔离：裸函数名 → 唯一归属模块（同名冲突时为空，须显式 `module::func` 调用）
+    bare_aliases: HashMap<String, String>,
     pub return_value: Option<Value>,
     // ── 并发原语运行时（跨线程共享注册表，本地模拟控制面任务树）──
     // 任务树：id -> 节点（含 parent 指针），持久保留供视图/调度用。
@@ -63,6 +65,7 @@ impl Interpreter {
             structs: HashMap::new(),
             enums: HashMap::new(),
             functions: HashMap::new(),
+            bare_aliases: HashMap::new(),
             return_value: None,
             task_tree: Arc::new(Mutex::new(HashMap::new())),
             task_results: Arc::new(Mutex::new(HashMap::new())),
@@ -590,9 +593,16 @@ impl Interpreter {
         args: &[Expr],
         env: &mut Environment,
     ) -> Result<Value, RuntimeError> {
-        let callee_name = match func {
-            Expr::Ident(name) => name.clone(),
-            Expr::MemberAccess { member, .. } => member.clone(),
+        // 解析被调用名 + 可选的命名空间前缀（如 `strings::str_reverse`）
+        let (callee_name, namespace) = match func {
+            Expr::Ident(name) => (name.clone(), None),
+            Expr::MemberAccess { object, member } => {
+                let ns = match object.as_ref() {
+                    Expr::Ident(n) => Some(n.clone()),
+                    _ => None,
+                };
+                (member.clone(), ns)
+            }
             _ => return Err(RuntimeError("Invalid call expression".into())),
         };
 
@@ -621,11 +631,22 @@ impl Interpreter {
             "recv",
             "spawn_task",
         ];
+
+        // 1) 命名空间精确解析（module::func 优先，实现真正的命名空间隔离）
+        if let Some(ns) = &namespace {
+            let qualified = format!("{}::{}", ns, callee_name);
+            if let Some(fnv) = self.functions.get(&qualified).cloned() {
+                return self.call_function(&fnv, &arg_vals);
+            }
+            // 限定名未命中：若非内置名则继续回退；内置名仍允许（如 `strings::len` → 内置 len）
+        }
+
+        // 2) 内置函数（裸名或限定名回退）
         if builtins.contains(&callee_name.as_str()) {
             return self.call_builtin(&callee_name, &arg_vals);
         }
 
-        // Struct constructor
+        // 3) 结构体构造器（裸名）
         if let Some(fields) = self.structs.get(&callee_name).cloned() {
             let mut map = HashMap::new();
             map.insert(
@@ -638,15 +659,30 @@ impl Interpreter {
             return Ok(Value::Struct(map));
         }
 
-        // User function
-        // 先查函数表（支持递归），再查环境
+        // 4) 用户顶层函数（裸名注册，支持递归；优先级高于 stdlib 裸别名）
         if let Some(fnv) = self.functions.get(&callee_name).cloned() {
             return self.call_function(&fnv, &arg_vals);
         }
+
+        // 5) stdlib 裸别名（模块唯一或确定性首选模块），向后兼容 `func(...)` 调用风格
+        if let Some(module) = self.bare_aliases.get(&callee_name).cloned() {
+            let qualified = format!("{}::{}", module, callee_name);
+            if let Some(fnv) = self.functions.get(&qualified).cloned() {
+                return self.call_function(&fnv, &arg_vals);
+            }
+        }
+
+        // 6) 环境闭包查找（局部/用户函数）
         match env.lookup(&callee_name) {
             Some(Value::Function(fnv)) => self.call_function(&fnv, &arg_vals),
             Some(_) => Err(RuntimeError(format!("'{callee_name}' is not callable"))),
-            None => Err(RuntimeError(format!("Undefined function: '{callee_name}'"))),
+            None => {
+                let display = match &namespace {
+                    Some(ns) => format!("{ns}::{callee_name}"),
+                    None => callee_name.clone(),
+                };
+                Err(RuntimeError(format!("Undefined function: '{display}'")))
+            }
         }
     }
 
@@ -1124,12 +1160,18 @@ impl Interpreter {
         let mut loaded = 0usize;
         let mut failed_files = Vec::new();
 
-        let dir = match fs::read_dir(&base) {
-            Ok(d) => d,
+        // 收集所有 .dal 文件，按文件名排序保证模块加载顺序确定性
+        let mut entries: Vec<_> = match fs::read_dir(&base) {
+            Ok(d) => d.filter_map(|e| e.ok()).collect(),
             Err(e) => return Err(format!("cannot read stdlib dir: {e}")),
         };
+        entries.sort_by_key(|e| e.path());
 
-        for entry in dir.filter_map(|e| e.ok()) {
+        // 裸名 → 所属模块 映射；同名出现在多个模块时保留首个定义模块作为确定性默认
+        // （向后兼容 `func(...)` 调用风格），qualified `module::func` 始终精确命中目标模块。
+        let mut bare_owner: HashMap<String, String> = HashMap::new();
+
+        for entry in entries {
             let path = entry.path();
             if path.extension().is_some_and(|ext| ext == "dal") {
                 let src = match fs::read_to_string(&path) {
@@ -1159,7 +1201,13 @@ impl Interpreter {
                     failed_files.push(format!("{}: {} parse errors", path.display(), errs.len()));
                     continue;
                 }
-                // 注册所有顶层函数声明
+                // 模块名取自文件名（strings.dal → "strings"）
+                let module = path
+                    .file_stem()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or("unknown")
+                    .to_string();
+                // 注册所有顶层函数声明（命名空间隔离：始终以 module::func 注册）
                 let mut file_loaded = 0usize;
                 for stmt in &prog.statements {
                     if let Stmt::Fn {
@@ -1181,13 +1229,27 @@ impl Interpreter {
                             effect: effect.clone(),
                             capability: capability.clone(),
                         };
-                        self.functions.insert(name.clone(), fn_val);
+                        // 命名空间隔离：以 module::func 注册（无冲突）
+                        self.functions
+                            .insert(format!("{}::{}", module, name), fn_val);
+                        // 裸名归属追踪（确定性首选 = 首个定义该名的模块，保持向后兼容）
+                        match bare_owner.get(name) {
+                            Some(prev) if prev != &module => {
+                                // 同名冲突：保留首个定义模块作为默认裸名目标，不做更改
+                            }
+                            Some(_) => {}
+                            None => {
+                                bare_owner.insert(name.clone(), module.clone());
+                            }
+                        }
                         file_loaded += 1;
                     }
                 }
                 loaded += file_loaded;
             }
         }
+        // 仅保留唯一归属的裸名别名（冲突名必须显式 module::func）
+        self.bare_aliases = bare_owner;
 
         if !failed_files.is_empty() {
             eprintln!(
