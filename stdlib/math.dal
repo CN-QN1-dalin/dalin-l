@@ -1,15 +1,21 @@
 // @module math — real implementations for mathematical operations
 
+// 牛顿-拉弗森求平方根，迭代到浮点不动点。
+//
+// 注意：收敛判据不能用 1e-6 之类的松阈值 —— 牛顿法是二次收敛的，
+// 在 |diff| < 1e-6 处停下会残留约 diff²/(2√x) 的误差（sqrt(16) 会返回
+// 4.000000000000051 而不是 4.0）。这里改为迭代到 better == guess
+// （机器精度不动点），并保留迭代上限防止相邻浮点间振荡导致死循环。
 fn sqrt(x) @ pure @ cpu {
     if x < 0 { return -1.0 }
     if x == 0 { return 0.0 }
-    let guess = 1.0
+    // 初值取 x 本身对大数收敛更快；小于 1 时取 1.0 避免初值过小
+    let guess = x
+    if guess < 1.0 { let guess = 1.0 }
     let i = 0
     while i < 100 {
         let better = (guess + x / guess) / 2.0
-        let diff = better - guess
-        let abs_diff = abs(diff)
-        if abs_diff < 0.000001 { return better }
+        if better == guess { return better }
         let guess = better
         let i = i + 1
     }

@@ -142,6 +142,12 @@ pub enum Expr {
         value: Option<Box<Expr>>,
         error: Option<Box<Expr>>,
     },
+    /// 结构体字面量：`Point { x: 1, y: 2 }`
+    /// 字段顺序保留源码书写顺序，供求值与诊断使用。
+    StructLiteral {
+        name: String,
+        fields: Vec<(String, Expr)>,
+    },
     /// if/match 作为表达式（从语句转换而来）
     IfExpr(Box<Expr>, Box<Expr>, Box<Expr>), // (condition, then, else)
     MatchExpr(Box<Expr>, Vec<MatchArm>), // (target, arms)

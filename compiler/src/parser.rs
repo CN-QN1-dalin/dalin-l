@@ -94,6 +94,12 @@ pub struct Parser {
     tokens: Vec<Token>,
     pos: usize,
     errors: Vec<ParseError>,
+    /// 结构体字面量抑制标志。
+    ///
+    /// `if cond { .. }` / `while cond { .. }` / `for x in it { .. }` / `match t { .. }`
+    /// 的头部表达式后面紧跟的 `{` 永远是块的开始，不能被当成 `Ident { field: .. }`。
+    /// 与 Rust 的 `no_struct_literal` 限制同源。
+    no_struct_lit: bool,
 }
 
 impl Parser {
@@ -103,7 +109,17 @@ impl Parser {
             tokens,
             pos: 0,
             errors: Vec::new(),
+            no_struct_lit: false,
         }
+    }
+
+    /// 在抑制结构体字面量的上下文中解析表达式（if/while/for/match 头部）。
+    fn parse_expr_no_struct(&mut self) -> Result<Expr, ParseError> {
+        let prev = self.no_struct_lit;
+        self.no_struct_lit = true;
+        let result = self.parse_expression();
+        self.no_struct_lit = prev;
+        result
     }
 
     /// Get all collected parse errors
@@ -754,7 +770,7 @@ impl Parser {
     }
 
     fn parse_if(&mut self) -> Result<Stmt, ParseError> {
-        let condition = Box::new(self.parse_expression()?);
+        let condition = Box::new(self.parse_expr_no_struct()?);
         let then_body = self.parse_block()?;
         let else_body = if self.match_token(KeywordElse) {
             if self.check(KeywordIf) {
@@ -774,7 +790,7 @@ impl Parser {
     }
 
     fn parse_while(&mut self) -> Result<Stmt, ParseError> {
-        let condition = Box::new(self.parse_expression()?);
+        let condition = Box::new(self.parse_expr_no_struct()?);
         let body = self.parse_block()?;
         Ok(Stmt::While { condition, body })
     }
@@ -782,7 +798,7 @@ impl Parser {
     fn parse_for(&mut self) -> Result<Stmt, ParseError> {
         let target = self.expect(Ident, "loop variable")?.value.clone();
         self.expect(KeywordIn, "'in'")?;
-        let iterable = Box::new(self.parse_expression()?);
+        let iterable = Box::new(self.parse_expr_no_struct()?);
         let body = self.parse_block()?;
         Ok(Stmt::For {
             target,
@@ -792,7 +808,7 @@ impl Parser {
     }
 
     fn parse_match(&mut self) -> Result<Stmt, ParseError> {
-        let target = Box::new(self.parse_expression()?);
+        let target = Box::new(self.parse_expr_no_struct()?);
         self.expect(LeftBrace, "'{'")?;
         let mut arms = Vec::new();
         while !self.check(RightBrace) && !self.check(Eof) {
@@ -1337,6 +1353,44 @@ impl Parser {
         }
     }
 
+    /// 前瞻判定紧跟的 `{` 是否为结构体字面量体。
+    ///
+    /// 只接受两种确定形态，避免与块表达式抢词：
+    /// - `{ }`            → 无字段结构体
+    /// - `{ ident : ...`  → 首个字段是 `名字: 值`
+    ///
+    /// 调用方须先确认 `self.check(LeftBrace)`。
+    fn looks_like_struct_literal(&self) -> bool {
+        if self.peek(1).token_type == RightBrace {
+            return true;
+        }
+        self.peek(1).token_type == Ident && self.peek(2).token_type == Colon
+    }
+
+    /// 解析结构体字面量体：`{ field: expr, ... }`（`name` 已被消费）。
+    fn parse_struct_literal(&mut self, name: String) -> Result<Expr, ParseError> {
+        self.expect(LeftBrace, "'{'")?;
+        let mut fields: Vec<(String, Expr)> = Vec::new();
+
+        while !self.check(RightBrace) && !self.check(Eof) {
+            let field_tok = self.expect(Ident, "field name")?;
+            self.expect(Colon, "':' after field name")?;
+            // 字段值处于花括号内，结构体字面量在此重新允许（支持嵌套构造）
+            let prev = self.no_struct_lit;
+            self.no_struct_lit = false;
+            let value = self.parse_expression();
+            self.no_struct_lit = prev;
+            fields.push((field_tok.value, value?));
+
+            if !self.match_token(Comma) {
+                break;
+            }
+        }
+
+        self.expect(RightBrace, "'}' to close struct literal")?;
+        Ok(Expr::StructLiteral { name, fields })
+    }
+
     fn parse_primary(&mut self) -> Result<Expr, ParseError> {
         let tok = self.current().clone();
 
@@ -1472,6 +1526,14 @@ impl Parser {
         // Identifier / call / member access / index
         if tok.token_type == Ident {
             self.advance();
+
+            // 结构体字面量：`Point { x: 1, y: 2 }`
+            // 仅在非抑制上下文、且后续 token 形态确为 `{ }` 或 `{ ident : ...` 时才认，
+            // 否则退回把 `{` 交给外层当块处理（保持 `if x {`、`fn f() {` 等语义不变）。
+            if !self.no_struct_lit && self.check(LeftBrace) && self.looks_like_struct_literal() {
+                return self.parse_struct_literal(tok.value.clone());
+            }
+
             let mut obj = Expr::Ident(tok.value.clone());
 
             // 模块路径：mod::func / mod::sub::func
@@ -1723,6 +1785,13 @@ fn expr_to_string(expr: &Expr, _indent: usize) -> String {
         Expr::BoolLiteral(v) => format!("Bool({v})"),
         Expr::CharLiteral(v) => format!("Char({v:?})"),
         Expr::Ident(v) => format!("Ident({v})"),
+        Expr::StructLiteral { name, fields } => {
+            let parts: Vec<String> = fields
+                .iter()
+                .map(|(k, v)| format!("{k}: {}", expr_to_string(v, 0)))
+                .collect();
+            format!("StructLit({name} {{ {} }})", parts.join(", "))
+        }
         Expr::BinaryOp { left, op, right } => format!(
             "Bin({}, {}, {})",
             expr_to_string(left, 0),

@@ -982,6 +982,13 @@ impl Runtime {
                     }
                 }
             }
+            Expr::StructLiteral { name, fields } => {
+                let mut evaluated = Vec::with_capacity(fields.len());
+                for (field_name, field_expr) in fields {
+                    evaluated.push((field_name.clone(), self.eval_expr(field_expr)?));
+                }
+                Ok(RuntimeValue::Struct(name.clone(), evaluated))
+            }
             Expr::BinaryOp { left, op, right } => {
                 let l = self.eval_expr(left)?;
                 let r = self.eval_expr(right)?;

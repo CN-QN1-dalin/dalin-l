@@ -964,6 +964,9 @@ fn expr_to_ir_expr(expr: &Expr, locals: &[(String, String)]) -> String {
             .find(|(n, _)| n == name)
             .map(|(_, local)| local.clone())
             .unwrap_or_else(|| format!("%{}", name)),
+        // 结构体字面量：聚合类型的 LLVM IR 降级尚未实现，
+        // 与 StringLiteral 同策略产出空指针占位，避免 JIT 路径 panic。
+        Expr::StructLiteral { .. } => "i8* null".to_string(),
         Expr::BinaryOp { left, op, right } => {
             let left_val = expr_to_ir_expr(left, locals);
             let right_val = expr_to_ir_expr(right, locals);

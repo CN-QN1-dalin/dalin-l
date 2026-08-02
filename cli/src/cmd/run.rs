@@ -68,7 +68,8 @@ pub fn run(input: &str, watch: bool, verbose: bool) -> Result<(), String> {
                         }
 
                         use dalin_runtime::interpreter;
-                        match interpreter::run_source(&src) {
+                        // run 命令语义 = 跑一个程序 → 走 main 入口约定
+                        match interpreter::run_program(&src) {
                             Ok(_) => {
                                 if verbose {
                                     println!("\n  Runtime execution completed.");

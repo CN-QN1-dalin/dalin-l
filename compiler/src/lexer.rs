@@ -218,9 +218,31 @@ impl Lexer {
             }
         }
 
+        // 科学计数法: 1e12 / 1.5e-3 / 2E+10 / 3.0E8
+        let mut has_exp = false;
+        if matches!(self.current(), Some('e' | 'E')) {
+            let sign_at = self.peek(1);
+            let has_sign = sign_at == Some('+') || sign_at == Some('-');
+            let digit_peek = if has_sign { self.peek(2) } else { sign_at };
+            if digit_peek.map(|c| c.is_ascii_digit()).unwrap_or(false) {
+                self.advance(); // 消费 e/E
+                if has_sign {
+                    self.advance(); // 消费 +/- 号
+                }
+                while let Some(c) = self.current() {
+                    if c.is_ascii_digit() {
+                        self.advance();
+                    } else {
+                        break;
+                    }
+                }
+                has_exp = true;
+            }
+        }
+
         let text: String = self.chars[start..self.pos].iter().collect();
-        if has_dot {
-            // Try parsing as float
+        if has_dot || has_exp {
+            // 带小数点或科学计数法均归为浮点字面量
             if text.parse::<f64>().is_ok() {
                 return (FloatLiteral, text);
             }
@@ -538,5 +560,32 @@ mod tests {
             })
             .count();
         assert_eq!(kw_count, 27);
+    }
+
+    #[test]
+    fn test_scientific_notation() {
+        // 整数指数形式: 1e12 应识别为浮点字面量
+        let mut lex = Lexer::new("let x = 1e12");
+        let toks = lex.tokenize().unwrap();
+        assert_eq!(toks[3].token_type, FloatLiteral);
+        assert_eq!(toks[3].value, "1e12");
+
+        // 小数 + 负指数: 1.5e-3
+        let mut lex = Lexer::new("let y = 1.5e-3");
+        let toks = lex.tokenize().unwrap();
+        assert_eq!(toks[3].token_type, FloatLiteral);
+        assert_eq!(toks[3].value, "1.5e-3");
+
+        // 大写 E + 正指数: 2E+10
+        let mut lex = Lexer::new("let z = 2E+10");
+        let toks = lex.tokenize().unwrap();
+        assert_eq!(toks[3].token_type, FloatLiteral);
+        assert_eq!(toks[3].value, "2E+10");
+
+        // 普通整数不应被误判为浮点
+        let mut lex = Lexer::new("let n = 42");
+        let toks = lex.tokenize().unwrap();
+        assert_eq!(toks[3].token_type, IntLiteral);
+        assert_eq!(toks[3].value, "42");
     }
 }

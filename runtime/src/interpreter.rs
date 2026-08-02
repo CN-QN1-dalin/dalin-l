@@ -379,6 +379,7 @@ impl Interpreter {
             Expr::BoolLiteral(v) => Ok(Value::Bool(*v)),
             Expr::CharLiteral(v) => Ok(Value::Char(*v)),
             Expr::Ident(name) => self.eval_ident(name, env),
+            Expr::StructLiteral { name, fields } => self.eval_struct_literal(name, fields, env),
             Expr::BinaryOp { left, op, right } => self.eval_binary(left, op, right, env),
             Expr::UnaryOp { op, operand } => self.eval_unary(op, operand, env),
             Expr::Call { func, args } => self.eval_call(func, args, env),
@@ -443,6 +444,46 @@ impl Interpreter {
                 Err(RuntimeError("Match expression failure".into()))
             }
         }
+    }
+
+    /// 结构体字面量求值：`Point { x: 1, y: 2 }`
+    ///
+    /// 与位置构造器 `Point(1, 2)` 共用 `DALIN_TYPE_KEY` 约定，但增加字段校验：
+    /// 未定义类型、未知字段、缺失字段一律 fail-fast，不构造半成品对象。
+    fn eval_struct_literal(
+        &mut self,
+        name: &str,
+        fields: &[(String, Expr)],
+        env: &mut Environment,
+    ) -> Result<Value, RuntimeError> {
+        let Some(declared) = self.structs.get(name).cloned() else {
+            return Err(RuntimeError(format!("Undefined struct type: '{name}'")));
+        };
+
+        let mut map = HashMap::new();
+        map.insert(DALIN_TYPE_KEY.to_string(), Value::String(name.to_string()));
+
+        for (field_name, field_expr) in fields {
+            if !declared.contains(field_name) {
+                return Err(RuntimeError(format!(
+                    "Struct '{name}' has no field '{field_name}' (declared: {})",
+                    declared.join(", ")
+                )));
+            }
+            let value = self.eval_expr(field_expr, env)?;
+            map.insert(field_name.clone(), value);
+        }
+
+        let missing: Vec<&String> = declared.iter().filter(|d| !map.contains_key(*d)).collect();
+        if !missing.is_empty() {
+            let names: Vec<String> = missing.into_iter().cloned().collect();
+            return Err(RuntimeError(format!(
+                "Struct '{name}' missing field(s): {}",
+                names.join(", ")
+            )));
+        }
+
+        Ok(Value::Struct(map))
     }
 
     fn eval_ident(&mut self, name: &str, env: &Environment) -> Result<Value, RuntimeError> {
@@ -1078,9 +1119,52 @@ impl Interpreter {
         match (a, b) {
             (Value::Int(ai), Value::Int(bi)) => ai == bi,
             (Value::Float(af), Value::Float(bf)) => (af - bf).abs() < 1e-10,
+            // 跨类型数值比较：必须与 `compare()` 的数值提升语义保持一致。
+            // 缺这两个分支会导致 `0.0 == 0` 恒为 false，而 `0.0 < 0` 却正常，
+            // 语义不一致会在 stdlib 的边界判断里造成隐蔽错误（如 sqrt(0.0)）。
+            (Value::Int(ai), Value::Float(bf)) => ((*ai as f64) - bf).abs() < 1e-10,
+            (Value::Float(af), Value::Int(bi)) => (af - (*bi as f64)).abs() < 1e-10,
             (Value::String(as_), Value::String(bs)) => as_ == bs,
             (Value::Bool(ab), Value::Bool(bb)) => ab == bb,
             (Value::Char(ac), Value::Char(bc)) => ac == bc,
+            (Value::None, Value::None) => true,
+            // 容器按元素递归比较：否则 `[1,2] == [1,2]` 恒为 false，
+            // 这类静默假值比报错更难排查。
+            (Value::Array(xs), Value::Array(ys)) => {
+                xs.len() == ys.len()
+                    && xs
+                        .iter()
+                        .zip(ys.iter())
+                        .all(|(x, y)| self.values_equal(x, y))
+            }
+            (Value::Option(sa, va), Value::Option(sb, vb)) => {
+                sa == sb
+                    && match (va, vb) {
+                        (Some(x), Some(y)) => self.values_equal(x, y),
+                        (None, None) => true,
+                        _ => false,
+                    }
+            }
+            (Value::Result(oa, va, ea), Value::Result(ob, vb, eb)) => {
+                oa == ob
+                    && match (va, vb) {
+                        (Some(x), Some(y)) => self.values_equal(x, y),
+                        (None, None) => true,
+                        _ => false,
+                    }
+                    && match (ea, eb) {
+                        (Some(x), Some(y)) => self.values_equal(x, y),
+                        (None, None) => true,
+                        _ => false,
+                    }
+            }
+            (Value::EnumVariant(ea, va), Value::EnumVariant(eb, vb)) => ea == eb && va == vb,
+            (Value::Struct(ma), Value::Struct(mb)) => {
+                ma.len() == mb.len()
+                    && ma
+                        .iter()
+                        .all(|(k, v)| mb.get(k).is_some_and(|other| self.values_equal(v, other)))
+            }
             _ => false,
         }
     }
@@ -1279,6 +1363,41 @@ pub fn run_source(source: &str) -> Result<Vec<Value>, RuntimeError> {
     }
     let mut interp = Interpreter::new();
     interp.interpret(&prog)
+}
+
+/// 程序入口：执行顶层语句后，若定义了零参 `main` 则自动调用它。
+///
+/// 与 `run_source` 的分工：
+/// - `run_source` = 求值一段代码（REPL / bridge / bench 用，**不**隐式调 main）
+/// - `run_program` = 把源码当一个程序跑（`dalib run` 用，遵循 main 入口约定）
+///
+/// 未定义 `main` 时行为与 `run_source` 完全一致，因此对纯顶层脚本向后兼容。
+pub fn run_program(source: &str) -> Result<Vec<Value>, RuntimeError> {
+    let mut lex = dalin_compiler::lexer::Lexer::new(source);
+    let tokens = lex.tokenize().map_err(|e| RuntimeError(e.to_string()))?;
+    let mut parser = dalin_compiler::parser::Parser::new(tokens);
+    let (prog, errs) = parser.parse().map_err(|e| RuntimeError(e.to_string()))?;
+    if !errs.is_empty() {
+        let detail = errs
+            .iter()
+            .map(|e| e.to_string())
+            .collect::<Vec<_>>()
+            .join("; ");
+        return Err(RuntimeError(format!("parse errors: {detail}")));
+    }
+
+    let mut interp = Interpreter::new();
+    let mut results = interp.interpret(&prog)?;
+
+    // main 入口约定：仅接受零参 main，避免与同名多参工具函数混淆
+    if let Some(main_fn) = interp.functions.get("main").cloned()
+        && main_fn.params.is_empty()
+    {
+        let ret = interp.call_function(&main_fn, &[])?;
+        results.push(ret);
+    }
+
+    Ok(results)
 }
 
 /// Convenience entry: after execution, return the task tree view (a registry miniature of nested spawns).

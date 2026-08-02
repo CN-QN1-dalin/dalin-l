@@ -279,6 +279,9 @@ fn expr_to_wat(expr: &Expr) -> String {
         Expr::BoolLiteral(b) => format!("  i32.const {}", if *b { "1" } else { "0" }),
         Expr::CharLiteral(c) => format!("  i32.const {}", *c as i32),
         Expr::Ident(name) => format!("  local.get ${name}"),
+        // 结构体字面量：WASM 线性内存中的聚合布局尚未设计，
+        // 与 StringLiteral 同策略产出注释占位，保持 WAT 输出可读且不中断编译。
+        Expr::StructLiteral { name, .. } => format!("  ;; struct literal: {name}"),
         Expr::BinaryOp { left, op, right } => {
             let l = expr_to_wat(left);
             let r = expr_to_wat(right);

@@ -348,6 +348,15 @@ impl TypeInferencer {
             Expr::BoolLiteral(_) => TypeOrVar::Concrete(bool_type()),
             Expr::CharLiteral(_) => TypeOrVar::Concrete(TypeRef::new(BaseType::Char)),
             Expr::Ident(name) => self.infer_ident(name),
+            // 结构体字面量：`BaseType` 目前无具名结构体变体，整体推断为 Unknown
+            // （与现有 struct 变量的处理一致）。但字段表达式必须逐个推断，
+            // 否则字段内部的类型错误会被静默吞掉。
+            Expr::StructLiteral { fields, .. } => {
+                for (_, field_expr) in fields {
+                    let _ = self.infer_expr(field_expr);
+                }
+                TypeOrVar::Concrete(TypeRef::new(BaseType::Unknown))
+            }
             Expr::BinaryOp { left, op, right } => self.infer_binary(left, op, right),
             Expr::UnaryOp { op, operand } => self.infer_unary(op, operand),
             Expr::Call { func, args } => self.infer_call(func, args),
