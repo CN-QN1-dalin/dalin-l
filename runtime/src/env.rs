@@ -96,6 +96,33 @@ impl fmt::Display for Value {
     }
 }
 
+/// 运行时值相等比较。
+/// Function 按名称比较（闭包环境不参与），Sender 按 Arc 指针比较，
+/// 其余变体按值深度比较。
+impl PartialEq for Value {
+    fn eq(&self, other: &Self) -> bool {
+        use Value::*;
+        match (self, other) {
+            (Int(a), Int(b)) => a == b,
+            (Float(a), Float(b)) => a == b,
+            (String(a), String(b)) => a == b,
+            (Bool(a), Bool(b)) => a == b,
+            (Char(a), Char(b)) => a == b,
+            (None, None) => true,
+            (Array(a), Array(b)) => a == b,
+            (Option(ta, va), Option(tb, vb)) => ta == tb && va == vb,
+            (Result(ta, va, ea), Result(tb, vb, eb)) => ta == tb && va == vb && ea == eb,
+            (Function(fa), Function(fb)) => fa.name == fb.name,
+            (Struct(a), Struct(b)) => a == b,
+            (EnumVariant(na, va), EnumVariant(nb, vb)) => na == nb && va == vb,
+            (Task(a), Task(b)) => a == b,
+            (ChannelSender(a), ChannelSender(b)) => Arc::ptr_eq(a, b),
+            (ChannelReceiver(a), ChannelReceiver(b)) => a == b,
+            _ => false,
+        }
+    }
+}
+
 /// 作用域环境（带父链）
 #[derive(Debug, Clone)]
 pub struct Environment {

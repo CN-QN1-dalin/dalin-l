@@ -70,6 +70,10 @@ impl Interpreter {
             current_task_id: None,
         };
         interp.install_builtins();
+        // 加载标准库：让 sqrt/str_len/vec_new 等 stdlib 函数在运行时可用
+        if let Err(e) = interp.load_stdlib() {
+            eprintln!("[runtime] stdlib load warning: {e}");
+        }
         interp
     }
 
@@ -87,6 +91,15 @@ impl Interpreter {
     fn eval_stmt(&mut self, stmt: &Stmt, env: &mut Environment) -> Result<Value, RuntimeError> {
         match stmt {
             Stmt::Let { name, value, .. } => self.eval_let(name, value.as_deref(), env),
+            Stmt::Const { name, value, .. } => {
+                // const 绑定：求值后注册到环境（不可变，语义同 let 但仅绑定一次）
+                let val = match value {
+                    Some(e) => self.eval_expr(e, env)?,
+                    None => Value::None,
+                };
+                env.define(name, val);
+                Ok(Value::None)
+            }
             Stmt::Fn {
                 name,
                 params,
@@ -489,6 +502,22 @@ impl Interpreter {
                 (Value::String(a), Value::String(b)) => Ok(Value::String(format!("{a}{b}"))),
                 (Value::String(a), b) => Ok(Value::String(format!("{a}{b}"))),
                 (a, Value::String(b)) => Ok(Value::String(format!("{a}{b}"))),
+                // 数组拼接：a + [x] / a + b（元素级拼接）
+                (Value::Array(a), Value::Array(b)) => {
+                    let mut out = a.clone();
+                    out.extend(b.iter().cloned());
+                    Ok(Value::Array(out))
+                }
+                (Value::Array(a), b) => {
+                    let mut out = a.clone();
+                    out.push(b.clone());
+                    Ok(Value::Array(out))
+                }
+                (a, Value::Array(b)) => {
+                    let mut out = vec![a.clone()];
+                    out.extend(b.iter().cloned());
+                    Ok(Value::Array(out))
+                }
                 _ => Err(RuntimeError(format!(
                     "Cannot add {left_val:?} and {right_val:?}"
                 ))),
@@ -1065,6 +1094,99 @@ impl Interpreter {
 
     fn install_builtins(&mut self) {
         // Builtins are handled in eval_call
+    }
+
+    /// 加载标准库：编译 stdlib/*.dal 并将所有函数声明注册到运行时函数表。
+    ///
+    /// 这是 stdlib 从"可解析"到"可执行"的关键桥梁：
+    /// stdlib 的 .dal 文件是 Dalin 源码，必须经 parser 编译后，
+    /// 把其中的 Fn 声明转换为 FnValue 注入 functions 表，用户程序才能调用。
+    ///
+    /// 失败策略：单个文件解析失败不影响其他文件（记录并跳过），
+    /// 但所有可解析文件的函数都会被注册。
+    pub fn load_stdlib(&mut self) -> Result<usize, String> {
+        use dalin_compiler::ast::Stmt;
+        use dalin_compiler::lexer::Lexer;
+        use dalin_compiler::parser::Parser;
+        use std::fs;
+
+        let base = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../stdlib");
+        let mut loaded = 0usize;
+        let mut failed_files = Vec::new();
+
+        let dir = match fs::read_dir(&base) {
+            Ok(d) => d,
+            Err(e) => return Err(format!("cannot read stdlib dir: {e}")),
+        };
+
+        for entry in dir.filter_map(|e| e.ok()) {
+            let path = entry.path();
+            if path.extension().map_or(false, |ext| ext == "dal") {
+                let src = match fs::read_to_string(&path) {
+                    Ok(s) => s,
+                    Err(e) => {
+                        failed_files.push(format!("{}: {e}", path.display()));
+                        continue;
+                    }
+                };
+                let mut lex = Lexer::new(&src);
+                let tokens = match lex.tokenize() {
+                    Ok(t) => t,
+                    Err(e) => {
+                        failed_files.push(format!("{}: lex {e}", path.display()));
+                        continue;
+                    }
+                };
+                let mut parser = Parser::new(tokens);
+                let (prog, errs) = match parser.parse() {
+                    Ok(x) => x,
+                    Err(e) => {
+                        failed_files.push(format!("{}: parse {e}", path.display()));
+                        continue;
+                    }
+                };
+                if !errs.is_empty() {
+                    failed_files.push(format!("{}: {} parse errors", path.display(), errs.len()));
+                    continue;
+                }
+                // 注册所有顶层函数声明
+                let mut file_loaded = 0usize;
+                for stmt in &prog.statements {
+                    if let Stmt::Fn {
+                        name,
+                        params,
+                        return_type,
+                        body,
+                        effect,
+                        capability,
+                        ..
+                    } = stmt
+                    {
+                        let fn_val = FnValue {
+                            name: name.clone(),
+                            params: params.clone(),
+                            body: body.as_ref().clone(),
+                            closure: Environment::new(),
+                            return_type: return_type.clone(),
+                            effect: effect.clone(),
+                            capability: capability.clone(),
+                        };
+                        self.functions.insert(name.clone(), fn_val);
+                        file_loaded += 1;
+                    }
+                }
+                loaded += file_loaded;
+            }
+        }
+
+        if !failed_files.is_empty() {
+            eprintln!(
+                "[stdlib] {} files failed to load: {:?}",
+                failed_files.len(),
+                failed_files
+            );
+        }
+        Ok(loaded)
     }
 }
 
