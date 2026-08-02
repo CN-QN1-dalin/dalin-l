@@ -9,3 +9,6 @@
 # 注意：Cargo.lock 已从忽略列表移除。
 # workspace 含多个 bin crate（cli/dap/lsp/fmt/registry），
 # Rust 官方规范要求提交 Cargo.lock 保证可复现构建。
+# pyo3-bindings 是独立包（workspace exclude），需单独忽略构建产物
+pyo3-bindings/target/
+pyo3-bindings/Cargo.lock
