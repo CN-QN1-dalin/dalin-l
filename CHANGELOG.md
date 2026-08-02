@@ -1,5 +1,32 @@
 # Changelog
 
+## v3.0.0 (2026-08-02) — 正式版（商业化就绪）
+
+> 自 `v3.0.0-rc.1` 验收通过，转正式发布。本版本聚焦运行时确定性、执行性能与编译期常量折叠，全部质量门禁（check/test/clippy/fmt/stdlib_parse/smoke）零告警。
+
+### 🏗️ 架构与运行时
+
+- **stdlib 命名空间隔离**：stdlib 函数以 `module::func` 限定名注册（如 `strings::str_reverse`），`strings::func` 语法精确命中目标模块，消除此前 26 组同名函数的静默遮蔽；裸名调用保留确定性默认归属模块（首个定义者）以向后兼容，用户顶层函数优先于 stdlib 裸别名（`runtime/src/interpreter.rs`）
+- **DLVM 执行热路径优化**：`Vm::run` 改为借用当前函数而非每条指令深拷贝整个 `BytecodeFunction`，消除 O(n²) 分配；统一 `apply_jump` 处理 `Jmp`/`JmpIf`/`JmpIfNot` 偏移逻辑。紧循环吞吐守护测试报告 **~21.5 M-op/s**（`dlvm/src/lib.rs`）
+- **JIT 常量折叠扩展**：新增布尔短路折叠（`&&` 左值 `false` / `||` 左值 `true` 直接定值为常量）；混合类型字符串拼接折叠（`int + str` / `str + int`）保持操作数左右顺序（`compiler/src/jit.rs`）
+
+### 🐛 关键修复
+
+- **doc 警告修复**：`compiler/src/cache.rs` 中 `Vec<u8>` 与 `String` 用反引号包裹，消除 "unclosed HTML tag u8" 文档告警
+- **跨模块调用确定性**：同名冲突函数裸调用回归到首个定义模块，避免非确定性解析
+
+### 📈 测试覆盖
+
+- **704 tests**（was 690）：新增 `runtime/tests/cross_module_test.rs`（9 项，验证命名空间隔离/遮蔽/向后兼容）、`dlvm` 性能守护测试（1 项）、`compiler` JIT 常量折叠测试（4 项）
+- 回归守护：stdlib 实时实现 13 项、冒烟 30 项、集成错误路径 7 项、编译流水线 22 项全绿
+
+### 📌 版本治理
+
+- 版本真相源提升至 `3.0.0`（`[workspace.package]` + `pyo3-bindings/Cargo.toml` 同步），`Cargo.lock` 已刷新并提交
+- 发布纪律不变：**绝不 push 公网 / 绝不开源**，tag `v3.0.0` 仅本地私有仓
+
+---
+
 ## v3.0.0-rc.1 (2026-08-02) — 商业化就绪候选版
 
 ### 🏗️ 工程化治理（商业化就绪）

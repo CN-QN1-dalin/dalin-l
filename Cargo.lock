@@ -434,7 +434,7 @@ checksum = "a6ef517f0926dd24a1582492c791b6a4818a4d94e789a334894aa15b0d12f55c"
 
 [[package]]
 name = "control-plane"
-version = "3.0.0-rc.1"
+version = "3.0.0"
 dependencies = [
  "async-nats",
  "async-trait",
@@ -652,7 +652,7 @@ dependencies = [
 
 [[package]]
 name = "dalin-codegen"
-version = "3.0.0-rc.1"
+version = "3.0.0"
 dependencies = [
  "dalin-dlvm",
  "inkwell",
@@ -660,7 +660,7 @@ dependencies = [
 
 [[package]]
 name = "dalin-compiler"
-version = "3.0.0-rc.1"
+version = "3.0.0"
 dependencies = [
  "criterion",
  "serde_json",
@@ -669,7 +669,7 @@ dependencies = [
 
 [[package]]
 name = "dalin-dap"
-version = "3.0.0-rc.1"
+version = "3.0.0"
 dependencies = [
  "dalin-compiler",
  "dalin-dlvm",
@@ -679,21 +679,21 @@ dependencies = [
 
 [[package]]
 name = "dalin-dlvm"
-version = "3.0.0-rc.1"
+version = "3.0.0"
 dependencies = [
  "dalin-compiler",
 ]
 
 [[package]]
 name = "dalin-fmt"
-version = "3.0.0-rc.1"
+version = "3.0.0"
 dependencies = [
  "dalin-compiler",
 ]
 
 [[package]]
 name = "dalin-handshake"
-version = "3.0.0-rc.1"
+version = "3.0.0"
 dependencies = [
  "chrono",
  "log",
@@ -706,7 +706,7 @@ dependencies = [
 
 [[package]]
 name = "dalin-ls"
-version = "3.0.0-rc.1"
+version = "3.0.0"
 dependencies = [
  "dalin-compiler",
  "lsp-types",
@@ -716,7 +716,7 @@ dependencies = [
 
 [[package]]
 name = "dalin-registry"
-version = "3.0.0-rc.1"
+version = "3.0.0"
 dependencies = [
  "dalin-compiler",
  "serde",
@@ -725,7 +725,7 @@ dependencies = [
 
 [[package]]
 name = "dalin-runtime"
-version = "3.0.0-rc.1"
+version = "3.0.0"
 dependencies = [
  "criterion",
  "dalin-compiler",
@@ -733,22 +733,22 @@ dependencies = [
 
 [[package]]
 name = "dalin-stdlib"
-version = "3.0.0-rc.1"
+version = "3.0.0"
 
 [[package]]
 name = "dalin-target-gpu"
-version = "3.0.0-rc.1"
+version = "3.0.0"
 
 [[package]]
 name = "dalin-target-wasm"
-version = "3.0.0-rc.1"
+version = "3.0.0"
 dependencies = [
  "dalin-compiler",
 ]
 
 [[package]]
 name = "dalin_l"
-version = "3.0.0-rc.1"
+version = "3.0.0"
 dependencies = [
  "chrono",
  "clap",

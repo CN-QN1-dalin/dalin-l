@@ -2,7 +2,7 @@
 name="dalin-pyo3"
 # 从 workspace exclude（需本机 Python dev 库才能链接），故不能继承 workspace 属性。
 # 版本号与 workspace 保持一致（3.0.0-rc.1），发版时同步更新。
-version="3.0.0-rc.1"
+version="3.0.0"
 edition="2024"
 
 [lib]
