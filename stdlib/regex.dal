@@ -1,5 +1,84 @@
-// Dalin L Standard Library — regex pattern matching (stub)
+// Dalin L Standard Library — regex pattern matching (pure backtracking engine, #661)
+// 支持语法：字面量字符、'.' 通配任意字符、'*' 星号（贪心匹配 + 回溯）、'^' '$' 锚定。
+// 无外部依赖，纯 Dalin L 递归实现；不引入第三方正则库。
 
-fn regex_match(pattern, text) @ pure @ cpu { return false }
-fn regex_search(pattern, text) @ pure @ cpu { return false }
-fn regex_replace(pattern, replacement, text) @ pure @ cpu { return text }
+// 单字符匹配：'.' 匹配任意字符，否则按字面比较
+fn _re_char_eq(pc, tc) @ pure @ cpu {
+    if pc == '.' { return true }
+    return pc == tc
+}
+
+// 从文本位置 ti 起尝试匹配 pattern[pi..]；返回匹配消费到的 text 下标（结束位置），
+// 若无法匹配返回 -1。递归回溯实现（'*' 先贪心后回退到跳过）。
+// 注意：Dalin L 的 && 不短路，故索引访问必须用嵌套 if 守卫，避免越界。
+fn _re_match(pat, pi, txt, ti, tlen) @ pure @ cpu {
+    if pi >= len(pat) { return ti }
+    let c = pat[pi]
+    // 锚定 ^：必须位于文本开头
+    if c == '^' {
+        if ti != 0 { return -1 }
+        return _re_match(pat, pi + 1, txt, ti, tlen)
+    }
+    // 锚定 $：必须位于文本结尾
+    if c == '$' {
+        if ti != tlen { return -1 }
+        return _re_match(pat, pi + 1, txt, ti, tlen)
+    }
+    // '*' 量词：作用于前一个字符 c（先确认 pi+1 合法，再读 pat[pi+1]）
+    if pi + 1 < len(pat) {
+        if pat[pi + 1] == '*' {
+            // 贪心：先尝试匹配一个 c，并继续留在 '*' 组（pi 不变，ti+1）
+            if ti < tlen {
+                if _re_char_eq(c, txt[ti]) {
+                    let e = _re_match(pat, pi, txt, ti + 1, tlen)
+                    if e >= 0 { return e }
+                }
+            }
+            // 回溯：跳过 '*' 组（匹配 0 个 c）
+            return _re_match(pat, pi + 2, txt, ti, tlen)
+        }
+    }
+    // 普通字符
+    if ti < tlen {
+        if _re_char_eq(c, txt[ti]) {
+            return _re_match(pat, pi + 1, txt, ti + 1, tlen)
+        }
+    }
+    return -1
+}
+
+// 完整匹配：pattern 必须消费整段 text
+fn regex_match(pattern, text) @ pure @ cpu {
+    let tlen = len(text)
+    let e = _re_match(pattern, 0, text, 0, tlen)
+    return e == tlen
+}
+
+// 搜索：pattern 匹配 text 的任意子串（'^' '$' 锚定在该子串起点/终点生效）
+fn regex_search(pattern, text) @ pure @ cpu {
+    let tlen = len(text)
+    let ti = 0
+    while ti <= tlen {
+        if _re_match(pattern, 0, text, ti, tlen) >= 0 { return true }
+        let ti = ti + 1
+    }
+    return false
+}
+
+// 替换：将 text 中所有不重叠的匹配替换为 replacement
+fn regex_replace(pattern, replacement, text) @ pure @ cpu {
+    let tlen = len(text)
+    let result = ""
+    let ti = 0
+    while ti < tlen {
+        let end = _re_match(pattern, 0, text, ti, tlen)
+        if end > ti {
+            result = result + replacement
+            let ti = end
+        } else {
+            result = result + text[ti]
+            let ti = ti + 1
+        }
+    }
+    return result
+}

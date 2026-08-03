@@ -1,0 +1,42 @@
+// probe: regex materialization (#661) — pure backtracking engine
+// 验证字面量、'.'、'*'、'^' '$' 及 search/replace 均正确。
+
+// 字面量完整匹配
+assert regex_match("abc", "abc") == true, "literal full match"
+assert regex_match("abc", "abcd") == false, "literal not full (trailing)"
+assert regex_match("abc", "ab") == false, "literal not full (short)"
+
+// '.' 通配
+assert regex_match("a.c", "axc") == true, ". wildcard matches one char"
+assert regex_match("a.c", "axxc") == false, ". matches exactly one char"
+
+// '*' 星号（贪心 + 回溯）
+assert regex_match("ab*", "a") == true, "* zero occurrences"
+assert regex_match("ab*", "abbb") == true, "* many occurrences"
+assert regex_match("a*b", "aaab") == true, "a*b matches"
+assert regex_match("a*c", "abc") == false, "a*c: b blocks c after a*"
+
+// 锚定：regex_match 为完整匹配，^/$ 仅约束起止位置；位置类断言用 regex_search
+assert regex_match("^a", "a") == true, "^ anchor full match"
+assert regex_match("^a", "abc") == false, "^ anchor not full of longer text"
+assert regex_search("^a", "abc") == true, "^ anchor search at start"
+assert regex_match("^a", "bac") == false, "^ anchor fail (not at start)"
+assert regex_search("^a", "bac") == false, "^ anchor search fail"
+assert regex_match("c$", "c") == true, "$ anchor full match"
+assert regex_match("c$", "abc") == false, "$ anchor not full of longer text"
+assert regex_search("c$", "abc") == true, "$ anchor search at end"
+assert regex_match("c$", "acb") == false, "$ anchor fail"
+assert regex_search("c$", "acb") == false, "$ anchor search fail"
+assert regex_match("^abc$", "abc") == true, "^ $ full anchor"
+assert regex_match("a.*c", "axxxc") == true, ".* spans chars"
+
+// 搜索
+assert regex_search("bc", "abc") == true, "search bc in abc"
+assert regex_search("xy", "abc") == false, "search miss"
+
+// 替换（贪心、不重叠）
+assert regex_replace("a", "X", "abc") == "Xbc", "replace single a"
+assert regex_replace("b", "Y", "aba") == "aYa", "replace b"
+assert regex_replace("a*", "X", "aab") == "Xb", "replace a* greedy"
+
+println("ALL REGEX ASSERTIONS PASSED")
