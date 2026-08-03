@@ -1,0 +1,88 @@
+// Probe B: verify hex / base64 / bitwise / stack / queue / tuple / ord / chr
+// 运行: cargo run -p dalin_l --bin dalib -- run -i output/stdlib_probe_b.dal
+// 全部 assert 通过且无运行时错误即表示实质化成功.
+// 注意: assert 是关键字, 语法为 `assert cond, msg` (无外层括号); 重绑定用 `let`.
+
+fn main() @ pure @ cpu {
+    // ---- ord / chr ----
+    assert ord('A') == 65, "ord A"
+    assert chr(65) == 'A', "chr 65"
+    assert ord('z') == 122, "ord z"
+    assert chr(ord('X')) == 'X', "chr-ord roundtrip"
+
+    // ---- hex ----
+    assert hex_encode("ABC") == "414243", "hex_encode ABC"
+    let dec = hex_decode("414243")
+    assert dec[0] == 65, "hex_decode[0]"
+    assert dec[1] == 66, "hex_decode[1]"
+    assert dec[2] == 67, "hex_decode[2]"
+    assert hex_to_int("ff") == 255, "hex_to_int ff"
+    assert hex_from_int(255) == "ff", "hex_from_int 255"
+    assert hex_from_int(0) == "0", "hex_from_int 0"
+    assert hex_encode("Hello") == "48656c6c6f", "hex_encode Hello"
+
+    // ---- base64 ----
+    assert base64_encode("Hello") == "SGVsbG8=", "base64_encode Hello"
+    assert base64_decode("SGVsbG8=") == "Hello", "base64_decode Hello"
+    assert base64_encode("A") == "QQ==", "base64_encode A"
+    assert base64_decode("QQ==") == "A", "base64_decode A"
+    assert base64_encode("AB") == "QUI=", "base64_encode AB"
+    assert base64_decode("QUI=") == "AB", "base64_decode AB"
+    assert base64_encode("") == "", "base64_encode empty"
+    assert base64_decode("SGVsbG8=\n") == "Hello", "base64_decode with newline"
+
+    // ---- bitwise ----
+    assert bit_and(6, 3) == 2, "bit_and"
+    assert bit_or(6, 3) == 7, "bit_or"
+    assert bit_xor(6, 3) == 5, "bit_xor"
+    assert bit_count_set_bits(7) == 3, "bit_count_set_bits 7"
+    assert bit_count_set_bits(0) == 0, "bit_count_set_bits 0"
+    assert bit_is_power_of_two(8) == true, "bit_is_power_of_two 8"
+    assert bit_is_power_of_two(6) == false, "bit_is_power_of_two 6"
+    assert bit_is_power_of_two(0) == false, "bit_is_power_of_two 0"
+    assert bit_shl(1, 4) == 16, "bit_shl"
+    assert bit_shr(16, 4) == 1, "bit_shr"
+
+    // ---- stack ----
+    let s = stack_new()
+    assert stack_is_empty(s) == true, "stack empty"
+    let s = stack_push(s, 10)
+    let s = stack_push(s, 20)
+    assert stack_len(s) == 2, "stack len"
+    assert stack_peek(s) == 20, "stack peek"
+    assert stack_pop(s) == 20, "stack pop"
+    let e = stack_new()
+    assert stack_pop(e) == None, "stack pop empty"
+    assert stack_peek(e) == None, "stack peek empty"
+
+    // ---- queue ----
+    let q = queue_new()
+    let q = queue_enqueue(q, 1)
+    let q = queue_enqueue(q, 2)
+    assert queue_len(q) == 2, "queue len"
+    assert queue_peek(q) == 1, "queue peek"
+    let dq = queue_dequeue(q)
+    assert dq[0] == 1, "queue dequeue val"
+    assert queue_len(dq[1]) == 1, "queue dequeue rest len"
+    let eq = queue_new()
+    assert queue_dequeue(eq) == None, "queue dequeue empty"
+    assert queue_peek(eq) == None, "queue peek empty"
+
+    // ---- tuple ----
+    let t = tuple_new(1, 2)
+    assert tuple_first(t) == 1, "tuple first"
+    assert tuple_second(t) == 2, "tuple second"
+    let ts = tuple_swap(t)
+    assert tuple_first(ts) == 2, "tuple swap first"
+    assert tuple_second(ts) == 1, "tuple swap second"
+    let long = [1, 2, 3, 4]
+    let longs = tuple_swap(long)
+    assert tuple_first(longs) == 2, "tuple swap long first"
+    assert tuple_second(longs) == 1, "tuple swap long second"
+    assert longs[2] == 3, "tuple swap long keep[2]"
+    let empty = []
+    assert tuple_first(empty) == None, "tuple first empty"
+    assert tuple_second(empty) == None, "tuple second empty"
+
+    println("ALL PROBE B ASSERTIONS PASSED")
+}

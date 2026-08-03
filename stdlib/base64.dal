@@ -1,58 +1,113 @@
-// Module: base64 — 真实 Base64 编码/解码实现
+// Module: base64 — 真实 Base64 编解码 (纯算术, 无位运算)
+// 依赖运行时内建: ord / chr / str
+// 设计: 用 / % * 模拟位段 (24-bit triple 拆 4 个 6-bit index); 跳过 '='/空白用 helper 返回新串.
+// 规避: 不使用 >> << & | (不支持), break/continue (不支持),
+//       if 块内 let 重绑定 (accum 均在 while 顶层; 余下分组用 if + 提前 return).
 
 fn base64_encode(data) @ pure @ cpu {
     let table = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
     let result = ""
     let i = 0
     let n = len(data)
-    while i < n {
-        let octet_a = if i < n { str_to_byte(data[i]) } else { 0 }
-        if i + 1 < n { let octet_b = str_to_byte(data[i + 1]) } else { let octet_b = 0 }
-        if i + 2 < n { let octet_c = str_to_byte(data[i + 2]) } else { let octet_c = 0 }
-        let triple = octet_a * 65536 + octet_b * 256 + octet_c
-        let c1 = (triple >> 18) & 0x3F
-        let c2 = (triple >> 12) & 0x3F
-        let c3 = (triple >> 6) & 0x3F
-        let c4 = triple & 0x3F
-        result = result + table[c1]
-        result = result + table[c2]
-        if i + 1 < n { result = result + table[c3] } else { result = result + "=" }
-        if i + 2 < n { result = result + table[c4] } else { result = result + "=" }
+    while i + 2 < n {
+        let a = ord(data[i])
+        let b = ord(data[i + 1])
+        let c = ord(data[i + 2])
+        let triple = a * 65536 + b * 256 + c
+        result = result + table[triple / 262144]
+        result = result + table[(triple / 4096) % 64]
+        result = result + table[(triple / 64) % 64]
+        result = result + table[triple % 64]
         let i = i + 3
+    }
+    // 余下 0/1/2 字节, 带 '=' 填充 (在 if 内提前 return, 规避 let 不逃逸)
+    if n - i == 1 {
+        let a = ord(data[i])
+        let triple = a * 65536
+        result = result + table[triple / 262144]
+        result = result + table[(triple / 4096) % 64]
+        result = result + "=="
+        return result
+    }
+    if n - i == 2 {
+        let a = ord(data[i])
+        let b = ord(data[i + 1])
+        let triple = a * 65536 + b * 256
+        result = result + table[triple / 262144]
+        result = result + table[(triple / 4096) % 64]
+        result = result + table[(triple / 64) % 64]
+        result = result + "="
+        return result
     }
     return result
 }
-
-fn str_to_byte(c) @ pure @ cpu { return ord(c) }
 
 fn base64_decode(encoded) @ pure @ cpu {
     let table = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+    let clean = _b64_clean(encoded)
     let result = ""
     let i = 0
-    let n = len(encoded)
-    while i < n {
-        if encoded[i] == '=' || encoded[i] == '\n' || encoded[i] == '\r' {
-            let i = i + 1
-            continue
-        }
-        if i + 3 >= n { break }
-        let b1 = char_to_val(table, encoded[i])
-        let b2 = char_to_val(table, encoded[i + 1])
-        let b3 = char_to_val(table, encoded[i + 2])
-        let b4 = char_to_val(table, encoded[i + 3])
-        let triple = (b1 << 18) | (b2 << 12) | (b3 << 6) | b4
-        let byte1 = (triple >> 16) & 0xFF
-        let byte2 = (triple >> 8) & 0xFF
-        let byte3 = triple & 0xFF
-        result = result + byte_to_char(byte1)
-        if encoded[i + 2] != '=' { result = result + byte_to_char(byte2) }
-        if encoded[i + 3] != '=' { result = result + byte_to_char(byte3) }
+    let m = len(clean)
+    while i + 3 < m {
+        let v0 = _b64_val(table, clean[i])
+        let v1 = _b64_val(table, clean[i + 1])
+        let v2 = _b64_val(table, clean[i + 2])
+        let v3 = _b64_val(table, clean[i + 3])
+        let triple = v0 * 262144 + v1 * 4096 + v2 * 64 + v3
+        result = result + _byte_str((triple / 65536) % 256)
+        result = result + _byte_str((triple / 256) % 256)
+        result = result + _byte_str(triple % 256)
         let i = i + 4
+    }
+    let rem = m - i
+    if rem == 3 {
+        let v0 = _b64_val(table, clean[i])
+        let v1 = _b64_val(table, clean[i + 1])
+        let v2 = _b64_val(table, clean[i + 2])
+        let triple = v0 * 262144 + v1 * 4096 + v2 * 64
+        result = result + _byte_str((triple / 65536) % 256)
+        result = result + _byte_str((triple / 256) % 256)
+        return result
+    }
+    if rem == 2 {
+        let v0 = _b64_val(table, clean[i])
+        let v1 = _b64_val(table, clean[i + 1])
+        let triple = v0 * 262144 + v1 * 4096
+        result = result + _byte_str((triple / 65536) % 256)
+        return result
     }
     return result
 }
 
-fn char_to_val(table, ch) @ pure @ cpu {
+// 过滤掉 '=' 与空白, 返回纯 base64 字符串 (accum 在 while 顶层, 用 helper 返回追加值)
+fn _b64_clean(s) @ pure @ cpu {
+    let out = ""
+    let i = 0
+    let n = len(s)
+    while i < n {
+        let ch = s[i]
+        let keep = _b64_keep(ch)
+        out = out + _b64_maybe(ch, keep)
+        let i = i + 1
+    }
+    return out
+}
+
+fn _b64_keep(ch) @ pure @ cpu {
+    let o = ord(ch)
+    if o == 61 { return 0 }   // '='
+    if o == 32 { return 0 }   // ' '
+    if o == 10 { return 0 }   // '\n'
+    if o == 13 { return 0 }   // '\r'
+    return 1
+}
+
+fn _b64_maybe(ch, keep) @ pure @ cpu {
+    if keep == 0 { return "" }
+    return str(ch)
+}
+
+fn _b64_val(table, ch) @ pure @ cpu {
     let i = 0
     let n = len(table)
     while i < n {
@@ -62,4 +117,6 @@ fn char_to_val(table, ch) @ pure @ cpu {
     return 0
 }
 
-fn byte_to_char(b) @ pure @ cpu { return chr(b) }
+fn _byte_str(b) @ pure @ cpu {
+    return str(chr(b))
+}

@@ -654,7 +654,7 @@ impl Interpreter {
         }
 
         // Builtins
-        let builtins: [&str; 22] = [
+        let builtins: [&str; 24] = [
             "println",
             "println!",
             "print",
@@ -678,6 +678,9 @@ impl Interpreter {
             "hmac_sha256",
             "read_file",
             "write_file",
+            // 字符 ↔ 整数 转换（hex/base64 等模块实质化依赖）
+            "ord",
+            "chr",
         ];
 
         // 1) 命名空间精确解析（module::func 优先，实现真正的命名空间隔离）
@@ -1034,6 +1037,28 @@ impl Interpreter {
                     Err(_) => Ok(Value::Bool(false)),
                 }
             }
+            // 字符 ↔ 整数（hex/base64 模块实质化依赖）
+            "ord" => match &args[0] {
+                Value::Char(c) => Ok(Value::Int(*c as u32 as i64)),
+                Value::String(s) => {
+                    let mut chars = s.chars();
+                    match chars.next() {
+                        Some(c) => Ok(Value::Int(c as u32 as i64)),
+                        None => Err(RuntimeError("ord 需要非空字符串".into())),
+                    }
+                }
+                other => Err(RuntimeError(format!("ord 需要 char 或字符串，得到 {other}"))),
+            },
+            "chr" => match &args[0] {
+                Value::Int(i) => {
+                    let code = *i as u32;
+                    match char::from_u32(code) {
+                        Some(c) => Ok(Value::Char(c)),
+                        None => Err(RuntimeError(format!("chr 参数越界: {i}"))),
+                    }
+                }
+                other => Err(RuntimeError(format!("chr 需要整数，得到 {other}"))),
+            },
             _ => Err(RuntimeError(format!("Unknown builtin: {name}"))),
         }
     }

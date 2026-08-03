@@ -1,187 +1,70 @@
-// Dalin L Standard Library — encoding utilities (real implementations)
+// Dalin L Standard Library — encoding utilities
+// 高层编码: URL / JSON. 字节级 hex / base64 委托给 hex.dal / base64.dal 的规范实现,
+// 避免重复定义带来的名字冲突 (旧版本使用不支持的语法, 且在加载顺序下覆盖规范实现).
+//
+// 规避项:
+//  - 不使用 >> << & | (不支持), break/continue (不支持)
+//  - Char 直接比较 (c >= 'A') 改用 ord(c) 后做 Int 区间判断
+//  - if 块内 let 重绑定不跨块逃逸 -> url_decode 改用尾递归传 index
 
-fn encode_base64(data) @ pure @ cpu {
-    // Base64 lookup table
-    let chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
-    let result = ""
-    let i = 0
-    let n = len(data)
-    while i < n {
-        let b1 = 0
-        let b2 = 0
-        let b3 = 0
-        if i < n { b1 = str_to_int(str(data[i])) }
-        if i + 1 < n { b2 = str_to_int(str(data[i + 1])) }
-        if i + 2 < n { b3 = str_to_int(str(data[i + 2])) }
-        let triple = b1 * 256 + b2 * 256 + b3
-        let c1 = (triple >> 18) & 63
-        let c2 = (triple >> 12) & 63
-        let c3 = (triple >> 6) & 63
-        let c4 = triple & 63
-        result = result + chars[c1]
-        result = result + chars[c2]
-        if i + 1 < n { result = result + chars[c3] } else { result = result + "=" }
-        if i + 2 < n { result = result + chars[c4] } else { result = result + "=" }
-        let i = i + 3
-    }
-    return result
-}
+// --- hex 兼容别名 (委托 hex.dal 规范实现) ---
+fn encode_hex(data) @ pure @ cpu { return hex_encode(data) }
+fn decode_hex(s) @ pure @ cpu { return hex_decode(s) }
 
-fn str_to_int(c) @ pure @ cpu { return ord(c) - ord("A") }
+// --- base64 兼容别名 (委托 base64.dal 规范实现) ---
+fn encode_base64(data) @ pure @ cpu { return base64_encode(data) }
+fn decode_base64(data) @ pure @ cpu { return base64_decode(data) }
 
-fn decode_base64(data) @ pure @ cpu {
-    let chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
-    let result = ""
-    let i = 0
-    let n = len(data)
-    while i < n {
-        if data[i] == "=" || data[i] == '\n' { let i = i + 1; continue }
-        let v1 = index_of_char(chars, data[i])
-        if i + 1 >= n { break }
-        let v2 = index_of_char(chars, data[i + 1])
-        let byte1 = (v1 << 2) + ((v2 >> 4) & 3)
-        result = result + chr(byte1)
-        if data[i + 2] != "=" && i + 2 < n {
-            let v3 = index_of_char(chars, data[i + 2])
-            let byte2 = ((v2 & 0xF) << 4) + ((v3 >> 2) & 0xF)
-            result = result + chr(byte2)
-            if data[i + 3] != "=" && i + 3 < n {
-                let v4 = index_of_char(chars, data[i + 3])
-                let byte3 = ((v3 & 0x3) << 6) + v4
-                result = result + chr(byte3)
-                let i = i + 4
-                continue
-            }
-        }
-        let i = i + 2
-    }
-    return result
-}
-
-fn index_of_char(str, ch) @ pure @ cpu {
-    let i = 0
-    let n = len(str)
-    while i < n {
-        if str[i] == ch { return i }
-        let i = i + 1
-    }
-    return -1
-}
-
-fn encode_hex(data) @ pure @ cpu {
-    let hex_chars = "0123456789abcdef"
-    let result = ""
-    let i = 0
-    let n = len(data)
-    while i < n {
-        let b = data[i]
-        let hi = b / 16
-        let lo = b % 16
-        let result = result + hex_chars[hi]
-        let result = result + hex_chars[lo]
-        let i = i + 1
-    }
-    return result
-}
-
-fn decode_hex(s) @ pure @ cpu {
-    let result = []
-    let i = 0
-    let n = len(s)
-    while i + 1 < n {
-        let hi = hex_char_to_int(s[i])
-        let lo = hex_char_to_int(s[i + 1])
-        if hi >= 0 && lo >= 0 {
-            result = result + [hi * 16 + lo]
-        }
-        let i = i + 2
-    }
-    return result
-}
-    return result
-}
-
-fn hex_char_to_int(c) @ pure @ cpu {
-    if c >= '0' && c <= '9' { return ord(c) - ord('0') }
-    if c >= 'a' && c <= 'f' { return ord(c) - ord('a') + 10 }
-    if c >= 'A' && c <= 'F' { return ord(c) - ord('A') + 10 }
-    return -1
-}
-
-fn hex_to_int(s) @ pure @ cpu {
-    let result = 0
-    let i = 0
-    let n = len(s)
-    while i < n {
-        let result = result * 16 + hex_char_to_int(s[i])
-        let i = i + 1
-    }
-    return result
-}
-
-fn hex_from_int(n) @ pure @ cpu {
-    if n == 0 { return "0" }
-    let hex_chars = "0123456789abcdef"
-    let digits = []
-    let val = n
-    while val > 0 {
-        let digits = [hex_chars[val % 16]] + digits
-        let val = val / 16
-    }
-    let result = ""
-    let i = 0
-    while i < len(digits) {
-        let result = result + digits[i]
-        let i = i + 1
-    }
-    return result
-}
-
-fn encode_url(data) @ pure @ cpu { return url_encode(data) }
-
-fn decode_url(data) @ pure @ cpu { return url_decode(data) }
-
+// --- URL 编码 ---
+// 非保留字符 (unreserved) 原样保留, 其余按 %XX 转义 (XX = 字节值的 hex).
 fn url_encode(s) @ pure @ cpu {
     let result = ""
     let i = 0
     let n = len(s)
     while i < n {
+        let o = ord(s[i])
         let c = s[i]
-        if (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-' || c == '_' || c == '.' || c == '~' {
+        let un = 0
+        if o >= 65 {
+            if o <= 90 { let un = 1 }      // A-Z
+        }
+        if o >= 97 {
+            if o <= 122 { let un = 1 }     // a-z
+        }
+        if o >= 48 {
+            if o <= 57 { let un = 1 }      // 0-9
+        }
+        if o == 45 { let un = 1 }          // '-'
+        if o == 95 { let un = 1 }          // '_'
+        if o == 46 { let un = 1 }          // '.'
+        if o == 126 { let un = 1 }         // '~'
+        if un == 1 {
             result = result + c
         } else {
-            let encoded = "%" + hex_from_int(ord(c))
-            let result = result + encoded
+            result = result + "%" + hex_from_int(o)
         }
         let i = i + 1
     }
     return result
 }
 
+// --- URL 解码 (尾递归, 逐字符推进 index, 规避 if 块内 let 不逃逸) ---
 fn url_decode(s) @ pure @ cpu {
-    let result = ""
-    let i = 0
-    let n = len(s)
-    while i < n {
-        if s[i] == '%' && i + 2 < n {
-            let hex_str = ""
-            let j = i + 1
-            while j < i + 3 {
-                let hex_str = hex_str + s[j]
-                let j = j + 1
-            }
-            result = result + chr(hex_to_int(hex_str))
-            let i = i + 3
-        } else {
-            result = result + s[i]
-            let i = i + 1
-        }
-    }
-    return result
+    return _url_decode_loop(s, 0, len(s), "")
 }
 
-fn encode_json(data) @ pure @ cpu {
-    return json_to_string_impl(data)
+fn _url_decode_loop(s, i, n, result) @ pure @ cpu {
+    if i >= n { return result }
+    if s[i] == '%' {
+        if i + 2 < n {
+            let code = hex_to_int(str(s[i + 1]) + str(s[i + 2]))
+            return _url_decode_loop(s, i + 3, n, result + chr(code))
+        }
+    }
+    return _url_decode_loop(s, i + 1, n, result + s[i])
 }
+
+// --- JSON 编码 (委托 json_parse 模块) ---
+fn encode_json(data) @ pure @ cpu { return json_to_string_impl(data) }
 
 fn json_to_string_impl(data) @ pure @ cpu { return json_parse::json_to_string(data) }

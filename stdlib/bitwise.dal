@@ -1,5 +1,6 @@
 // Dalin L Standard Library — bitwise operations (correct implementations)
-// Uses arithmetic to simulate bitwise: value = sum of 2^k for each bit k that is set
+// 用算术模拟位运算: 逐 bit 检查最低位, 值右移 (÷2) 模拟.
+// 依赖 stdlib 内建 bit_and/bit_or 等; 规避裸参数赋值 (用 let) 与 & 运算符 (用 bit_and).
 
 fn bit_and(a, b) @ pure @ cpu {
     let result = 0
@@ -84,9 +85,9 @@ fn bit_shr(a, n) @ pure @ cpu {
 
 fn bit_count_set_bits(n) @ pure @ cpu {
     let count = 0
-    val = n
+    let val = n
     while val > 0 {
-        val = val & (val - 1)
+        let val = bit_and(val, val - 1)
         let count = count + 1
     }
     return count
@@ -94,5 +95,5 @@ fn bit_count_set_bits(n) @ pure @ cpu {
 
 fn bit_is_power_of_two(n) @ pure @ cpu {
     if n <= 0 { return false }
-    return (n & (n - 1)) == 0
+    return bit_and(n, n - 1) == 0
 }

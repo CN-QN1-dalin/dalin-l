@@ -6,7 +6,7 @@ fn queue_enqueue(q, val) @ pure @ cpu { return push(q, val) }
 
 fn queue_dequeue(q) @ pure @ cpu {
     let n = len(q)
-    if n == 0 { return null }
+    if n == 0 { return None }
     return [q[0], _queue_pop_front(q)]
 }
 
@@ -23,7 +23,7 @@ fn _queue_pop_front(q) @ pure @ cpu {
 
 fn queue_peek(q) @ pure @ cpu {
     if len(q) > 0 { return q[0] }
-    return null
+    return None
 }
 
 fn queue_len(q) @ pure @ cpu { return len(q) }

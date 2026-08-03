@@ -1,12 +1,16 @@
 // Module: hex — 完整 Hex 编解码
+// 依赖运行时内建: ord / chr
+// 设计: 输入为字符串, 逐字符取字节值 (ord) 转 16 进制; 解码逐字符查值转回字节.
+// 规避: 不使用 map 字面量 / map 赋值 (不支持), Char 比较 (用 ord 转 Int),
+//       if 内 && 组合比较 (用嵌套 if), if 块内 let 重绑定 (均在顶层/提前 return).
 
-fn hex_encode(bytes) @ pure @ cpu {
+fn hex_encode(s) @ pure @ cpu {
     let table = "0123456789abcdef"
     let result = ""
     let i = 0
-    let n = len(bytes)
+    let n = len(s)
     while i < n {
-        let b = bytes[i]
+        let b = ord(s[i])
         let hi = b / 16
         let lo = b % 16
         let result = result + table[hi]
@@ -17,22 +21,13 @@ fn hex_encode(bytes) @ pure @ cpu {
 }
 
 fn hex_decode(s) @ pure @ cpu {
-    let table = {}
-    let i = 0
-    while i < 10 {
-        let c = str('0' + i)
-        let table[c] = i
-        let i = i + 1
-    }
     let result = []
     let i = 0
     let n = len(s)
     while i + 1 < n {
-        let hi = table[s[i]]
-        let lo = table[s[i + 1]]
-        if hi >= 0 && lo >= 0 {
-            result = result + [hi * 16 + lo]
-        }
+        let hi = _hex_digit_val(s[i])
+        let lo = _hex_digit_val(s[i + 1])
+        result = result + [hi * 16 + lo]
         let i = i + 2
     }
     return result
@@ -68,8 +63,15 @@ fn hex_from_int(n) @ pure @ cpu {
 }
 
 fn _hex_digit_val(c) @ pure @ cpu {
-    if c >= '0' && c <= '9' { return ord(c) - ord('0') }
-    if c >= 'a' && c <= 'f' { return ord(c) - ord('a') + 10 }
-    if c >= 'A' && c <= 'F' { return ord(c) - ord('A') + 10 }
+    let o = ord(c)
+    if o >= 48 {
+        if o <= 57 { return o - 48 }
+    }
+    if o >= 97 {
+        if o <= 102 { return o - 87 }
+    }
+    if o >= 65 {
+        if o <= 70 { return o - 55 }
+    }
     return 0
 }
