@@ -1,0 +1,32 @@
+// probe: rand_util module dedup — rand_util.dal is canonical (random.dal deleted, #662-5)
+// Verifies merged shuffle + fixed random() resolve, and RNG stays in valid ranges.
+
+// rand_int ranges (builtin-backed real RNG)
+let ri = rand_int(1, 6)
+assert ri >= 1 && ri < 6, "rand_int(1,6) in [1,6)"
+
+let ri1 = rand_int(5)
+assert ri1 >= 0 && ri1 < 5, "rand_int(5) in [0,5)"
+
+// rand_float range
+let rf = rand_float(0.0, 1.0)
+assert rf >= 0.0 && rf < 1.0, "rand_float(0,1) in [0,1)"
+
+// rand_choice returns a member of the input
+let c = rand_choice([10, 20, 30])
+assert c == 10 || c == 20 || c == 30, "rand_choice returns a member"
+
+// shuffle: length preserved + permutation (sum invariant)
+let sh = shuffle([1, 2, 3])
+assert len(sh) == 3, "shuffle length preserved"
+assert sh[0] + sh[1] + sh[2] == 6, "shuffle is a permutation (sum invariant)"
+
+// random(): fixed — real float in [0,1), not the old constant 0.0 placeholder
+let r1 = random()
+let r2 = random()
+let r3 = random()
+assert r1 >= 0.0 && r1 < 1.0, "random() in [0,1)"
+let all_zero = r1 == 0.0 && r2 == 0.0 && r3 == 0.0
+assert !all_zero, "random() must not always be 0.0 (placeholder bug fixed)"
+
+println("ALL RANDOM DEDUP ASSERTIONS PASSED")

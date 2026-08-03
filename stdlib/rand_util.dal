@@ -17,13 +17,44 @@ fn rand_int(min, max) @ pure @ cpu {
 fn rand_float(min, max) @ pure @ cpu {
     if min >= max { return min }
     let raw = rand_int(0, 32768)
-    let normalized = raw / 32768.0
+    let normalized = float(raw) / 32768.0
     return min + normalized * (max - min)
 }
 
 fn rand_choice(lst) @ pure @ cpu {
     let n = len(lst)
-    if n == 0 { return null }
+    if n == 0 { return None }
     let idx = rand_int(0, n)
     return lst[idx]
+}
+
+// --- 以下函数原仅存在于 random.dal，合并到本 canonical 模块以避免 API 缺失 (#662-5 去重) ---
+// random.dal 已删除。rand_int/rand_float/rand_choice 为重复定义，本模块已含（且被内置
+// rand_int 真正驱动），不再合并。
+
+// shuffle（Fisher-Yates 洗牌）：原 random.dal 实现，修正后并入
+fn shuffle(arr) @ pure @ cpu {
+    let result = arr
+    let n = len(result)
+    let i = n - 1
+    while i > 0 {
+        let j = rand_int(0, i + 1)
+        let new_result = []
+        let k = 0
+        while k < n {
+            if k == i { let new_result = push(new_result, result[j]) }
+            else if k == j { let new_result = push(new_result, result[i]) }
+            else { let new_result = push(new_result, result[k]) }
+            let k = k + 1
+        }
+        let result = new_result
+        let i = i - 1
+    }
+    return result
+}
+
+// random(): 返回 [0,1) 区间内的随机浮点数。
+// 修复原 random.dal 中 `fn random() { return 0.0 }` 的占位 bug（恒为 0.0）。
+fn random() @ pure @ cpu {
+    return float(rand_int(1000000)) / 1000000.0
 }

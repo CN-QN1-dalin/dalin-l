@@ -1,0 +1,30 @@
+// probe: map module dedup — collections.dal is now the canonical map module
+// (map.dal was deleted; its unique map_len/map_is_empty were folded in).
+// Verifies bare map_* names still resolve and behave identically.
+
+let m0 = map_new()
+let m1 = map_put(m0, "a", 1)
+let m2 = map_put(m1, "b", 2)
+
+assert map_len(m2) == 2, "map_len should be 2"
+assert map_is_empty(m2) == false, "map_is_empty(m2) should be false"
+assert map_is_empty(m0) == true, "map_is_empty(empty) should be true"
+assert map_get(m2, "a", -1) == 1, "map_get a == 1"
+assert map_get(m2, "z", -1) == -1, "map_get missing returns default"
+assert map_has_key(m2, "b") == true, "has_key b"
+assert map_has_key(m2, "z") == false, "has_key z"
+
+let ks = map_keys(m2)
+assert map_len(ks) == 2, "keys len 2"
+
+let vs = map_values(m2)
+assert map_len(vs) == 2, "values len 2"
+
+let m3 = map_remove(m2, "a")
+assert map_len(m3) == 1, "after remove len 1"
+assert map_has_key(m3, "a") == false, "a removed"
+
+let m4 = map_clear(m2)
+assert map_is_empty(m4) == true, "cleared is empty"
+
+println("ALL MAP DEDUP ASSERTIONS PASSED")

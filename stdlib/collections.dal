@@ -7,7 +7,7 @@ fn list_len(lst) @ pure @ cpu { return len(lst) }
 
 fn list_get(lst, idx) @ pure @ cpu {
     if idx >= 0 && idx < len(lst) { return lst[idx] }
-    return null
+    return None
 }
 
 fn list_push(lst, val) @ pure @ cpu { return push(lst, val) }
@@ -15,7 +15,7 @@ fn list_push(lst, val) @ pure @ cpu { return push(lst, val) }
 fn list_pop(lst) @ pure @ cpu {
     let l = len(lst)
     if l > 0 { return lst[l - 1] }
-    return null
+    return None
 }
 
 fn list_contains(lst, val) @ pure @ cpu {
@@ -148,4 +148,14 @@ fn map_values(m) @ pure @ cpu {
 
 fn map_clear(m) @ pure @ cpu {
     return []
+}
+
+// map.dal 的 map 实现已合并到本模块（collections 为 canonical map 模块）。
+// 以下两个函数原仅存在于 map.dal，合并时保留以避免 API 缺失。
+fn map_len(m) @ pure @ cpu {
+    return len(m)
+}
+
+fn map_is_empty(m) @ pure @ cpu {
+    return len(m) == 0
 }

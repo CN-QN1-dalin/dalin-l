@@ -1,6 +1,0 @@
-// Dalin L Standard Library — queue utilities (stub)
-
-fn queue_create() @ pure @ cpu { return [] }
-fn queue_size(q) @ pure @ cpu { return len(q) }
-fn queue_front(q) @ pure @ cpu { if len(q) > 0 { return q[0] } return null }
-fn queue_back(q) @ pure @ cpu { let n = len(q); if n > 0 { return q[n-1] } return null }

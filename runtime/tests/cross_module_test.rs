@@ -13,10 +13,10 @@ fn run_last(src: &str) -> Value {
 }
 
 #[test]
-fn cross_module_strutil_to_strings() {
-    // strutil::str_reverse 转发到 strings::str_reverse
-    let v = run_last("fn main() @ pure @ cpu { return strutil::str_reverse(\"abc\") }");
-    assert_eq!(v, Value::String("cba".into()), "str_reverse(abc) = cba");
+fn cross_module_strings_str_repeat_after_dedup() {
+    // str_repeat 原仅定义于 strutil.dal，去重后并入 canonical strings 模块
+    let v = run_last("fn main() @ pure @ cpu { return strings::str_repeat(\"ab\", 3) }");
+    assert_eq!(v, Value::String("ababab".into()), "str_repeat(ab,3) = ababab");
 }
 
 #[test]
@@ -52,19 +52,19 @@ fn namespace_qualified_hits_strings_module() {
     );
 }
 
-/// 命名空间隔离：strutil 转发到 strings，qualified 解析让转发链正确工作
+/// 命名空间隔离：qualified 调用精确命中 canonical `strings` 模块实现
 #[test]
-fn namespace_qualified_forwarder_resolves() {
+fn namespace_qualified_strings_resolves() {
     let v =
-        run_last("fn main() @ pure @ cpu { return strutil::str_starts_with(\"hello\", \"he\") }");
+        run_last("fn main() @ pure @ cpu { return strings::str_starts_with(\"hello\", \"he\") }");
     assert_eq!(
         v,
         Value::Bool(true),
-        "strutil::str_starts_with(hello, he) = true"
+        "strings::str_starts_with(hello, he) = true"
     );
 }
 
-/// 命名空间隔离 + 向后兼容：同名冲突函数（str_ends_with 在 strings/strutil 均定义）
+/// 命名空间隔离 + 向后兼容：str_ends_with 去重后仅 strings 模块拥有，裸调用确定性命中
 /// 裸调用仍可用，确定性命中首个定义模块（strings），不再有静默遮蔽导致的不可预期行为
 #[test]
 fn namespace_ambiguous_bare_keeps_deterministic_default() {

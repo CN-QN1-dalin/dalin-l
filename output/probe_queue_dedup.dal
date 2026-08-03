@@ -1,0 +1,30 @@
+// probe: queue module dedup — queue.dal is canonical (queue_util.dal deleted, #662-6)
+// Verifies merged queue_back + alias functions (queue_create/size/front) resolve and behave.
+
+let q0 = queue_new()
+assert queue_len(q0) == 0, "empty len 0"
+assert queue_is_empty(q0), "empty is_empty"
+assert queue_peek(q0) == None, "peek empty"
+assert queue_front(q0) == None, "front empty"
+assert queue_back(q0) == None, "back empty"
+
+let q1 = queue_enqueue(q0, 1)
+let q2 = queue_enqueue(q1, 2)
+let q3 = queue_enqueue(q2, 3)
+assert queue_len(q3) == 3, "len 3"
+assert queue_peek(q3) == 1, "peek front = 1"
+assert queue_front(q3) == 1, "front = 1"
+assert queue_back(q3) == 3, "back = 3"
+
+let dq = queue_dequeue(q3)            // [front, rest]
+assert dq[0] == 1, "dequeue returns front"
+assert queue_len(dq[1]) == 2, "dequeue rest len 2"
+assert queue_back(dq[1]) == 3, "back of rest = 3"
+assert queue_front(dq[1]) == 2, "front of rest = 2"
+
+// merged aliases from queue_util.dal
+assert queue_create() == [], "queue_create alias"
+assert queue_size(q3) == 3, "queue_size alias"
+assert queue_front(q3) == 1, "queue_front alias"
+
+println("ALL QUEUE DEDUP ASSERTIONS PASSED")

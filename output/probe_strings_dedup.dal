@@ -1,0 +1,39 @@
+// probe: strings module dedup — strings.dal is canonical (strutil.dal deleted, #662-4)
+// Verifies unique functions merged from strutil.dal still resolve via bare name and behave
+// correctly, including the previously-buggy str_capitalize (data-loss + no uppercase).
+
+// canonical str_* still present
+assert str_reverse("abc") == "cba", "str_reverse canonical"
+assert str_starts_with("hello", "he"), "str_starts_with canonical"
+assert str_ends_with("hello", "lo"), "str_ends_with canonical"
+
+// merged unique functions
+assert str_repeat("ab", 3) == "ababab", "str_repeat(ab,3)"
+assert str_repeat("x", 0) == "", "str_repeat(x,0) = empty"
+
+assert str_pad_left("ab", 5, "-") == "---ab", "str_pad_left"
+assert str_pad_left("ab", 2, "-") == "ab", "str_pad_left no-op when long enough"
+assert str_pad_right("ab", 5, "-") == "ab---", "str_pad_right"
+
+// str_count uses break internally; non-overlapping count
+assert str_count("ababab", "ab") == 3, "str_count ababab/ab = 3"
+assert str_count("aaaa", "aa") == 2, "str_count aaaa/aa = 2 (non-overlap)"
+assert str_count("hello", "xyz") == 0, "str_count miss = 0"
+assert str_count("hello", "") == 0, "str_count empty sub = 0"
+
+// str_capitalize FIXED: uppercases first ASCII letter, preserves the rest
+assert str_capitalize("hello") == "Hello", "str_capitalize hello"
+assert str_capitalize("Hello") == "Hello", "str_capitalize Hello (idempotent)"
+assert str_capitalize("world") == "World", "str_capitalize world"
+assert str_capitalize("123abc") == "123abc", "str_capitalize leading digit untouched"
+assert str_capitalize("") == "", "str_capitalize empty"
+
+assert str_is_empty("") == true, "str_is_empty empty"
+assert str_is_empty("a") == false, "str_is_empty non-empty"
+
+assert str_is_blank("   ") == true, "str_is_blank spaces"
+assert str_is_blank("\t\t") == true, "str_is_blank tabs"
+assert str_is_blank(" a ") == false, "str_is_blank mixed"
+assert str_is_blank("") == true, "str_is_blank empty"
+
+println("ALL STRINGS DEDUP ASSERTIONS PASSED")

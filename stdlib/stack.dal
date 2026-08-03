@@ -40,3 +40,27 @@ fn stack_peek(s) @ pure @ cpu {
 fn stack_len(s) @ pure @ cpu { return len(s) }
 
 fn stack_is_empty(s) @ pure @ cpu { return len(s) == 0 }
+
+// --- 以下函数原仅存在于 stack_util.dal，合并到本 canonical 模块以避免 API 缺失 ---
+// stack_util.dal 已删除（#662-3 去重）。
+
+// stack_create 为 stack_new 的别名
+fn stack_create() @ pure @ cpu { return [] }
+
+// stack_top 为 stack_peek 的别名
+fn stack_top(s) @ pure @ cpu { return stack_peek(s) }
+
+// stack_size 为 stack_len 的别名
+fn stack_size(s) @ pure @ cpu { return len(s) }
+
+// stack_reverse 正确反转列表（原 stack_util.dal 误调 strings::str_reverse，已修正为列表反转）
+fn stack_reverse(s) @ pure @ cpu {
+    let n = len(s)
+    let result = []
+    let i = n - 1
+    while i >= 0 {
+        let result = push(result, s[i])
+        let i = i - 1
+    }
+    return result
+}

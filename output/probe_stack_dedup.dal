@@ -1,0 +1,42 @@
+// probe: stack module dedup — stack.dal is canonical (stack_util.dal deleted, #662-3)
+// Verifies bare stack_* names still resolve and the previously-buggy stack_reverse is fixed
+// (it used to call strings::str_reverse; now it correctly reverses the list).
+
+let s0 = stack_new()
+assert stack_len(s0) == 0, "empty stack len should be 0"
+assert stack_is_empty(s0), "empty stack should be is_empty"
+
+let s1 = stack_push(s0, 10)
+let s2 = stack_push(s1, 20)
+let s3 = stack_push(s2, 30)
+assert stack_len(s3) == 3, "len after 3 pushes should be 3"
+assert stack_peek(s3) == 30, "peek should return top (30)"
+assert stack_top(s3) == 30, "stack_top should alias peek (30)"
+
+let top = stack_pop(s3)
+assert top == 30, "pop should return top (30)"
+
+let s3b = stack_pop_remove(s3)
+assert stack_len(s3b) == 2, "pop_remove should drop top (len 2)"
+assert s3b[0] == 10, "pop_remove should keep original order"
+
+// aliases merged from stack_util.dal
+assert stack_create() == [], "stack_create should alias stack_new ([]) "
+assert stack_size(s3) == 3, "stack_size should alias stack_len (3)"
+
+// stack_reverse FIXED: must reverse the LIST, not string-reverse the elements
+let r = stack_reverse(s3)   // s3 == [10, 20, 30] -> [30, 20, 10]
+assert stack_len(r) == 3, "reverse len should be 3"
+assert r[0] == 30, "reverse[0] should be 30"
+assert r[1] == 20, "reverse[1] should be 20"
+assert r[2] == 10, "reverse[2] should be 10"
+
+// string elements must stay intact (would be mangled if str_reverse were misused)
+let ss0 = stack_new()
+let ss1 = stack_push(ss0, "ab")
+let ss2 = stack_push(ss1, "cd")
+let ssr = stack_reverse(ss2)   // ["cd", "ab"]
+assert ssr[0] == "cd", "str reverse[0] should be 'cd' (not 'dc')"
+assert ssr[1] == "ab", "str reverse[1] should be 'ab' (not 'ba')"
+
+println("ALL STACK DEDUP ASSERTIONS PASSED")

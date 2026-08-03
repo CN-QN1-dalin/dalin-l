@@ -29,3 +29,21 @@ fn queue_peek(q) @ pure @ cpu {
 fn queue_len(q) @ pure @ cpu { return len(q) }
 
 fn queue_is_empty(q) @ pure @ cpu { return len(q) == 0 }
+
+// --- 以下函数原仅存在于 queue_util.dal，合并到本 canonical 模块以避免 API 缺失 (#662-6 去重) ---
+// queue_util.dal 已删除。queue_enqueue/dequeue/peek 已在本模块。
+
+fn queue_create() @ pure @ cpu { return [] }            // alias queue_new
+
+fn queue_size(q) @ pure @ cpu { return len(q) }         // alias queue_len
+
+fn queue_front(q) @ pure @ cpu {                         // alias queue_peek
+    if len(q) > 0 { return q[0] }
+    return None
+}
+
+fn queue_back(q) @ pure @ cpu {                          // 队尾元素（队首为 q[0]）
+    let n = len(q)
+    if n > 0 { return q[n - 1] }
+    return None
+}
