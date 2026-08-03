@@ -1,6 +1,0 @@
-// Dalin L Core — Result type utilities
-
-fn ok_result(val) @ pure @ cpu { return [true, val, null] }
-fn err_result(err) @ pure @ cpu { return [false, null, err] }
-fn result_is_ok(r) @ pure @ cpu { if len(r) > 0 { return r[0] } return false }
-fn result_get(r, default) @ pure @ cpu { if result_is_ok(r) && len(r) > 1 { return r[1] } return default }

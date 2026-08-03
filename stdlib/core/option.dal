@@ -1,7 +1,0 @@
-// Dalin L Core — Option type utilities
-
-fn some_opt(val) @ pure @ cpu { return [true, val] }
-fn none_opt() @ pure @ cpu { return [false, null] }
-fn is_some(o) @ pure @ cpu { if len(o) > 0 { return o[0] } return false }
-fn is_none(o) @ pure @ cpu { return !is_some(o) }
-fn opt_get(o, default) @ pure @ cpu { if is_some(o) { return o[1] } return default }
