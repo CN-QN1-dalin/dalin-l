@@ -3,7 +3,7 @@ use std::fmt;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TokenType {
-    // ── 核心关键字 (17) ──
+    // ── 核心关键字 (19) ──
     KeywordLet,
     KeywordFn,
     KeywordReturn,
@@ -21,6 +21,10 @@ pub enum TokenType {
     KeywordTrait,
     KeywordAssert,
     KeywordChannel,
+    /// 循环控制流 — 提前终止最内层 while/for 循环
+    KeywordBreak,
+    /// 循环控制流 — 跳过本次迭代剩余语句，进入下一轮
+    KeywordContinue,
 
     // ── 扩展关键字 (12) ──
     KeywordMut,
@@ -119,6 +123,8 @@ impl TokenType {
             Self::KeywordTrait => "KEYWORD_TRAIT",
             Self::KeywordAssert => "KEYWORD_ASSERT",
             Self::KeywordChannel => "KEYWORD_CHANNEL",
+            Self::KeywordBreak => "KEYWORD_BREAK",
+            Self::KeywordContinue => "KEYWORD_CONTINUE",
             Self::KeywordMut => "KEYWORD_MUT",
             Self::KeywordOk => "KEYWORD_OK",
             Self::KeywordError => "KEYWORD_ERROR",

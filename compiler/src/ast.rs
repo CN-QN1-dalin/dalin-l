@@ -220,6 +220,10 @@ pub enum Stmt {
         pub_: bool,
     },
     Return(Option<Box<Expr>>),
+    /// 循环控制流 — 终止最内层 while/for 循环
+    Break,
+    /// 循环控制流 — 跳过本次迭代剩余语句，进入下一轮
+    Continue,
     If {
         condition: Box<Expr>,
         then_body: Vec<Stmt>,

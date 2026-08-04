@@ -565,6 +565,10 @@ pub struct Runtime {
     returned: bool,
     /// Return 语句的值
     return_value: RuntimeValue,
+    /// break 标志：由最内层 while/for 消费并清除
+    breaking: bool,
+    /// continue 标志：由最内层 while/for 消费并清除
+    continuing: bool,
 }
 
 impl Runtime {
@@ -580,6 +584,8 @@ impl Runtime {
             current_depth: 0,
             returned: false,
             return_value: RuntimeValue::None,
+            breaking: false,
+            continuing: false,
         }
     }
 
@@ -757,6 +763,11 @@ impl Runtime {
             if self.returned {
                 return Ok(self.return_value.clone());
             }
+            // break/continue 需穿透嵌套块（如 if 体内的 break），
+            // 由最内层 while/for 消费并清除标志，此处只负责提前退出块。
+            if self.breaking || self.continuing {
+                return Ok(last_val);
+            }
         }
         Ok(last_val)
     }
@@ -792,6 +803,15 @@ impl Runtime {
                 self.return_value = val.clone();
                 Ok(val)
             }
+            // 循环控制流：置标志，由 exec_block 逐层提前退出，最内层 while/for 消费。
+            Stmt::Break => {
+                self.breaking = true;
+                Ok(RuntimeValue::None)
+            }
+            Stmt::Continue => {
+                self.continuing = true;
+                Ok(RuntimeValue::None)
+            }
             Stmt::If {
                 condition,
                 then_body,
@@ -826,6 +846,15 @@ impl Runtime {
                         last_val = self.return_value.clone();
                         break;
                     }
+                    // 消费循环控制标志：continue 直接进入下一轮，break 终止循环。
+                    if self.continuing {
+                        self.continuing = false;
+                        continue;
+                    }
+                    if self.breaking {
+                        self.breaking = false;
+                        break;
+                    }
                 }
                 Ok(last_val)
             }
@@ -857,6 +886,14 @@ impl Runtime {
                     self.env.pop_scope();
                     if self.returned {
                         last_val = self.return_value.clone();
+                        break;
+                    }
+                    if self.continuing {
+                        self.continuing = false;
+                        continue;
+                    }
+                    if self.breaking {
+                        self.breaking = false;
                         break;
                     }
                 }

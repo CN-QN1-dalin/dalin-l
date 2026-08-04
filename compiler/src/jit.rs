@@ -247,6 +247,12 @@ impl JitCompiler {
             ..
         } = fn_stmt
         {
+            // 资格门禁：IR 后端暂无 break/continue 的基本块跳转支持。
+            // 若静默忽略，`while { if c { break } }` 会被编译成死循环 —— 必须拒绝。
+            if let Some(kw) = find_unsupported_control_flow(body) {
+                return Err(CompileError::UnsupportedConstruct(kw));
+            }
+
             let mut ir = String::new();
 
             // Module header
@@ -951,6 +957,42 @@ fn compile_stmt_to_ir(
     }
 }
 
+/// 递归扫描语句树，返回首个 IR 后端不支持的控制流关键字。
+///
+/// 目前仅 `break`/`continue` 缺少基本块跳转实现。命中即拒绝 JIT，
+/// 由调用方回退到树遍历解释器（正确性优先于性能）。
+fn find_unsupported_control_flow(body: &[Stmt]) -> Option<&'static str> {
+    for stmt in body {
+        let found = match stmt {
+            Stmt::Break => Some("break"),
+            Stmt::Continue => Some("continue"),
+            Stmt::While { body, .. } | Stmt::For { body, .. } => {
+                find_unsupported_control_flow(body)
+            }
+            Stmt::If {
+                then_body,
+                else_body,
+                ..
+            } => find_unsupported_control_flow(then_body)
+                .or_else(|| find_unsupported_control_flow(else_body)),
+            Stmt::Match { arms, .. } => arms
+                .iter()
+                .find_map(|arm| find_unsupported_control_flow(&arm.body)),
+            Stmt::TryCatch {
+                try_body,
+                catch_body,
+                ..
+            } => find_unsupported_control_flow(try_body)
+                .or_else(|| find_unsupported_control_flow(catch_body)),
+            _ => None,
+        };
+        if found.is_some() {
+            return found;
+        }
+    }
+    None
+}
+
 /// 表达式 → LLVM IR 指令片段
 /// 返回: `<llvm_op> <type> <left_operand> <right_operand>` 或 `<value>`
 fn expr_to_ir_expr(expr: &Expr, locals: &[(String, String)]) -> String {
@@ -1031,6 +1073,9 @@ pub enum CompileError {
     EmptyParamName,
     TypeResolutionFailed,
     ConstantOverflow,
+    /// 函数体含 IR 后端尚未支持的构造 —— 拒绝 JIT，调用方应回退解释器。
+    /// 宁可不优化，也不能静默生成语义错误的原生代码。
+    UnsupportedConstruct(&'static str),
 }
 
 impl std::fmt::Display for CompileError {
@@ -1042,6 +1087,9 @@ impl std::fmt::Display for CompileError {
             Self::EmptyParamName => write!(f, "empty parameter name"),
             Self::TypeResolutionFailed => write!(f, "cannot resolve type for expression"),
             Self::ConstantOverflow => write!(f, "constant folding overflow in literal"),
+            Self::UnsupportedConstruct(what) => {
+                write!(f, "JIT backend does not yet support `{what}`; falling back to interpreter")
+            }
         }
     }
 }

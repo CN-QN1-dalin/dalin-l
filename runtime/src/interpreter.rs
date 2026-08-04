@@ -9,6 +9,38 @@ use std::sync::{Arc, Mutex};
 #[derive(Debug)]
 pub struct RuntimeError(pub String);
 
+// ── 控制流哨兵 ──
+// 解释器用 Err(RuntimeError(哨兵)) 承载非局部跳转（return/break/continue）。
+// 这些字符串以 `__` 包裹，用户代码无法构造同名错误，故不会误捕获。
+/// 函数返回：由 `call_function` 拦截，取出 `self.return_value`。
+const CTRL_RETURN: &str = "__return__";
+/// 循环终止：由最内层 `eval_while`/`eval_for` 拦截。
+const CTRL_BREAK: &str = "__break__";
+/// 循环续跑：由最内层 `eval_while`/`eval_for` 拦截，跳过本轮剩余语句。
+const CTRL_CONTINUE: &str = "__continue__";
+
+/// 循环体一轮执行的结果信号。
+enum LoopFlow {
+    /// 正常执行完本轮
+    Normal,
+    /// 遇到 break，终止循环
+    Break,
+    /// 遇到 continue，进入下一轮
+    Continue,
+    /// 真实错误或 return，向上冒泡
+    Err(RuntimeError),
+}
+
+/// 判断错误是否为控制流哨兵（而非真实运行时错误）。
+fn ctrl_kind(err: &RuntimeError) -> Option<&'static str> {
+    match err.0.as_str() {
+        CTRL_RETURN => Some(CTRL_RETURN),
+        CTRL_BREAK => Some(CTRL_BREAK),
+        CTRL_CONTINUE => Some(CTRL_CONTINUE),
+        _ => None,
+    }
+}
+
 /// 任务树节点（持久化，存于跨线程共享注册表，供控制面视图）。
 struct TaskNode {
     name: String,
@@ -118,8 +150,12 @@ impl Interpreter {
                     None => Value::None,
                 };
                 self.return_value = Some(val);
-                Err(RuntimeError("__return__".into()))
+                Err(RuntimeError(CTRL_RETURN.into()))
             }
+            // 循环控制流：用哨兵错误向上冒泡，由最内层 eval_while/eval_for 拦截。
+            // 未被循环拦截时会一路冒到 call_function，报为普通运行时错误（循环外使用）。
+            Stmt::Break => Err(RuntimeError(CTRL_BREAK.into())),
+            Stmt::Continue => Err(RuntimeError(CTRL_CONTINUE.into())),
             Stmt::If {
                 condition,
                 then_body,
@@ -317,11 +353,31 @@ impl Interpreter {
             if !self.truthy(&cond_val) {
                 break;
             }
-            for s in body {
-                self.eval_stmt(s, env)?;
+            // 逐语句执行（不开子作用域：Dalin L while 体内 let 需跨迭代持久化）。
+            // break/continue 哨兵在此拦截；return 与真实错误继续向上冒泡。
+            match self.run_loop_body(body, env) {
+                LoopFlow::Normal => {}
+                LoopFlow::Break => break,
+                LoopFlow::Continue => continue,
+                LoopFlow::Err(e) => return Err(e),
             }
         }
         Ok(Value::None)
+    }
+
+    /// 执行一轮循环体，把 break/continue 哨兵翻译为结构化控制流信号。
+    fn run_loop_body(&mut self, body: &[Stmt], env: &mut Environment) -> LoopFlow {
+        for s in body {
+            if let Err(e) = self.eval_stmt(s, env) {
+                return match ctrl_kind(&e) {
+                    Some(CTRL_BREAK) => LoopFlow::Break,
+                    Some(CTRL_CONTINUE) => LoopFlow::Continue,
+                    // CTRL_RETURN 与真实错误一律上抛。
+                    _ => LoopFlow::Err(e),
+                };
+            }
+        }
+        LoopFlow::Normal
     }
 
     fn eval_for(
@@ -333,12 +389,16 @@ impl Interpreter {
     ) -> Result<Value, RuntimeError> {
         let iter = self.eval_expr(iterable, env)?;
         let items = self.as_iterable(&iter);
-        let mut result = Value::None;
         for item in items {
             env.define(target, item.clone());
-            result = self.eval_block(body, env)?;
+            match self.run_loop_body(body, env) {
+                LoopFlow::Normal => {}
+                LoopFlow::Break => break,
+                LoopFlow::Continue => continue,
+                LoopFlow::Err(e) => return Err(e),
+            }
         }
-        Ok(result)
+        Ok(Value::None)
     }
 
     fn eval_match(
@@ -654,7 +714,7 @@ impl Interpreter {
         }
 
         // Builtins
-        let builtins: [&str; 24] = [
+        let builtins: [&str; 32] = [
             "println",
             "println!",
             "print",
@@ -681,6 +741,17 @@ impl Interpreter {
             // 字符 ↔ 整数 转换（hex/base64 等模块实质化依赖）
             "ord",
             "chr",
+            // 类型判定内建（core_types.type_of 依赖；修复此前 is_* 与 type_of
+            // 互相递归导致无限循环、以及 is_int 对 Char 使用 >=/<= 在 Dalin L 中
+            // 不受支持而崩溃的问题）
+            "is_int",
+            "is_float",
+            "is_bool",
+            "is_string",
+            "is_list",
+            "is_map",
+            "is_fn",
+            "is_char",
         ];
 
         // 1) 命名空间精确解析（module::func 优先，实现真正的命名空间隔离）
@@ -753,8 +824,16 @@ impl Interpreter {
         self.return_value = None;
         let result = self.eval_block(&fnv.body, &mut call_env);
         match result {
-            Err(RuntimeError(ref msg)) if msg == "__return__" => {
+            Err(RuntimeError(ref msg)) if msg == CTRL_RETURN => {
                 Ok(self.return_value.take().unwrap_or(Value::None))
+            }
+            // 哨兵逃出函数边界 = 循环外使用 break/continue，翻译为可读的诊断信息。
+            Err(RuntimeError(ref msg)) if msg == CTRL_BREAK || msg == CTRL_CONTINUE => {
+                let kw = if msg == CTRL_BREAK { "break" } else { "continue" };
+                Err(RuntimeError(format!(
+                    "'{kw}' 只能用于 while/for 循环体内（函数 '{}' 中越界使用）",
+                    fnv.name
+                )))
             }
             Ok(_) => Ok(Value::None),
             Err(e) => Err(e),
@@ -771,11 +850,16 @@ impl Interpreter {
             "print" | "print!" => {
                 let s: Vec<String> = args.iter().map(|a| format!("{a}")).collect();
                 print!("{}", s.join(" "));
+                // stdout 行缓冲：不换行的 print 必须显式 flush，
+                // 否则输出滞留缓冲区，与 stderr/子进程输出交错错序。
+                let _ = std::io::Write::flush(&mut std::io::stdout());
                 Ok(Value::None)
             }
             "len" => match &args[0] {
                 Value::Array(a) => Ok(Value::Int(a.len() as i64)),
-                Value::String(s) => Ok(Value::Int(s.len() as i64)),
+                // UTF-8 安全：字符数而非字节数，与 eval_index 的 chars().nth() 口径一致。
+                // 若返回字节数，`while i < len(s) { s[i] }` 在任何非 ASCII 输入下必然越界。
+                Value::String(s) => Ok(Value::Int(s.chars().count() as i64)),
                 _ => Ok(Value::Int(0)),
             },
             "push" => {
@@ -1059,6 +1143,32 @@ impl Interpreter {
                 }
                 other => Err(RuntimeError(format!("chr 需要整数，得到 {other}"))),
             },
+            // ── 类型判定内建（core_types.type_of 依赖）──
+            // 解决此前 is_* 与 type_of 互相递归导致无限循环，以及 is_int 对 Char
+            // 使用 >= / <=（Dalin L 不支持）而崩溃的问题。is_map 约定：Array 且
+            // 为空或所有元素均为二元组 [k, v]（与 json.dal 的 map 表示一致）。
+            "is_int" => Ok(Value::Bool(matches!(args[0], Value::Int(_)))),
+            "is_float" => Ok(Value::Bool(matches!(args[0], Value::Float(_)))),
+            "is_bool" => Ok(Value::Bool(matches!(args[0], Value::Bool(_)))),
+            "is_string" => Ok(Value::Bool(matches!(args[0], Value::String(_)))),
+            "is_list" => Ok(Value::Bool(matches!(args[0], Value::Array(_)))),
+            "is_fn" => Ok(Value::Bool(matches!(args[0], Value::Function(_)))),
+            "is_char" => Ok(Value::Bool(matches!(args[0], Value::Char(_)))),
+            "is_map" => Ok(Value::Bool(match &args[0] {
+                Value::Array(a) => {
+                    // map 约定：数组且每个元素都是 [String, v] 二元组。
+                    // 空数组也视作 map（与 json_parse("{}") → [] 的表示一致，
+                    // 使 json_get 在空 map 上不会因 type_of != "map" 而误拒）。
+                    // 非空时要求「全部为字符串键二元组」，这样 ["x", "y"] 这类
+                    // 普通二元数组不会被误判成 map。
+                    a.is_empty()
+                        || a.iter().all(|e| match e {
+                            Value::Array(p) => p.len() == 2 && matches!(p[0], Value::String(_)),
+                            _ => false,
+                        })
+                }
+                _ => false,
+            })),
             _ => Err(RuntimeError(format!("Unknown builtin: {name}"))),
         }
     }

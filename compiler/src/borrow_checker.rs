@@ -584,6 +584,10 @@ impl BorrowChecker {
             Stmt::Return(_) => {
                 self.current_line += 1;
             }
+            // 循环控制流不产生借用/移动，仅推进行号。
+            Stmt::Break | Stmt::Continue => {
+                self.current_line += 1;
+            }
             Stmt::Expr(expr) => {
                 self.current_line += 1;
                 self.check_moves_in_expr_for_use(expr);

@@ -7,8 +7,9 @@ use crate::token::{
     TokenType::{
         And, Arrow, At, BitAnd, BitOr, BitXor, BoolLiteral, CharLiteral, Colon, Comma, Dot,
         DoubleArrow, DoubleColon, DoubleDot, DoubleEqual, Eof, Equal, FloatLiteral, Greater,
-        GreaterEqual, Ident, IntLiteral, KeywordAssert, KeywordAsync, KeywordCatch, KeywordChannel,
-        KeywordConst, KeywordElse, KeywordEnum, KeywordExport, KeywordFn, KeywordFor, KeywordIf,
+        GreaterEqual, Ident, IntLiteral, KeywordAssert, KeywordAsync, KeywordBreak, KeywordCatch,
+        KeywordChannel, KeywordConst, KeywordContinue, KeywordElse, KeywordEnum, KeywordExport,
+        KeywordFn, KeywordFor, KeywordIf,
         KeywordImpl, KeywordIn, KeywordLet, KeywordMatch, KeywordMut, KeywordReturn, KeywordSpawn,
         KeywordStruct, KeywordTrait, KeywordTry, KeywordType, KeywordUse, KeywordWhile, LeftBrace,
         LeftBracket, LeftParen, Less, LessEqual, Minus, Modulo, Not, NotEqual, Or, Pipe, Plus,
@@ -154,7 +155,7 @@ impl Parser {
                 | KeywordIf | KeywordMatch | KeywordStruct | KeywordEnum | KeywordTrait
                 | KeywordImpl | KeywordUse | KeywordExport | KeywordChannel | KeywordSpawn
                 | KeywordAssert | KeywordAsync | KeywordTry | KeywordConst | KeywordType
-                | RightBrace => return,
+                | KeywordBreak | KeywordContinue | RightBrace => return,
                 _ => {
                     self.advance();
                 }
@@ -179,7 +180,8 @@ impl Parser {
                 KeywordFn | KeywordLet | KeywordMut | KeywordReturn | KeywordFor | KeywordWhile
                 | KeywordIf | KeywordMatch | KeywordStruct | KeywordEnum | KeywordTrait
                 | KeywordImpl | KeywordUse | KeywordExport | KeywordChannel | KeywordSpawn
-                | KeywordAssert | KeywordAsync | KeywordTry | KeywordConst | KeywordType => return,
+                | KeywordAssert | KeywordAsync | KeywordTry | KeywordConst | KeywordType
+                | KeywordBreak | KeywordContinue => return,
                 _ => {
                     self.advance();
                 }
@@ -339,6 +341,17 @@ impl Parser {
             KeywordReturn => {
                 self.advance();
                 Ok(Some(self.parse_return()?))
+            }
+            // 循环控制流：裸关键字语句，无操作数。可选尾随分号在此吞掉。
+            KeywordBreak => {
+                self.advance();
+                self.match_token(Semicolon);
+                Ok(Some(Stmt::Break))
+            }
+            KeywordContinue => {
+                self.advance();
+                self.match_token(Semicolon);
+                Ok(Some(Stmt::Continue))
             }
             KeywordUse => {
                 self.advance();
@@ -1749,6 +1762,8 @@ fn stmt_name(stmt: &Stmt) -> &'static str {
         Stmt::Const { .. } => "Const",
         Stmt::Fn { .. } => "Fn",
         Stmt::Return(_) => "Return",
+        Stmt::Break => "Break",
+        Stmt::Continue => "Continue",
         Stmt::If { .. } => "If",
         Stmt::While { .. } => "While",
         Stmt::For { .. } => "For",
