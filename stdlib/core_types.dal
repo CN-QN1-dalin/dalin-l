@@ -1,60 +1,23 @@
 // Dalin L 标准库 — 核心类型系统 (real type checking)
+//
+// 注意：is_int / is_float / is_bool / is_string / is_list / is_map / is_fn
+// 现在由解释器内建提供（见 interpreter.rs call_builtin）。此前的 stdlib 实现存在
+// 两个致命缺陷：
+//   1) is_* 与 type_of 互相递归 → 对 list/map 调用 type_of 会无限循环栈溢出；
+//   2) is_int 用 `c >= '0'` 比较 Char，而 Dalin L 的 Char 不支持 >= / <= → 崩溃。
+// 现改为直接调用内建谓词，type_of 不再递归、不再做 Char 比较。
+// is_map 约定：Array 且为空或所有元素均为二元组 [k, v]（与 json.dal 的 map 表示一致）。
 
 fn type_of(x) @ pure @ cpu {
-    if x == null { return "none" }
+    if x == None { return "none" }
     if is_bool(x) { return "bool" }
     if is_int(x) { return "int" }
     if is_float(x) { return "float" }
     if is_string(x) { return "string" }
-    if is_list(x) { return "list" }
+    if is_char(x) { return "char" }
     if is_map(x) { return "map" }
+    if is_list(x) { return "list" }
     return "unknown"
-}
-
-fn is_int(x) @ pure @ cpu {
-    let t = str(x)
-    // Check if it's a number representation
-    if x >= -999999999999 && x <= 999999999999 {
-        let s = str(x)
-        let i = 0
-        let n = len(s)
-        if s[0] == '-' { let i = 1 }
-        while i < n {
-            let c = s[i]
-            if c >= '0' && c <= '9' { let i = i + 1; continue }
-            return false
-        }
-        return true
-    }
-    return false
-}
-
-fn is_float(x) @ pure @ cpu {
-    let s = str(x)
-    let has_dot = false
-    let i = 0
-    let n = len(s)
-    while i < n {
-        if s[i] == '.' { has_dot = true }
-        let i = i + 1
-    }
-    return has_dot
-}
-
-fn is_string(x) @ pure @ cpu { return type_of(x) == "string" }
-
-fn is_bool(x) @ pure @ cpu { return x == true || x == false }
-
-fn is_fn(x) @ pure @ cpu { return false }
-
-fn is_list(x) @ pure @ cpu {
-    let t = type_of(x)
-    return t == "list"
-}
-
-fn is_map(x) @ pure @ cpu {
-    let t = type_of(x)
-    return t == "map"
 }
 
 fn can_convert(from, to) @ pure @ cpu {
