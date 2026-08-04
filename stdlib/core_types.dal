@@ -9,7 +9,7 @@
 // is_map 约定：Array 且为空或所有元素均为二元组 [k, v]（与 json.dal 的 map 表示一致）。
 
 fn type_of(x) @ pure @ cpu {
-    if x == None { return "none" }
+    if is_none(x) { return "none" }
     if is_bool(x) { return "bool" }
     if is_int(x) { return "int" }
     if is_float(x) { return "float" }
@@ -17,6 +17,9 @@ fn type_of(x) @ pure @ cpu {
     if is_char(x) { return "char" }
     if is_map(x) { return "map" }
     if is_list(x) { return "list" }
+    if is_option(x) { return "option" }
+    if is_struct(x) { return "struct" }
+    if is_enum(x) { return "enum" }
     return "unknown"
 }
 

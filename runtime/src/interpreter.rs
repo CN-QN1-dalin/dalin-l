@@ -714,7 +714,7 @@ impl Interpreter {
         }
 
         // Builtins
-        let builtins: [&str; 32] = [
+        let builtins: [&str; 37] = [
             "println",
             "println!",
             "print",
@@ -752,6 +752,12 @@ impl Interpreter {
             "is_map",
             "is_fn",
             "is_char",
+            // 结构化类型自省（补齐 Option/None/Struct/Enum 的运行时判定）
+            "is_none",
+            "is_some",
+            "is_option",
+            "is_struct",
+            "is_enum",
         ];
 
         // 1) 命名空间精确解析（module::func 优先，实现真正的命名空间隔离）
@@ -1154,6 +1160,11 @@ impl Interpreter {
             "is_list" => Ok(Value::Bool(matches!(args[0], Value::Array(_)))),
             "is_fn" => Ok(Value::Bool(matches!(args[0], Value::Function(_)))),
             "is_char" => Ok(Value::Bool(matches!(args[0], Value::Char(_)))),
+            "is_none" => Ok(Value::Bool(matches!(args[0], Value::Option(false, _)))),
+            "is_some" => Ok(Value::Bool(matches!(args[0], Value::Option(true, _)))),
+            "is_option" => Ok(Value::Bool(matches!(args[0], Value::Option(_, _)))),
+            "is_struct" => Ok(Value::Bool(matches!(args[0], Value::Struct(_)))),
+            "is_enum" => Ok(Value::Bool(matches!(args[0], Value::EnumVariant(_, _)))),
             "is_map" => Ok(Value::Bool(match &args[0] {
                 Value::Array(a) => {
                     // map 约定：数组且每个元素都是 [String, v] 二元组。

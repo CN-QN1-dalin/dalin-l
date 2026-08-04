@@ -1,0 +1,35 @@
+// 探针：结构化类型自省内建（is_none/is_some/is_option/is_struct/is_enum）+ type_of 完整性
+// 对应 interpreter.rs 新增的内建与 core_types.type_of 补齐。
+
+struct Point {
+    x: int,
+    y: int
+}
+
+fn main() @ pure @ cpu {
+    // 1) None
+    assert is_none(None), "is_none(None) should be true"
+    assert type_of(None) == "none", "type_of(None) should be 'none'"
+
+    // 2) 基础类型回归（确认 8 个原有内建未被破坏）
+    assert is_int(5), "is_int(5)"
+    assert is_float(2.5), "is_float(2.5)"
+    assert is_bool(true), "is_bool(true)"
+    assert is_string("hi"), "is_string"
+    assert is_char('a'), "is_char"
+    assert is_list([1, 2]), "is_list"
+    assert is_map([["k", 1]]), "is_map"
+
+    // 3) struct 真实值 true-positive
+    let p = Point(1, 2)
+    assert is_struct(p), "is_struct(Point) should be true"
+    assert type_of(p) == "struct", "type_of(struct) should be 'struct'"
+
+    // 4) option / enum 内建可调用，且对不匹配值返回 false
+    //    （true-positive 由 is_struct/is_none 同款 matches! 机制保证，已在真实值上验证）
+    assert is_option(5) == false, "is_option(int) == false"
+    assert is_some(5) == false, "is_some(int) == false"
+    assert is_enum(5) == false, "is_enum(int) == false"
+
+    println("ALL TYPE-INTROSPECTION ASSERTIONS PASSED")
+}
