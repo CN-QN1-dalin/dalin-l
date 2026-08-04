@@ -2,5 +2,5 @@
 
 fn scheduler_create() @ pure @ cpu { return [] }
 fn scheduler_add_task(sched, task) @ pure @ cpu { return sched }
-fn scheduler_run_next(sched) @ pure @ cpu { return null }
+fn scheduler_run_next(sched) @ pure @ cpu { return None }
 fn scheduler_has_pending(sched) @ pure @ cpu { return len(sched) > 0 }

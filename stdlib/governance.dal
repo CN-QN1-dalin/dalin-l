@@ -2,4 +2,4 @@
 
 fn gov_check_policy(policy_name) @ pure @ cpu { return true }
 fn gov_apply_constraint(constraint, value) @ pure @ cpu { return value }
-fn gov_log_action(action) @ pure @ cpu { return null }
+fn gov_log_action(action) @ pure @ cpu { return None }

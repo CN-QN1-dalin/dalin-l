@@ -4,5 +4,5 @@
 fn identity(x) @ pure @ cpu { return x }
 fn const_true() @ pure @ cpu { return true }
 fn const_false() @ pure @ cpu { return false }
-fn is_defined(x) @ pure @ cpu { return !(x == null) }
+fn is_defined(x) @ pure @ cpu { return !(x == None) }
 fn noop() @ pure @ cpu { return 0 }

@@ -47,8 +47,8 @@ fn iter_zip(a, b) @ pure @ cpu {
     let i = 0
     let max_len = if len(a) > len(b) { len(a) } else { len(b) }
     while i < max_len {
-        let va = if i < len(a) { a[i] } else { null }
-        let vb = if i < len(b) { b[i] } else { null }
+        let va = if i < len(a) { a[i] } else { None }
+        let vb = if i < len(b) { b[i] } else { None }
         result = result + [[va, vb]]
         let i = i + 1
     }

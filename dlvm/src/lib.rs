@@ -561,7 +561,8 @@ impl Vm {
                 let v = self.stack.pop().ok_or(VmError::StackUnderflow)?;
                 match v {
                     Value::Array(arr) => self.stack.push(Value::Int(arr.len() as i64)),
-                    Value::Str(s) => self.stack.push(Value::Int(s.len() as i64)),
+                    // UTF-8 安全：与解释器 len 口径一致，返回字符数而非字节数
+                    Value::Str(s) => self.stack.push(Value::Int(s.chars().count() as i64)),
                     _ => return Err(VmError::TypeError("len requires array/str".into())),
                 }
             }

@@ -1,6 +1,6 @@
 // Dalin L Standard Library — QN1 cognitive layer utilities
 
 fn qn_perceive(ctx) @ pure @ cpu { return {} }
-fn qn_reflect(state) @ pure @ cpu { return null }
+fn qn_reflect(state) @ pure @ cpu { return None }
 fn qn_act(state, plan) @ pure @ cpu { return "done" }
 fn qn_loop(perceive_fn, reflect_fn, act_fn) @ pure @ cpu { return true }

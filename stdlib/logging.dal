@@ -2,7 +2,7 @@
 
 fn logging_init(level) @ pure @ cpu { return level }
 
-fn log_debug(msg) @ pure @ cpu { return null }
+fn log_debug(msg) @ pure @ cpu { return None }
 
 fn log_info(msg) @ pure @ cpu { return msg }
 

@@ -1,7 +1,7 @@
 // Dalin L Standard Library — task (real implementation with priority queue)
 
 fn task_create(name, body) @ pure @ cpu {
-    return [name, body, "pending", 0, null]
+    return [name, body, "pending", 0, None]
     // [name, fn_body, status, priority, result]
 }
 
@@ -17,7 +17,7 @@ fn task_run(task) @ pure @ cpu {
 
 fn task_wait(task) @ pure @ cpu {
     if task[2] == "completed" { return task[4] }
-    return null
+    return None
 }
 
 fn task_cancel(task) @ pure @ cpu {

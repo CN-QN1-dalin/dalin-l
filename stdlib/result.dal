@@ -1,11 +1,11 @@
 // Dalin L Standard Library — Result type utilities
 
 fn result_ok(val) @ pure @ cpu {
-    return [true, val, null]
+    return [true, val, None]
 }
 
 fn result_err(err_val) @ pure @ cpu {
-    return [false, null, err_val]
+    return [false, None, err_val]
 }
 
 fn result_is_ok(r) @ pure @ cpu {
@@ -24,7 +24,7 @@ fn result_get(r, default) @ pure @ cpu {
 
 fn result_get_error(r) @ pure @ cpu {
     if !result_is_ok(r) && len(r) > 2 { return r[2] }
-    return null
+    return None
 }
 
 fn result_map(r, transform) @ pure @ cpu {

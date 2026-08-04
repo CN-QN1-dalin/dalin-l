@@ -2,7 +2,7 @@
 // Uses [fn, value, computed] pattern: [closure, cached_result, is_forced_bool]
 
 fn lazy_new(f) @ pure @ cpu {
-    return [f, null, false]
+    return [f, None, false]
     // [func, cached_value, is_computed]
 }
 

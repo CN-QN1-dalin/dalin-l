@@ -2,7 +2,7 @@
 
 fn config_load(path) @ pure @ cpu { return {} }
 fn config_get(key, default) @ pure @ cpu { return default }
-fn config_set(key, value) @ pure @ cpu { return null }
+fn config_set(key, value) @ pure @ cpu { return None }
 fn config_delete(key) @ pure @ cpu { return false }
 fn config_keys() @ pure @ cpu { return [] }
 fn config_values() @ pure @ cpu { return [] }

@@ -6,7 +6,7 @@ fn opt_some(val) @ pure @ cpu {
 }
 
 fn opt_none() @ pure @ cpu {
-    return [false, null]
+    return [false, None]
 }
 
 fn opt_is_some(opt) @ pure @ cpu {
@@ -25,7 +25,7 @@ fn opt_get(opt, default) @ pure @ cpu {
 
 fn opt_get_or_else(opt) @ pure @ cpu {
     if opt_is_some(opt) { return opt[1] }
-    return null
+    return None
 }
 
 fn opt_map(opt, fn_name) @ pure @ cpu {

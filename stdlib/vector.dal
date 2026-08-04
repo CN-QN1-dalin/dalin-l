@@ -5,7 +5,7 @@ fn vec_new() @ pure @ cpu { return [] }
 fn vec_push(v, x) @ pure @ cpu { return v + [x] }
 
 fn vec_pop(v) @ pure @ cpu {
-    if len(v) == 0 { return null }
+    if len(v) == 0 { return None }
     return v[len(v) - 1]
 }
 
@@ -31,7 +31,7 @@ fn vec_slice(v, start, end) @ pure @ cpu {
 fn vec_len(v) @ pure @ cpu { return len(v) }
 
 fn vec_get(v, i) @ pure @ cpu {
-    if i < 0 || i >= len(v) { return null }
+    if i < 0 || i >= len(v) { return None }
     return v[i]
 }
 
@@ -110,13 +110,13 @@ fn vec_each(f, v) @ pure @ cpu {
 }
 
 fn vec_first(v) @ pure @ cpu {
-    if len(v) == 0 { return null }
+    if len(v) == 0 { return None }
     return v[0]
 }
 
 fn vec_last(v) @ pure @ cpu {
     let n = len(v)
-    if n == 0 { return null }
+    if n == 0 { return None }
     return v[n - 1]
 }
 

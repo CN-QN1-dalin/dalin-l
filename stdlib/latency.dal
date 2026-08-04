@@ -4,6 +4,6 @@
 fn latency_schedule(delay_ms, action) @ pure @ cpu { return 0 }
 fn latency_cancel(timer_id) @ pure @ cpu { return true }
 fn latency_get_current_time() @ pure @ cpu { return 0 }
-fn latency_wait(ms) @ pure @ cpu { return null }
+fn latency_wait(ms) @ pure @ cpu { return None }
 fn latency_reset_timer(id) @ pure @ cpu { return true }
 fn latency_after(ms) @ pure @ cpu { return true }

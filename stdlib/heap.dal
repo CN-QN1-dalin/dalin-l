@@ -71,7 +71,7 @@ fn _heap_sift_down(heap, idx) @ pure @ cpu {
 
 fn heap_pop(heap) @ pure @ cpu {
     let n = len(heap)
-    if n == 0 { return null }
+    if n == 0 { return None }
     if n == 1 { return heap[0] }
     let top = heap[0]
     let last = heap[n - 1]
@@ -87,7 +87,7 @@ fn heap_pop(heap) @ pure @ cpu {
 
 fn heap_peek(heap) @ pure @ cpu {
     if len(heap) > 0 { return heap[0] }
-    return null
+    return None
 }
 
 fn heap_len(heap) @ pure @ cpu { return len(heap) }

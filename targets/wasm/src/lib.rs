@@ -263,6 +263,10 @@ fn stmt_to_wat(stmt: &Stmt) -> String {
             }
             target_wat + &result
         }
+        // WAT 的 br/br_if 需要配套 block/loop 标签深度，而当前 While 生成器
+        // 尚未发出 loop 结构，故显式标注未实现，避免产出看似正确的死循环。
+        Stmt::Break => String::from("  ;; unimplemented: break (needs block/loop labels)\n"),
+        Stmt::Continue => String::from("  ;; unimplemented: continue (needs block/loop labels)\n"),
         _ => String::from("  ;; stub\n"),
     }
 }

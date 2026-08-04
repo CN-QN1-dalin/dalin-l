@@ -18,7 +18,7 @@ fn config_validate(cfg) @ pure @ cpu {
     let i = 0
     while i < len(cfg) {
         let val = cfg[i][1]
-        if val == null { return false }
+        if val == None { return false }
         let i = i + 1
     }
     return true

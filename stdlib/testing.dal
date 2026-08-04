@@ -10,11 +10,11 @@ fn test_lt(a, b) @ pure @ cpu { return a < b }
 
 fn test_gt(a, b) @ pure @ cpu { return a > b }
 
-fn test_nil(v) @ pure @ cpu { return v == null }
+fn test_nil(v) @ pure @ cpu { return v == None }
 
-fn test_truthy(v) @ pure @ cpu { return v != false && v != null && v != 0 && v != "" }
+fn test_truthy(v) @ pure @ cpu { return v != false && v != None && v != 0 && v != "" }
 
-fn test_falsy(v) @ pure @ cpu { return v == false || v == null || v == 0 || v == "" }
+fn test_falsy(v) @ pure @ cpu { return v == false || v == None || v == 0 || v == "" }
 
 fn test_ok() @ pure @ cpu { return "ok" }
 

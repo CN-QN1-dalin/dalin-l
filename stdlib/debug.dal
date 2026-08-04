@@ -2,7 +2,7 @@
 
 fn debug_inspect(val) @ pure @ cpu {
     let t = type_of(val)
-    if val == null { return "inspect(null)" }
+    if val == None { return "inspect(null)" }
     if t == "int" || t == "float" { return "inspect(" + str(val) + ")" }
     if t == "string" { return "inspect(\"" + val + "\")" }
     if t == "bool" { return "inspect(" + str(val) + ")" }
@@ -43,7 +43,7 @@ fn _debug_val_to_str(v) @ pure @ cpu {
     return str(v)
 }
 
-fn debug_trace(msg) @ pure @ cpu { print("TRACE: " + msg); return null }
+fn debug_trace(msg) @ pure @ cpu { print("TRACE: " + msg); return None }
 
 fn debug_print_type(val) @ pure @ cpu {
     let t = type_of(val)

@@ -1,6 +1,6 @@
 // Dalin L Standard Library — network utilities (stub)
 
-fn net_connect(host, port) @ pure @ cpu { return null }
+fn net_connect(host, port) @ pure @ cpu { return None }
 fn net_send(conn, data) @ pure @ cpu { return true }
 fn net_recv(conn) @ pure @ cpu { return "" }
 fn net_close(conn) @ pure @ cpu { return true }
