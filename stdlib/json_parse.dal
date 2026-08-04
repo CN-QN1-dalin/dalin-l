@@ -2,7 +2,8 @@
 
 fn json_parse(json_str) @ pure @ cpu {
     let trimmed = _trim_whitespace(json_str)
-    if trimmed == "{}" || trimmed == "" { return {} }
+    // Dalin L 中 map 即「[k, v] 二元组数组」，空 map 用空数组表示
+    if trimmed == "{}" || trimmed == "" { return [] }
     if trimmed == "[]" { return [] }
     let content = _json_strip_outer(trimmed)
     return _json_parse_flat(content)
@@ -50,7 +51,9 @@ fn _json_substring(s, start, end) @ pure @ cpu {
 }
 
 fn _json_parse_flat(content) @ pure @ cpu {
-    let result = {}
+    // Dalin L 的 map = [[k, v], ...]（值为二元组的数组），不能用 `result[key] = v`
+    // （解释器仅支持数组下标赋值）。故以数组拼接累积键值对。
+    let result = []
     let parts = _json_split_commas(content)
     let i = 0
     let n = len(parts)
@@ -60,7 +63,7 @@ fn _json_parse_flat(content) @ pure @ cpu {
         if colon_pos > 0 {
             let key = _json_strip_quotes(_json_trim_key(part, colon_pos))
             let value_str = _json_trim_value(part, colon_pos)
-            result[key] = _json_parse_value(value_str)
+            result = result + [[key, _json_parse_value(value_str)]]
         }
         let i = i + 1
     }
@@ -136,11 +139,16 @@ fn _json_strip_quotes(s) @ pure @ cpu {
 
 fn _json_parse_value(v) @ pure @ cpu {
     let trimmed = _json_trim_all_space(v)
-    if trimmed == "null" || trimmed == "" { return null }
+    if trimmed == "null" || trimmed == "" { return None }
     if trimmed == "true" { return true }
     if trimmed == "false" { return false }
+    // 嵌套结构：数组与对象递归解析（构成完整 JSON 解析器）
+    if trimmed[0] == '[' { return _json_parse_array(_json_strip_outer(trimmed)) }
+    if trimmed[0] == '{' { return _json_parse_flat(_json_strip_outer(trimmed)) }
     let num = _json_parse_number(trimmed)
-    if num >= 0 { return num }
+    // 有效数：_json_parse_number 对非法输入返回 -1（整数哨兵）。
+    // 负数会落到 num < 0 分支，故用 _json_is_number 二次确认是否属于合法数字串。
+    if num >= 0 || (num < 0 && _json_is_number(trimmed)) { return num }
     if trimmed[0] == '"' {
         let result = ""
         let i = 1
@@ -151,6 +159,39 @@ fn _json_parse_value(v) @ pure @ cpu {
         return result
     }
     return trimmed
+}
+
+// 解析 JSON 数组：[v1, v2, ...] → Dalin L 列表（元素递归 _json_parse_value）
+fn _json_parse_array(content) @ pure @ cpu {
+    if content == "" { return [] }
+    let parts = _json_split_commas(content)
+    let result = []
+    let i = 0
+    let n = len(parts)
+    while i < n {
+        result = result + [_json_parse_value(parts[i])]
+        let i = i + 1
+    }
+    return result
+}
+
+fn _json_is_number(s) @ pure @ cpu {
+    let n = len(s)
+    if n == 0 { return false }
+    let i = 0
+    let seen_dot = false
+    while i < n {
+        let c = s[i]
+        if i == 0 && c == '-' { } // 负号仅在首位
+        else if c == '.' {
+            if seen_dot { return false }
+            let seen_dot = true
+        }
+        else if ord(c) >= ord('0') && ord(c) <= ord('9') { }
+        else { return false }
+        let i = i + 1
+    }
+    return true
 }
 
 fn _json_trim_all_space(s) @ pure @ cpu {
@@ -165,7 +206,8 @@ fn _json_trim_all_space(s) @ pure @ cpu {
     return result
 }
 
-// FIXED: now actually parses numbers (integer and float)
+// 解析数字（整数与浮点，支持负号）。非法输入返回 -1（整数哨兵，
+// 由 _json_parse_value 配合 _json_is_number 区分「合法负数」与「非法」）。
 fn _json_parse_number(s) @ pure @ cpu {
     let is_num = true
     let has_digit = false
@@ -174,43 +216,47 @@ fn _json_parse_number(s) @ pure @ cpu {
     let n = len(s)
     while i < n {
         let c = s[i]
-        if c >= '0' && c <= '9' { has_digit = true }
+        // Dalin L: Char 不支持 >= / <=，统一用 ord() 比较码位
+        if ord(c) >= ord('0') && ord(c) <= ord('9') { has_digit = true }
         else if c == '.' && !has_dot { has_dot = true }
-        else if c == '-' && i == 0 { } // negative allowed at start
+        else if c == '-' && i == 0 { } // 负号只允许出现在首位
         else { is_num = false; break }
         let i = i + 1
     }
     if !is_num || !has_digit { return -1 }
-    // Parse: multiply digits by place value
-    let result = 0.0
-    let i = 0
+
     let neg = false
-    let pos = 0
-    if s[0] == '-' { let neg = true; let pos = 1 }
-    let frac_digits = 0
-    let i = pos
-    while i < n {
-        if s[i] == '.' { frac_digits = 0; continue }
-        frac_digits = frac_digits + 1
-        let i = i + 1
-    }
-    i = pos
+    let start = 0
+    if s[0] == '-' { let neg = true; let start = 1 }
+    let int_part = 0.0
+    let frac_part = 0.0
+    let frac_len = 0
+    let in_frac = false
+    let i = start
     while i < n {
         let c = s[i]
-        if c >= '0' && c <= '9' {
+        if c == '.' {
+            let in_frac = true
+        } else if ord(c) >= ord('0') && ord(c) <= ord('9') {
             let digit = ord(c) - ord('0')
-            let d = 0
-            while d < frac_digits {
-                let digit = digit * 10
-                let d = d + 1
+            if in_frac {
+                let frac_len = frac_len + 1
+                let frac_part = frac_part * 10.0 + digit
+            } else {
+                let int_part = int_part * 10.0 + digit
             }
-            let result = result + digit
-            frac_digits = frac_digits - 1
         }
         let i = i + 1
     }
-    if neg { return -result }
-    return result
+    let value = int_part
+    if frac_len > 0 {
+        let denom = 1.0
+        let k = 0
+        while k < frac_len { let denom = denom * 10.0; let k = k + 1 }
+        let value = int_part + frac_part / denom
+    }
+    if neg { return -value }
+    return value
 }
 
 fn json_to_string(data) @ pure @ cpu {
@@ -224,7 +270,7 @@ fn _json_serialize(val, indent) @ pure @ cpu {
     if t == "string" { return "\"" + val + "\"" }
     if val == true { return "true" }
     if val == false { return "false" }
-    if val == null { return "null" }
+    if val == None { return "null" }
     return str(val)
 }
 

@@ -1,6 +1,6 @@
 // Dalin L Standard Library — json (real serialization + key ops)
-
-fn json_parse(s) @ io { return null }
+// NOTE: json_parse / json_to_string 的权威实现位于 json_parse.dal。
+// 此处不再重复定义，避免裸名 `json_parse`/`json_to_string` 被本文件的存根遮蔽。
 
 fn json_stringify(v) @ pure @ cpu {
     return _json_serialize_val(v)
@@ -13,7 +13,7 @@ fn _json_serialize_val(val) @ pure @ cpu {
     if t == "string" { return "\"" + val + "\"" }
     if val == true { return "true" }
     if val == false { return "false" }
-    if val == null { return "null" }
+    if val == None { return "null" }
     return str(val)
 }
 
@@ -48,14 +48,14 @@ fn _json_serialize_list(lst) @ pure @ cpu {
 }
 
 fn json_get(obj, key) @ pure @ cpu {
-    if type_of(obj) != "map" { return null }
+    if type_of(obj) != "map" { return None }
     let i = 0
     let n = len(obj)
     while i < n {
         if obj[i][0] == key { return obj[i][1] }
         let i = i + 1
     }
-    return null
+    return None
 }
 
 fn json_set(obj, key, val) @ pure @ cpu {
@@ -94,12 +94,10 @@ fn json_array_length(arr) @ pure @ cpu {
 }
 
 fn json_to_number(v) @ pure @ cpu {
-    if v == null { return 0 }
+    if v == None { return 0 }
     if str(v) != "" { return 0 }
     return 0
 }
-
-fn json_to_string(v) @ pure @ cpu { return str(v) }
 
 fn json_to_bool(v) @ pure @ cpu {
     if v == true { return true }
