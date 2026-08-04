@@ -1,0 +1,5 @@
+fn main() {
+    println("--- io.read_file self-recursion ---")
+    let s = read_file("Cargo.toml")
+    println(len(s))
+}

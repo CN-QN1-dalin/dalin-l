@@ -1,0 +1,47 @@
+// Probe D — verify null landmines are gone across previously-affected modules
+fn main() {
+    print("== probe D: None-safety sweep ==");
+
+    // option.dal
+    let n1 = opt_none();
+    assert opt_is_none(n1), "opt_none should be none";
+    let s1 = opt_some(7);
+    assert opt_is_some(s1), "opt_some should be some";
+    assert opt_get(n1, None) == None, "opt_get(none, None) should be None";
+    assert opt_get(s1, 0) == 7, "opt_get(some(7), 0) should be 7";
+
+    // result.dal
+    let r1 = result_ok(42);
+    assert result_is_ok(r1), "result_ok should be ok";
+    let r2 = result_err("boom");
+    assert result_is_err(r2), "result_err should be err";
+
+    // vector.dal — empty vector accessors return None instead of crashing
+    let ev = [];
+    assert vec_first(ev) == None, "vec_first on empty should be None";
+    assert vec_last(ev) == None, "vec_last on empty should be None";
+    assert vec_get(ev, 3) == None, "vec_get out of range should be None";
+
+    // stack_util / stack
+    let es = [];
+    assert stack_peek(es) == None, "stack_peek on empty should be None";
+
+    // testing.dal
+    assert test_nil(None), "test_nil(None) should be true";
+    assert test_truthy(1), "test_truthy(1) should be true";
+    assert test_falsy(0), "test_falsy(0) should be true";
+
+    // prelude.dal
+    assert is_defined(5), "is_defined(5) should be true";
+    assert !is_defined(None), "is_defined(None) should be false";
+
+    // heap.dal empty peek
+    let eh = heap_new();
+    assert heap_peek(eh) == None, "heap_peek on empty should be None";
+
+    // collections / iterators / task / lazy touch points
+    let z = iter_zip([1, 2, 3], [9]);
+    assert len(z) == 3, "iter_zip should pad to longer length";
+
+    print("ALL PROBE D ASSERTIONS PASSED");
+}

@@ -1,0 +1,20 @@
+fn main() {
+    let s = "你好世界";
+    println("len(chinese) = " + str(len(s)));
+    println("s[0] = " + str(s[0]));
+    println("s[1] = " + str(s[1]));
+
+    let ascii = "abc";
+    println("len(ascii) = " + str(len(ascii)));
+
+    // walk by index using len() — must not go out of range
+    let i = 0;
+    let n = len(s);
+    let acc = "";
+    while i < n {
+        acc = acc + str(s[i]);
+        i = i + 1;
+    }
+    println("walk = [" + acc + "]");
+    println("str_reverse = " + str_reverse(s));
+}

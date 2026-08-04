@@ -1,0 +1,7 @@
+fn main() {
+    println("--- probe: map_get bare name ---")
+    let m = map_new()
+    let m2 = map_put(m, "k", 42)
+    println(map_get(m2, "k", -1))
+    println("OK map")
+}

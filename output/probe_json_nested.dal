@@ -1,0 +1,12 @@
+fn main() {
+    let s = "{\"name\":\"dalin\",\"age\":30,\"tags\":[\"x\",\"y\",\"z\"],\"meta\":{\"v\":3,\"ok\":true},\"nums\":[1,2.5,-7],\"empty\":{},\"arr\":[]}"
+    let obj = json_parse(s)
+    println("parsed   = " + str(obj))
+    println("name     = " + str(json_get(obj, "name")))
+    println("age      = " + str(json_get(obj, "age")))
+    println("tags     = " + str(json_get(obj, "tags")))
+    println("meta.v   = " + str(json_get(json_get(obj, "meta"), "v")))
+    println("nums[2]  = " + str(json_get(obj, "nums")[2]))
+    println("empty?   = " + str(json_get(obj, "empty")))
+    println("roundtrip= " + json_to_string(obj))
+}

@@ -1,0 +1,10 @@
+fn main() {
+    println("str({})=" + str({}))
+    println("type([])=" + type_of([]))
+    let m = [["a", 1]]
+    println("type([['a',1]])=" + type_of(m))
+    let lst = [1, 2, 3]
+    println("type([1,2,3])=" + type_of(lst))
+    println("type(5)=" + type_of(5))
+    println("type('x')=" + type_of('x'))
+}

@@ -1,0 +1,13 @@
+fn double(x) { return x * 2 }
+
+fn apply_twice(f, x) {
+    return f(f(x))
+}
+
+fn main() {
+    print("== HOF probe ==");
+    let g = double;
+    print(g(5));
+    print(apply_twice(double, 3));
+    print("HOF OK");
+}

@@ -1,0 +1,9 @@
+// sanity: confirm Dalin L interpreter supports recursive function calls
+fn sum_to(n) @ pure @ cpu {
+    if n <= 0 { return 0 }
+    return n + sum_to(n - 1)
+}
+
+assert sum_to(5) == 15, "recursion sum_to(5) = 15"
+assert sum_to(0) == 0, "recursion sum_to(0) = 0"
+println("RECURSION OK")

@@ -1,0 +1,5 @@
+fn main() {
+    println("--- json_parse ---")
+    let r = json_parse("{\"a\":1}")
+    println(str(r))
+}

@@ -1,0 +1,36 @@
+fn dbl(x) { return x * 2 }
+fn is_even(x) { return x % 2 == 0 }
+fn add(a, b) { return a + b }
+
+fn main() {
+    print("== probe E: stdlib higher-order functions ==");
+
+    let v = [1, 2, 3, 4, 5];
+
+    let m = vec_map(dbl, v);
+    print("vec_map -> " + str(m));
+    assert len(m) == 5, "vec_map length"
+    assert m[0] == 2 && m[4] == 10, "vec_map values"
+
+    let f = vec_filter(is_even, v);
+    print("vec_filter -> " + str(f));
+    assert len(f) == 2, "vec_filter should keep 2 evens"
+
+    let r = vec_reduce(0, add, v);
+    print("vec_reduce -> " + str(r));
+    assert r == 15, "vec_reduce sum should be 15"
+
+    let im = iter_map(v, dbl);
+    print("iter_map -> " + str(im));
+    assert len(im) == 5, "iter_map length"
+
+    let if_ = iter_filter(v, is_even);
+    print("iter_filter -> " + str(if_));
+    assert len(if_) == 2, "iter_filter should keep 2 evens"
+
+    let fo = iter_fold(v, 0, add);
+    print("iter_fold -> " + str(fo));
+    assert fo == 15, "iter_fold sum should be 15"
+
+    print("ALL PROBE E ASSERTIONS PASSED");
+}

@@ -1,0 +1,23 @@
+fn main() {
+    // 1) 解析基础对象
+    let obj = json_parse("{\"a\":1, \"b\":2.5, \"c\":\"hi\"}")
+    println("parsed obj = " + str(obj))
+    println("json_get a  = " + str(json_get(obj, "a")))
+    println("json_get c  = " + str(json_get(obj, "c")))
+
+    // 2) 序列化回 JSON 字符串
+    let s = json_to_string(obj)
+    println("json_to_string(obj) = " + s)
+
+    // 3) 嵌套与数组
+    let nested = json_parse("{\"name\":\"dalin\",\"tags\":[\"x\",\"y\"],\"meta\":{\"v\":3}}")
+    println("json_to_string(nested) = " + json_to_string(nested))
+
+    // 4) 空对象 / 空数组
+    println("json_parse('{}') = " + str(json_parse("{}")))
+    println("json_to_string([]) = " + json_to_string([]))
+
+    // 5) type_of 各类型
+    println("type_of('x') = " + type_of('x'))
+    println("type_of([1,2,3]) = " + type_of([1, 2, 3]))
+}
