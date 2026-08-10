@@ -1088,7 +1088,10 @@ impl std::fmt::Display for CompileError {
             Self::TypeResolutionFailed => write!(f, "cannot resolve type for expression"),
             Self::ConstantOverflow => write!(f, "constant folding overflow in literal"),
             Self::UnsupportedConstruct(what) => {
-                write!(f, "JIT backend does not yet support `{what}`; falling back to interpreter")
+                write!(
+                    f,
+                    "JIT backend does not yet support `{what}`; falling back to interpreter"
+                )
             }
         }
     }

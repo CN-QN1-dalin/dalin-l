@@ -9,11 +9,11 @@ use crate::token::{
         DoubleArrow, DoubleColon, DoubleDot, DoubleEqual, Eof, Equal, FloatLiteral, Greater,
         GreaterEqual, Ident, IntLiteral, KeywordAssert, KeywordAsync, KeywordBreak, KeywordCatch,
         KeywordChannel, KeywordConst, KeywordContinue, KeywordElse, KeywordEnum, KeywordExport,
-        KeywordFn, KeywordFor, KeywordIf,
-        KeywordImpl, KeywordIn, KeywordLet, KeywordMatch, KeywordMut, KeywordReturn, KeywordSpawn,
-        KeywordStruct, KeywordTrait, KeywordTry, KeywordType, KeywordUse, KeywordWhile, LeftBrace,
-        LeftBracket, LeftParen, Less, LessEqual, Minus, Modulo, Not, NotEqual, Or, Pipe, Plus,
-        RightBrace, RightBracket, RightParen, Semicolon, Shl, Shr, Slash, Star, StringLiteral,
+        KeywordFn, KeywordFor, KeywordIf, KeywordImpl, KeywordIn, KeywordLet, KeywordMatch,
+        KeywordMut, KeywordReturn, KeywordSpawn, KeywordStruct, KeywordTrait, KeywordTry,
+        KeywordType, KeywordUse, KeywordWhile, LeftBrace, LeftBracket, LeftParen, Less, LessEqual,
+        Minus, Modulo, Not, NotEqual, Or, Pipe, Plus, RightBrace, RightBracket, RightParen,
+        Semicolon, Shl, Shr, Slash, Star, StringLiteral,
     },
 };
 /// Dalin L — 递归下降语法分析器
