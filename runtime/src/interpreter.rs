@@ -806,6 +806,38 @@ impl Interpreter {
                 }
                 Err(RuntimeError("Match expression failure".into()))
             }
+            Expr::Try(inner) => self.eval_try(inner, env),
+        }
+    }
+
+    /// `?` 错误传播运算符。
+    ///
+    /// 语义对齐 Rust `?`：
+    /// - `None`            → 以 `Option(false, None)` 作为错误值，经 CTRL_RETURN 哨兵早退
+    /// - `Some(v)`         → 产出 `v`
+    /// - `Err(e)`          → 以 `e` 作为错误值，经 CTRL_RETURN 哨兵早退
+    /// - `Ok(v)`           → 产出 `v`
+    /// - 既非 Option 也非 Result → 宽松语义，原样产出（不做类型强制）
+    ///
+    /// 早退复用 `return` 的 CTRL_RETURN + `self.return_value` 通道：
+    /// `call_function` 拦截 CTRL_RETURN 取出 `return_value` 作为函数返回值，
+    /// 上层调用者的 `?` 再对该返回值做形状判定，从而在值层面逐层传播（与 Rust 同构）。
+    fn eval_try(&mut self, inner: &Expr, env: &mut Environment) -> Result<Value, RuntimeError> {
+        let v = self.eval_expr(inner, env)?;
+        match v {
+            Value::Option(false, _) => {
+                self.return_value = Some(Value::Option(false, None));
+                Err(RuntimeError(CTRL_RETURN.into()))
+            }
+            Value::Option(true, Some(v)) => Ok(*v),
+            Value::Option(true, None) => Ok(Value::None),
+            Value::Result(false, _, Some(err)) => {
+                self.return_value = Some(*err);
+                Err(RuntimeError(CTRL_RETURN.into()))
+            }
+            Value::Result(true, Some(v), _) => Ok(*v),
+            Value::Result(true, None, _) => Ok(Value::None),
+            other => Ok(other),
         }
     }
 
@@ -2175,6 +2207,100 @@ mod tests {
             .map_err(|e| RuntimeError(e.to_string()))?;
         let mut interp = Interpreter::new();
         interp.interpret(&prog)
+    }
+
+    // ── #696 `?` 错误传播运算符 ──
+    #[test]
+    fn try_operator_ok_unwraps() {
+        let src = r#"
+        fn inner() -> Result {
+            return Ok(7);
+        }
+        fn outer() -> Int {
+            let x = inner()?;
+            return x;
+        }
+        outer()
+        "#;
+        let results = run(src).expect("run ok");
+        match results.last().expect("has result") {
+            Value::Int(i) => assert_eq!(*i, 7),
+            o => panic!("expected Int(7), got {o:?}"),
+        }
+    }
+
+    #[test]
+    fn try_operator_err_propagates() {
+        let src = r#"
+        fn inner() -> Result {
+            return Err("boom");
+        }
+        fn outer() -> String {
+            let x = inner()?;
+            return "ok";
+        }
+        outer()
+        "#;
+        let results = run(src).expect("run ok");
+        match results.last().expect("has result") {
+            Value::String(s) => assert_eq!(s, "boom"),
+            o => panic!("expected String(\"boom\"), got {o:?}"),
+        }
+    }
+
+    #[test]
+    fn try_operator_some_unwraps() {
+        let src = r#"
+        fn outer() -> Int {
+            let x = Some(42)?;
+            return x;
+        }
+        outer()
+        "#;
+        let results = run(src).expect("run ok");
+        match results.last().expect("has result") {
+            Value::Int(i) => assert_eq!(*i, 42),
+            o => panic!("expected Int(42), got {o:?}"),
+        }
+    }
+
+    #[test]
+    fn try_operator_none_early_returns() {
+        let src = r#"
+        fn outer() -> Int {
+            let x = None?;
+            return x;
+        }
+        outer()
+        "#;
+        let results = run(src).expect("run ok");
+        match results.last().expect("has result") {
+            Value::Option(false, None) => {}
+            o => panic!("expected None, got {o:?}"),
+        }
+    }
+
+    #[test]
+    fn try_operator_nested_propagation() {
+        let src = r#"
+        fn lvl3() -> Result {
+            return Err("deep");
+        }
+        fn lvl2() -> String {
+            let v = lvl3()?;
+            return v;
+        }
+        fn lvl1() -> String {
+            let v = lvl2()?;
+            return v;
+        }
+        lvl1()
+        "#;
+        let results = run(src).expect("run ok");
+        match results.last().expect("has result") {
+            Value::String(s) => assert_eq!(s, "deep"),
+            o => panic!("expected String(\"deep\"), got {o:?}"),
+        }
     }
 
     #[cfg(any(target_os = "macos", target_os = "linux"))]

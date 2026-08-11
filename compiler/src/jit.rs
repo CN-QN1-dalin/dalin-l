@@ -1049,7 +1049,8 @@ fn expr_to_ir_expr(expr: &Expr, locals: &[(String, String)]) -> String {
         | Expr::OptionValue { .. }
         | Expr::ResultValue { .. }
         | Expr::IfExpr(_, _, _)
-        | Expr::MatchExpr(_, _) => "unimplemented".to_string(),
+        | Expr::MatchExpr(_, _)
+        | Expr::Try(_) => "unimplemented".to_string(),
     }
 }
 

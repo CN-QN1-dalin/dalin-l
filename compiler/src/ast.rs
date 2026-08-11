@@ -151,6 +151,9 @@ pub enum Expr {
     /// if/match 作为表达式（从语句转换而来）
     IfExpr(Box<Expr>, Box<Expr>, Box<Expr>), // (condition, then, else)
     MatchExpr(Box<Expr>, Vec<MatchArm>), // (target, arms)
+    /// `?` 错误传播运算符：`expr?` 对 Option/Result 进行早退；
+    /// 复用 return 的 CTRL_RETURN 哨兵 + return_value 机制（与 Rust `?` 一致的值级传播）。
+    Try(Box<Expr>),
 }
 
 // ═══════════════════════════════

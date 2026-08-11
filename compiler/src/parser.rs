@@ -12,8 +12,8 @@ use crate::token::{
         KeywordFn, KeywordFor, KeywordIf, KeywordImpl, KeywordIn, KeywordLet, KeywordMatch,
         KeywordMut, KeywordReturn, KeywordSpawn, KeywordStruct, KeywordTrait, KeywordTry,
         KeywordType, KeywordUse, KeywordWhile, LeftBrace, LeftBracket, LeftParen, Less, LessEqual,
-        Minus, Modulo, Not, NotEqual, Or, Pipe, Plus, RightBrace, RightBracket, RightParen,
-        Semicolon, Shl, Shr, Slash, Star, StringLiteral,
+        Minus, Modulo, Not, NotEqual, Or, Pipe, Plus, QuestionMark, RightBrace, RightBracket,
+        RightParen, Semicolon, Shl, Shr, Slash, Star, StringLiteral,
     },
 };
 /// Dalin L — 递归下降语法分析器
@@ -1466,42 +1466,43 @@ impl Parser {
                 || tok.value == "Err")
         {
             self.advance();
-            return match tok.value.as_str() {
+            let base = match tok.value.as_str() {
                 "Some" => {
                     self.expect(LeftParen, "'('")?;
                     let val = self.parse_expression()?;
                     self.expect(RightParen, "')'")?;
-                    Ok(Expr::OptionValue {
+                    Expr::OptionValue {
                         is_some: true,
                         value: Some(Box::new(val)),
-                    })
+                    }
                 }
-                "None" => Ok(Expr::OptionValue {
+                "None" => Expr::OptionValue {
                     is_some: false,
                     value: None,
-                }),
+                },
                 "Ok" => {
                     self.expect(LeftParen, "'('")?;
                     let val = self.parse_expression()?;
                     self.expect(RightParen, "')'")?;
-                    Ok(Expr::ResultValue {
+                    Expr::ResultValue {
                         is_ok: true,
                         value: Some(Box::new(val)),
                         error: None,
-                    })
+                    }
                 }
                 "Err" => {
                     self.expect(LeftParen, "'('")?;
                     let val = self.parse_expression()?;
                     self.expect(RightParen, "')'")?;
-                    Ok(Expr::ResultValue {
+                    Expr::ResultValue {
                         is_ok: false,
                         value: None,
                         error: Some(Box::new(val)),
-                    })
+                    }
                 }
-                _ => Ok(Expr::Ident(tok.value.clone())),
+                _ => Expr::Ident(tok.value.clone()),
             };
+            return self.parse_postfix(base);
         }
 
         // Parenthesized expression
@@ -1509,7 +1510,7 @@ impl Parser {
             self.advance();
             let expr = self.parse_expression()?;
             self.expect(RightParen, "')'")?;
-            return Ok(expr);
+            return self.parse_postfix(expr);
         }
 
         // Array literal: [1, 2, 3]
@@ -1523,7 +1524,7 @@ impl Parser {
                 }
             }
             self.expect(RightBracket, "']'")?;
-            return Ok(Expr::Array(elements));
+            return self.parse_postfix(Expr::Array(elements));
         }
 
         // Block as expression
@@ -1533,7 +1534,7 @@ impl Parser {
                 .into_iter()
                 .last()
                 .unwrap_or(Stmt::Expr(Box::new(Expr::IntLiteral(0))));
-            return Ok(self.stmt_to_expr(last));
+            return self.parse_postfix(self.stmt_to_expr(last));
         }
 
         // Identifier / call / member access / index
@@ -1559,82 +1560,7 @@ impl Parser {
                 };
             }
 
-            loop {
-                // Member access: obj.field
-                if self.match_token(Dot) {
-                    match self.current().token_type {
-                        Ident => {
-                            let member = self.advance().value;
-                            obj = Expr::MemberAccess {
-                                object: Box::new(obj),
-                                member,
-                            };
-                        }
-                        _ => {
-                            self.record_error(
-                                "Expected field name after '.'".into(),
-                                self.current().line,
-                                self.current().column,
-                            );
-                            break;
-                        }
-                    }
-                }
-                // Call: obj(args)
-                else if self.match_token(LeftParen) {
-                    let mut args = Vec::new();
-                    if !self.check(RightParen) {
-                        args.push(self.parse_expression()?);
-                        while self.match_token(Comma) {
-                            args.push(self.parse_expression()?);
-                        }
-                    }
-                    match self.current().token_type {
-                        RightParen => {
-                            self.advance();
-                            obj = Expr::Call {
-                                func: Box::new(obj),
-                                args,
-                            };
-                        }
-                        _ => {
-                            self.record_error(
-                                "Expected ')'".into(),
-                                self.current().line,
-                                self.current().column,
-                            );
-                            self.skip_expr_to_sync();
-                            break;
-                        }
-                    }
-                }
-                // Index: obj[index]
-                else if self.match_token(LeftBracket) {
-                    let idx = self.parse_expression()?;
-                    match self.current().token_type {
-                        RightBracket => {
-                            self.advance();
-                            obj = Expr::Index {
-                                array: Box::new(obj),
-                                index: Box::new(idx),
-                            };
-                        }
-                        _ => {
-                            self.record_error(
-                                "Expected ']'".into(),
-                                self.current().line,
-                                self.current().column,
-                            );
-                            self.skip_expr_to_sync();
-                            break;
-                        }
-                    }
-                } else {
-                    break;
-                }
-            }
-
-            return Ok(obj);
+            return self.parse_postfix(obj);
         }
 
         Err(ParseError {
@@ -1642,6 +1568,92 @@ impl Parser {
             line: tok.line,
             column: tok.column,
         })
+    }
+
+    /// Postfix 运算符链：`.` 成员访问 / `(` 调用 / `[` 索引 / `?` 错误传播。
+    ///
+    /// 统一应用于所有 primary 表达式之后（标识符、Option/Result 字面量、括号、数组、块），
+    /// 使 `Some(42)?`、`(f())?`、`arr[0]?` 等组合均可解析；`?` 仅在 Option/Result 上早退。
+    fn parse_postfix(&mut self, mut obj: Expr) -> Result<Expr, ParseError> {
+        loop {
+            // Member access: obj.field
+            if self.match_token(Dot) {
+                match self.current().token_type {
+                    Ident => {
+                        let member = self.advance().value;
+                        obj = Expr::MemberAccess {
+                            object: Box::new(obj),
+                            member,
+                        };
+                    }
+                    _ => {
+                        self.record_error(
+                            "Expected field name after '.'".into(),
+                            self.current().line,
+                            self.current().column,
+                        );
+                        break;
+                    }
+                }
+            }
+            // Call: obj(args)
+            else if self.match_token(LeftParen) {
+                let mut args = Vec::new();
+                if !self.check(RightParen) {
+                    args.push(self.parse_expression()?);
+                    while self.match_token(Comma) {
+                        args.push(self.parse_expression()?);
+                    }
+                }
+                match self.current().token_type {
+                    RightParen => {
+                        self.advance();
+                        obj = Expr::Call {
+                            func: Box::new(obj),
+                            args,
+                        };
+                    }
+                    _ => {
+                        self.record_error(
+                            "Expected ')'".into(),
+                            self.current().line,
+                            self.current().column,
+                        );
+                        self.skip_expr_to_sync();
+                        break;
+                    }
+                }
+            }
+            // Index: obj[index]
+            else if self.match_token(LeftBracket) {
+                let idx = self.parse_expression()?;
+                match self.current().token_type {
+                    RightBracket => {
+                        self.advance();
+                        obj = Expr::Index {
+                            array: Box::new(obj),
+                            index: Box::new(idx),
+                        };
+                    }
+                    _ => {
+                        self.record_error(
+                            "Expected ']'".into(),
+                            self.current().line,
+                            self.current().column,
+                        );
+                        self.skip_expr_to_sync();
+                        break;
+                    }
+                }
+            }
+            // Try (错误传播)：expr?  —— 仅对 Option/Result 早退
+            else if self.match_token(QuestionMark) {
+                obj = Expr::Try(Box::new(obj));
+            } else {
+                break;
+            }
+        }
+        Ok(obj)
     }
 
     fn stmt_to_expr(&self, stmt: Stmt) -> Expr {
@@ -1881,6 +1893,7 @@ fn expr_to_string(expr: &Expr, _indent: usize) -> String {
             expr_to_string(e, 0)
         ),
         Expr::MatchExpr(target, _) => format!("Match({})", expr_to_string(target, 0)),
+        Expr::Try(inner) => format!("Try({})", expr_to_string(inner, 0)),
     }
 }
 

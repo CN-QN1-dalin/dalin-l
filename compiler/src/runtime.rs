@@ -1241,6 +1241,33 @@ impl Runtime {
                     Ok(RuntimeValue::Result(false, None, e))
                 }
             }
+            Expr::Try(inner) => self.eval_try(inner),
+        }
+    }
+
+    /// `?` 错误传播运算符（与 runtime crate 主解释器同构的值级语义）。
+    ///
+    /// 复用本解释器的 `returned`/`return_value` 标志（与 `return` 同通道），
+    /// 由 `exec_block` 逐层提前退出；上层调用者的 `?` 再对该返回值做形状判定，
+    /// 从而在值层面逐层传播错误（对齐 Rust `?`）。
+    fn eval_try(&mut self, inner: &Expr) -> RuntimeResult<RuntimeValue> {
+        let v = self.eval_expr(inner)?;
+        match v {
+            RuntimeValue::Option(false, _) => {
+                self.returned = true;
+                self.return_value = RuntimeValue::Option(false, None);
+                Ok(RuntimeValue::Option(false, None))
+            }
+            RuntimeValue::Option(true, Some(v)) => Ok(*v),
+            RuntimeValue::Option(true, None) => Ok(RuntimeValue::None),
+            RuntimeValue::Result(false, _, Some(e)) => {
+                self.returned = true;
+                self.return_value = *e.clone();
+                Ok(*e)
+            }
+            RuntimeValue::Result(true, Some(v), _) => Ok(*v),
+            RuntimeValue::Result(true, None, _) => Ok(RuntimeValue::None),
+            other => Ok(other),
         }
     }
 

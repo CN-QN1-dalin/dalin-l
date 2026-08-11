@@ -409,6 +409,7 @@ fn expr_to_wat(expr: &Expr) -> String {
             }
             out
         }
+        Expr::Try(inner) => expr_to_wat(inner),
     }
 }
 

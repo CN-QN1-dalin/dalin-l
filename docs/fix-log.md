@@ -23,6 +23,7 @@
 - [FIX-002](#fix-002--整数溢出与除零保护) — 整数溢出与除零保护（INV-2）
 - [FIX-003](#fix-003--通用-c-ffi零依赖-dlopendlsym) — 通用 C FFI（零依赖 dlopen/dlsym）
 - [FIX-004](#fix-004--包-registry-联网下载--索引解析--dalentoml-内联表解析修复) — 包 registry 联网下载 + 索引解析 + dalan.toml 内联表解析修复
+- [FIX-005](#fix-005----运算符错误传播) — `?` 错误传播运算符（Option/Result 早退）
 
 ---
 
@@ -188,3 +189,43 @@
      属功能/正确性工作，非本次"安全/稳健"审计的阻断项。
 - **处置建议**：无需紧急整改；#1 可作 CLI 健壮性小修（改为 `?`/友好报错），#2 纳入 #3+#9，
   #3 按路线图推进。生产不可信输入路径经 recon 确认 **无 panic 类阻断缺陷**。
+
+---
+
+## FIX-005 — `?` 错误传播运算符
+- **日期**：2026-08-11
+- **组件/文件**：
+  - `compiler/src/ast.rs` → `Expr` 枚举新增 `Try(Box<Expr>)`
+  - `compiler/src/parser.rs` → 抽取 `parse_postfix` 方法；`Option/Result` 字面量、括号、数组、块、标识符统一走 postfix 链，新增 `?` 分支（`Expr::Try`）；`expr_to_string` 补 `Try` 分支
+  - `runtime/src/interpreter.rs` → `eval_expr` 加 `Expr::Try` 分发 + 新增 `eval_try`（主运行时语义）
+  - `compiler/src/runtime.rs` → 编译器内置解释器 `eval_expr` 加 `Try` 分发 + `eval_try`（借 `returned`/`return_value` 标志，与 `return` 同通道）
+  - `compiler/src/ty.rs` → `infer_expr` 补 `Try` 分支（内层仅做类型推断，解包结果以 `Unknown` 暴露；类型系统对 Option/Result 不做参数化，无法静态还原 `T`）
+  - `compiler/src/jit.rs` → `expr_to_ir_expr` 大 or-pattern 补 `| Expr::Try(_)`（`unimplemented` 兜底）
+  - `targets/wasm/src/lib.rs` → `expr_to_wat` 补 `Expr::Try(inner) => expr_to_wat(inner)`（降级编译内层）
+- **摘要**：新增 `?` 运算符，对齐 Rust `?` 的值级错误传播语义——`Some(v)?`/`Ok(v)?` 解包为 `v`；
+  `None?`/`Err(e)?` 以错误值经 `return` 的 `CTRL_RETURN` 哨兵 + `return_value` 机制**早退**，
+  错误值逐层向上一调用者的 `?` 传播（与 Rust 同构）。`?` 可接在任何 primary 之后：`a?`、`f()?`、`a.b()?.c`、`Some(42)?`、`(g())?`、`arr[0]?`。
+- **根因**：
+  1. 原 `Expr` 无 `Try` 变体，lexer 虽已 tokenize `?` 为 `QuestionMark`，但 parser/interpreter 未处理；
+  2. `Some/None/Ok/Err` 构造函数走独立 `parse_primary` 分支直接 `return`，**绕过**了 `.`/`(`/`[`/`?` 的 postfix 循环，
+     导致 `Some(42)?` 的 `?` 不被消费（`None?`/`Some(42)?` 在 `let x = ...?` 中因 `?` 未解析而行为错乱）。
+- **改动**：
+  1. `ast.rs`：`Expr::Try(Box<Expr>)`；
+  2. `parser.rs`：把内联 postfix 循环抽成 `parse_postfix(&mut self, obj)`，`Option/Result` 字面量、括号、数组、块在构造基础表达式后均 `return self.parse_postfix(base)`；`?` 作为 postfix 分支包裹为 `Expr::Try`；
+  3. `interpreter.rs`：`eval_try` 求值内层后按形状判定——
+     `Option(false,_)`→置 `return_value=Some(Option(false,None))` 并 `Err(CTRL_RETURN)` 早退；
+     `Option(true,Some(v))`→`Ok(*v)`；`Option(true,None)`→`Ok(None)`；
+     `Result(false,_,Some(e))`→置 `return_value=Some(e)` 并 `Err(CTRL_RETURN)` 早退；
+     `Result(true,Some(v),_)`→`Ok(*v)`；`Result(true,None,_)`→`Ok(None)`；其余→原样产出（宽松语义，不强制类型）；
+  4. `compiler/src/runtime.rs`：同构实现（用 `returned`/`return_value` 布尔标志，`exec_block` 逐层提前退出）；
+  5. 其余 5 个对 `Expr` 穷尽 match 的文件（ty/jit/wasm/编译器内置解释器）补齐 `Try` 分支，确保全工作区编译通过。
+- **新增测试**（均置于 `runtime/src/interpreter.rs` `#[cfg(test)] mod tests`，经 `run()` 端到端覆盖 parse+eval）：
+  - `try_operator_ok_unwraps`：`inner()=Ok(7)` → `outer()=7`
+  - `try_operator_err_propagates`：`inner()=Err("boom")` → `outer()` 提前返回 `"boom"`
+  - `try_operator_some_unwraps`：`Some(42)?` → `42`
+  - `try_operator_none_early_returns`：`None?` → 提前返回 `None`（值级）
+  - `try_operator_nested_propagation`：`lvl3→lvl2→lvl1` 三级 `Err("deep")` 经两层 `?` 传播到 `lvl1()="deep"`
+- **验证**：`cargo test --workspace` 全绿（含 runtime 705→现全量、compiler 396+）；`cargo clippy --workspace --all-targets` 零警告；`cargo fmt --check` 干净。
+- **审计来源**：#696（本期 `?` 运算符实现任务）。
+- **关联不变量**：复用 `return` 的 `CTRL_RETURN` + `return_value` 通道（见 `runtime-safety-invariants.md` INV-1/INV-2 上下文）；`?` 不引入新控制流哨兵，避免与 `break`/`continue` 越界诊断冲突。
+- **已知边界**：类型检查阶段 `Try` 的解包结果类型为 `Unknown`（类型系统 Option/Result 非参数化），属宽松设计；`?` 真实早退语义在主运行时 `dalin-runtime::interpreter` 完整实现，编译器内置解释器（`compiler/src/runtime.rs`）及 JIT/WASM 后端为降级/兜底路径。

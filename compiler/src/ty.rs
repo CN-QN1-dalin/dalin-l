@@ -390,6 +390,13 @@ impl TypeInferencer {
                     .next()
                     .unwrap_or(TypeOrVar::Concrete(none_type()))
             }
+            // `?` 错误传播：类型系统对 Option/Result 不做参数化
+            // （BaseType::Option/Result 不含 T），故解包结果类型无法静态还原；
+            // 仅对内层做推断（用于错误发现），结果以 Unknown 暴露以保持宽松。
+            Expr::Try(inner) => {
+                let _ = self.infer_expr(inner);
+                TypeOrVar::Concrete(TypeRef::new(BaseType::Unknown))
+            }
         }
     }
 
