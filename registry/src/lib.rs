@@ -5,6 +5,9 @@
 
 use std::collections::HashMap;
 
+pub mod net;
+pub mod sha256;
+
 /// Package metadata
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Package {

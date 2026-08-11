@@ -757,6 +757,7 @@ dependencies = [
  "colored",
  "dalin-compiler",
  "dalin-dlvm",
+ "dalin-registry",
  "dalin-runtime",
  "serde",
  "serde_json",

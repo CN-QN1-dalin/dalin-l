@@ -21,6 +21,8 @@
 ## 目录
 - [FIX-001](#fix-001--逻辑运算符短路求值) — 逻辑运算符短路求值（INV-1）
 - [FIX-002](#fix-002--整数溢出与除零保护) — 整数溢出与除零保护（INV-2）
+- [FIX-003](#fix-003--通用-c-ffi零依赖-dlopendlsym) — 通用 C FFI（零依赖 dlopen/dlsym）
+- [FIX-004](#fix-004--包-registry-联网下载--索引解析--dalentoml-内联表解析修复) — 包 registry 联网下载 + 索引解析 + dalan.toml 内联表解析修复
 
 ---
 
@@ -60,6 +62,68 @@
 - **备注**：当前构建**不支持 `i64::MAX` 路径语法**（报 `Undefined variable: 'i64'`），
   溢出测试须用大整数字面量（如 `4631686018427387904 * 2`）。
 - **状态**：✅ 已修 · 本地未 push（等用户指令）
+
+---
+
+## FIX-003 — 通用 C FFI（零依赖 dlopen/dlsym）
+- **日期**：2026-08-09
+- **组件/文件**：`runtime/src/interpreter.rs`（`ffi_load` / `ffi_call` / `ffi_close` 内建 + FFI 原语）
+  + `runtime/ffi_fixture/`（`cdylib` 测试固件）+ `runtime/build.rs`（编译期编译固件）
+- **摘要**：正仓此前对 C 库的调用能力仅有空 `call_ffi` 桩，无任何真实 FFI 路径（recon 三大缺口之一）。
+  现落地零依赖通用 C ABI 绑定：`ffi_load(path)` 经 `dlopen` 加载动态库并返回句柄 id，
+  `ffi_call(lib_id, symbol, ret_type, args)` 经 `dlsym` 取地址并按 `f64/i64/void` 返回类 +
+  0–4 参数（全 f64 / 全 i64 / 混合）封送调用，`ffi_close(lib_id)` 经 `dlclose` 卸载。
+- **根因**：`extern "C"` 绑定从未实现；macOS Apple Silicon 无独立 `/usr/lib/*.dylib`（仅 dyld 共享缓存），
+  故改用自构建 `cdylib` 固件验证，比直接 `dlopen(libm)` 更贴近真实通用 FFI 场景。
+- **改动**：
+  - 直接用 `dlopen/dlsym/dlclose/dlerror`（`cfg(macos|linux)`，句柄以 `usize` 存地址以保 `Interpreter: Send`），
+    不引入 `libloading`；`ffi_handles: Arc<Mutex<HashMap<i64, usize>>>` 新增字段。
+  - edition 2024 规则：`extern "C"` 须 `unsafe extern "C"`，`unsafe fn` 体内调用亦须显式 `unsafe{}`。
+  - 删除全仓无调用点的 `call_ffi` 桩（避免 dead_code 破坏 clippy）。
+  - `build.rs` 在编译期 `cargo build --release` 子 `ffi_fixture` 并将 `.dylib/.so` 拷至 `OUT_DIR` 供测试加载。
+- **新增测试**：`ffi_fixture_basic_calls`（df_dsqrt/df_add/df_mul/df_sum4/df_iabs/df_strlen/df_void_print）
+  / `ffi_call_unknown_symbol_errors` / `ffi_load_missing_lib_errors` /
+  `ffi_close_unknown_handle_errors` / `ffi_close_then_call_errors`（macOS/Linux gated，5 passed）。
+- **验证**：`cargo test -p dalin-runtime` 全量 13+5 passed；`cargo clippy -p dalin-runtime` 0 警告；
+  `cargo fmt` 干净；全工作区 `cargo build` 通过。
+- **审计来源**：生态能力 recon（2026-08-11）三大 Critical 缺口之首
+- **关联不变量**：无（属能力新增，非安全不变量）
+
+---
+
+## FIX-004 — 包 registry 联网下载 + 索引解析 + dalan.toml 内联表解析修复
+- **日期**：2026-08-11
+- **组件/文件**：
+  - `registry/src/net.rs`（新增）：零依赖 HTTP/1.1 客户端 + `fetch_package_index` + `download_artifact`
+    + `resolve_best`；`registry/src/sha256.rs`（新增）：纯 std SHA-256。
+  - `cli/src/cmd/pkg.rs`：`cmd_build` 对 `DependencySource::Registry` 真正拉取 `.dal` 并落盘
+    `dalan.lock`（含 `url=` + `sha256=`，缓存至 `.dalan/registry/<name>/<ver>.dal`，已缓存则跳过下载）。
+  - `compiler/src/package.rs`：`parse_dep_entry` 内联表 `{ }` 括号剥离修复（修复 `version`/`source`
+    被静默丢弃的潜在 bug）。
+- **摘要**：recon 第二大缺口——`Package.artifact_url` 已就位但无网络下载逻辑；`compiler::PackageManager::download_package`
+  为伪造 mock。现 `dalin-registry` 真正联网：从 `http://<host>/index/<name>` 拉 JSON 包索引、按版本需求
+  （`*`/`^`/`>=`/精确）选最优版本、将 `artifact_url` 指向的工件下载到本地缓存并计算 SHA-256 写入锁文件。
+- **根因**：
+  1. 联网下载缺口：registry crate 仅有内存 `PackageRegistry`，无 HTTP 客户端。
+  2. **内联表解析 bug（潜在）**：`parse_dep_entry` 未剥离 `{ }`，导致 `version`/`source` 字段被静默丢弃；
+     用户写 `mylib = { version = "1.0", source = "host" }` 时 `source` 失效（端到端验证时暴露）。
+- **改动**：
+  - `net.rs`：`http_get` 基于 `TcpStream`，支持重定向（≤5 跳）与 chunked 解码；`download_artifact` 写文件 + SHA-256；
+    `resolve_best` 复用 `dalin_compiler::package::SemVer` 做版本匹配（registry→compiler 单向依赖，无环）。
+  - `cli` 新增 `dalin-registry` 依赖；`cmd_build` 对 Registry 源调用 `fetch_package_index`→`resolve_best`→`download_artifact`。
+  - `package.rs`：`parse_dep_entry` 先 `strip_prefix('{')`/`strip_suffix('}')` 再按 `,` 拆分，正确解析
+    `version`/`optional`/`default-features`/`source`。
+- **新增测试**：`registry` 集成测试 `integration_http_index_and_download`（本地 `TcpListener` 桩 server 验证
+  索引+下载+SHA-256+版本选择，1 passed）；`sha256::known_vectors`（abc/空串/狐狸语已知向量，2 passed）；
+  `net` 单元（parse_req/resolve_best/decode_chunked/parse_response，6 passed）；
+  `compiler::test_parse_dep_entry_inline_table_with_source`（内联表 source 解析，1 passed）。
+- **验证**：`cargo test -p dalin-registry` 14 passed；`cargo test -p dalin-compiler package` 25 passed；
+  `cargo clippy -p dalin-registry -p dalin_l` 0 警告；`cargo fmt` 干净；全工作区 `cargo build` 通过；
+  **端到端**：本地 stub registry + `dalib pkg build` 实测下载 `mylib@1.0.0.dal` 并生成带 `url`/`sha256` 的 `dalan.lock`。
+- **审计来源**：生态能力 recon（2026-08-11）第二大 Critical 缺口
+- **关联不变量**：无（属能力新增 + 解析正确性修复）
+- **备注**：`compiler::PackageManager::download_package` 的 mock 保留为无网络占位（已在 doc 注释指向真实实现），
+  避免改动 dev 模式单测语义。
 
 ---
 

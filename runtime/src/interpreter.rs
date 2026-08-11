@@ -2,6 +2,8 @@ use crate::env::{DALIN_TYPE_KEY, Environment, FnValue, Value};
 /// Dalin L — 树遍历解释器
 use dalin_compiler::ast::{Expr, FnParam, MatchArm, Pattern, Program, Stmt, TypeRef};
 use std::collections::HashMap;
+use std::ffi::CString;
+use std::os::raw::{c_char, c_int, c_void};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
@@ -55,6 +57,302 @@ fn next_task_id(name: &str) -> String {
     format!("{name}_{seq}")
 }
 
+// ── 通用 C FFI 运行时支持（零依赖：直接 dlopen/dlsym，不引入 libloading）──
+// 仅在 macOS / Linux 上可用；其余平台编译期拒绝（避免未定义符号）。
+#[cfg(any(target_os = "macos", target_os = "linux"))]
+const RTLD_LAZY: c_int = 0x1;
+
+#[cfg(any(target_os = "macos", target_os = "linux"))]
+unsafe extern "C" {
+    fn dlopen(filename: *const c_char, flag: c_int) -> *mut c_void;
+    fn dlsym(handle: *mut c_void, symbol: *const c_char) -> *mut c_void;
+    fn dlclose(handle: *mut c_void) -> c_int;
+    fn dlerror() -> *mut c_char;
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "linux")))]
+compile_error!("C FFI (dlopen/dlsym) 仅在 macOS / Linux 上受支持");
+
+/// FFI 句柄序号：每次 `ffi_load` 分配唯一 id，作为解释器侧句柄表的键。
+static FFI_SEQ: AtomicUsize = AtomicUsize::new(1);
+
+fn next_ffi_id() -> i64 {
+    FFI_SEQ.fetch_add(1, Ordering::SeqCst) as i64
+}
+
+/// C 函数返回类型（由 `ffi_call` 的 `ret_type` 字符串解析）。
+#[derive(Clone, Copy)]
+enum RetClass {
+    F64,
+    I64,
+    Void,
+}
+
+fn parse_ret(s: &str) -> Result<RetClass, RuntimeError> {
+    match s {
+        "f64" | "double" => Ok(RetClass::F64),
+        "i64" | "int" | "long" => Ok(RetClass::I64),
+        "void" | "" => Ok(RetClass::Void),
+        other => Err(RuntimeError(format!("不支持的 FFI 返回类型: '{other}'"))),
+    }
+}
+
+/// 经封送的单个 C 参数：F = 浮点寄存器类（f64），I = 通用寄存器类（i64 / 指针 / 布尔 / 字符）。
+#[derive(Clone, Copy)]
+enum Marshal {
+    F(f64),
+    I(i64),
+}
+
+fn marshal_args(args: &[Value]) -> Result<(Vec<Marshal>, Vec<CString>), RuntimeError> {
+    let mut m = Vec::with_capacity(args.len());
+    // CString 必须跨 C 调用保持存活；其指针以 i64 形式封送到 I 类参数。
+    let mut cstrings = Vec::new();
+    for a in args {
+        match a {
+            Value::Float(f) => m.push(Marshal::F(*f)),
+            Value::Int(i) => m.push(Marshal::I(*i)),
+            Value::Bool(b) => m.push(Marshal::I(i64::from(*b))),
+            Value::Char(c) => m.push(Marshal::I(*c as i64)),
+            Value::String(s) => {
+                let cs = CString::new(s.as_str())
+                    .map_err(|_| RuntimeError("FFI 字符串含 NUL 字节，无法作为 C 参数".into()))?;
+                let ptr = cs.as_ptr() as i64;
+                cstrings.push(cs);
+                m.push(Marshal::I(ptr));
+            }
+            other => {
+                return Err(RuntimeError(format!(
+                    "FFI 不支持的参数类型: {other}（仅 Int/Float/Bool/Char/String）"
+                )));
+            }
+        }
+    }
+    Ok((m, cstrings))
+}
+
+/// 按参数寄存器类序列 + 返回类型，将 dlsym 得到的函数指针转译为精确 ABI 的函数指针并调用。
+///
+/// 覆盖 0–4 个参数、全 f64 / 全 i64 / 混合 的常见签名；不支持的组合返回可读错误而非 panic。
+#[allow(clippy::missing_transmute_annotations, clippy::too_many_lines)]
+fn call_c_abi(
+    func: *mut c_void,
+    m: &[Marshal],
+    _cstrings: &[CString],
+    ret: RetClass,
+) -> Result<Value, RuntimeError> {
+    use std::mem::transmute;
+    let n = m.len();
+    match (n, ret) {
+        (0, RetClass::F64) => {
+            let f: extern "C" fn() -> f64 = unsafe { transmute(func) };
+            Ok(Value::Float(f()))
+        }
+        (0, RetClass::I64) => {
+            let f: extern "C" fn() -> i64 = unsafe { transmute(func) };
+            Ok(Value::Int(f()))
+        }
+        (0, RetClass::Void) => {
+            let f: extern "C" fn() = unsafe { transmute(func) };
+            f();
+            Ok(Value::None)
+        }
+        (1, RetClass::F64) => match m[0] {
+            Marshal::F(a) => {
+                let f: extern "C" fn(f64) -> f64 = unsafe { transmute(func) };
+                Ok(Value::Float(f(a)))
+            }
+            Marshal::I(a) => {
+                let f: extern "C" fn(i64) -> f64 = unsafe { transmute(func) };
+                Ok(Value::Float(f(a)))
+            }
+        },
+        (1, RetClass::I64) => match m[0] {
+            Marshal::F(a) => {
+                let f: extern "C" fn(f64) -> i64 = unsafe { transmute(func) };
+                Ok(Value::Int(f(a)))
+            }
+            Marshal::I(a) => {
+                let f: extern "C" fn(i64) -> i64 = unsafe { transmute(func) };
+                Ok(Value::Int(f(a)))
+            }
+        },
+        (1, RetClass::Void) => match m[0] {
+            Marshal::F(a) => {
+                let f: extern "C" fn(f64) = unsafe { transmute(func) };
+                f(a);
+                Ok(Value::None)
+            }
+            Marshal::I(a) => {
+                let f: extern "C" fn(i64) = unsafe { transmute(func) };
+                f(a);
+                Ok(Value::None)
+            }
+        },
+        (2, RetClass::F64) => match (m[0], m[1]) {
+            (Marshal::F(a), Marshal::F(b)) => {
+                let f: extern "C" fn(f64, f64) -> f64 = unsafe { transmute(func) };
+                Ok(Value::Float(f(a, b)))
+            }
+            (Marshal::F(a), Marshal::I(b)) => {
+                let f: extern "C" fn(f64, i64) -> f64 = unsafe { transmute(func) };
+                Ok(Value::Float(f(a, b)))
+            }
+            (Marshal::I(a), Marshal::F(b)) => {
+                let f: extern "C" fn(i64, f64) -> f64 = unsafe { transmute(func) };
+                Ok(Value::Float(f(a, b)))
+            }
+            (Marshal::I(a), Marshal::I(b)) => {
+                let f: extern "C" fn(i64, i64) -> f64 = unsafe { transmute(func) };
+                Ok(Value::Float(f(a, b)))
+            }
+        },
+        (2, RetClass::I64) => match (m[0], m[1]) {
+            (Marshal::F(a), Marshal::F(b)) => {
+                let f: extern "C" fn(f64, f64) -> i64 = unsafe { transmute(func) };
+                Ok(Value::Int(f(a, b)))
+            }
+            (Marshal::F(a), Marshal::I(b)) => {
+                let f: extern "C" fn(f64, i64) -> i64 = unsafe { transmute(func) };
+                Ok(Value::Int(f(a, b)))
+            }
+            (Marshal::I(a), Marshal::F(b)) => {
+                let f: extern "C" fn(i64, f64) -> i64 = unsafe { transmute(func) };
+                Ok(Value::Int(f(a, b)))
+            }
+            (Marshal::I(a), Marshal::I(b)) => {
+                let f: extern "C" fn(i64, i64) -> i64 = unsafe { transmute(func) };
+                Ok(Value::Int(f(a, b)))
+            }
+        },
+        (2, RetClass::Void) => match (m[0], m[1]) {
+            (Marshal::F(a), Marshal::F(b)) => {
+                let f: extern "C" fn(f64, f64) = unsafe { transmute(func) };
+                f(a, b);
+                Ok(Value::None)
+            }
+            (Marshal::F(a), Marshal::I(b)) => {
+                let f: extern "C" fn(f64, i64) = unsafe { transmute(func) };
+                f(a, b);
+                Ok(Value::None)
+            }
+            (Marshal::I(a), Marshal::F(b)) => {
+                let f: extern "C" fn(i64, f64) = unsafe { transmute(func) };
+                f(a, b);
+                Ok(Value::None)
+            }
+            (Marshal::I(a), Marshal::I(b)) => {
+                let f: extern "C" fn(i64, i64) = unsafe { transmute(func) };
+                f(a, b);
+                Ok(Value::None)
+            }
+        },
+        (3, RetClass::F64) => match (m[0], m[1], m[2]) {
+            (Marshal::F(a), Marshal::F(b), Marshal::F(c)) => {
+                let f: extern "C" fn(f64, f64, f64) -> f64 = unsafe { transmute(func) };
+                Ok(Value::Float(f(a, b, c)))
+            }
+            (Marshal::F(a), Marshal::F(b), Marshal::I(c)) => {
+                let f: extern "C" fn(f64, f64, i64) -> f64 = unsafe { transmute(func) };
+                Ok(Value::Float(f(a, b, c)))
+            }
+            (Marshal::F(a), Marshal::I(b), Marshal::F(c)) => {
+                let f: extern "C" fn(f64, i64, f64) -> f64 = unsafe { transmute(func) };
+                Ok(Value::Float(f(a, b, c)))
+            }
+            (Marshal::F(a), Marshal::I(b), Marshal::I(c)) => {
+                let f: extern "C" fn(f64, i64, i64) -> f64 = unsafe { transmute(func) };
+                Ok(Value::Float(f(a, b, c)))
+            }
+            (Marshal::I(a), Marshal::F(b), Marshal::F(c)) => {
+                let f: extern "C" fn(i64, f64, f64) -> f64 = unsafe { transmute(func) };
+                Ok(Value::Float(f(a, b, c)))
+            }
+            (Marshal::I(a), Marshal::F(b), Marshal::I(c)) => {
+                let f: extern "C" fn(i64, f64, i64) -> f64 = unsafe { transmute(func) };
+                Ok(Value::Float(f(a, b, c)))
+            }
+            (Marshal::I(a), Marshal::I(b), Marshal::F(c)) => {
+                let f: extern "C" fn(i64, i64, f64) -> f64 = unsafe { transmute(func) };
+                Ok(Value::Float(f(a, b, c)))
+            }
+            (Marshal::I(a), Marshal::I(b), Marshal::I(c)) => {
+                let f: extern "C" fn(i64, i64, i64) -> f64 = unsafe { transmute(func) };
+                Ok(Value::Float(f(a, b, c)))
+            }
+        },
+        (3, RetClass::I64) => match (m[0], m[1], m[2]) {
+            (Marshal::F(a), Marshal::F(b), Marshal::F(c)) => {
+                let f: extern "C" fn(f64, f64, f64) -> i64 = unsafe { transmute(func) };
+                Ok(Value::Int(f(a, b, c)))
+            }
+            (Marshal::F(a), Marshal::F(b), Marshal::I(c)) => {
+                let f: extern "C" fn(f64, f64, i64) -> i64 = unsafe { transmute(func) };
+                Ok(Value::Int(f(a, b, c)))
+            }
+            (Marshal::F(a), Marshal::I(b), Marshal::F(c)) => {
+                let f: extern "C" fn(f64, i64, f64) -> i64 = unsafe { transmute(func) };
+                Ok(Value::Int(f(a, b, c)))
+            }
+            (Marshal::F(a), Marshal::I(b), Marshal::I(c)) => {
+                let f: extern "C" fn(f64, i64, i64) -> i64 = unsafe { transmute(func) };
+                Ok(Value::Int(f(a, b, c)))
+            }
+            (Marshal::I(a), Marshal::F(b), Marshal::F(c)) => {
+                let f: extern "C" fn(i64, f64, f64) -> i64 = unsafe { transmute(func) };
+                Ok(Value::Int(f(a, b, c)))
+            }
+            (Marshal::I(a), Marshal::F(b), Marshal::I(c)) => {
+                let f: extern "C" fn(i64, f64, i64) -> i64 = unsafe { transmute(func) };
+                Ok(Value::Int(f(a, b, c)))
+            }
+            (Marshal::I(a), Marshal::I(b), Marshal::F(c)) => {
+                let f: extern "C" fn(i64, i64, f64) -> i64 = unsafe { transmute(func) };
+                Ok(Value::Int(f(a, b, c)))
+            }
+            (Marshal::I(a), Marshal::I(b), Marshal::I(c)) => {
+                let f: extern "C" fn(i64, i64, i64) -> i64 = unsafe { transmute(func) };
+                Ok(Value::Int(f(a, b, c)))
+            }
+        },
+        (4, RetClass::F64) => match (m[0], m[1], m[2], m[3]) {
+            (Marshal::F(a), Marshal::F(b), Marshal::F(c), Marshal::F(d)) => {
+                let f: extern "C" fn(f64, f64, f64, f64) -> f64 = unsafe { transmute(func) };
+                Ok(Value::Float(f(a, b, c, d)))
+            }
+            (Marshal::I(a), Marshal::I(b), Marshal::I(c), Marshal::I(d)) => {
+                let f: extern "C" fn(i64, i64, i64, i64) -> f64 = unsafe { transmute(func) };
+                Ok(Value::Float(f(a, b, c, d)))
+            }
+            _ => Err(RuntimeError(
+                "FFI v1 暂不支持 4 参数混合类型签名（仅全 f64 / 全 i64）".into(),
+            )),
+        },
+        (4, RetClass::I64) => match (m[0], m[1], m[2], m[3]) {
+            (Marshal::I(a), Marshal::I(b), Marshal::I(c), Marshal::I(d)) => {
+                let f: extern "C" fn(i64, i64, i64, i64) -> i64 = unsafe { transmute(func) };
+                Ok(Value::Int(f(a, b, c, d)))
+            }
+            _ => Err(RuntimeError(
+                "FFI v1 暂不支持 4 参数混合类型签名（仅全 i64）".into(),
+            )),
+        },
+        _ => Err(RuntimeError(format!(
+            "FFI v1 暂不支持 {n} 个参数的签名（仅支持 0–4 参数）"
+        ))),
+    }
+}
+
+#[cfg(any(target_os = "macos", target_os = "linux"))]
+unsafe fn dlerror_to_string() -> String {
+    let p = unsafe { dlerror() };
+    if p.is_null() {
+        return "(无 dlerror 信息)".to_string();
+    }
+    let s = unsafe { std::ffi::CStr::from_ptr(p) };
+    s.to_string_lossy().into_owned()
+}
+
 impl std::fmt::Display for RuntimeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "RuntimeError: {}", self.0)
@@ -79,6 +377,10 @@ pub struct Interpreter {
     // 通道接收端表：名称 -> Receiver（发送端随 Value 跨线程共享）
     #[allow(clippy::type_complexity)]
     channel_registry: Arc<Mutex<HashMap<String, Arc<Mutex<mpsc::Receiver<Value>>>>>>,
+    // ── 通用 C FFI（零依赖 dlopen/dlsym）──
+    // 句柄以 usize 存储地址（cast 回 *mut c_void 时再转回），避免裸指针破坏
+    // Interpreter: Send（spawn_task 通过 std::thread::spawn 跨线程克隆）。
+    ffi_handles: Arc<Mutex<HashMap<i64, usize>>>,
     // 当前任务 id（worker 线程内用于把子任务挂到正确父节点）
     current_task_id: Option<String>,
 }
@@ -102,6 +404,7 @@ impl Interpreter {
             task_tree: Arc::new(Mutex::new(HashMap::new())),
             task_results: Arc::new(Mutex::new(HashMap::new())),
             channel_registry: Arc::new(Mutex::new(HashMap::new())),
+            ffi_handles: Arc::new(Mutex::new(HashMap::new())),
             current_task_id: None,
         };
         interp.install_builtins();
@@ -758,7 +1061,7 @@ impl Interpreter {
         }
 
         // Builtins
-        let builtins: [&str; 37] = [
+        let builtins: [&str; 40] = [
             "println",
             "println!",
             "print",
@@ -802,6 +1105,10 @@ impl Interpreter {
             "is_option",
             "is_struct",
             "is_enum",
+            // 通用 C FFI（零依赖 dlopen/dlsym，macOS / Linux）
+            "ffi_load",
+            "ffi_call",
+            "ffi_close",
         ];
 
         // 1) 命名空间精确解析（module::func 优先，实现真正的命名空间隔离）
@@ -1061,6 +1368,115 @@ impl Interpreter {
                     let _ = tx.send(res.unwrap_or(Value::None));
                 });
                 Ok(Value::Task(child_id))
+            }
+            "ffi_load" => {
+                if args.is_empty() {
+                    return Err(RuntimeError("ffi_load 需要库路径参数".into()));
+                }
+                let path = match &args[0] {
+                    Value::String(s) => s.clone(),
+                    _ => return Err(RuntimeError("ffi_load: 路径必须是字符串".into())),
+                };
+                let cpath = match CString::new(path.as_str()) {
+                    Ok(c) => c,
+                    Err(_) => return Err(RuntimeError("ffi_load: 路径含 NUL 字节".into())),
+                };
+                #[cfg(any(target_os = "macos", target_os = "linux"))]
+                let handle = unsafe { dlopen(cpath.as_ptr(), RTLD_LAZY) };
+                #[cfg(not(any(target_os = "macos", target_os = "linux")))]
+                let handle: *mut c_void = std::ptr::null_mut();
+                if handle.is_null() {
+                    #[cfg(any(target_os = "macos", target_os = "linux"))]
+                    let msg = unsafe { dlerror_to_string() };
+                    #[cfg(not(any(target_os = "macos", target_os = "linux")))]
+                    let msg = "(当前平台不支持 C FFI)".to_string();
+                    return Err(RuntimeError(format!(
+                        "ffi_load: dlopen '{path}' 失败: {msg}"
+                    )));
+                }
+                let id = next_ffi_id();
+                self.ffi_handles.lock().unwrap().insert(id, handle as usize);
+                Ok(Value::Int(id))
+            }
+            "ffi_call" => {
+                if args.len() != 4 {
+                    return Err(RuntimeError(
+                        "ffi_call 需要 (lib_id, symbol, ret_type, args[]) 四个参数".into(),
+                    ));
+                }
+                let lib_id = match args[0] {
+                    Value::Int(i) => i,
+                    _ => return Err(RuntimeError("ffi_call: lib_id 必须是整数".into())),
+                };
+                let symbol = match &args[1] {
+                    Value::String(s) => s.clone(),
+                    _ => return Err(RuntimeError("ffi_call: symbol 必须是字符串".into())),
+                };
+                let ret_type = match &args[2] {
+                    Value::String(s) => s.clone(),
+                    _ => return Err(RuntimeError("ffi_call: ret_type 必须是字符串".into())),
+                };
+                let arg_vals = match &args[3] {
+                    Value::Array(a) => a.clone(),
+                    _ => {
+                        return Err(RuntimeError(
+                            "ffi_call: 第四个参数必须是参数数组（如 [1.0, 2.0]）".into(),
+                        ));
+                    }
+                };
+                let addr = {
+                    let guard = self.ffi_handles.lock().unwrap();
+                    match guard.get(&lib_id) {
+                        Some(a) => *a,
+                        None => {
+                            return Err(RuntimeError(format!(
+                                "ffi_call: 未知 FFI 句柄 {lib_id}（请先 ffi_load）"
+                            )));
+                        }
+                    }
+                };
+                let csym = match CString::new(symbol.as_str()) {
+                    Ok(c) => c,
+                    Err(_) => return Err(RuntimeError("ffi_call: symbol 含 NUL 字节".into())),
+                };
+                #[cfg(any(target_os = "macos", target_os = "linux"))]
+                let func = unsafe { dlsym(addr as *mut c_void, csym.as_ptr()) };
+                #[cfg(not(any(target_os = "macos", target_os = "linux")))]
+                let func: *mut c_void = std::ptr::null_mut();
+                if func.is_null() {
+                    #[cfg(any(target_os = "macos", target_os = "linux"))]
+                    let msg = unsafe { dlerror_to_string() };
+                    #[cfg(not(any(target_os = "macos", target_os = "linux")))]
+                    let msg = "(当前平台不支持 C FFI)".to_string();
+                    return Err(RuntimeError(format!(
+                        "ffi_call: dlsym '{symbol}' 失败: {msg}"
+                    )));
+                }
+                let (m, cstrings) = marshal_args(&arg_vals)?;
+                let ret = parse_ret(&ret_type)?;
+                call_c_abi(func, &m, &cstrings, ret)
+            }
+            "ffi_close" => {
+                if args.is_empty() {
+                    return Err(RuntimeError("ffi_close 需要句柄 id".into()));
+                }
+                let lib_id = match args[0] {
+                    Value::Int(i) => i,
+                    _ => return Err(RuntimeError("ffi_close: 句柄必须是整数".into())),
+                };
+                let addr = self.ffi_handles.lock().unwrap().remove(&lib_id);
+                match addr {
+                    Some(a) => {
+                        #[cfg(any(target_os = "macos", target_os = "linux"))]
+                        unsafe {
+                            dlclose(a as *mut c_void);
+                        }
+                        Ok(Value::Int(0))
+                    }
+                    None => Err(RuntimeError(format!(
+                        "ffi_close: 未知句柄 {lib_id}（可能已关闭）"
+                    ))),
+                }
             }
             "sys_now" => {
                 use std::time::{SystemTime, UNIX_EPOCH};
@@ -1747,15 +2163,6 @@ pub fn run_source_with_tree(source: &str) -> Result<String, RuntimeError> {
     Ok(interp.describe_task_tree())
 }
 
-/// C FFI external function call entry
-pub fn call_ffi(func_name: &str, _args: &[Value]) -> Result<Value, RuntimeError> {
-    // Stub: 在当前阶段不支持真实 C 调用
-    // Phase 2: 使用 libloading 或 cbindgen 对接
-    Err(RuntimeError(format!(
-        "C FFI not implemented for function: {func_name}"
-    )))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1768,6 +2175,113 @@ mod tests {
             .map_err(|e| RuntimeError(e.to_string()))?;
         let mut interp = Interpreter::new();
         interp.interpret(&prog)
+    }
+
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
+    fn ffi_fixture_lib() -> String {
+        let out_dir = env!("OUT_DIR");
+        #[cfg(target_os = "macos")]
+        let lib = format!("{out_dir}/libffi_fixture.dylib");
+        #[cfg(target_os = "linux")]
+        let lib = format!("{out_dir}/libffi_fixture.so");
+        lib
+    }
+
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
+    #[test]
+    fn ffi_fixture_basic_calls() {
+        let lib = ffi_fixture_lib();
+        let src = format!(
+            r#"
+            let h = ffi_load("{lib}")
+            let r_sqrt = ffi_call(h, "df_dsqrt", "f64", [2.0])
+            let r_add = ffi_call(h, "df_add", "f64", [3.0, 4.0])
+            let r_mul = ffi_call(h, "df_mul", "f64", [3.0, 4.0])
+            let r_sum4 = ffi_call(h, "df_sum4", "f64", [1.0, 2.0, 3.0, 4.0])
+            let r_abs = ffi_call(h, "df_iabs", "i64", [-7])
+            let r_len = ffi_call(h, "df_strlen", "i64", ["hello"])
+            let r_void = ffi_call(h, "df_void_print", "void", [42])
+            "#
+        );
+        let results = run(&src).expect("ffi run ok");
+        // results: [h, r_sqrt, r_add, r_mul, r_sum4, r_abs, r_len, r_void]
+        assert!(
+            matches!(results[0], Value::Int(_)),
+            "handle id should be Int"
+        );
+        match &results[1] {
+            Value::Float(f) => assert!((f - 2.0_f64.sqrt()).abs() < 1e-9, "dsqrt={f}"),
+            o => panic!("expected Float, got {o:?}"),
+        }
+        match &results[2] {
+            Value::Float(f) => assert!((f - 7.0).abs() < 1e-9),
+            o => panic!("expected Float, got {o:?}"),
+        }
+        match &results[3] {
+            Value::Float(f) => assert!((f - 12.0).abs() < 1e-9),
+            o => panic!("expected Float, got {o:?}"),
+        }
+        match &results[4] {
+            Value::Float(f) => assert!((f - 10.0).abs() < 1e-9),
+            o => panic!("expected Float, got {o:?}"),
+        }
+        match &results[5] {
+            Value::Int(i) => assert_eq!(*i, 7),
+            o => panic!("expected Int, got {o:?}"),
+        }
+        match &results[6] {
+            Value::Int(i) => assert_eq!(*i, 5),
+            o => panic!("expected Int, got {o:?}"),
+        }
+        assert!(
+            matches!(&results[7], Value::None),
+            "void call should return none"
+        );
+    }
+
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
+    #[test]
+    fn ffi_call_unknown_symbol_errors() {
+        let lib = ffi_fixture_lib();
+        let src = format!(
+            r#"
+            let h = ffi_load("{lib}")
+            let r = ffi_call(h, "no_such_symbol_xyz", "f64", [])
+            "#
+        );
+        assert!(run(&src).is_err(), "unknown symbol should error");
+    }
+
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
+    #[test]
+    fn ffi_load_missing_lib_errors() {
+        let src = r#"
+            let h = ffi_load("/no/such/library_xyz.dylib")
+        "#;
+        assert!(run(src).is_err(), "missing lib should error");
+    }
+
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
+    #[test]
+    fn ffi_close_unknown_handle_errors() {
+        let src = r#"
+            let r = ffi_close(999999)
+        "#;
+        assert!(run(src).is_err(), "closing unknown handle should error");
+    }
+
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
+    #[test]
+    fn ffi_close_then_call_errors() {
+        let lib = ffi_fixture_lib();
+        let src = format!(
+            r#"
+            let h = ffi_load("{lib}")
+            let c = ffi_close(h)
+            let r = ffi_call(h, "df_dsqrt", "f64", [2.0])
+            "#
+        );
+        assert!(run(&src).is_err(), "call after close should error");
     }
 
     #[test]

@@ -1,0 +1,12 @@
+[package]
+name = "ffi_fixture"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "ffi_fixture"
+crate-type = ["cdylib"]
+
+# 独立的 workspace，避免被 dalin-l-rs 父工作区当作成员自动包含
+# （父工作区 build.rs 会单独编译本固件供 FFI 集成测试使用）。
+[workspace]

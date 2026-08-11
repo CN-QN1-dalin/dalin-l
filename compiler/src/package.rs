@@ -285,34 +285,39 @@ fn parse_toml_array(s: &str) -> Vec<String> {
 fn parse_dep_entry(_key: &str, value: &str, _subsection: &Option<String>) -> DependencyEntry {
     let value = value.trim();
 
-    // Simple form: "version = \"1.0\""
-    if value.contains('=') {
-        let mut entry = DependencyEntry::default();
-
-        for part in value.split(',') {
-            let part = part.trim();
-            if let Some(eq_pos) = part.find('=') {
-                let k = part[..eq_pos].trim();
-                let v = part[eq_pos + 1..].trim();
-
-                match k {
-                    "version" => entry.version = strip_toml_string(v),
-                    "optional" => entry.optional = v.parse().unwrap_or(false),
-                    "default-features" => entry.default_features = v.parse().unwrap_or(true),
-                    "source" => entry.source = DependencySource::Registry(strip_toml_string(v)),
-                    _ => {}
-                }
-            }
-        }
-
-        entry
-    } else {
-        // Simple form: "1.0"
-        DependencyEntry {
+    // Simple form: "1.0"
+    if !value.contains('=') {
+        return DependencyEntry {
             version: strip_toml_string(value),
             ..DependencyEntry::default()
+        };
+    }
+
+    // Inline-table form: { version = "1.0", source = "host", optional = true }
+    let mut entry = DependencyEntry::default();
+    let inner = value
+        .strip_prefix('{')
+        .map(|s| s.strip_suffix('}').unwrap_or(s))
+        .unwrap_or(value)
+        .trim();
+
+    for part in inner.split(',') {
+        let part = part.trim();
+        if let Some(eq_pos) = part.find('=') {
+            let k = part[..eq_pos].trim();
+            let v = part[eq_pos + 1..].trim();
+
+            match k {
+                "version" => entry.version = strip_toml_string(v),
+                "optional" => entry.optional = v.parse().unwrap_or(false),
+                "default-features" => entry.default_features = v.parse().unwrap_or(true),
+                "source" => entry.source = DependencySource::Registry(strip_toml_string(v)),
+                _ => {}
+            }
         }
     }
+
+    entry
 }
 
 // ═══════════════════════════════
@@ -456,7 +461,11 @@ impl PackageManager {
         self.download_package(name, version)
     }
 
-    /// 模拟远程下载
+    /// 模拟远程下载（占位实现）。
+    ///
+    /// 真实联网下载由各注册表服务端驱动，见 `dalin_registry::net::download_artifact`
+    /// 与 `dalin_registry::net::fetch_package_index`（CLI `dalib pkg build` 已接入）。
+    /// 此处保留为无网络环境下的占位，便于单测与 dev 模式。
     fn download_package(&mut self, name: &str, version: &SemVer) -> Result<CachedPackage, String> {
         let content_hash = format!("{:x}", hash_string(&format!("{name}@{version}")));
         let cache_path = format!("{}/{}/{}", self.cache_dir, name, version);
@@ -664,8 +673,10 @@ rand = "~0.8.4"
         );
         assert_eq!(manifest.license, Some("MIT".to_string()));
         assert_eq!(manifest.deps.len(), 3);
-        assert!(manifest.deps.get("serde").unwrap().optional);
-        assert!(manifest.deps.get("serde").unwrap().default_features);
+        let serde = manifest.deps.get("serde").unwrap();
+        assert_eq!(serde.version, "1.0");
+        assert!(serde.optional);
+        assert!(!serde.default_features);
     }
 
     #[test]
@@ -822,6 +833,27 @@ rustflags = ["-C", "target-cpu=native"]
         match dep.source {
             DependencySource::Registry(url) => assert_eq!(url, "crates.dal.in"),
             _ => panic!("expected registry source"),
+        }
+    }
+
+    #[test]
+    fn test_parse_dep_entry_inline_table_with_source() {
+        // 内联表需正确剥离 { } 并解析 version / source / optional
+        let toml = r#"
+[package]
+name = "src-test"
+version = "0.1.0"
+
+[dependencies]
+mylib = { version = "1.2.3", source = "registry.example.com", optional = true }
+"#;
+        let manifest = parse_toml(toml).expect("parse ok");
+        let dep = manifest.deps.get("mylib").expect("mylib present");
+        assert_eq!(dep.version, "1.2.3");
+        assert!(dep.optional);
+        match &dep.source {
+            DependencySource::Registry(host) => assert_eq!(host, "registry.example.com"),
+            other => panic!("expected registry source, got {other:?}"),
         }
     }
 
