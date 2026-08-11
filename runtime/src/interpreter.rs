@@ -1770,8 +1770,19 @@ impl Interpreter {
         let e = self.eval_expr(end, env)?;
         match (s, e) {
             (Value::Int(a), Value::Int(b)) => {
-                let items: Vec<Value> = (a..b).map(Value::Int).collect();
-                Ok(Value::Array(items))
+                // 路线 #6：Range 物化上限，防止超大范围 OOM / DoS（详见 runtime-safety-invariants.md #6）
+                const MAX_RANGE_LEN: i64 = 1_000_000;
+                match b.checked_sub(a) {
+                    Some(diff) if diff > MAX_RANGE_LEN => Err(RuntimeError(format!(
+                        "Range too large: {} elements (max {})",
+                        diff, MAX_RANGE_LEN
+                    ))),
+                    Some(_) => {
+                        let items: Vec<Value> = (a..b).map(Value::Int).collect();
+                        Ok(Value::Array(items))
+                    }
+                    None => Err(RuntimeError(format!("Range bounds overflow: {}..{}", a, b))),
+                }
             }
             _ => Err(RuntimeError("Range requires int bounds".into())),
         }
@@ -2210,6 +2221,33 @@ mod tests {
     }
 
     // ── #696 `?` 错误传播运算符 ──
+
+    // ── 路线 #6 Range 物化上限（DoS 守卫）──
+    #[test]
+    fn range_materialization_is_bounded() {
+        // 合法范围正常物化
+        let r = run("0..5").expect("ok");
+        match r.last().expect("has result") {
+            Value::Array(items) => assert_eq!(items.len(), 5),
+            o => panic!("expected Array, got {:?}", o),
+        }
+        // 空范围（start >= end）返回空数组，不报错
+        let r = run("5..3").expect("ok");
+        match r.last().expect("has result") {
+            Value::Array(items) => assert_eq!(items.len(), 0),
+            o => panic!("expected empty Array, got {:?}", o),
+        }
+        // 超大范围必须报错（DoS 守卫），不得 OOM
+        let err = run("0..2000000");
+        assert!(err.is_err(), "超大 Range 必须报错而非物化");
+        let msg = format!("{:?}", err.unwrap_err());
+        assert!(
+            msg.contains("Range too large"),
+            "错误信息应指出 Range 过大: {}",
+            msg
+        );
+    }
+
     #[test]
     fn try_operator_ok_unwraps() {
         let src = r#"

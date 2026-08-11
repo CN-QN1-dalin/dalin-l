@@ -1189,6 +1189,21 @@ impl Runtime {
                 let e = self.eval_expr(end)?;
                 match (&s, &e) {
                     (RuntimeValue::Int(si), RuntimeValue::Int(ei)) => {
+                        // 路线 #6：Range 物化上限，防止超大范围 OOM / DoS
+                        const MAX_RANGE_LEN: i64 = 1_000_000;
+                        let len = if *inclusive {
+                            ei.saturating_sub(*si).saturating_add(1)
+                        } else {
+                            ei.saturating_sub(*si)
+                        };
+                        if len > MAX_RANGE_LEN {
+                            return Err(RuntimeError::TypeError {
+                                expected: format!("range with <= {} elements", MAX_RANGE_LEN),
+                                actual: format!("{} elements", len),
+                                detail: "range materialization exceeds max length (DoS guard)"
+                                    .to_string(),
+                            });
+                        }
                         let mut items = Vec::new();
                         if *inclusive {
                             for i in *si..=*ei {

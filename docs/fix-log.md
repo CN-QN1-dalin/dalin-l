@@ -26,6 +26,7 @@
 - [FIX-005](#fix-005----运算符错误传播) — `?` 错误传播运算符（Option/Result 早退）
 - [FIX-006](#fix-006--借用检查错误真实行号归因) — 借用检查错误真实行号归因（审计项 B）
 - [FIX-007](#fix-007--数字字面量误切分修复路线-8) — 数字字面量误切分修复（路线 #8，lexer 正确性）
+- [FIX-008](#fix-008--range-物化上限加固路线-6dos-守卫) — Range 物化上限加固（路线 #6，DoS 守卫）
 
 ---
 
@@ -280,4 +281,25 @@
   `cargo clippy --workspace` 零警告；`cargo fmt --check` 干净。
 - **审计来源**：`docs/runtime-safety-invariants.md` 第 5 节 #7/#8（lexer 稳健性 · 数字误切分）+ 重审审计 `docs/audit-dalin-l-rs-2026-08-11.md` C 项。
 - **关联不变量**：不涉及 INV-1/INV-2（属 lexer 词法正确性）；本次修复消除「数字被误当标识符」类误导性错误，提升编译器错误可诊断性。
+- **状态**：✅ 已修 · 本地未 push（等用户指令）
+
+---
+
+## FIX-008 — Range 物化上限加固（路线 #6，DoS 守卫）
+- **日期**：2026-08-11
+- **组件/文件**：
+  - `runtime/src/interpreter.rs` → `eval_range`（生产主解释器）
+  - `compiler/src/runtime.rs` → `Expr::Range` 分支（编译器内置解释器，用于编译期求值 / 常量折叠路径）
+- **摘要**：路线 #6 Range 物化上限——`a..b` / `a..=b` 原先在 `eval_range` 与编译器内置解释器中均用 `(a..b).map(Value::Int).collect()` / `for i in a..b { push }` **一次性物化整个 Vec**。当用户写出 `0..1000000000` 这类超大范围时，会分配约 8GB 内存，造成 OOM / 拒绝服务（DoS）面；该上限此前在不变量文档第 5 节被列为"尚未整改"项。
+- **根因**：Range 物化缺少长度上限守卫，未对 `b - a` 做有界检查即全量 collect / push。
+- **改动**：
+  1. 主解释器 `eval_range`（`runtime/src/interpreter.rs:1770` 起）：引入 `const MAX_RANGE_LEN: i64 = 1_000_000`；用 `b.checked_sub(a)` 计算长度差，`diff > MAX_RANGE_LEN` 返回 `RuntimeError("Range too large: N elements (max 1000000)")`；`checked_sub` 为 `None`（即 `a > b` 致 `i64` 溢出）返回 `RuntimeError("Range bounds overflow: a..b")`；`a >= b` 的正常空范围仍走 `Some(_)` 分支返回空数组（不报错，保持既有语义）。
+  2. 编译器内置解释器 `runtime.rs` `Expr::Range` 分支（`compiler/src/runtime.rs:1189` 起）：同样引入 `MAX_RANGE_LEN = 1_000_000`，用 `saturating_sub` 算 `len`（inclusive 加 1），`len > MAX_RANGE_LEN` 返回既有 `RuntimeError::TypeError { expected, actual, detail }`（不引入新 enum 变体），`detail` 标注 `"range materialization exceeds max length (DoS guard)"`；通过后再物化。
+  3. `targets/wasm/src/lib.rs:348` 的 `Expr::Range` 仅生成 WAT 字符串、不在 Rust 端物化，无 DoS 面，确认后**不改**。
+- **新增测试**：`interpreter::tests::range_materialization_is_bounded`（`runtime/src/interpreter.rs`）
+  （覆盖 `0..5` → 长度 5；`5..3` 空范围 → 空数组不报错；`0..2000000` → `Err` 且消息含 `"Range too large"`）。
+- **验证**：`cargo test --workspace` 全绿（runtime lib 20 passed，含新 Range 测试；compiler lib 398 passed，无回归）；
+  `cargo clippy --workspace --all-targets` 零警告；`cargo fmt --all --check` 干净。
+- **审计来源**：`docs/runtime-safety-invariants.md` 第 5 节 #6（Range 物化上限）；重审审计 `docs/audit-dalin-l-rs-2026-08-11.md` C 项。
+- **关联不变量**：INV-2（运行时稳健性）同类；本次加固消除"超大 Range 物化 OOM"类 DoS 面，守住 Range 物化上限不变量。
 - **状态**：✅ 已修 · 本地未 push（等用户指令）

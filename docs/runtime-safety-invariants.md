@@ -139,14 +139,17 @@ cargo fmt --check
 
 ## 5. 后续同类敏感点（审计 Checklist 扩展位）
 
-以下尚未整改、但属于同族的语义正确性敏感点，后续审计应一并复查（详见整改清单）：
+以下属于同族的语义正确性敏感点及其整改进展（✅ 已修 · phantom 撤回 · ⏳ 待推进），后续审计按状态复查（详见整改清单）：
 
 - **#3 + #9 借用检查器真正生效**：`compiler/src/borrow_checker.rs` 已被 `compiler/src/lib.rs:103-104`
   调用并遍历 AST（**非 no-op**，2026-08-11 复核确认）；但 `BorrowError` 是否带准确行列号、
   use-after-move / 不可变重绑定是否全捕获，仍待逐项确认。
-- **#5 命名参数**：`name: expr` 形式参数必须按形参名绑定并做缺参/超参/未知参数检查，不得静默丢弃。
-- **#6 Range 物化上限**：`a..b` 不得在无上限下物化超大序列（DoS 面）。
-- **#7 / #8 lexer 稳健性**：每 token 重建 HashMap（性能）、数字误切分（正确性）、块注释未闭合（#10）。
-- **#4 pipe 语义**：`map/filter/fold` 不得是误导性空实现。
+- **#4 pipe 语义**：`map/filter/fold` 不得是误导性空实现。✅ **已满足**（2026-08-11）：`|>` 在 lexer/parser/interpreter/ty/jit/wasm/dlvm 全覆盖，`iter_map`/`iter_filter`/`iter_fold` 在 `stdlib/iterators.dal` 为真实实现（非空壳）。
+- **#5 命名参数**：`name: expr` 形式参数必须按形参名绑定并做缺参/超参/未知参数检查，不得静默丢弃。⏳ **待推进**（设计级新功能，全仓无 `NamedArg` 实现，非 bug）：等用户设计决策。
+- **#6 Range 物化上限**：`a..b` 不得在无上限下物化超大序列（DoS 面）。✅ **已加固**（2026-08-11，FIX-008）：`MAX_RANGE_LEN = 1_000_000`，生产解释器 `eval_range`（`runtime/src/interpreter.rs`）+ 编译器内置解释器 `Expr::Range`（`compiler/src/runtime.rs`）两处守卫，加回归测试 `range_materialization_is_bounded`。
+- **#7 / #8 / #10 lexer 稳健性**：
+  - **#7 每 token 重建 HashMap**（性能）：**phantom 撤回**——`build_keywords()` 仅 `Lexer::new` 构建一次（`self.keywords` 字段），后续只 `get` 查询（lexer.rs:336），非每 token 重建。
+  - **#8 数字误切分**（正确性）：✅ **已修**（FIX-007），越界整数 / 空 hex 返回清晰 `LexerError`。
+  - **#10 块注释未闭合**：⏳ 待确认（lexer `read_block_comment` 对未闭合 `/*` 到 EOF 的处理）。
 
 > 任何新写入 `eval_binary` / `eval_unary` / 算术路径的算子，都必须先过 INV-1 / INV-2 两条不变量。
