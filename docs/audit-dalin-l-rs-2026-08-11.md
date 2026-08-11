@@ -82,7 +82,7 @@
 | --- | --- | --- | --- | --- |
 | A | `cli/src/cmd/init.rs:86,112,124,133,141,142,153` | **已撤回（phantom）**：所引行号全部位于 `#[cfg(test)] mod tests` 内；生产函数 `run()`（:3-66）早已用 `map_err(...)?` 实现 panic-safe，生产路径无 `.unwrap()`。测试内 `.unwrap()` 作用于刚写出的已知合法路径，与第四节「撤回 phantom 发现」纪律一致，不构成生产稳健性风险，**不做整改** | 低（仅测试代码） | 撤回标注；勿对测试辅助代码误改 |
 | B | `compiler/src/lib.rs:110` `record_borrow_error(err, 0)` | 借用检查错误行号以 `0` 占位，自进化 J1 事件缺真实位置归因 | 低（可观测性/正确性） | **已修复（FIX-006，2026-08-11）**：`BorrowError` 新增 `primary_line()`，从变体真实行号（use/borrow/mutable 侧）提取主行号；`lib.rs:110` 与 `self_evolution.rs:153` 两处生产调用均由 `0` 改为 `err.primary_line()`，无需 AST `Span`  plumbing（`BorrowError` 已自带行号） |
-| C | 路线图遗留正确性项 #4/#5/#6/#7/#8（pipe 语义 / 命名参数 / 性能） | 功能/正确性工作，非本次"安全/稳健"审计阻断项 | 中（功能） | 按原路线图推进，不属本审计紧急项 |
+| C | 路线图遗留正确性项 #4/#5/#6/#7/#8（pipe 语义 / 命名参数 / 性能） | **2026-08-11 复核**：#8 数字误切分已修复（FIX-007）；#4 pipe 语法已实现（`|>` 在 lexer/parser/interpreter/ty/jit/wasm/dlvm 全覆盖），且 `iter_map`/`iter_filter`/`iter_fold` 在 `stdlib/iterators.dal` 为真实实现（非误导性空实现）；余 #5/#6/#7 待原路线图 | 中（功能） | #8 已修；#4 已确认满足；#5/#6/#7 按原路线图推进 |
 
 ---
 

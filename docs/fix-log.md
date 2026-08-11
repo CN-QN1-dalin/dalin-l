@@ -25,6 +25,7 @@
 - [FIX-004](#fix-004--包-registry-联网下载--索引解析--dalentoml-内联表解析修复) — 包 registry 联网下载 + 索引解析 + dalan.toml 内联表解析修复
 - [FIX-005](#fix-005----运算符错误传播) — `?` 错误传播运算符（Option/Result 早退）
 - [FIX-006](#fix-006--借用检查错误真实行号归因) — 借用检查错误真实行号归因（审计项 B）
+- [FIX-007](#fix-007--数字字面量误切分修复路线-8) — 数字字面量误切分修复（路线 #8，lexer 正确性）
 
 ---
 
@@ -257,4 +258,26 @@
   `cargo clippy --workspace` 零警告；`cargo fmt --check` 干净。
 - **审计来源**：重审正仓审计 `docs/audit-dalin-l-rs-2026-08-11.md` 项 B（2026-08-11）。
 - **关联不变量**：无（属可观测性/正确性增强，非运行时不变量）；同时更正该审计**项 A**为 `#[cfg(test)]` 内 `.unwrap()`（生产 `run()` 已 `map_err(...)?` panic-safe），按第四节纪律撤回，不整改。
+- **状态**：✅ 已修 · 本地未 push（等用户指令）
+
+---
+
+## FIX-007 — 数字字面量误切分修复（路线 #8）
+- **日期**：2026-08-11
+- **组件/文件**：
+  - `compiler/src/lexer.rs` → `read_number` 签名改为 `Result<(TokenType, String), LexerError>`；十进制/十六进制越界与空 hex 返回清晰 `LexerError`；主循环 `next_token` 调用处 `?` 传播；新增回归测试 `test_number_overflow_is_error_not_ident`
+- **摘要**：路线 #8 数字字面量误切分——超 `i64` 范围的整数与空/非法十六进制字面量，原先在 `read_number` 末尾统一以 `(Ident, text)` 兜底（lexer.rs:255），
+  导致后续解析阶段报误导性 `Undefined variable: 99999999999999999999`，而非清晰的数字溢出错误。
+- **根因**：`read_number` 对十进制 `i64::parse` 失败、十六进制 `i64::from_str_radix` 失败、空 hex 三种情况不加区分地回退为 `Ident`，
+  无法区分「合法标识符」与「越界数字」，掩盖了真实的数字格式/范围错误。
+- **改动**：
+  1. `read_number` 返回 `Result`：整数超 `i64::MAX`、十六进制超范围、空十六进制（`0x`/`0xG`）分别返回 `LexerError`（消息含「i64 范围」/「十六进制」），携带 `line`/`column`；
+  2. 主循环 `next_token` 的 `let (tt, val) = self.read_number()?;` 用 `?` 传播错误；
+  3. 唯一的 `(Ident, text)` 兜底改为 `Ok((Ident, text))` 且置于「纯数字全 ASCII digit 超范围」分支之后（理论不可达，因已先行 Err 返回）。
+- **新增测试**：`lexer::tests::test_number_overflow_is_error_not_ident`
+  （覆盖 22×9 / `i64::MAX+1` / 20 位十进制越界、空 hex `0x` 与 `0xG` 报错；并断言 `42` / `2E+10` 仍正确切分）。
+- **验证**：`cargo test --workspace` 全绿（compiler lib 398 passed，新增 1；全仓无回归）；
+  `cargo clippy --workspace` 零警告；`cargo fmt --check` 干净。
+- **审计来源**：`docs/runtime-safety-invariants.md` 第 5 节 #7/#8（lexer 稳健性 · 数字误切分）+ 重审审计 `docs/audit-dalin-l-rs-2026-08-11.md` C 项。
+- **关联不变量**：不涉及 INV-1/INV-2（属 lexer 词法正确性）；本次修复消除「数字被误当标识符」类误导性错误，提升编译器错误可诊断性。
 - **状态**：✅ 已修 · 本地未 push（等用户指令）

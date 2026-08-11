@@ -178,7 +178,7 @@ impl Lexer {
         self.chars[start..self.pos].iter().collect()
     }
 
-    fn read_number(&mut self) -> (TokenType, String) {
+    fn read_number(&mut self) -> Result<(TokenType, String), LexerError> {
         let start = self.pos;
 
         // 十六进制字面量: 0x1F / 0xFF / 0x10
@@ -197,11 +197,21 @@ impl Lexer {
             if !hex_text.is_empty() {
                 // 归一化为十进制表示，供下游 parse::<i64>() 直接使用
                 if let Ok(v) = i64::from_str_radix(&hex_text, 16) {
-                    return (IntLiteral, v.to_string());
+                    return Ok((IntLiteral, v.to_string()));
                 }
+                // 非空但超出 i64 范围：清晰报错，而非误当标识符产生误导性 "Undefined variable"
+                return Err(LexerError {
+                    message: format!("十六进制字面量超出 i64 范围: 0x{}", hex_text),
+                    line: self.line,
+                    column: self.column,
+                });
             }
-            // 非法 hex（如 0x 后无数字）：回退为标识符
-            return (Ident, self.chars[start..self.pos].iter().collect());
+            // 空十六进制字面量 (0x 后无数字)：报错而非误当标识符
+            return Err(LexerError {
+                message: "空十六进制字面量: 0x 后缺少十六进制数字".into(),
+                line: self.line,
+                column: self.column,
+            });
         }
 
         let mut has_dot = false;
@@ -246,13 +256,28 @@ impl Lexer {
         if has_dot || has_exp {
             // 带小数点或科学计数法均归为浮点字面量
             if text.parse::<f64>().is_ok() {
-                return (FloatLiteral, text);
+                return Ok((FloatLiteral, text));
             }
+            // 带小数点/指数但 f64 解析失败（极罕见格式）：清晰报错
+            return Err(LexerError {
+                message: format!("无效浮点字面量: {}", text),
+                line: self.line,
+                column: self.column,
+            });
         }
         if text.parse::<i64>().is_ok() {
-            return (IntLiteral, text);
+            return Ok((IntLiteral, text));
         }
-        (Ident, text)
+        // 纯整数但超出 i64 范围：清晰报错，避免误当标识符导致误导性的 "Undefined variable"
+        if text.chars().all(|c| c.is_ascii_digit()) {
+            return Err(LexerError {
+                message: format!("整数字面量超出 i64 范围 (最大 {}): {}", i64::MAX, text),
+                line: self.line,
+                column: self.column,
+            });
+        }
+        // 兜底（理论不可达：read_number 仅消费 digit/./e）：保留原 Ident 行为
+        Ok((Ident, text))
     }
 
     fn read_string(&mut self, quote: char) -> Result<String, LexerError> {
@@ -314,7 +339,7 @@ impl Lexer {
 
         // Numbers
         if ch.is_ascii_digit() {
-            let (tt, val) = self.read_number();
+            let (tt, val) = self.read_number()?;
             return Ok(Token::new(tt, val, line, col));
         }
 
@@ -562,6 +587,53 @@ mod tests {
             })
             .count();
         assert_eq!(kw_count, 27);
+    }
+
+    #[test]
+    fn test_number_overflow_is_error_not_ident() {
+        // 路线 #8 修复：超 i64 范围整数/空 hex 必须返回清晰错误，不得误当标识符
+        let overflow_ints = [
+            "let x = 99999999999999999999", // 22 个 9，远超 i64::MAX
+            "let x = 9223372036854775808",  // i64::MAX + 1
+            "let x = 12345678901234567890", // 20 位 > i64::MAX
+        ];
+        for src in overflow_ints {
+            let mut lex = Lexer::new(src);
+            let res = lex.tokenize();
+            assert!(res.is_err(), "超大整数应报错而非误当标识符: {}", src);
+            let msg = format!("{:?}", res.unwrap_err());
+            assert!(
+                msg.contains("i64 范围"),
+                "错误信息应指出 i64 范围溢出: {} -> {}",
+                src,
+                msg
+            );
+        }
+
+        // 空十六进制字面量必须报错
+        for src in ["let x = 0x", "let x = 0xG"] {
+            let mut lex = Lexer::new(src);
+            let res = lex.tokenize();
+            assert!(res.is_err(), "空/非法 hex 应报错: {}", src);
+            let msg = format!("{:?}", res.unwrap_err());
+            assert!(
+                msg.contains("十六进制") || msg.contains("hex"),
+                "错误信息应指出 hex 问题: {} -> {}",
+                src,
+                msg
+            );
+        }
+
+        // 合法字面量仍正确切分
+        let mut lex = Lexer::new("let n = 42");
+        let toks = lex.tokenize().unwrap();
+        assert_eq!(toks[3].token_type, IntLiteral);
+        assert_eq!(toks[3].value, "42");
+
+        let mut lex = Lexer::new("let z = 2E+10");
+        let toks = lex.tokenize().unwrap();
+        assert_eq!(toks[3].token_type, FloatLiteral);
+        assert_eq!(toks[3].value, "2E+10");
     }
 
     #[test]
