@@ -78,10 +78,10 @@
 
 ## 六、仍属实的次要发现（低严重度，非阻断）
 
-| # | 位置 | 问题 | 严重度 | 建议 |
+| # | 位置 | 问题 | 严重度 | 建议 / 状态 |
 | --- | --- | --- | --- | --- |
-| A | `cli/src/cmd/init.rs:86,112,124,133,141,142,153` | 对 `project_name.to_str()` 与 `read_to_string(...)` 用 `.unwrap()`；`init` 假定刚写出的文件必存在/路径必合法 | 低（健壮性） | 改 `?` + 友好报错；正常路径安全，仅极端边界（竞态/非法 UTF-8 路径）才 panic |
-| B | `compiler/src/lib.rs:110` `record_borrow_error(err, 0)` | 借用检查错误行号以 `0` 占位，自进化 J1 事件缺真实位置归因 | 低（可观测性/正确性） | 并入路线图 #3+#9，从 AST `Span` 提取真实行列 |
+| A | `cli/src/cmd/init.rs:86,112,124,133,141,142,153` | **已撤回（phantom）**：所引行号全部位于 `#[cfg(test)] mod tests` 内；生产函数 `run()`（:3-66）早已用 `map_err(...)?` 实现 panic-safe，生产路径无 `.unwrap()`。测试内 `.unwrap()` 作用于刚写出的已知合法路径，与第四节「撤回 phantom 发现」纪律一致，不构成生产稳健性风险，**不做整改** | 低（仅测试代码） | 撤回标注；勿对测试辅助代码误改 |
+| B | `compiler/src/lib.rs:110` `record_borrow_error(err, 0)` | 借用检查错误行号以 `0` 占位，自进化 J1 事件缺真实位置归因 | 低（可观测性/正确性） | **已修复（FIX-006，2026-08-11）**：`BorrowError` 新增 `primary_line()`，从变体真实行号（use/borrow/mutable 侧）提取主行号；`lib.rs:110` 与 `self_evolution.rs:153` 两处生产调用均由 `0` 改为 `err.primary_line()`，无需 AST `Span`  plumbing（`BorrowError` 已自带行号） |
 | C | 路线图遗留正确性项 #4/#5/#6/#7/#8（pipe 语义 / 命名参数 / 性能） | 功能/正确性工作，非本次"安全/稳健"审计阻断项 | 中（功能） | 按原路线图推进，不属本审计紧急项 |
 
 ---
@@ -89,7 +89,7 @@
 ## 七、建议
 
 1. **无需紧急整改**：生产不可信输入路径经 recon 确认无 panic 类阻断缺陷，门禁全绿。
-2. **可选小修**：项 A 可作 CLI 鲁棒性小修（低风险、纯工程）；项 B 随 #3+#9 路线图处理。
+2. **可选小修**：项 A 经复核为 `#[cfg(test)]` 内 `.unwrap()`（生产 `run()` 已 panic-safe），按第四节纪律**撤回**，不做整改；项 B 已于 2026-08-11 修复（FIX-006），J1 事件现已携带借用错误真实行号。
 3. **保持纪律**：后续任何审计 agent 先读 `docs/fix-log.md` + `docs/runtime-safety-invariants.md`，
    并严格区分 `#[cfg(test)]` 与生产代码，避免重复报告 phantom 项（尤其"测试辅助函数里的 expect"）。
 4. **勿对陈旧副本误改**：`~/Desktop/Dalin-L-3.0` 是独立陈旧 checkout，其审计条目仅对该目录有效。

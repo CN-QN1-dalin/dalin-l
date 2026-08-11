@@ -24,6 +24,7 @@
 - [FIX-003](#fix-003--通用-c-ffi零依赖-dlopendlsym) — 通用 C FFI（零依赖 dlopen/dlsym）
 - [FIX-004](#fix-004--包-registry-联网下载--索引解析--dalentoml-内联表解析修复) — 包 registry 联网下载 + 索引解析 + dalan.toml 内联表解析修复
 - [FIX-005](#fix-005----运算符错误传播) — `?` 错误传播运算符（Option/Result 早退）
+- [FIX-006](#fix-006--借用检查错误真实行号归因) — 借用检查错误真实行号归因（审计项 B）
 
 ---
 
@@ -229,3 +230,31 @@
 - **审计来源**：#696（本期 `?` 运算符实现任务）。
 - **关联不变量**：复用 `return` 的 `CTRL_RETURN` + `return_value` 通道（见 `runtime-safety-invariants.md` INV-1/INV-2 上下文）；`?` 不引入新控制流哨兵，避免与 `break`/`continue` 越界诊断冲突。
 - **已知边界**：类型检查阶段 `Try` 的解包结果类型为 `Unknown`（类型系统 Option/Result 非参数化），属宽松设计；`?` 真实早退语义在主运行时 `dalin-runtime::interpreter` 完整实现，编译器内置解释器（`compiler/src/runtime.rs`）及 JIT/WASM 后端为降级/兜底路径。
+
+---
+
+## FIX-006 — 借用检查错误真实行号归因
+- **日期**：2026-08-11
+- **组件/文件**：
+  - `compiler/src/borrow_checker.rs` → `BorrowError` 枚举新增 `primary_line()` 方法（inherent impl）
+  - `compiler/src/lib.rs:110` → `compile_with_llm` 中 `record_borrow_error(err, 0)` 改为 `record_borrow_error(err, err.primary_line())`
+  - `compiler/src/self_evolution.rs:153` → `process_borrow_errors` 中 `record_borrow_error(err, 0)` 改为 `record_borrow_error(err, err.primary_line())`
+- **摘要**：自进化 J1 事件的知识库记录（`ErrorRecord.source_location`）原先把借用错误的「主行号」硬编码为 `0`，
+  导致 J1 聚类/模板提取缺乏真实位置归因。修复后取 `BorrowError` 变体自带的真实行号（错误实际发生点），
+  使 `/tmp/dalin_kb.jsonl` 知识库与 `SelfEvolutionEngine` 状态具备可观测的真实位置。
+- **根因**：`BorrowError` 各变体（UseAfterMove/ BorrowOfMovedValue / MutableBorrowConflict / MutableImmutableConflict /
+  AssignToImmutable / UseAfterDrop）本就携带 `moved_line`/`use_line`/`borrow_line`/`mutable_line`/`line` 等真实行号，
+  但 `compile_with_llm` 与 `process_borrow_errors` 两处生产调用把 `record_borrow_error` 的 `line` 参数写死为 `0`，
+  掩盖了这些真实位置（无需引入 AST `Span` plumbing 即可修复）。
+- **改动**：
+  1. `borrow_checker.rs`：`impl BorrowError { pub fn primary_line(&self) -> usize }`，按变体返回最具诊断价值的行号——
+     UseAfterMove→`use_line`、BorrowOfMovedValue→`borrow_line`、MutableBorrowConflict→`second_borrow_line`、
+     MutableImmutableConflict→`mutable_line`、AssignToImmutable→`line`、UseAfterDrop→`use_line`（均优先取「错误发生点」而非 moved/immutable 侧）；
+  2. `lib.rs` / `self_evolution.rs`：两处 `record_borrow_error(err, 0)` 改为 `record_borrow_error(err, err.primary_line())`，并更新注释。
+- **新增测试**：`borrow_checker::tests::test_borrow_error_primary_line_prefers_error_site`
+  （覆盖全部 6 个变体，断言主行号取「错误发生点」）。
+- **验证**：`cargo test --workspace` 全绿（新增 `primary_line` 测试 1 passed / 396 filtered；全仓无回归）；
+  `cargo clippy --workspace` 零警告；`cargo fmt --check` 干净。
+- **审计来源**：重审正仓审计 `docs/audit-dalin-l-rs-2026-08-11.md` 项 B（2026-08-11）。
+- **关联不变量**：无（属可观测性/正确性增强，非运行时不变量）；同时更正该审计**项 A**为 `#[cfg(test)]` 内 `.unwrap()`（生产 `run()` 已 `map_err(...)?` panic-safe），按第四节纪律撤回，不整改。
+- **状态**：✅ 已修 · 本地未 push（等用户指令）

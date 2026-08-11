@@ -111,6 +111,25 @@ impl std::fmt::Display for BorrowError {
     }
 }
 
+impl BorrowError {
+    /// 取该借用错误最具诊断价值的行号（用于 J1 事件位置归因，替代硬编码的 `0`）。
+    ///
+    /// 优先取「错误实际发生点」：use/borrow/mutable 侧，而非 moved/immutable 侧。
+    #[must_use]
+    pub fn primary_line(&self) -> usize {
+        match self {
+            BorrowError::MutableBorrowConflict {
+                second_borrow_line, ..
+            } => *second_borrow_line,
+            BorrowError::MutableImmutableConflict { mutable_line, .. } => *mutable_line,
+            BorrowError::UseAfterMove { use_line, .. } => *use_line,
+            BorrowError::BorrowOfMovedValue { borrow_line, .. } => *borrow_line,
+            BorrowError::AssignToImmutable { line, .. } => *line,
+            BorrowError::UseAfterDrop { use_line, .. } => *use_line,
+        }
+    }
+}
+
 // ═══════════════════════════════
 //  Borrow state tracker
 // ═══════════════════════════════
@@ -1017,5 +1036,63 @@ mod tests {
         assert_eq!((m, i), (1, 1));
         let (m2, i2) = checker.active_borrows("nonexistent");
         assert_eq!((m2, i2), (0, 0));
+    }
+
+    #[test]
+    fn test_borrow_error_primary_line_prefers_error_site() {
+        // 各变体应取「错误实际发生点」作为主行号，而非 moved/immutable 侧
+        assert_eq!(
+            BorrowError::UseAfterMove {
+                variable: "x".into(),
+                moved_line: 10,
+                use_line: 20,
+            }
+            .primary_line(),
+            20
+        );
+        assert_eq!(
+            BorrowError::BorrowOfMovedValue {
+                variable: "x".into(),
+                moved_line: 10,
+                borrow_line: 25,
+            }
+            .primary_line(),
+            25
+        );
+        assert_eq!(
+            BorrowError::MutableBorrowConflict {
+                variable: "x".into(),
+                first_borrow_line: 5,
+                second_borrow_line: 30,
+            }
+            .primary_line(),
+            30
+        );
+        assert_eq!(
+            BorrowError::MutableImmutableConflict {
+                variable: "x".into(),
+                immutable_line: 8,
+                mutable_line: 40,
+            }
+            .primary_line(),
+            40
+        );
+        assert_eq!(
+            BorrowError::AssignToImmutable {
+                variable: "x".into(),
+                line: 50,
+            }
+            .primary_line(),
+            50
+        );
+        assert_eq!(
+            BorrowError::UseAfterDrop {
+                variable: "x".into(),
+                drop_line: 12,
+                use_line: 60,
+            }
+            .primary_line(),
+            60
+        );
     }
 }

@@ -150,7 +150,7 @@ pub fn process_borrow_errors(
     engine: &mut SelfEvolutionEngine,
 ) {
     for err in checker.errors() {
-        engine.record_borrow_error(err, 0);
+        engine.record_borrow_error(err, err.primary_line());
     }
 }
 

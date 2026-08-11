@@ -106,8 +106,8 @@ pub fn compile_with_llm(src: &str) -> CompileResult {
     // Step 6: 自进化错误收集 — 所有 borrow checker 错误进入 J1 流水线
     let mut evolution_engine = SelfEvolutionEngine::new("/tmp/dalin_kb.jsonl");
     for err in borrows.errors() {
-        // 将每条 borrow 错误转化为 J1 事件记录（行号暂用 0 占位，后续从 AST 位置提取）
-        evolution_engine.record_borrow_error(err, 0);
+        // 将每条 borrow 错误转化为 J1 事件记录；主行号取自错误变体自身的真实位置（不再以 0 占位）
+        evolution_engine.record_borrow_error(err, err.primary_line());
     }
 
     // Step 7: 延迟验证（Phase D — 时序契约）
