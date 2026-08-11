@@ -16,7 +16,11 @@ fn run_last(src: &str) -> Value {
 fn cross_module_strings_str_repeat_after_dedup() {
     // str_repeat 原仅定义于 strutil.dal，去重后并入 canonical strings 模块
     let v = run_last("fn main() @ pure @ cpu { return strings::str_repeat(\"ab\", 3) }");
-    assert_eq!(v, Value::String("ababab".into()), "str_repeat(ab,3) = ababab");
+    assert_eq!(
+        v,
+        Value::String("ababab".into()),
+        "str_repeat(ab,3) = ababab"
+    );
 }
 
 #[test]

@@ -5,7 +5,8 @@
 //! - 语义错误：未定义变量、参数数量不匹配
 //! - 运行时错误：除零
 
-use dalin_runtime::interpreter::run_source;
+use dalin_runtime::env::Value;
+use dalin_runtime::interpreter::{run_program, run_source};
 
 // ══════════════════════════════════════════════════════════════
 //  语法错误
@@ -92,4 +93,128 @@ fn test_empty_source() {
         result.is_ok() || result.is_err(),
         "Empty source should not panic"
     );
+}
+
+// ══════════════════════════════════════════════════════════════
+//  审计整改回归：#1 短路求值 / #2 溢出与除零保护
+// ══════════════════════════════════════════════════════════════
+
+/// #1: `&&` 必须短路。左值为 false 时右值（含除零表达式）绝不求值，整体返回 false。
+#[test]
+fn test_short_circuit_and_skips_rhs() {
+    let src = "fn main() @ pure @ cpu {
+        let b = 0
+        return b != 0 && (10 / b > 0)
+    }";
+    let result = run_program(src);
+    match result {
+        Ok(vals) => match vals.last() {
+            Some(Value::Bool(false)) => {}
+            other => panic!(
+                "short-circuit && with b==0 must yield false, got {:?}",
+                other
+            ),
+        },
+        Err(e) => panic!("short-circuit && must NOT error/panic, got: {}", e.0),
+    }
+}
+
+/// #1: `||` 必须短路。左值为 true 时右值（含除零表达式）绝不求值，整体返回 true。
+#[test]
+fn test_short_circuit_or_skips_rhs() {
+    let src = "fn main() @ pure @ cpu {
+        let c = 0
+        return c == 0 || (10 / c > 0)
+    }";
+    let result = run_program(src);
+    match result {
+        Ok(vals) => match vals.last() {
+            Some(Value::Bool(true)) => {}
+            other => panic!(
+                "short-circuit || with c==0 must yield true, got {:?}",
+                other
+            ),
+        },
+        Err(e) => panic!("short-circuit || must NOT error/panic, got: {}", e.0),
+    }
+}
+
+/// #1: 非短路路径（左值不能决定结果时）仍需正确求值右值。
+#[test]
+fn test_non_short_circuit_still_works() {
+    let src = "fn main() @ pure @ cpu {
+        let d = 5
+        return d != 0 && (10 / d > 0)
+    }";
+    let result = run_program(src);
+    match result {
+        Ok(vals) => match vals.last() {
+            Some(Value::Bool(true)) => {}
+            other => panic!("non-short-circuit && must yield true, got {:?}", other),
+        },
+        Err(e) => panic!("non-short-circuit && unexpectedly errored: {}", e.0),
+    }
+}
+
+/// #2: 整数乘法溢出必须返回 RuntimeError（绝不在 debug 下 panic / release 下静默回绕）。
+#[test]
+fn test_integer_overflow_is_runtime_error() {
+    let src = "fn main() @ pure @ cpu {
+        let big = 4631686018427387904
+        return big * 2
+    }";
+    let result = run_program(src);
+    match &result {
+        Err(e) => {
+            let msg = e.0.to_lowercase();
+            assert!(
+                msg.contains("overflow"),
+                "overflow error expected, got: {}",
+                msg
+            );
+        }
+        Ok(v) => panic!("integer overflow must be a RuntimeError, got Ok({:?})", v),
+    }
+}
+
+/// #2: 整数除零必须返回 RuntimeError（绝不 panic）。
+#[test]
+fn test_integer_division_by_zero_is_runtime_error() {
+    let src = "fn main() @ pure @ cpu {
+        let z = 0
+        return 10 / z
+    }";
+    let result = run_program(src);
+    match &result {
+        Err(e) => {
+            let msg = e.0.to_lowercase();
+            assert!(
+                msg.contains("division") || msg.contains("zero"),
+                "division-by-zero error expected, got: {}",
+                msg
+            );
+        }
+        Ok(v) => panic!("division by zero must be a RuntimeError, got Ok({:?})", v),
+    }
+}
+
+/// #2: 整数模零必须返回 RuntimeError（绝不 panic）。
+#[test]
+fn test_integer_modulo_by_zero_is_runtime_error() {
+    let src = "fn main() @ pure @ cpu {
+        let z = 0
+        return 10 % z
+    }";
+    let result = run_program(src);
+    match &result {
+        Err(e) => {
+            let msg = e.0.to_lowercase();
+            assert!(
+                msg.contains("modulo") || msg.contains("zero"),
+                "modulo-by-zero error expected, got: {}",
+                msg
+            );
+        }
+        Ok(v) => panic!("modulo by zero must be a RuntimeError, got Ok({:?})", v),
+    }
 }

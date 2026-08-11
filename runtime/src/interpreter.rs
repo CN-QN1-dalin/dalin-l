@@ -559,6 +559,13 @@ impl Interpreter {
         Err(RuntimeError(format!("Undefined variable: '{name}'")))
     }
 
+    /// Binary operator evaluation.
+    ///
+    /// SAFETY INVARIANTS — see `docs/runtime-safety-invariants.md`:
+    /// - INV-1: `&&` / `||` MUST short-circuit (right operand evaluated only when its
+    ///   result can affect the outcome); never eager-evaluate both operands first.
+    /// - INV-2: integer `+ - *` use `checked_*`; `/ %` guard against zero. Overflow and
+    ///   division/modulo-by-zero return `RuntimeError`, never a Rust panic.
     fn eval_binary(
         &mut self,
         left: &Expr,
@@ -594,12 +601,37 @@ impl Interpreter {
             }
         }
 
+        // Short-circuit logical operators: the right operand is only
+        // evaluated when its result can affect the outcome. This prevents
+        // side effects in the right operand (e.g. division by zero, index
+        // out of bounds) from firing when the left operand already decides
+        // the result — the expected semantics of && / || .
+        if op == "&&" {
+            let left_val = self.eval_expr(left, env)?;
+            if !self.truthy(&left_val) {
+                return Ok(Value::Bool(false));
+            }
+            let right_val = self.eval_expr(right, env)?;
+            return Ok(Value::Bool(self.truthy(&right_val)));
+        }
+        if op == "||" {
+            let left_val = self.eval_expr(left, env)?;
+            if self.truthy(&left_val) {
+                return Ok(Value::Bool(true));
+            }
+            let right_val = self.eval_expr(right, env)?;
+            return Ok(Value::Bool(self.truthy(&right_val)));
+        }
+
         let left_val = self.eval_expr(left, env)?;
         let right_val = self.eval_expr(right, env)?;
 
         match op {
             "+" => match (&left_val, &right_val) {
-                (Value::Int(a), Value::Int(b)) => Ok(Value::Int(a + b)),
+                (Value::Int(a), Value::Int(b)) => a
+                    .checked_add(*b)
+                    .map(Value::Int)
+                    .ok_or_else(|| RuntimeError("integer overflow in addition".into())),
                 (Value::Float(a), Value::Float(b)) => Ok(Value::Float(a + b)),
                 (Value::Int(a), Value::Float(b)) => Ok(Value::Float(*a as f64 + b)),
                 (Value::Float(a), Value::Int(b)) => Ok(Value::Float(a + *b as f64)),
@@ -627,7 +659,10 @@ impl Interpreter {
                 ))),
             },
             "-" => match (&left_val, &right_val) {
-                (Value::Int(a), Value::Int(b)) => Ok(Value::Int(a - b)),
+                (Value::Int(a), Value::Int(b)) => a
+                    .checked_sub(*b)
+                    .map(Value::Int)
+                    .ok_or_else(|| RuntimeError("integer overflow in subtraction".into())),
                 (Value::Float(a), Value::Float(b)) => Ok(Value::Float(a - b)),
                 (Value::Int(a), Value::Float(b)) => Ok(Value::Float(*a as f64 - b)),
                 (Value::Float(a), Value::Int(b)) => Ok(Value::Float(a - *b as f64)),
@@ -636,7 +671,10 @@ impl Interpreter {
                 ))),
             },
             "*" => match (&left_val, &right_val) {
-                (Value::Int(a), Value::Int(b)) => Ok(Value::Int(a * b)),
+                (Value::Int(a), Value::Int(b)) => a
+                    .checked_mul(*b)
+                    .map(Value::Int)
+                    .ok_or_else(|| RuntimeError("integer overflow in multiplication".into())),
                 (Value::Float(a), Value::Float(b)) => Ok(Value::Float(a * b)),
                 (Value::Int(a), Value::Float(b)) => Ok(Value::Float(*a as f64 * b)),
                 (Value::Float(a), Value::Int(b)) => Ok(Value::Float(a * *b as f64)),
@@ -645,14 +683,26 @@ impl Interpreter {
                 ))),
             },
             "/" => match (&left_val, &right_val) {
-                (Value::Int(a), Value::Int(b)) => Ok(Value::Int(a / b)),
+                (Value::Int(a), Value::Int(b)) => {
+                    if *b == 0 {
+                        return Err(RuntimeError("division by zero".into()));
+                    }
+                    a.checked_div(*b)
+                        .map(Value::Int)
+                        .ok_or_else(|| RuntimeError("integer overflow in division".into()))
+                }
                 (Value::Float(a), Value::Float(b)) => Ok(Value::Float(a / b)),
                 _ => Err(RuntimeError(format!(
                     "Cannot divide {left_val:?} and {right_val:?}"
                 ))),
             },
             "%" => match (&left_val, &right_val) {
-                (Value::Int(a), Value::Int(b)) => Ok(Value::Int(a % b)),
+                (Value::Int(a), Value::Int(b)) => {
+                    if *b == 0 {
+                        return Err(RuntimeError("modulo by zero".into()));
+                    }
+                    Ok(Value::Int(a % b))
+                }
                 _ => Err(RuntimeError(format!(
                     "Cannot modulo {left_val:?} and {right_val:?}"
                 ))),
@@ -660,12 +710,6 @@ impl Interpreter {
             "==" => Ok(Value::Bool(self.values_equal(&left_val, &right_val))),
             "!=" => Ok(Value::Bool(!self.values_equal(&left_val, &right_val))),
             "<" | ">" | "<=" | ">=" => self.compare(&left_val, &right_val, op),
-            "&&" => Ok(Value::Bool(
-                self.truthy(&left_val) && self.truthy(&right_val),
-            )),
-            "||" => Ok(Value::Bool(
-                self.truthy(&left_val) || self.truthy(&right_val),
-            )),
             _ => Err(RuntimeError(format!("Unknown operator: {op}"))),
         }
     }
@@ -835,7 +879,11 @@ impl Interpreter {
             }
             // 哨兵逃出函数边界 = 循环外使用 break/continue，翻译为可读的诊断信息。
             Err(RuntimeError(ref msg)) if msg == CTRL_BREAK || msg == CTRL_CONTINUE => {
-                let kw = if msg == CTRL_BREAK { "break" } else { "continue" };
+                let kw = if msg == CTRL_BREAK {
+                    "break"
+                } else {
+                    "continue"
+                };
                 Err(RuntimeError(format!(
                     "'{kw}' 只能用于 while/for 循环体内（函数 '{}' 中越界使用）",
                     fnv.name
@@ -1137,7 +1185,9 @@ impl Interpreter {
                         None => Err(RuntimeError("ord 需要非空字符串".into())),
                     }
                 }
-                other => Err(RuntimeError(format!("ord 需要 char 或字符串，得到 {other}"))),
+                other => Err(RuntimeError(format!(
+                    "ord 需要 char 或字符串，得到 {other}"
+                ))),
             },
             "chr" => match &args[0] {
                 Value::Int(i) => {
@@ -1601,8 +1651,10 @@ impl Interpreter {
                 // （主程序通过 eval_stmt(Stmt::StructDef) 注册，stdlib 加载路径此前遗漏此分支）
                 for stmt in &prog.statements {
                     if let Stmt::StructDef { name, fields, .. } = stmt {
-                        self.structs
-                            .insert(name.clone(), fields.iter().map(|f| f.name.clone()).collect());
+                        self.structs.insert(
+                            name.clone(),
+                            fields.iter().map(|f| f.name.clone()).collect(),
+                        );
                     }
                 }
             }
